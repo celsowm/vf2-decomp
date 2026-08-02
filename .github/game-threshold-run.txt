@@ -1,0 +1,1 @@
+Trigger verified game threshold integration.
