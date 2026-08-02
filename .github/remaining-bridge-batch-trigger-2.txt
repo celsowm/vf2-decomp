@@ -1,0 +1,1 @@
+Trigger file already created; this second marker ensures the pull-request head differs after workflow registration.
