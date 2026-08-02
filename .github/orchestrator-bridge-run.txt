@@ -1,1 +1,2 @@
 Temporary pull-request trigger for the verified v0.0.24 orchestrator bridge integration.
+Retry after correcting the invalid direct-register return-address assertion.
