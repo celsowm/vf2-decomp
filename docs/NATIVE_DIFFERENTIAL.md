@@ -107,3 +107,5 @@ with `vf2i960 native-third-dispatch <rom-directory>`.
 CMake registers `vf2_native_third_dispatch` only when the configured supported
 ROM directory exists. The ROM-independent API and failure-contract tests run in
 GCC, Clang, ASan, UBSan and LeakSanitizer CI.
+
+<!-- temporary cleaned-master CI verification -->
