@@ -142,3 +142,5 @@ The current continuous native boundary is the main-loop continuation at
 texture, frame timer and interrupt blocks through `vf2_native_runtime`, execute a
 second complete frame boundary and reach the third scheduler sweep without
 native-side interpretation.
+
+<!-- temporary clean-master validation marker for v0.2 late-sweep scheduling -->
