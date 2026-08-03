@@ -1,0 +1,39 @@
+name: v0.2 kill-osage scheduler progress
+
+on:
+  push:
+    branches: [automation/v02-kill-scheduler]
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Prepare clean master
+        run: |
+          cp .github/apply-v02-kill-scheduler.py /tmp/apply-v02-kill-scheduler.py
+          git fetch origin master
+          git checkout -B master origin/master
+          python /tmp/apply-v02-kill-scheduler.py
+      - name: Configure
+        run: >-
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DVF2_BUILD_TESTS=ON
+          -DVF2_WARNINGS_AS_ERRORS=ON
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Publish directly to master
+        run: |
+          git add src/recovered/native_runtime.c tests/recovered/test_native_runtime.c
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit -m "runtime: handle dynamic late-sweep scheduling"
+          git push origin HEAD:master
