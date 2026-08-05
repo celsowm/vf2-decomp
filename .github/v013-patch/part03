@@ -1,0 +1,254 @@
++            machine, cursor, &raw_height, sizeof(raw_height)
++        );
++    }
++    ++cursor;
+     if (status == VF2_OK) {
++        status = vf2_model2a_read(
++            machine, cursor, &header_skip, sizeof(header_skip)
++        );
++    }
++    if (status != VF2_OK) {
++        return status;
++    }
++    data_start = cursor + (uint32_t)header_skip;
++    if ((data_start & UINT32_C(15)) != 0u) {
++        return VF2_ERROR_UNSUPPORTED;
++    }
++
++    width = ((uint32_t)raw_width + UINT32_C(1)) >> 1u;
++    height = ((uint32_t)raw_height + UINT32_C(1)) >> 1u;
++    while (width >= UINT32_C(1) && height >= UINT32_C(8)) {
++        uint32_t destination = 0u;
++        const uint32_t blocks = height >> 3u;
++        const uint64_t level_source =
++            (uint64_t)width * (uint64_t)blocks * UINT64_C(16);
++        const uint64_t row_output = (uint64_t)blocks * UINT64_C(32);
++        uint32_t row = 0u;
++
++        if (level_count >= VF2_STREAM_MAX_LEVELS || blocks == 0u ||
++            level_source > SIZE_MAX - source_size) {
++            return VF2_ERROR_UNSUPPORTED;
++        }
+         status = vf2_model2a_read_u32(
+             machine,
+-            cpu->registers[VF2_I960_G0_REGISTER + 3u],
+-            &cpu->registers[3]
++            table_address + (uint32_t)level_count * UINT32_C(4),
++            &destination
+         );
++        if (status != VF2_OK) {
++            return status;
++        }
++        level_destinations[level_count] = destination;
++        level_rows[level_count] = width;
++        level_blocks[level_count] = blocks;
++
++        for (row = 0u; row < width; ++row) {
++            const uint64_t row_start =
++                (uint64_t)destination + (uint64_t)row * UINT64_C(0x800);
++            const uint64_t row_end = row_start + row_output - UINT64_C(1);
++            if (row_end > UINT32_MAX) {
++                return VF2_ERROR_UNSUPPORTED;
++            }
++            status = vf2_model2a_read(
++                machine, (uint32_t)row_start, &probe, sizeof(probe)
++            );
++            if (status == VF2_OK) {
++                status = vf2_model2a_read(
++                    machine, (uint32_t)row_end, &probe, sizeof(probe)
++                );
++            }
++            if (status != VF2_OK) {
++                return VF2_ERROR_UNSUPPORTED;
++            }
++        }
++
++        source_size += (size_t)level_source;
++        total_rows += width;
++        total_blocks += (uint64_t)width * blocks;
++        output_bytes += (uint64_t)width * row_output;
++        loop_instructions += UINT64_C(8) +
++            (uint64_t)width *
++                (UINT64_C(9) + UINT64_C(12) * blocks);
++        ++level_count;
++        width >>= 1u;
++        height >>= 1u;
+     }
+-    cpu->registers[VF2_I960_G0_REGISTER + 3u] += UINT32_C(4);
+-    if (status != VF2_OK || cpu->registers[3] != 0u) {
+-        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    if (level_count == 0u || level_count > VF2_STREAM_MAX_LEVELS) {
++        return VF2_ERROR_UNSUPPORTED;
+     }
++    status = vf2_model2a_read_u32(
++        machine,
++        table_address + (uint32_t)level_count * UINT32_C(4),
++        &level_destinations[level_count]
++    );
++    if (status != VF2_OK) {
++        return status;
++    }
++
++    source_data = (uint8_t *)malloc(source_size);
++    if (source_data == NULL) {
++        return VF2_ERROR_OUT_OF_MEMORY;
++    }
++    status = vf2_model2a_read(
++        machine, data_start, source_data, source_size
++    );
++    if (status != VF2_OK) {
++        free(source_data);
++        return status;
++    }
++
+     status = vf2_i960_cpu_enter_procedure(
+-        cpu, VF2_TEXTURE_HEADER_DECODE_ENTRY,
+-        VF2_TEXTURE_STREAM_HEADER_CALL_RETURN
++        &candidate_cpu,
++        VF2_TEXTURE_STREAM_EXPAND_ENTRY,
++        VF2_TEXTURE_STREAM_EXPAND_RETURN
+     );
+     if (status != VF2_OK) {
++        free(source_data);
+         return status;
+     }
+-    cpu->executed_instructions += UINT64_C(5);
++    candidate_cpu.executed_instructions += UINT64_C(5);
++
++    candidate_cpu.registers[VF2_I960_G0_REGISTER] = wait_input;
++    status = vf2_i960_cpu_enter_procedure(
++        &candidate_cpu,
++        VF2_TIMER_WAIT_UPDATE_ENTRY,
++        UINT32_C(0x0004ca28)
++    );
++    if (status == VF2_OK) {
++        candidate_cpu.executed_instructions += UINT64_C(13);
++        status = execute_timer_wait_update(
++            machine, &candidate_cpu, &timer_report
++        );
++    }
++    if (status != VF2_OK || candidate_cpu.ip != UINT32_C(0x0004ca28)) {
++        free(source_data);
++        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    }
++    candidate_cpu.executed_instructions += UINT64_C(14);
++
++    for (level = 0u; level < level_count; ++level) {
++        uint32_t row = 0u;
++        for (row = 0u; row < level_rows[level]; ++row) {
++            uint32_t block = 0u;
++            const uint32_t row_destination =
++                level_destinations[level] + row * UINT32_C(0x800);
++            for (block = 0u; block < level_blocks[level]; ++block) {
++                uint32_t words[4] = {0u, 0u, 0u, 0u};
++                uint32_t word_index = 0u;
++                const uint32_t destination =
++                    row_destination + block * UINT32_C(32);
++                const uint8_t *source = source_data + source_offset;
++
++                for (word_index = 0u; word_index < 4u; ++word_index) {
++                    const uint8_t *word = source + word_index * 4u;
++                    words[word_index] =
++                        (uint32_t)word[0] |
++                        ((uint32_t)word[1] << 8u) |
++                        ((uint32_t)word[2] << 16u) |
++                        ((uint32_t)word[3] << 24u);
++                }
++                status = vf2_model2a_write(
++                    machine, destination, source, 16u
++                );
++                for (word_index = 0u;
++                     status == VF2_OK && word_index < 4u;
++                     ++word_index) {
++                    status = vf2_model2a_write_u32(
++                        machine,
++                        destination + UINT32_C(16) + word_index * UINT32_C(4),
++                        words[word_index] >> 16u
++                    );
++                }
++                if (status != VF2_OK) {
++                    free(source_data);
++                    return status;
++                }
++                source_offset += 16u;
++            }
++        }
++    }
++    if (source_offset != source_size || total_blocks == 0u) {
++        free(source_data);
++        return VF2_ERROR_UNSUPPORTED;
++    }
++    {
++        const uint8_t *last = source_data + source_size - 16u;
++        uint32_t word_index = 0u;
++        for (word_index = 0u; word_index < 4u; ++word_index) {
++            const uint8_t *word = last + word_index * 4u;
++            const uint32_t value =
++                (uint32_t)word[0] |
++                ((uint32_t)word[1] << 8u) |
++                ((uint32_t)word[2] << 16u) |
++                ((uint32_t)word[3] << 24u);
++            candidate_cpu.registers[VF2_I960_G0_REGISTER + word_index] = value;
++            candidate_cpu.registers[VF2_I960_G0_REGISTER + 4u + word_index] =
++                value >> 16u;
++        }
++    }
++    free(source_data);
++    candidate_cpu.registers[VF2_I960_G0_REGISTER] = 0u;
++    candidate_cpu.registers[VF2_I960_G0_REGISTER + 12u] = 0u;
++    candidate_cpu.registers[VF2_I960_G0_REGISTER + 13u] = 0u;
++    candidate_cpu.executed_instructions += loop_instructions;
++    status = vf2_i960_cpu_return_procedure(&candidate_cpu, machine);
++    if (status != VF2_OK ||
++        candidate_cpu.ip != VF2_TEXTURE_STREAM_EXPAND_RETURN) {
++        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    }
++    *cpu = candidate_cpu;
+ 
+     report->kind = VF2_HYBRID_BRIDGE_TEXTURE_STREAM_HEADER_CALL;
+     report->entry_address = VF2_TEXTURE_STREAM_HEADER_CALL_ENTRY;
+-    report->exit_address = VF2_TEXTURE_HEADER_DECODE_ENTRY;
++    report->exit_address = cpu->ip;
++    report->iterations = total_blocks;
++    report->rows = total_rows;
++    report->changed_values = total_blocks * UINT64_C(8);
++    report->bytes_written =
++        (size_t)output_bytes + timer_report.bytes_written;
++    report->recovered_instruction_count =
++        cpu->executed_instructions - start_instructions;
++    report->recovered_procedure_calls =
++        cpu->procedure_calls - start_calls;
++    report->recovered_procedure_returns =
++        cpu->procedure_returns - start_returns;
++    report->cpu_poststate_applied = 1;
++    return VF2_OK;
++}
++
++
++vf2_status execute_texture_stream_resume_gate(
++    vf2_model2a *machine,
++    vf2_i960_cpu *cpu,
++    vf2_hybrid_bridge_report *report
++)
++{
++    uint32_t pending_state = 0u;
++    vf2_status status = VF2_OK;
++
++    if (machine == NULL || cpu == NULL || report == NULL) {
++        return VF2_ERROR_INVALID_ARGUMENT;
++    }
++    if (cpu->local_frame_depth == 0u) {
++        return VF2_ERROR_UNSUPPORTED;
++    }
++    status = vf2_model2a_read_u32(
++        machine, UINT32_C(0x00550080), &pending_state
++    );
++    if (status != VF2_OK || pending_state != 0u) {
++        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    }
++    cpu->registers[VF2_I960_G0_REGISTER] = 0u;
++    cpu->ip = VF2_TEXTURE_RECORD_ADVANCE_ENTRY;
++    cpu->executed_instructions += UINT64_C(3);
++
++    report->kind = VF2_HYBRID_BRIDGE_TEXTURE_STREAM_HEADER_CALL;
++    report->entry_address = VF2_TEXTURE_STREAM_RESUME_GATE_ENTRY;
