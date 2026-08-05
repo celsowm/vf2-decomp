@@ -1,0 +1,25 @@
+name: Export current v0.1.1 master source
+
+on:
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+      - name: Package source
+        run: |
+          git archive --format=zip --output=/tmp/vf2-decomp-master-v011.zip HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vf2-decomp-master-v011
+          path: /tmp/vf2-decomp-master-v011.zip
+          if-no-files-found: error
