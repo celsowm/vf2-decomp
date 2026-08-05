@@ -1,0 +1,65 @@
+name: Apply validated v0.1.2 patch
+
+on:
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout current master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          path: work
+          fetch-depth: 0
+
+      - name: Checkout patch source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: patch-source
+
+      - name: Decode and verify patch
+        run: |
+          base64 --decode patch-source/.github/vf2-v012.patch.gz.b64 \
+            | gzip --decompress > /tmp/vf2-v012.patch
+          echo "567bbe83fc02bab7cdc2651a8fd6f5db70e7c849465afa3a4711f7227b1373ab  /tmp/vf2-v012.patch" \
+            | sha256sum --check
+          git -C work apply --check /tmp/vf2-v012.patch
+          git -C work apply /tmp/vf2-v012.patch
+
+      - name: Build and test ROM-independent suite
+        working-directory: work
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DVF2_BUILD_TESTS=ON \
+            -DVF2_WARNINGS_AS_ERRORS=ON \
+            -DVF2_ROM_DIR=/tmp/no-proprietary-roms
+          cmake --build build --parallel
+          ctest --test-dir build --output-on-failure
+
+      - name: Commit directly to master
+        working-directory: work
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            CMakeLists.txt README.md \
+            docs/ROADMAP.md docs/STATUS.md docs/NATIVE_RUNTIME.md \
+            docs/UNCOVERED_BRANCHES.md include/vf2/version.h \
+            src/app/main.c \
+            src/recovered/texture_bridge_input.c \
+            src/recovered/texture_bridge_match.c \
+            src/recovered/texture_bridge_video.c \
+            tests/analysis/test_orchestrator_bridge.c \
+            tools/vf2i960/main.c
+          git commit -m "runtime: validate native fourth dispatch"
+          git push origin HEAD:master
