@@ -1,0 +1,196 @@
++- added synthetic regressions and a twenty-fifth ROM-backed CTest target.
++
+ ## v0.2.0 — game subsystems
+ 
+-- extend continuous native execution through the complete fourth scheduler sweep,
++- extend continuous native execution through the complete fifth scheduler sweep,
+   subsequent state transitions and long-running repeated frames;
+ - fighter and object structures;
+ - camera, collision, animation and sound tasks;
+diff --git a/docs/STATUS.md b/docs/STATUS.md
+index c4af30b..bd6a191 100644
+--- a/docs/STATUS.md
++++ b/docs/STATUS.md
+@@ -1,6 +1,6 @@
+ # Status
+ 
+-## Current master — v0.1.2
++## Current master — v0.1.3
+ 
+ | Component | State |
+ |---|---|
+@@ -8,15 +8,16 @@
+ | Supported ROM validation | 36/36 files |
+ | Accepted startup/post-frame bridge | Recovered C |
+ | Post-frame bridge instructions | 1,270,822 / 1,270,822 recovered |
+-| Repeated-frame corridor | 58,869 instructions across 78 differential blocks |
+-| Continuous recovered instructions | 1,329,691 |
++| Repeated-frame corridor | 7,402,741 instructions across 830 differential blocks |
++| Continuous recovered instructions | 8,673,563 |
+ | Native-side interpreted instructions on accepted paths | 0 |
+-| Second and third scheduler sweeps | Completely recovered for the observed corridor |
+-| Fourth scheduler entry | Recovered and ROM-validated |
+-| Current ROM-proven native boundary | Fourth `fa_game_info` at `0x0001645c` |
++| Second through fourth scheduler sweeps | Completely recovered for the observed corridor |
++| Fifth scheduler entry | Recovered and ROM-validated |
++| Current ROM-proven native boundary | Fifth `fa_game_info` at `0x0001645c` |
+ | `vf2i960 native-third-dispatch` | `MATCH`: 42 blocks / 55,239 instructions |
+ | `vf2i960 native-fourth-dispatch` | `MATCH`: 78 blocks / 58,869 instructions |
+-| ROM-independent / ROM-backed CTest targets | 8 / 24, 32 total |
++| `vf2i960 native-fifth-dispatch` | `MATCH`: 830 blocks / 7,402,741 instructions |
++| ROM-independent / ROM-backed CTest targets | 8 / 25, 33 total |
+ | TGP protocol and renderer | Not recovered |
+ | Motorola 68000 / SCSP audio | Not recovered |
+ | Window, input and production platform backend | Not implemented |
+@@ -24,54 +25,49 @@
+ 
+ ## Proven scope
+ 
+-The native path now runs continuously from the completed first scheduler sweep
++The native path runs continuously from the completed first scheduler sweep
+ through the original 1,270,822-instruction post-frame bridge, the complete
+-observed second and third scheduler sweeps, two repeated frame boundaries and
+-the fourth scheduler entry. The fourth `fa_game_info` task is reached at
+-`0x0001645c`, registry `0x00515200`, without native-side i960 interpretation.
+-
+-The v0.1.2 differential contract is:
+-
+-- 78 compared repeated-frame blocks;
+-- 58,869 reference instructions and 58,869 recovered native instructions;
+-- 1,329,691 continuous recovered instructions including the historical bridge;
+-- two repeated scheduler entries and finishes;
+-- nine repeated scheduler transitions;
+-- four frame-wait phases; and
++observed second, third and fourth scheduler sweeps, three repeated frame
++boundaries and the fifth scheduler entry. The fifth `fa_game_info` task is
++reached at `0x0001645c`, registry `0x00515200`, without native-side i960
++interpretation.
++
++The v0.1.3 differential contract is:
++
++- 830 compared repeated-frame blocks;
++- 7,402,741 reference and recovered-native instructions;
++- 8,673,563 continuous recovered instructions including the historical bridge;
++- three repeated scheduler entries and finishes;
++- twelve repeated scheduler transitions;
++- six frame-wait phases; and
+ - exact CPU, architectural local-frame, execution-counter, frame-event and all
+-  mutable Model 2 memory equality at every checkpoint.
++  mutable Model 2 memory equality after every accepted block.
+ 
+-The extension beyond v0.1.1 includes the observed:
++The extension beyond v0.1.2 includes the observed:
+ 
+-- player-update bit-14 immediate-return branch;
+-- active selector path in `game_input_update`, followed by both sequence gates;
+-- active selector immediate-return path in `game_state_update`;
+-- frame-mode 16/17 memory-diagnostic return after the memory probe;
+-- active-selector fast return in the frame counter;
+-- phase-17 frame dispatcher and its simple player setup helper path; and
+-- late-sweep task and texture-expiration cases already hardened in v0.1.1.
+-
+-The player-layer composite now executes nested CPU changes against a candidate
+-state and commits only after both recovered children succeed. The video-layer
+-commit reads and validates all observed inputs before its first write. These are
+-specific atomicity protections for the recovered rejection points, not a claim
+-that every runtime block is globally transactional.
++- texture status scan with nine inactive records before the live tenth record;
++- non-zero texture stream dispatch and five mip levels;
++- 43,648 source bytes expanded into 87,296 texture bytes;
++- zero-value texture-counter completion path;
++- stream-resume gate with no pending transfer; and
++- mode-17 system-memory diagnostic profile, which executes one instruction more
++  than adjacent mode 16.
+ 
+ Run the strict acceptance with:
+ 
+ ```sh
+-vf2i960 native-fourth-dispatch /path/to/vf2
++vf2i960 native-fifth-dispatch /path/to/vf2
+ ```
+ 
+-The older `native-third-dispatch` contract remains unchanged at 42 blocks and
+-55,239 instructions.
++The older third- and fourth-dispatch commands remain independent regression
++contracts.
+ 
+ ## Validation
+ 
+-The exact supported 36-file ROM set passed all 32 configured CTest targets:
+-8 ROM-independent tests and 24 ROM-backed differential/observation tests. The
+-ROM-independent suite also passed under AddressSanitizer, UndefinedBehaviorSanitizer
+-and LeakSanitizer.
++The exact supported 36-file ROM set passes all 33 configured CTest targets:
++8 ROM-independent tests and 25 ROM-backed differential/observation tests. The
++ROM-independent suite also passes under AddressSanitizer,
++UndefinedBehaviorSanitizer and LeakSanitizer.
+ 
+ Public CI cannot contain the proprietary ROM set, so GitHub Actions covers the
+ warning-as-error GCC/Clang builds and sanitizers while strict ROM-backed
+@@ -84,11 +80,11 @@ return `VF2_ERROR_UNSUPPORTED`.
+ 
+ ## Roadmap position
+ 
+-v0.1.2 completes the first full extension from the third scheduler entry to the
+-fourth. The active stage remains v0.2.0 game subsystems. The immediate execution
+-target is the complete fourth scheduler sweep and the next genuinely new state
+-transition, followed by longer multi-frame endurance runs.
++v0.1.3 completes the extension from the fourth scheduler entry to the fifth.
++The active stage remains v0.2.0 game subsystems. The immediate execution target
++is the complete fifth scheduler sweep and longer repeated-frame endurance runs,
++while replacing evidence-specific raw-address logic with fighter, object,
++match, animation, collision and input types.
+ 
+-Broader fighter/object types, match logic, animation, collision and input remain
+-the central v0.2.0 work. TGP rendering, 68000/SCSP audio and a production
+-platform backend remain later milestones.
++TGP rendering, 68000/SCSP audio and a production platform backend remain later
++milestones.
+diff --git a/docs/UNCOVERED_BRANCHES.md b/docs/UNCOVERED_BRANCHES.md
+index fc9d3d1..45045f3 100644
+--- a/docs/UNCOVERED_BRANCHES.md
++++ b/docs/UNCOVERED_BRANCHES.md
+@@ -1,8 +1,8 @@
+-# Mapping of Uncovered and Unobserved Branches (v0.1.2)
++# Mapping of Uncovered and Unobserved Branches (v0.1.3)
+ 
+ This document catalogs major unobserved execution paths and unrecovered
+ subsystems in Virtua Fighter 2 Version 2.1. The accepted clean-room corridor now
+-runs through the fourth `fa_game_info` entry, but it remains one evidence-backed
++runs through the fifth `fa_game_info` entry, but it remains one evidence-backed
+ sequence rather than a complete game implementation. Unsupported paths return
+ `VF2_ERROR_UNSUPPORTED` instead of falling back to i960 interpretation.
+ 
+@@ -19,7 +19,7 @@ handles the observed changing final active task. Still uncovered:
+ 
+ ## 2. Gameplay (`fa_game_info` and related gates)
+ 
+-The fourth-dispatch corridor now includes active input/state selector fast paths,
++The accepted corridor includes active input/state selector fast paths,
+ the player-update bit-14 exit and their observed sequence gates. Still missing:
+ 
+ - character and arena selection;
+@@ -38,10 +38,12 @@ remain unsupported.
+ 
+ ## 4. Texture, video and geometry bridge
+ 
+-The observed texture expiration and pending palette upload are recovered, and
+-video-layer rejection now preflights inputs before writes. Still uncovered:
++The observed texture expiration, pending palette upload and first non-zero
++five-level stream expansion are recovered. Video-layer rejection preflights
++inputs before writes. Still uncovered:
+ 
+ - alternate texture records, page formats, palette arguments and cache states;
++- other stream headers, dimensions, timer states and mip layouts;
+ - compressed-stream corruption and invalid symbol/pair indexes;
+ - geometry ring-register patterns outside the accepted sequence;
+ - TGP command protocol, transforms, clipping, projection and rasterization; and
+diff --git a/include/vf2/version.h b/include/vf2/version.h
+index bbacf35..52d050e 100644
+--- a/include/vf2/version.h
++++ b/include/vf2/version.h
+@@ -3,7 +3,7 @@
+ 
+ #define VF2_VERSION_MAJOR 0
+ #define VF2_VERSION_MINOR 1
+-#define VF2_VERSION_PATCH 2
