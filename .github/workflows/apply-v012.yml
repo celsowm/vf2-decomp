@@ -28,7 +28,11 @@ jobs:
 
       - name: Decode and verify patch
         run: |
-          base64 --decode patch-source/.github/vf2-v012.patch.gz.b64 \
+          cat patch-source/.github/vf2-v012-patch/part-* \
+            | tr -d '\n' > /tmp/vf2-v012.patch.gz.b64
+          echo "79b1049517ed31e5e5cce094b4df913efa33dd5065ee2cd2ba3b7238f9b98f70  /tmp/vf2-v012.patch.gz.b64" \
+            | sha256sum --check
+          base64 --decode /tmp/vf2-v012.patch.gz.b64 \
             | gzip --decompress > /tmp/vf2-v012.patch
           echo "567bbe83fc02bab7cdc2651a8fd6f5db70e7c849465afa3a4711f7227b1373ab  /tmp/vf2-v012.patch" \
             | sha256sum --check
