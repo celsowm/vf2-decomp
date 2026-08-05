@@ -1,0 +1,84 @@
++            : (native_fourth_dispatch
++                ? "native-fourth-dispatch"
++                : "native-third-dispatch");
+         memset(&runtime_state, 0, sizeof(runtime_state));
+         memset(&third_report, 0, sizeof(third_report));
+         status = vf2_native_runtime_initialize(&runtime_state, 4u);
+@@ -5072,10 +5084,14 @@ static int command_native_dispatch_ex(
+             printf("Repeated frame-wait phases:         %zu\n",
+                    runtime_state.frame_wait_phases);
+             printf("%s task entry:                   0x%08x\n",
+-                   native_fourth_dispatch ? "Fourth" : "Third",
++                   native_fifth_dispatch
++                       ? "Fifth"
++                       : (native_fourth_dispatch ? "Fourth" : "Third"),
+                    (unsigned)native_cpu.ip);
+             printf("%s registry:                     0x%08x\n",
+-                   native_fourth_dispatch ? "Fourth" : "Third",
++                   native_fifth_dispatch
++                       ? "Fifth"
++                       : (native_fourth_dispatch ? "Fourth" : "Third"),
+                    (unsigned)native_cpu.registers[29]);
+             printf("Continuous recovered instructions:  %llu\n",
+                    (unsigned long long)(
+@@ -5292,27 +5308,36 @@ static int command_native_dispatch_ex(
+ 
+ static int command_native_first_dispatch(const char *rom_directory)
+ {
+-    return command_native_dispatch_ex(rom_directory, false, false, false, false);
++    return command_native_dispatch_ex(rom_directory, false, false, false, false, false);
+ }
+ 
+ static int command_native_second_dispatch(const char *rom_directory)
+ {
+-    return command_native_dispatch_ex(rom_directory, true, false, false, false);
++    return command_native_dispatch_ex(rom_directory, true, false, false, false, false);
+ }
+ 
+ static int command_native_third_dispatch(const char *rom_directory)
+ {
+-    return command_native_dispatch_ex(rom_directory, true, true, false, false);
++    return command_native_dispatch_ex(rom_directory, true, true, false, false, false);
+ }
+ 
+ static int command_native_fourth_dispatch(const char *rom_directory)
+ {
+-    return command_native_dispatch_ex(rom_directory, true, false, true, false);
++    return command_native_dispatch_ex(
++        rom_directory, true, false, true, false, false
++    );
++}
++
++static int command_native_fifth_dispatch(const char *rom_directory)
++{
++    return command_native_dispatch_ex(
++        rom_directory, true, false, false, true, false
++    );
+ }
+ 
+ static int command_native_observe_third_sweep(const char *rom_directory)
+ {
+-    return command_native_dispatch_ex(rom_directory, true, false, false, true);
++    return command_native_dispatch_ex(rom_directory, true, false, false, false, true);
+ }
+ 
+ static const char *orchestrator_trace_default_path(void)
+@@ -5344,7 +5369,7 @@ static int command_trace_orchestrator(
+     g_orchestrator_trace_step = 0u;
+ 
+     dispatch_result = command_native_dispatch_ex(
+-        rom_directory, true, false, false, false
++        rom_directory, true, false, false, false, false
+     );
+ 
+     g_orchestrator_trace_file = NULL;
+@@ -5511,6 +5536,9 @@ int main(int argc, char **argv)
+     if (strcmp(argv[1], "native-fourth-dispatch") == 0 && argc == 3) {
+         return command_native_fourth_dispatch(argv[2]);
+     }
++    if (strcmp(argv[1], "native-fifth-dispatch") == 0 && argc == 3) {
++        return command_native_fifth_dispatch(argv[2]);
++    }
+     if (strcmp(argv[1], "compare-texture-bridge") == 0 && argc == 3) {
+         return command_native_second_dispatch(argv[2]);
+     }
