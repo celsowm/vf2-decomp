@@ -1,0 +1,219 @@
+-#define VF2_VERSION_STRING "0.1.2"
++#define VF2_VERSION_PATCH 3
++#define VF2_VERSION_STRING "0.1.3"
+ 
+ #endif
+diff --git a/src/app/main.c b/src/app/main.c
+index 6046327..9d893c7 100644
+--- a/src/app/main.c
++++ b/src/app/main.c
+@@ -100,10 +100,10 @@ int main(int argc, char **argv)
+     printf("SAT:     0x%08x\n", (unsigned)recovered.system_address_table);
+     printf("PRCB:    0x%08x\n", (unsigned)recovered.initial_prcb);
+     printf("Entry:   0x%08x\n", (unsigned)recovered.initial_entry);
+-    printf("\nCurrent milestone: repeated-frame native runtime through fourth dispatch.\n");
++    printf("\nCurrent milestone: repeated-frame native runtime through fifth dispatch.\n");
+     printf(
+         "Next milestone: recover game subsystems and extend execution beyond "
+-        "the fourth scheduler entry.\n"
++        "the fifth scheduler entry.\n"
+     );
+ 
+     free(maincpu);
+diff --git a/src/recovered/texture_bridge.c b/src/recovered/texture_bridge.c
+index 729f512..3e7cb9c 100644
+--- a/src/recovered/texture_bridge.c
++++ b/src/recovered/texture_bridge.c
+@@ -330,6 +330,11 @@ vf2_status vf2_hybrid_post_frame_bridge_execute(
+             machine, cpu, &local_report
+         );
+         break;
++    case VF2_TEXTURE_STREAM_RESUME_GATE_ENTRY:
++        status = execute_texture_stream_resume_gate(
++            machine, cpu, &local_report
++        );
++        break;
+     default:
+         status = VF2_ERROR_UNSUPPORTED;
+         break;
+diff --git a/src/recovered/texture_bridge_internal.h b/src/recovered/texture_bridge_internal.h
+index 007b697..9c3ebe1 100644
+--- a/src/recovered/texture_bridge_internal.h
++++ b/src/recovered/texture_bridge_internal.h
+@@ -96,6 +96,9 @@
+ #define VF2_TEXTURE_RECORD_STATUS_SETUP_ENTRY UINT32_C(0x0004bd5c)
+ #define VF2_TEXTURE_RECORD_STATUS_SETUP_EXIT UINT32_C(0x0004bde0)
+ #define VF2_TEXTURE_STREAM_HEADER_CALL_ENTRY UINT32_C(0x0004be6c)
++#define VF2_TEXTURE_STREAM_EXPAND_ENTRY UINT32_C(0x0004c9dc)
++#define VF2_TEXTURE_STREAM_EXPAND_RETURN UINT32_C(0x0004be80)
++#define VF2_TEXTURE_STREAM_RESUME_GATE_ENTRY UINT32_C(0x0004be80)
+ #define VF2_TEXTURE_STREAM_HEADER_CALL_RETURN UINT32_C(0x0004bebc)
+ #define VF2_GAME_EVENT_QUEUE_MMIO UINT32_C(0x00e80004)
+ #define VF2_TEXTURE_ORCHESTRATOR_SAVE_ENTRY UINT32_C(0x0004bb18)
+@@ -251,6 +254,7 @@ vf2_status execute_texture_upload_dispatch(vf2_model2a *machine, vf2_i960_cpu *c
+ vf2_status execute_texture_orchestrator_entry_gate(vf2_model2a *machine, vf2_i960_cpu *cpu, vf2_hybrid_bridge_report *report);
+ vf2_status execute_texture_record_status_setup(vf2_model2a *machine, vf2_i960_cpu *cpu, vf2_hybrid_bridge_report *report);
+ vf2_status execute_texture_stream_header_call(vf2_model2a *machine, vf2_i960_cpu *cpu, vf2_hybrid_bridge_report *report);
++vf2_status execute_texture_stream_resume_gate(vf2_model2a *machine, vf2_i960_cpu *cpu, vf2_hybrid_bridge_report *report);
+ vf2_status execute_texture_convert_loop(vf2_model2a *machine, vf2_i960_cpu *cpu, vf2_hybrid_bridge_report *report);
+ vf2_status execute_texture_convert_post(vf2_model2a *machine, vf2_i960_cpu *cpu, vf2_hybrid_bridge_report *report);
+ vf2_status execute_timer_wait_update(vf2_model2a *machine, vf2_i960_cpu *cpu, vf2_hybrid_bridge_report *report);
+diff --git a/src/recovered/texture_bridge_match.c b/src/recovered/texture_bridge_match.c
+index 64bfbfc..becf966 100644
+--- a/src/recovered/texture_bridge_match.c
++++ b/src/recovered/texture_bridge_match.c
+@@ -554,9 +554,13 @@ vf2_status execute_system_memory_diagnostic(
+         return status;
+     }
+     if (frame_mode == UINT8_C(16) || frame_mode == UINT8_C(17)) {
++        const uint64_t instructions = frame_mode == UINT8_C(17)
++            ? UINT64_C(67)
++            : UINT64_C(66);
++
+         set_equal_condition(cpu);
+         account_nested_procedure(cpu, UINT64_C(1), UINT64_C(1));
+-        status = finish_recovered_procedure(machine, cpu, UINT64_C(66));
++        status = finish_recovered_procedure(machine, cpu, instructions);
+         if (status != VF2_OK) {
+             return status;
+         }
+@@ -565,7 +569,7 @@ vf2_status execute_system_memory_diagnostic(
+         report->exit_address = cpu->ip;
+         report->iterations = UINT64_C(4);
+         report->bytes_written = 16u;
+-        report->recovered_instruction_count = UINT64_C(66);
++        report->recovered_instruction_count = instructions;
+         report->recovered_procedure_calls = UINT64_C(1);
+         report->recovered_procedure_returns = UINT64_C(2);
+         report->cpu_poststate_applied = 1;
+diff --git a/src/recovered/texture_bridge_texture.c b/src/recovered/texture_bridge_texture.c
+index 599f533..0309e6f 100644
+--- a/src/recovered/texture_bridge_texture.c
++++ b/src/recovered/texture_bridge_texture.c
+@@ -1,5 +1,7 @@
+ #include "texture_bridge_internal.h"
+ 
++#include <stdlib.h>
++
+ vf2_status write_u16(
+     vf2_model2a *machine,
+     uint32_t address,
+@@ -519,45 +521,392 @@ vf2_status execute_texture_stream_header_call(
+     vf2_hybrid_bridge_report *report
+ )
+ {
++    enum { VF2_STREAM_MAX_LEVELS = 8 };
++    const uint32_t timer_mask = UINT32_C(0x000fffff);
++    const uint32_t table_address = UINT32_C(0x0055c2f8);
++    vf2_i960_cpu candidate_cpu;
++    vf2_hybrid_bridge_report timer_report = {0};
++    uint32_t stream = 0u;
++    uint32_t first_word = 0u;
++    uint32_t tick = 0u;
++    uint32_t wait_input = 0u;
++    uint32_t timer3 = 0u;
++    uint32_t pending_state = 0u;
++    uint32_t level_destinations[VF2_STREAM_MAX_LEVELS + 1u] = {0u};
++    uint32_t level_rows[VF2_STREAM_MAX_LEVELS] = {0u};
++    uint32_t level_blocks[VF2_STREAM_MAX_LEVELS] = {0u};
++    uint32_t width = 0u;
++    uint32_t height = 0u;
++    uint32_t cursor = 0u;
++    uint32_t data_start = 0u;
++    uint8_t frame_state = 0u;
++    uint8_t wait_state = 0u;
++    uint8_t raw_width = 0u;
++    uint8_t raw_height = 0u;
++    uint8_t header_skip = 0u;
++    uint8_t probe = 0u;
++    uint8_t *source_data = NULL;
++    size_t source_size = 0u;
++    size_t source_offset = 0u;
++    size_t level_count = 0u;
++    size_t level = 0u;
++    uint64_t loop_instructions = UINT64_C(7);
++    uint64_t total_rows = 0u;
++    uint64_t total_blocks = 0u;
++    uint64_t output_bytes = 0u;
++    const uint64_t start_instructions =
++        cpu != NULL ? cpu->executed_instructions : 0u;
++    const uint64_t start_calls =
++        cpu != NULL ? cpu->procedure_calls : 0u;
++    const uint64_t start_returns =
++        cpu != NULL ? cpu->procedure_returns : 0u;
+     vf2_status status = VF2_OK;
+ 
++    if (machine == NULL || cpu == NULL || report == NULL) {
++        return VF2_ERROR_INVALID_ARGUMENT;
++    }
+     if (cpu->local_frame_depth == 0u) {
+         return VF2_ERROR_UNSUPPORTED;
+     }
++
++    status = vf2_model2a_read_u32(machine, cpu->registers[10], &stream);
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(machine, stream, &first_word);
++    }
++    if (status != VF2_OK) {
++        return status;
++    }
++
++    candidate_cpu = *cpu;
++    candidate_cpu.registers[VF2_I960_G0_REGISTER + 3u] =
++        stream + UINT32_C(4);
++    candidate_cpu.registers[3] = first_word;
++
++    if (first_word == 0u) {
++        status = vf2_i960_cpu_enter_procedure(
++            &candidate_cpu,
++            VF2_TEXTURE_HEADER_DECODE_ENTRY,
++            VF2_TEXTURE_STREAM_HEADER_CALL_RETURN
++        );
++        if (status != VF2_OK) {
++            return status;
++        }
++        candidate_cpu.executed_instructions += UINT64_C(5);
++        *cpu = candidate_cpu;
++
++        report->kind = VF2_HYBRID_BRIDGE_TEXTURE_STREAM_HEADER_CALL;
++        report->entry_address = VF2_TEXTURE_STREAM_HEADER_CALL_ENTRY;
++        report->exit_address = VF2_TEXTURE_HEADER_DECODE_ENTRY;
++        report->iterations = UINT64_C(1);
++        report->recovered_instruction_count = UINT64_C(5);
++        report->recovered_procedure_calls = UINT64_C(1);
++        report->cpu_poststate_applied = 1;
++        return VF2_OK;
++    }
++    if (first_word != UINT32_C(1)) {
++        return VF2_ERROR_UNSUPPORTED;
++    }
++
+     status = vf2_model2a_read_u32(
+-        machine, cpu->registers[10],
+-        &cpu->registers[VF2_I960_G0_REGISTER + 3u]
++        machine, UINT32_C(0x00550004), &tick
++    );
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(
++            machine, UINT32_C(0x00550008), &wait_input
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(
++            machine, UINT32_C(0x00f0000c), &timer3
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(
++            machine, UINT32_C(0x00550080), &pending_state
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read(
++            machine, UINT32_C(0x00500000),
++            &frame_state, sizeof(frame_state)
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read(
++
