@@ -1,0 +1,248 @@
++    report->exit_address = VF2_TEXTURE_RECORD_ADVANCE_ENTRY;
+     report->iterations = UINT64_C(1);
+-    report->recovered_instruction_count = UINT64_C(5);
+-    report->recovered_procedure_calls = UINT64_C(1);
++    report->recovered_instruction_count = UINT64_C(3);
+     report->cpu_poststate_applied = 1;
+     return VF2_OK;
+ }
+ 
++
+ vf2_status execute_texture_convert_loop(
+     vf2_model2a *machine,
+     vf2_i960_cpu *cpu,
+@@ -2565,51 +2914,72 @@ vf2_status execute_texture_status_dispatch_call(
+     vf2_hybrid_bridge_report *report
+ )
+ {
++    vf2_i960_cpu candidate_cpu;
++    size_t inactive_records = 0u;
+     uint16_t active_count = 0u;
+     uint16_t status_value = 0u;
+     uint32_t runtime_flags = 0u;
++    uint64_t instructions = UINT64_C(2);
+     vf2_status status = VF2_OK;
+ 
++    if (machine == NULL || cpu == NULL || report == NULL) {
++        return VF2_ERROR_INVALID_ARGUMENT;
++    }
+     if (cpu->local_frame_depth == 0u) {
+         return VF2_ERROR_UNSUPPORTED;
+     }
+-    cpu->registers[5] = VF2_TEXTURE_RECORD_START;
+-    cpu->registers[6] = VF2_TEXTURE_RECORD_END;
+-    status = read_u16(
+-        machine,
+-        VF2_TEXTURE_RECORD_START + UINT32_C(2),
+-        &active_count
+-    );
+-    if (status == VF2_OK) {
+-        cpu->registers[3] =
++
++    /* Scan against a CPU candidate so an unsupported active-record variant
++     * cannot leave the caller midway through the record table. */
++    candidate_cpu = *cpu;
++    candidate_cpu.registers[5] = VF2_TEXTURE_RECORD_START;
++    candidate_cpu.registers[6] = VF2_TEXTURE_RECORD_END;
++
++    for (;;) {
++        status = read_u16(
++            machine,
++            candidate_cpu.registers[5] + UINT32_C(2),
++            &active_count
++        );
++        if (status != VF2_OK) {
++            return status;
++        }
++        candidate_cpu.registers[3] =
+             (uint32_t)(int32_t)(int16_t)active_count;
+-        if (cpu->registers[3] == 0u) {
+-            vf2_orchestrator_scan_report scan_report;
+-            memset(&scan_report, 0, sizeof(scan_report));
+-            status = vf2_orchestrator_scan_inactive_records(
+-                machine, cpu, &scan_report
+-            );
+-            if (status != VF2_OK) {
+-                return status;
++
++        if (candidate_cpu.registers[3] != 0u) {
++            instructions += UINT64_C(2);
++            break;
++        }
++
++        candidate_cpu.registers[5] += VF2_ORCHESTRATOR_RECORD_STRIDE;
++        ++inactive_records;
++        if (candidate_cpu.registers[5] >= candidate_cpu.registers[6]) {
++            if (inactive_records != VF2_ORCHESTRATOR_RECORD_COUNT ||
++                candidate_cpu.registers[5] != VF2_TEXTURE_RECORD_END) {
++                return VF2_ERROR_UNSUPPORTED;
+             }
+-            report->kind =
+-                VF2_HYBRID_BRIDGE_TEXTURE_STATUS_SCAN_END;
+-            report->entry_address = scan_report.entry_address;
+-            report->exit_address = scan_report.exit_address;
+-            report->iterations =
+-                (uint64_t)scan_report.records_scanned;
+-            report->recovered_instruction_count =
+-                scan_report.recovered_instruction_count;
+-            report->cpu_poststate_applied =
+-                scan_report.cpu_poststate_applied;
++
++            candidate_cpu.ip = VF2_TEXTURE_FINAL_STATUS_ENTRY;
++            candidate_cpu.executed_instructions += UINT64_C(43);
++            *cpu = candidate_cpu;
++
++            report->kind = VF2_HYBRID_BRIDGE_TEXTURE_STATUS_SCAN_END;
++            report->entry_address = VF2_TEXTURE_STATUS_DISPATCH_ENTRY;
++            report->exit_address = VF2_TEXTURE_FINAL_STATUS_ENTRY;
++            report->iterations = inactive_records;
++            report->recovered_instruction_count = UINT64_C(43);
++            report->cpu_poststate_applied = 1;
+             return VF2_OK;
+         }
+-        status = read_u16(
+-            machine, VF2_TEXTURE_RECORD_START, &status_value
+-        );
++        instructions += UINT64_C(4);
+     }
++
++    status = read_u16(
++        machine, candidate_cpu.registers[5], &status_value
++    );
+     if (status == VF2_OK) {
+-        cpu->registers[16] = status_value;
++        candidate_cpu.registers[16] = status_value;
+         status = vf2_model2a_read_u32(
+             machine, VF2_TEXTURE_RUNTIME_FLAGS, &runtime_flags
+         );
+@@ -2617,26 +2987,40 @@ vf2_status execute_texture_status_dispatch_call(
+     if (status != VF2_OK) {
+         return status;
+     }
+-    cpu->registers[15] = runtime_flags;
++    candidate_cpu.registers[15] = runtime_flags;
++
++    instructions += UINT64_C(3);
+     if ((runtime_flags & (UINT32_C(1) << 9u)) != 0u) {
+-        return VF2_ERROR_UNSUPPORTED;
++        candidate_cpu.ip = VF2_TEXTURE_RECORD_STATUS_SETUP_ENTRY;
++        candidate_cpu.executed_instructions += instructions;
++        *cpu = candidate_cpu;
++
++        report->kind = VF2_HYBRID_BRIDGE_TEXTURE_STATUS_DISPATCH_CALL;
++        report->entry_address = VF2_TEXTURE_STATUS_DISPATCH_ENTRY;
++        report->exit_address = VF2_TEXTURE_RECORD_STATUS_SETUP_ENTRY;
++        report->iterations = inactive_records + 1u;
++        report->recovered_instruction_count = instructions;
++        report->cpu_poststate_applied = 1;
++        return VF2_OK;
+     }
+ 
+     status = vf2_i960_cpu_enter_procedure(
+-        cpu,
++        &candidate_cpu,
+         VF2_TEXTURE_STATUS_DISPATCH_TARGET,
+         VF2_TEXTURE_STATUS_DISPATCH_RETURN
+     );
+     if (status != VF2_OK) {
+         return status;
+     }
+-    cpu->executed_instructions += UINT64_C(8);
++    ++instructions;
++    candidate_cpu.executed_instructions += instructions;
++    *cpu = candidate_cpu;
+ 
+     report->kind = VF2_HYBRID_BRIDGE_TEXTURE_STATUS_DISPATCH_CALL;
+     report->entry_address = VF2_TEXTURE_STATUS_DISPATCH_ENTRY;
+     report->exit_address = cpu->ip;
+-    report->iterations = UINT64_C(1);
+-    report->recovered_instruction_count = UINT64_C(8);
++    report->iterations = inactive_records + 1u;
++    report->recovered_instruction_count = instructions;
+     report->recovered_procedure_calls = UINT64_C(1);
+     report->cpu_poststate_applied = 1;
+     return VF2_OK;
+@@ -2911,6 +3295,22 @@ vf2_status execute_texture_counter_update(
+     if (status != VF2_OK) {
+         return status;
+     }
++    if (counter2 == 0u) {
++        cpu->registers[4] = UINT32_MAX;
++        cpu->arithmetic_control =
++            (cpu->arithmetic_control & ~UINT32_C(7)) | UINT32_C(1);
++        cpu->compare_result = VF2_I960_COMPARE_GREATER;
++        cpu->ip = VF2_TEXTURE_COUNTER_UPDATE_EXIT;
++        cpu->executed_instructions += UINT64_C(12);
++
++        report->kind = VF2_HYBRID_BRIDGE_TEXTURE_COUNTER_UPDATE;
++        report->entry_address = VF2_TEXTURE_COUNTER_UPDATE_ENTRY;
++        report->exit_address = VF2_TEXTURE_COUNTER_UPDATE_EXIT;
++        report->iterations = UINT64_C(3);
++        report->recovered_instruction_count = UINT64_C(12);
++        report->cpu_poststate_applied = 1;
++        return VF2_OK;
++    }
+     if (counter2 == UINT32_C(1)) {
+         uint32_t argument0 = 0u;
+         uint32_t argument1 = 0u;
+@@ -3040,9 +3440,6 @@ vf2_status execute_texture_counter_update(
+         report->cpu_poststate_applied = 1;
+         return VF2_OK;
+     }
+-    if (counter2 == 0u) {
+-        return VF2_ERROR_UNSUPPORTED;
+-    }
+     cpu->registers[4] = counter2 - UINT32_C(1);
+     cpu->arithmetic_control =
+         (cpu->arithmetic_control & ~UINT32_C(7)) | UINT32_C(4);
+diff --git a/tests/analysis/test_orchestrator_bridge.c b/tests/analysis/test_orchestrator_bridge.c
+index aa38e14..ae2c1a0 100644
+--- a/tests/analysis/test_orchestrator_bridge.c
++++ b/tests/analysis/test_orchestrator_bridge.c
+@@ -374,6 +374,20 @@ static void test_system_memory_diagnostic(void)
+     CHECK(low == UINT32_C(0x11223344));
+     CHECK(high == UINT32_C(0x55667788));
+ 
++    /* Mode 17 follows the adjacent return path but executes one additional
++     * branch instruction compared with mode 16. */
++    mode = UINT8_C(17);
++    CHECK(vf2_model2a_write(&machine, UINT32_C(0x0050002b), &mode, 1u) == VF2_OK);
++    enter_parent(&cpu, UINT32_C(0x0006dcb8));
++    cpu.arithmetic_control = UINT32_C(0x3f001004);
++    memset(&report, 0, sizeof(report));
++    CHECK(vf2_hybrid_post_frame_bridge_execute(&machine, &cpu, &report) == VF2_OK);
++    CHECK(report.recovered_instruction_count == UINT64_C(67));
++    CHECK(report.recovered_procedure_calls == UINT64_C(1));
++    CHECK(report.recovered_procedure_returns == UINT64_C(2));
++    CHECK(cpu.executed_instructions == UINT64_C(67));
++    CHECK(cpu.compare_result == VF2_I960_COMPARE_EQUAL);
++
+     vf2_model2a_shutdown(&machine);
+ }
+ 
+@@ -1371,6 +1385,153 @@ static void test_texture_stream_header_call(void)
+ }
+ 
+ 
++static void test_texture_stream_expand_and_resume(void)
++{
++    vf2_model2a machine;
++    vf2_i960_cpu cpu;
++    vf2_hybrid_bridge_report report = {0};
++    const uint32_t pointer_cell = UINT32_C(0x00551000);
++    const uint32_t stream = UINT32_C(0x00560004);
++    const uint32_t source = UINT32_C(0x00560010);
++    const uint32_t destination = UINT32_C(0x00570000);
++    uint8_t header[3] = {UINT8_C(15), UINT8_C(15), UINT8_C(6)};
++    uint8_t source_data[128];
++    uint8_t raw[16] = {0};
++    uint32_t shifted = 0u;
++    size_t index = 0u;
++
++    CHECK(vf2_model2a_initialize(&machine) != 0);
++    if (machine.work_ram == NULL) {
++        return;
++    }
++    for (index = 0u; index < sizeof(source_data); ++index) {
++        source_data[index] = (uint8_t)(index + 1u);
++    }
