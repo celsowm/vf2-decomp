@@ -28,7 +28,10 @@ jobs:
 
       - name: Reassemble and verify patch
         run: |
+          wc -c patch-source/.github/v013-patch/part0{0,1,2,3,4,5,6}
+          sha256sum patch-source/.github/v013-patch/part0{0,1,2,3,4,5,6}
           cat patch-source/.github/v013-patch/part0{0,1,2,3,4,5,6} > /tmp/vf2-v013.patch
+          sha256sum /tmp/vf2-v013.patch
           echo "84b2887629a8dca977d3479d78d1105445316b474da94a94b4b26c5fa32bb644  /tmp/vf2-v013.patch" | sha256sum --check
           git -C work apply --check /tmp/vf2-v013.patch
           git -C work apply /tmp/vf2-v013.patch
