@@ -1,0 +1,204 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index c45576a..474a367 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
+ 
+ project(
+     vf2_decomp
+-    VERSION 0.1.2
++    VERSION 0.1.3
+     DESCRIPTION "Clean-room, non-matching C decompilation project for Virtua Fighter 2 Version 2.1"
+     LANGUAGES C
+ )
+@@ -282,6 +282,10 @@ if(VF2_BUILD_TESTS)
+             NAME vf2_native_fourth_dispatch
+             COMMAND vf2i960 native-fourth-dispatch "${VF2_ROM_DIR}"
+         )
++        add_test(
++            NAME vf2_native_fifth_dispatch
++            COMMAND vf2i960 native-fifth-dispatch "${VF2_ROM_DIR}"
++        )
+         add_test(
+             NAME vf2_texture_bridge_differential
+             COMMAND vf2i960 compare-texture-bridge "${VF2_ROM_DIR}"
+@@ -313,7 +317,7 @@ if(VF2_BUILD_TESTS)
+             vf2_camera_viewport_differential vf2_hybrid_first_dispatch
+             vf2_native_first_dispatch vf2_native_second_dispatch
+             vf2_native_third_dispatch vf2_native_fourth_dispatch
+-            vf2_texture_bridge_differential
++            vf2_native_fifth_dispatch vf2_texture_bridge_differential
+             vf2_post_frame_bridge_differential
+             vf2_geometry_boundary_differential
+             vf2_second_scheduler_entry_differential
+diff --git a/README.md b/README.md
+index d91cdf2..b769e68 100644
+--- a/README.md
++++ b/README.md
+@@ -8,6 +8,25 @@ contains ROM validation and reconstruction tools, a structured Intel i960
+ analyzer, a bounded semantic executor used for differential validation, and the
+ first game/runtime functions recovered in portable C.
+ 
++## v0.1.3 fifth-dispatch acceptance
++
++The recovered native runtime now crosses the complete observed fourth scheduler
++sweep and the next frame boundary. `vf2i960 native-fifth-dispatch` reaches the
++fifth `fa_game_info` entry with:
++
++- 830 repeated-frame differential blocks;
++- 7,402,741 instructions on both native and reference sides;
++- 8,673,563 continuous recovered instructions including the historical bridge;
++- complete CPU, local-frame, execution-counter, frame-event and mutable-memory
++  equality at every checkpoint; and
++- **zero interpreted instructions** on the native side.
++
++The extension recovers the observed non-zero texture stream: a 35,059-
++instruction five-level mip expansion consuming 43,648 source bytes and writing
++87,296 texture bytes. It also accepts leading inactive texture records before a
++live record, the zero-counter texture path and the distinct mode-17 diagnostic
++instruction profile.
++
+ ## v0.1.2 fourth-dispatch acceptance
+ 
+ The recovered native runtime now crosses the complete observed third scheduler
+@@ -169,6 +188,7 @@ build/vf2i960 native-first-dispatch /path/to/vf2
+ build/vf2i960 native-second-dispatch /path/to/vf2
+ build/vf2i960 native-third-dispatch /path/to/vf2
+ build/vf2i960 native-fourth-dispatch /path/to/vf2
++build/vf2i960 native-fifth-dispatch /path/to/vf2
+ build/vf2i960 compare-texture-bridge /path/to/vf2
+ build/vf2i960 compare-post-frame-bridge /path/to/vf2
+ build/vf2i960 compare-geometry-boundary /path/to/vf2
+diff --git a/docs/NATIVE_RUNTIME.md b/docs/NATIVE_RUNTIME.md
+index d50c4ab..01e8de9 100644
+--- a/docs/NATIVE_RUNTIME.md
++++ b/docs/NATIVE_RUNTIME.md
+@@ -34,54 +34,54 @@ Repeated cycles begin and end at the same `fa_game_info` address. The native
+ differential layer therefore exposes a minimum-block stop contract so the
+ current address is not mistaken for completion of another cycle.
+ 
+-## Accepted fourth-dispatch corridor
++## Accepted fifth-dispatch corridor
+ 
+-The v0.1.2 runtime composes:
++The v0.1.3 runtime composes:
+ 
+-1. the complete observed second scheduler sweep;
+-2. its geometry, texture, game, tile, timer and interrupt/frame-wait path;
+-3. the third scheduler entry;
+-4. the complete observed third scheduler sweep;
+-5. the next geometry, input, game-state, diagnostic and frame-dispatch paths;
+-6. another four-visit frame wait and vector-12 interrupt; and
+-7. the fourth `fa_game_info` entry at `0x0001645c`.
++1. the complete observed second and third scheduler sweeps accepted previously;
++2. the fourth scheduler entry;
++3. the complete observed fourth scheduler sweep;
++4. a large texture-orchestrator interval with a non-zero compressed stream;
++5. the next geometry, game, timer, interrupt and frame-wait paths; and
++6. the fifth `fa_game_info` entry at `0x0001645c`.
+ 
+ The strict command is:
+ 
+ ```sh
+-vf2i960 native-fourth-dispatch /path/to/vf2
++vf2i960 native-fifth-dispatch /path/to/vf2
+ ```
+ 
+ It requires exactly:
+ 
+-- **78** repeated-frame differential blocks;
+-- **58,869** reference and recovered-native instructions;
+-- **1,329,691** continuous recovered instructions including the historical
++- **830** repeated-frame differential blocks;
++- **7,402,741** reference and recovered-native instructions;
++- **8,673,563** continuous recovered instructions including the historical
+   bridge; and
+ - zero native-side interpreter fallbacks.
+ 
+-`native-third-dispatch` remains a separate regression contract at 42 blocks and
+-55,239 instructions.
++`native-third-dispatch` and `native-fourth-dispatch` remain separate regression
++contracts at 42 / 55,239 and 78 / 58,869 respectively.
+ 
+-## Newly accepted variants
++## Newly accepted texture interval
+ 
+-The fourth-dispatch extension recovers evidence-bounded branches for:
++The fourth sweep exposes the first observed non-zero stream at `0x0004be6c`.
++The recovered C path validates the header and timer preconditions, expands five
++mipmap levels and reproduces the measured CPU and memory poststate:
+ 
+-- the player-update gate when runtime bit 14 is set;
+-- non-zero game input/state selector masks;
+-- memory-diagnostic frame modes 16 and 17;
+-- the frame-counter active-selector return; and
+-- frame dispatcher selector 17 with non-zero phase state, bit-7-clear phase
+-  index and the observed clear gameplay-mask combination.
++- **35,059** instructions;
++- two nested procedure calls and two returns;
++- **43,648** source bytes consumed;
++- **87,296** texture bytes written; and
++- 5 levels with decreasing 128, 64, 32, 16 and 8 row counts.
+ 
+-The phase-17 path preserves the live player pointers and measured procedure,
+-return, stack and condition-code poststate. Deeper phase-17 variants remain
+-unsupported.
++Each 16-byte source group is copied to the destination and followed by four
++32-bit values containing the upper half of each source word. Destination rows
++use the observed `0x800` stride. Header variants, malformed dimensions and
++unobserved timer states remain explicitly unsupported.
+ 
+-The interrupt player-layer composes nested CPU updates against a candidate and
+-commits only on success. The video layer preflights its complete observed input
+-state before writes so a rejected mode does not partially change video or
+-palette memory. ROM-independent tests cover both rejection properties.
++The same corridor also recovers a texture-record scan with nine inactive
++records before the live record, the no-pending stream resume gate and the
++zero-counter completion path.
+ 
+ ## Accounting and validation
+ 
+@@ -95,14 +95,15 @@ reported native instruction count, mirrors deterministic host frame events and
+ compares complete CPU state, local frames and all mutable Model 2 memory after
+ every block.
+ 
+-The current CMake configuration exposes 8 ROM-independent and 24 ROM-backed
+-tests. All 32 passed against the supported ROM set, and the ROM-independent
+-suite passed under ASan, UBSan and LeakSanitizer.
++The current CMake configuration exposes 8 ROM-independent and 25 ROM-backed
++tests. All 33 pass against the supported ROM set, and the ROM-independent suite
++passes under ASan, UBSan and LeakSanitizer.
+ 
+ ## Next integration
+ 
+-The current native boundary is the fourth `fa_game_info` entry. The next target
+-is the complete fourth scheduler sweep and the first unsupported state reached
+-after it. Each new branch should retain an exact differential contract and a
+-synthetic state regression where practical before broader fighter, object,
+-match, animation, collision and input types are introduced.
++The current native boundary is the fifth `fa_game_info` entry. The next target
++is the complete fifth scheduler sweep and the first unsupported state after it,
++followed by longer endurance runs. Each new branch should retain an exact
++differential contract and a synthetic state regression where practical before
++broader fighter, object, match, animation, collision and input types are
++introduced.
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index 2a0a79c..2402c7a 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -268,9 +268,23 @@
+   branches and preflighted video-layer inputs before writes;
+ - added ROM-independent regressions and a twenty-fourth ROM-backed CTest target.
+ 
++## v0.1.3 — fifth-dispatch acceptance — complete
++
++- recovered the complete observed fourth scheduler sweep and subsequent frame
++  boundary;
++- added `vf2i960 native-fifth-dispatch` with an exact 830-block / 7,402,741-
++  instruction differential contract;
++- reached 8,673,563 continuous recovered instructions with zero native-side
++  interpreter fallback;
++- recovered the first observed non-zero texture stream and five mipmap levels;
++- accepted leading inactive texture records, the no-pending resume gate and the
++  zero-counter completion path;
++- distinguished the mode-17 diagnostic instruction profile from mode 16;
