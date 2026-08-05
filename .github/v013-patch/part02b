@@ -1,0 +1,145 @@
+ 
++#include <stdlib.h>
++
+ vf2_status write_u16(
+     vf2_model2a *machine,
+     uint32_t address,
+@@ -519,45 +521,392 @@ vf2_status execute_texture_stream_header_call(
+     vf2_hybrid_bridge_report *report
+ )
+ {
++    enum { VF2_STREAM_MAX_LEVELS = 8 };
++    const uint32_t timer_mask = UINT32_C(0x000fffff);
++    const uint32_t table_address = UINT32_C(0x0055c2f8);
++    vf2_i960_cpu candidate_cpu;
++    vf2_hybrid_bridge_report timer_report = {0};
++    uint32_t stream = 0u;
++    uint32_t first_word = 0u;
++    uint32_t tick = 0u;
++    uint32_t wait_input = 0u;
++    uint32_t timer3 = 0u;
++    uint32_t pending_state = 0u;
++    uint32_t level_destinations[VF2_STREAM_MAX_LEVELS + 1u] = {0u};
++    uint32_t level_rows[VF2_STREAM_MAX_LEVELS] = {0u};
++    uint32_t level_blocks[VF2_STREAM_MAX_LEVELS] = {0u};
++    uint32_t width = 0u;
++    uint32_t height = 0u;
++    uint32_t cursor = 0u;
++    uint32_t data_start = 0u;
++    uint8_t frame_state = 0u;
++    uint8_t wait_state = 0u;
++    uint8_t raw_width = 0u;
++    uint8_t raw_height = 0u;
++    uint8_t header_skip = 0u;
++    uint8_t probe = 0u;
++    uint8_t *source_data = NULL;
++    size_t source_size = 0u;
++    size_t source_offset = 0u;
++    size_t level_count = 0u;
++    size_t level = 0u;
++    uint64_t loop_instructions = UINT64_C(7);
++    uint64_t total_rows = 0u;
++    uint64_t total_blocks = 0u;
++    uint64_t output_bytes = 0u;
++    const uint64_t start_instructions =
++        cpu != NULL ? cpu->executed_instructions : 0u;
++    const uint64_t start_calls =
++        cpu != NULL ? cpu->procedure_calls : 0u;
++    const uint64_t start_returns =
++        cpu != NULL ? cpu->procedure_returns : 0u;
+     vf2_status status = VF2_OK;
+ 
++    if (machine == NULL || cpu == NULL || report == NULL) {
++        return VF2_ERROR_INVALID_ARGUMENT;
++    }
+     if (cpu->local_frame_depth == 0u) {
+         return VF2_ERROR_UNSUPPORTED;
+     }
++
++    status = vf2_model2a_read_u32(machine, cpu->registers[10], &stream);
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(machine, stream, &first_word);
++    }
++    if (status != VF2_OK) {
++        return status;
++    }
++
++    candidate_cpu = *cpu;
++    candidate_cpu.registers[VF2_I960_G0_REGISTER + 3u] =
++        stream + UINT32_C(4);
++    candidate_cpu.registers[3] = first_word;
++
++    if (first_word == 0u) {
++        status = vf2_i960_cpu_enter_procedure(
++            &candidate_cpu,
++            VF2_TEXTURE_HEADER_DECODE_ENTRY,
++            VF2_TEXTURE_STREAM_HEADER_CALL_RETURN
++        );
++        if (status != VF2_OK) {
++            return status;
++        }
++        candidate_cpu.executed_instructions += UINT64_C(5);
++        *cpu = candidate_cpu;
++
++        report->kind = VF2_HYBRID_BRIDGE_TEXTURE_STREAM_HEADER_CALL;
++        report->entry_address = VF2_TEXTURE_STREAM_HEADER_CALL_ENTRY;
++        report->exit_address = VF2_TEXTURE_HEADER_DECODE_ENTRY;
++        report->iterations = UINT64_C(1);
++        report->recovered_instruction_count = UINT64_C(5);
++        report->recovered_procedure_calls = UINT64_C(1);
++        report->cpu_poststate_applied = 1;
++        return VF2_OK;
++    }
++    if (first_word != UINT32_C(1)) {
++        return VF2_ERROR_UNSUPPORTED;
++    }
++
+     status = vf2_model2a_read_u32(
+-        machine, cpu->registers[10],
+-        &cpu->registers[VF2_I960_G0_REGISTER + 3u]
++        machine, UINT32_C(0x00550004), &tick
++    );
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(
++            machine, UINT32_C(0x00550008), &wait_input
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(
++            machine, UINT32_C(0x00f0000c), &timer3
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(
++            machine, UINT32_C(0x00550080), &pending_state
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read(
++            machine, UINT32_C(0x00500000),
++            &frame_state, sizeof(frame_state)
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read(
++            machine, UINT32_C(0x0050008c),
++            &wait_state, sizeof(wait_state)
++        );
++    }
++    if (status != VF2_OK) {
++        return status;
++    }
++    if (frame_state != 0u || wait_state != 0u || pending_state != 0u ||
++        tick > timer_mask / UINT32_C(25) ||
++        (timer3 & timer_mask) == timer_mask ||
++        (timer3 & timer_mask) > timer_mask - UINT32_C(25) * tick) {
++        return VF2_ERROR_UNSUPPORTED;
++    }
++
++    cursor = stream + UINT32_C(4);
++    status = vf2_model2a_read(
++        machine, cursor, &raw_width, sizeof(raw_width)
+     );
++    ++cursor;
++    if (status == VF2_OK) {
++        status = vf2_model2a_read(
