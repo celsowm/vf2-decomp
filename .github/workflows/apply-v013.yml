@@ -1,0 +1,64 @@
+name: Apply validated v0.1.3 patch
+
+on:
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout current master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          path: work
+          fetch-depth: 0
+
+      - name: Checkout patch source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: patch-source
+
+      - name: Reassemble and verify patch
+        run: |
+          cat patch-source/.github/v013-patch/part0{0,1,2,3,4,5,6} > /tmp/vf2-v013.patch
+          echo "84b2887629a8dca977d3479d78d1105445316b474da94a94b4b26c5fa32bb644  /tmp/vf2-v013.patch" | sha256sum --check
+          git -C work apply --check /tmp/vf2-v013.patch
+          git -C work apply /tmp/vf2-v013.patch
+          git -C work diff --check
+
+      - name: Build and test ROM-independent suite
+        working-directory: work
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DVF2_BUILD_TESTS=ON \
+            -DVF2_WARNINGS_AS_ERRORS=ON \
+            -DVF2_ROM_DIR=/tmp/no-proprietary-roms
+          cmake --build build --parallel
+          ctest --test-dir build --output-on-failure
+
+      - name: Commit directly to master
+        working-directory: work
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            CMakeLists.txt README.md \
+            docs/NATIVE_RUNTIME.md docs/ROADMAP.md docs/STATUS.md \
+            docs/UNCOVERED_BRANCHES.md include/vf2/version.h \
+            src/app/main.c src/recovered/texture_bridge.c \
+            src/recovered/texture_bridge_internal.h \
+            src/recovered/texture_bridge_match.c \
+            src/recovered/texture_bridge_texture.c \
+            tests/analysis/test_orchestrator_bridge.c \
+            tools/vf2i960/main.c
+          git commit -m "runtime: validate native fifth dispatch"
+          git push origin HEAD:master
