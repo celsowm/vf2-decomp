@@ -1,0 +1,212 @@
++    CHECK(vf2_model2a_write_u32(&machine, pointer_cell, stream) == VF2_OK);
++    CHECK(vf2_model2a_write_u32(&machine, stream, UINT32_C(1)) == VF2_OK);
++    CHECK(vf2_model2a_write(&machine, stream + UINT32_C(4), header, sizeof(header)) == VF2_OK);
++    CHECK(vf2_model2a_write(&machine, source, source_data, sizeof(source_data)) == VF2_OK);
++    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x0055c2f8), destination) == VF2_OK);
++    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x0055c2fc), destination + UINT32_C(0x4000)) == VF2_OK);
++    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00550004), 0u) == VF2_OK);
++    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00550008), 0u) == VF2_OK);
++    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00550080), 0u) == VF2_OK);
++    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00f0000c), UINT32_C(0x0007a120)) == VF2_OK);
++    enter_parent(&cpu, UINT32_C(0x0004be6c));
++    cpu.registers[10] = pointer_cell;
++
++    CHECK(vf2_hybrid_post_frame_bridge_execute(&machine, &cpu, &report) == VF2_OK);
++    CHECK(report.kind == VF2_HYBRID_BRIDGE_TEXTURE_STREAM_HEADER_CALL);
++    CHECK(report.entry_address == UINT32_C(0x0004be6c));
++    CHECK(report.exit_address == UINT32_C(0x0004be80));
++    CHECK(report.iterations == UINT64_C(8));
++    CHECK(report.rows == UINT64_C(8));
++    CHECK(report.changed_values == UINT64_C(64));
++    CHECK(report.bytes_written == 257u);
++    CHECK(report.recovered_instruction_count == UINT64_C(226));
++    CHECK(report.recovered_procedure_calls == UINT64_C(2));
++    CHECK(report.recovered_procedure_returns == UINT64_C(2));
++    CHECK(cpu.ip == UINT32_C(0x0004be80));
++    CHECK(cpu.local_frame_depth == 1u);
++    CHECK(cpu.executed_instructions == UINT64_C(226));
++    CHECK(cpu.procedure_calls == UINT64_C(3));
++    CHECK(cpu.procedure_returns == UINT64_C(2));
++    CHECK(cpu.registers[VF2_I960_G0_REGISTER] == 0u);
++    CHECK(vf2_model2a_read(&machine, destination, raw, sizeof(raw)) == VF2_OK);
++    CHECK(memcmp(raw, source_data, sizeof(raw)) == 0);
++    CHECK(vf2_model2a_read_u32(&machine, destination + UINT32_C(16), &shifted) == VF2_OK);
++    CHECK(shifted == UINT32_C(0x00000403));
++    CHECK(vf2_model2a_read(&machine, destination + UINT32_C(0x3800), raw, sizeof(raw)) == VF2_OK);
++    CHECK(memcmp(raw, source_data + 112u, sizeof(raw)) == 0);
++
++    memset(&report, 0, sizeof(report));
++    CHECK(vf2_hybrid_post_frame_bridge_execute(&machine, &cpu, &report) == VF2_OK);
++    CHECK(report.entry_address == UINT32_C(0x0004be80));
++    CHECK(report.exit_address == UINT32_C(0x0004bf60));
++    CHECK(report.recovered_instruction_count == UINT64_C(3));
++    CHECK(cpu.ip == UINT32_C(0x0004bf60));
++    CHECK(cpu.executed_instructions == UINT64_C(229));
++
++    vf2_model2a_shutdown(&machine);
++}
++
++static void test_status_dispatch_leading_inactive_records(void)
++{
++    vf2_model2a machine;
++    vf2_i960_cpu cpu;
++    vf2_hybrid_bridge_report report = {0};
++    const uint32_t active_record =
++        VF2_ORCHESTRATOR_RECORD_START +
++        UINT32_C(9) * VF2_ORCHESTRATOR_RECORD_STRIDE;
++    size_t index = 0u;
++
++    CHECK(vf2_model2a_initialize(&machine) != 0);
++    if (machine.work_ram == NULL) {
++        return;
++    }
++    for (index = 0u; index < VF2_ORCHESTRATOR_RECORD_COUNT; ++index) {
++        write_test_u16(
++            &machine,
++            VF2_ORCHESTRATOR_RECORD_START +
++                (uint32_t)index * VF2_ORCHESTRATOR_RECORD_STRIDE +
++                VF2_ORCHESTRATOR_RECORD_ACTIVE_OFFSET,
++            index == 9u ? UINT16_MAX : 0u
++        );
++    }
++    write_test_u16(&machine, active_record, UINT16_C(0x22));
++    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00508000), 0u) == VF2_OK);
++    enter_parent(&cpu, VF2_ORCHESTRATOR_RECORD_SCAN_ENTRY);
++
++    CHECK(vf2_hybrid_post_frame_bridge_execute(&machine, &cpu, &report) == VF2_OK);
++    CHECK(report.kind == VF2_HYBRID_BRIDGE_TEXTURE_STATUS_DISPATCH_CALL);
++    CHECK(report.entry_address == VF2_ORCHESTRATOR_RECORD_SCAN_ENTRY);
++    CHECK(report.exit_address == UINT32_C(0x0004d2c0));
++    CHECK(report.iterations == UINT64_C(10));
++    CHECK(report.recovered_instruction_count == UINT64_C(44));
++    CHECK(report.recovered_procedure_calls == UINT64_C(1));
++    CHECK(cpu.ip == UINT32_C(0x0004d2c0));
++    CHECK(cpu.local_frame_depth == 2u);
++    CHECK(cpu.local_frames[1].registers[5] == active_record);
++    CHECK(cpu.local_frames[1].registers[6] == VF2_ORCHESTRATOR_RECORD_END);
++    CHECK(cpu.registers[VF2_I960_G0_REGISTER] == UINT32_C(0x22));
++
++    vf2_model2a_shutdown(&machine);
++}
++
++static void test_counter_update_zero_dispatch(void)
++{
++    vf2_model2a machine;
++    vf2_i960_cpu cpu;
++    vf2_hybrid_bridge_report report = {0};
++    const uint32_t arithmetic_before = UINT32_C(0x3f001004);
++
++    CHECK(vf2_model2a_initialize(&machine) != 0);
++    if (machine.work_ram == NULL) {
++        return;
++    }
++    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x005502c0), 0u) == VF2_OK);
++    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x005502d0), 0u) == VF2_OK);
++    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x005502e0), 0u) == VF2_OK);
++    enter_parent(&cpu, UINT32_C(0x0004bb98));
++    cpu.arithmetic_control = arithmetic_before;
++    cpu.compare_result = VF2_I960_COMPARE_EQUAL;
++
++    CHECK(vf2_hybrid_post_frame_bridge_execute(&machine, &cpu, &report) == VF2_OK);
++    CHECK(report.kind == VF2_HYBRID_BRIDGE_TEXTURE_COUNTER_UPDATE);
++    CHECK(report.exit_address == UINT32_C(0x0004bc58));
++    CHECK(report.iterations == UINT64_C(3));
++    CHECK(report.changed_values == UINT64_C(0));
++    CHECK(report.bytes_written == 0u);
++    CHECK(report.recovered_instruction_count == UINT64_C(12));
++    CHECK(cpu.ip == UINT32_C(0x0004bc58));
++    CHECK(cpu.registers[3] == UINT32_C(0x005502e0));
++    CHECK(cpu.registers[4] == UINT32_MAX);
++    CHECK(cpu.compare_result == VF2_I960_COMPARE_GREATER);
++    CHECK((cpu.arithmetic_control & UINT32_C(7)) == UINT32_C(1));
++
++    vf2_model2a_shutdown(&machine);
++}
++
+ static void test_game_threshold_evaluate(void)
+ {
+     vf2_model2a machine;
+@@ -2176,6 +2337,8 @@ int main(void)
+     test_texture_upload_and_entry_gate();
+     test_texture_record_status_setup();
+     test_texture_stream_header_call();
++    test_texture_stream_expand_and_resume();
++    test_status_dispatch_leading_inactive_records();
+     test_game_threshold_evaluate();
+     test_game_meter_update();
+     test_inactive_scan_dispatch();
+@@ -2199,6 +2362,7 @@ int main(void)
+     test_final_status_zero_counter_return();
+     test_final_status_first_counter_call();
+     test_counter_update_dispatch();
++    test_counter_update_zero_dispatch();
+     test_counter_update_expiry_dispatch();
+ 
+     if (failures != 0) {
+diff --git a/tools/vf2i960/main.c b/tools/vf2i960/main.c
+index 527ee81..f403560 100644
+--- a/tools/vf2i960/main.c
++++ b/tools/vf2i960/main.c
+@@ -53,6 +53,7 @@ static void usage(const char *program)
+         "  %s native-second-dispatch <rom-directory>\n"
+         "  %s native-third-dispatch <rom-directory>\n"
+         "  %s native-fourth-dispatch <rom-directory>\n"
++        "  %s native-fifth-dispatch <rom-directory>\n"
+         "  %s compare-texture-bridge <rom-directory>\n"
+         "  %s compare-post-frame-bridge <rom-directory>\n"
+         "  %s compare-geometry-boundary <rom-directory>\n"
+@@ -96,6 +97,7 @@ static void usage(const char *program)
+         program,
+         program,
+         program,
++        program,
+         program
+     );
+ }
+@@ -3467,6 +3469,7 @@ static int command_native_dispatch_ex(
+     bool continue_to_second_dispatch,
+     bool native_third_dispatch,
+     bool native_fourth_dispatch,
++    bool native_fifth_dispatch,
+     bool observe_third_sweep
+ )
+ {
+@@ -4961,23 +4964,32 @@ static int command_native_dispatch_ex(
+     }
+ 
+     if (status == VF2_OK &&
+-        (native_third_dispatch || native_fourth_dispatch)) {
++        (native_third_dispatch || native_fourth_dispatch ||
++         native_fifth_dispatch)) {
+         const uint32_t repeated_entry = plan.runnable_entry_points[0];
+         const uint32_t repeated_registry = plan.runnable_registry_addresses[0];
+-        const size_t minimum_blocks = native_fourth_dispatch ? 43u : 1u;
+-        const size_t expected_blocks = native_fourth_dispatch ? 78u : 42u;
+-        const uint64_t expected_instructions = native_fourth_dispatch
+-            ? UINT64_C(58869)
+-            : UINT64_C(55239);
+-        const char *dispatch_label = native_fourth_dispatch
+-            ? "fourth"
+-            : "third";
++        const size_t minimum_blocks = native_fifth_dispatch
++            ? 79u
++            : (native_fourth_dispatch ? 43u : 1u);
++        const size_t expected_blocks = native_fifth_dispatch
++            ? 830u
++            : (native_fourth_dispatch ? 78u : 42u);
++        const uint64_t expected_instructions = native_fifth_dispatch
++            ? UINT64_C(7402741)
++            : (native_fourth_dispatch
++                ? UINT64_C(58869)
++                : UINT64_C(55239));
++        const char *dispatch_label = native_fifth_dispatch
++            ? "fifth"
++            : (native_fourth_dispatch ? "fourth" : "third");
+         vf2_native_runtime_state runtime_state;
+         vf2_native_differential_report third_report;
+ 
+-        stage = native_fourth_dispatch
+-            ? "native-fourth-dispatch"
+-            : "native-third-dispatch";
++        stage = native_fifth_dispatch
++            ? "native-fifth-dispatch"
