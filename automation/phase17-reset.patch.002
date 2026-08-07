@@ -1,0 +1,125 @@
++                status = vf2_model2a_read(
++                    machine,
++                    phase_text_source + (uint32_t)length,
++                    &raw, sizeof(raw)
++                );
++                if (status != VF2_OK || raw == 0u) {
++                    break;
++                }
++            }
++            if (status == VF2_OK && length == UINT64_C(4096)) {
++                return VF2_ERROR_UNSUPPORTED;
++            }
++            phase_text_characters = length;
++        }
++        if (status == VF2_OK) {
++            const uint32_t half_length =
++                ((uint32_t)phase_text_characters + UINT32_C(1)) >> 1u;
++            const uint32_t column_offset =
++                (UINT32_C(32) - half_length) * UINT32_C(2);
++            phase_text_destination =
++                (UINT32_C(0x01000100) & ~UINT32_C(0x7f)) +
++                column_offset;
++            status = copy_diagnostic_text(
++                machine, phase_text_source, phase_text_destination, NULL
++            );
++        }
++        if (status == VF2_OK) {
++            recovered_instructions +=
++                UINT64_C(12573) + phase_text_characters * UINT64_C(12);
++        }
++    }
+     if (status == VF2_OK) {
+         status = vf2_model2a_write_u32(
+             machine, cpu->registers[1] + UINT32_C(64), saved_g4
+@@ -1571,11 +1663,22 @@
+         cpu->registers[VF2_I960_G0_REGISTER + 9u] =
+             next_phase_target - UINT32_C(4);
+     }
++    if (phase_reset) {
++        cpu->registers[VF2_I960_G0_REGISTER] = phase_text_source;
++        cpu->registers[VF2_I960_G0_REGISTER + 1u] = 0u;
++        cpu->registers[VF2_I960_G0_REGISTER + 9u] = phase_text_destination;
++    }
+     (void)base;
+     set_equal_condition(cpu);
+-    account_nested_procedure(cpu, UINT64_C(2), UINT64_C(2));
+-    if (cpu->maximum_local_frame_depth < cpu->local_frame_depth + 2u) {
+-        cpu->maximum_local_frame_depth = cpu->local_frame_depth + 2u;
++    account_nested_procedure(
++        cpu,
++        phase_reset ? UINT64_C(5) : UINT64_C(2),
++        phase_reset ? UINT64_C(5) : UINT64_C(2)
++    );
++    if (cpu->maximum_local_frame_depth <
++        cpu->local_frame_depth + (phase_reset ? 3u : 2u)) {
++        cpu->maximum_local_frame_depth =
++            cpu->local_frame_depth + (phase_reset ? 3u : 2u);
+     }
+     status = finish_recovered_procedure(
+         machine, cpu, recovered_instructions
+@@ -1589,11 +1692,21 @@
+     report->exit_address = cpu->ip;
+     report->iterations = UINT64_C(1);
+     report->changed_values =
+-        phase_step ? UINT64_C(7) : UINT64_C(4);
+-    report->bytes_written = phase_step ? 14u : 9u;
++        (phase_step ? UINT64_C(7) : UINT64_C(4)) +
++        (phase_reset
++            ? UINT64_C(3076) + phase_text_characters
++            : UINT64_C(0));
++    report->bytes_written =
++        (phase_step ? 14u : 9u) +
++        (phase_reset
++            ? (size_t)UINT32_C(6149) +
++                (size_t)phase_text_characters * 2u
++            : 0u);
+     report->recovered_instruction_count = recovered_instructions;
+-    report->recovered_procedure_calls = UINT64_C(2);
+-    report->recovered_procedure_returns = UINT64_C(3);
++    report->recovered_procedure_calls =
++        phase_reset ? UINT64_C(5) : UINT64_C(2);
++    report->recovered_procedure_returns =
++        phase_reset ? UINT64_C(6) : UINT64_C(3);
+     report->cpu_poststate_applied = 1;
+     return VF2_OK;
+ }
+--- a/tests/analysis/test_orchestrator_bridge.c
++++ b/tests/analysis/test_orchestrator_bridge.c
+@@ -576,19 +576,28 @@
+         rom, UINT32_C(0x0005ff04), UINT32_C(0x00078000)
+     );
+     write_rom_u32(
+-        rom, UINT32_C(0x0005fefc), UINT32_C(0x00078004)
++        rom, UINT32_C(0x00078000), UINT32_C(0x010014b0)
++    );
++    memcpy(
++        rom + UINT32_C(0x00078004), "EXIT", sizeof("EXIT")
+     );
+     write_rom_u32(
+-        rom, UINT32_C(0x00078000), UINT32_C(0x010014b0)
++        rom, UINT32_C(0x0005fefc), UINT32_C(0x00078020)
+     );
+     write_rom_u32(
+-        rom, UINT32_C(0x00078004), UINT32_C(0x01001330)
++        rom, UINT32_C(0x00078020), UINT32_C(0x01001330)
++    );
++    memcpy(
++        rom + UINT32_C(0x00078024), "BACK", sizeof("BACK")
+     );
+     write_rom_u32(
+-        rom, UINT32_C(0x0005feac), UINT32_C(0x00078008)
++        rom, UINT32_C(0x0005feac), UINT32_C(0x00078040)
+     );
+     write_rom_u32(
+-        rom, UINT32_C(0x00078008), UINT32_C(0x01001230)
++        rom, UINT32_C(0x00078040), UINT32_C(0x01001230)
++    );
++    memcpy(
++        rom + UINT32_C(0x00078044), "START", sizeof("START")
+     );
+     CHECK(vf2_model2a_attach_main_rom(&machine, rom, rom_size) == VF2_OK);
+     CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00508000), 0u) == VF2_OK);
+@@ -654,6 +663,134 @@
+     }
+ 

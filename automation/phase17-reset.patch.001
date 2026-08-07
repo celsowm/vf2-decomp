@@ -1,0 +1,125 @@
+--- a/src/recovered/texture_bridge_match.c
++++ b/src/recovered/texture_bridge_match.c
+@@ -986,7 +986,7 @@
+     return status;
+ }
+ 
+-static vf2_status phase16_clear_tile_plane(
++static vf2_status clear_tile_plane_64x48(
+     vf2_model2a *machine,
+     uint32_t base
+ )
+@@ -1295,7 +1295,7 @@
+         }
+     }
+     if (status == VF2_OK) {
+-        status = phase16_clear_tile_plane(machine, UINT32_C(0x01004000));
++        status = clear_tile_plane_64x48(machine, UINT32_C(0x01004000));
+     }
+     if (status == VF2_OK) {
+         status = write_u16(machine, UINT32_C(0x0100a004), 0u);
+@@ -1318,7 +1318,7 @@
+         );
+     }
+     if (status == VF2_OK) {
+-        status = phase16_clear_tile_plane(machine, UINT32_C(0x01000000));
++        status = clear_tile_plane_64x48(machine, UINT32_C(0x01000000));
+     }
+     if (status != VF2_OK) {
+         return status;
+@@ -1437,12 +1437,18 @@
+     uint32_t phase_pointer_holder = 0u;
+     uint32_t previous_phase_target = 0u;
+     uint32_t next_phase_target = 0u;
++    uint32_t phase_object = 0u;
++    uint32_t phase_text_base = 0u;
++    uint32_t phase_text_source = 0u;
++    uint32_t phase_text_destination = 0u;
++    uint64_t phase_text_characters = 0u;
+     uint8_t phase_index = 0u;
+     uint8_t next_phase_index = 0u;
+     uint8_t phase_state = 0u;
+     int phase_step_forward = 0;
+     int phase_step_back = 0;
+     int phase_step = 0;
++    int phase_reset = 0;
+     uint64_t recovered_instructions = UINT64_C(36);
+     vf2_status status = VF2_OK;
+ 
+@@ -1461,8 +1467,7 @@
+         );
+     }
+     if (status != VF2_OK || phase_state == 0u ||
+-        (phase_index & UINT8_C(0x80)) != 0u ||
+-        (gameplay_flags & UINT32_C(0x04000104)) != 0u) {
++        (phase_index & UINT8_C(0x80)) != 0u) {
+         return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
+     }
+     phase_step_forward =
+@@ -1471,6 +1476,8 @@
+         !phase_step_forward &&
+         (gameplay_flags & UINT32_C(0x00002000)) != 0u;
+     phase_step = phase_step_forward || phase_step_back;
++    phase_reset =
++        (gameplay_flags & UINT32_C(0x04000104)) != 0u;
+     if (phase_step_forward) {
+         recovered_instructions =
+             phase_index >= UINT8_C(11)
+@@ -1555,6 +1562,91 @@
+             UINT16_C(0x801c)
+         );
+     }
++    if (status == VF2_OK && phase_reset) {
++        const uint8_t flagged_phase_index =
++            (uint8_t)(phase_index | UINT8_C(0x80));
++        const uint8_t zero = 0u;
++        const uint8_t ff = UINT8_C(0xff);
++
++        status = vf2_model2a_write(
++            machine, UINT32_C(0x005000a4),
++            &flagged_phase_index, sizeof(flagged_phase_index)
++        );
++        if (status == VF2_OK) {
++            status = vf2_model2a_write(
++                machine, UINT32_C(0x005000a5), &zero, sizeof(zero)
++            );
++        }
++        if (status == VF2_OK) {
++            status = vf2_model2a_write(
++                machine, UINT32_C(0x005000a7), &ff, sizeof(ff)
++            );
++        }
++        if (status == VF2_OK) {
++            status = vf2_model2a_read_u32(
++                machine, UINT32_C(0x00500864), &phase_object
++            );
++        }
++        if (status == VF2_OK && phase_object > UINT32_MAX - UINT32_C(0x80)) {
++            return VF2_ERROR_UNSUPPORTED;
++        }
++        if (status == VF2_OK) {
++            status = write_u16(
++                machine, phase_object + UINT32_C(0x80), UINT16_C(0)
++            );
++        }
++        if (status == VF2_OK) {
++            status = clear_tile_plane_64x48(
++                machine, UINT32_C(0x01000000)
++            );
++        }
++        if (status == VF2_OK) {
++            status = vf2_model2a_read_u32(
++                machine,
++                UINT32_C(0x0005feac) +
++                    (uint32_t)phase_index * UINT32_C(8),
++                &phase_text_base
++            );
++        }
++        if (status == VF2_OK && phase_text_base > UINT32_MAX - UINT32_C(4)) {
++            return VF2_ERROR_UNSUPPORTED;
++        }
++        phase_text_source = phase_text_base + UINT32_C(4);
++        if (status == VF2_OK) {
++            uint64_t length = 0u;
++            for (length = 0u; length < UINT64_C(4096); ++length) {
++                uint8_t raw = 0u;
