@@ -1,0 +1,67 @@
++                &machine, UINT32_C(0x005000a4), &phase_index, 1u
++            ) == VF2_OK
++        );
++        CHECK(
++            vf2_model2a_write(
++                &machine, UINT32_C(0x005000a5), &phase_a5, 1u
++            ) == VF2_OK
++        );
++        CHECK(
++            vf2_model2a_write(
++                &machine, UINT32_C(0x005000a6), &phase_state, 1u
++            ) == VF2_OK
++        );
++        CHECK(
++            vf2_model2a_write(
++                &machine, UINT32_C(0x00500171), &system_flags, 1u
++            ) == VF2_OK
++        );
++        CHECK(
++            vf2_model2a_write_u32(
++                &machine, UINT32_C(0x00500700), 0u
++            ) == VF2_OK
++        );
++        CHECK(
++            vf2_model2a_write_u32(
++                &machine, UINT32_C(0x00500704), 0u
++            ) == VF2_OK
++        );
++        CHECK(
++            vf2_model2a_write_u32(
++                &machine, UINT32_C(0x00510000 + 0x3320), 0u
++            ) == VF2_OK
++        );
++        CHECK(
++            vf2_model2a_write(
++                &machine, UINT32_C(0x00510000 + 0x3324),
++                zero_bytes, sizeof(zero_bytes)
++            ) == VF2_OK
++        );
++        CHECK(
++            vf2_model2a_write(
++                &machine, UINT32_C(0x00510000 + 0x3350),
++                zero_bytes, 1u
++            ) == VF2_OK
++        );
++        {
++            const uint8_t first_meter[6] = {1u, 0u, 0u, 0u, 0u, 0u};
++            const uint8_t second_meter[6] = {0u, 0u, 0u, 0u, 0u, 0u};
++            CHECK(
++                vf2_model2a_write(
++                    &machine, UINT32_C(0x00510000 + 0x3380),
++                    first_meter, sizeof(first_meter)
++                ) == VF2_OK
++            );
++            CHECK(
++                vf2_model2a_write(
++                    &machine, UINT32_C(0x00510000 + 0x3388),
++                    second_meter, sizeof(second_meter)
++                ) == VF2_OK
++            );
++        }
++
++        enter_parent(&cpu, UINT32_C(0x0000a6c0));
++        cpu.registers[VF2_I960_G0_REGISTER + 4u] = UINT32_C(0x12345678);
++        memset(&report, 0, sizeof(report));
++        CHECK(
++            vf2_hybrid_post_frame_bridge_execute(
