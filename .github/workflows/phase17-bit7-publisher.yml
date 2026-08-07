@@ -25,24 +25,16 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           path: source
 
-      - name: Apply validated phase17 bit7 patch
+      - name: Reconstruct validated phase17 bit7 patch
         run: |
-          cat \
-            source/automation/phase17-bit7.patch.001 \
-            source/automation/phase17-bit7.patch.002a \
-            source/automation/phase17-bit7.patch.002b \
-            source/automation/phase17-bit7.patch.002c \
-            source/automation/phase17-bit7.patch.002d \
-            source/automation/phase17-bit7.patch.003a \
-            source/automation/phase17-bit7.patch.003b \
-            source/automation/phase17-bit7.patch.003c \
-            source/automation/phase17-bit7.patch.003d \
-            source/automation/phase17-bit7.patch.004a \
-            source/automation/phase17-bit7.patch.004b \
-            source/automation/phase17-bit7.patch.004c \
-            source/automation/phase17-bit7.patch.004d \
-            source/automation/phase17-bit7.patch.005 \
-            > /tmp/phase17-bit7.patch
+          cat source/automation/phase17-bit7.patch.b64.000 \
+              source/automation/phase17-bit7.patch.b64.001 \
+              source/automation/phase17-bit7.patch.b64.002 \
+              source/automation/phase17-bit7.patch.b64.003 \
+              source/automation/phase17-bit7.patch.b64.004 \
+              > /tmp/phase17-bit7.patch.b64
+          base64 -d /tmp/phase17-bit7.patch.b64 > /tmp/phase17-bit7.patch
+          echo "784f2a91dea420913cf5e31f884802130f3c3fbd851cbe55a4dad1f8c4fffffe  /tmp/phase17-bit7.patch" | sha256sum -c -
           git -C work apply --check /tmp/phase17-bit7.patch
           git -C work apply /tmp/phase17-bit7.patch
           git -C work diff --check
