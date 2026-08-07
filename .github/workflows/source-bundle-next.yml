@@ -1,0 +1,26 @@
+name: Temporary source bundle next
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    if: github.event.pull_request.head.ref == 'automation/source-bundle-next'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+      - name: Build source archive
+        run: git archive --format=zip --output=source-bundle.zip HEAD
+      - name: Upload source archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-bundle-next
+          path: source-bundle.zip
+          if-no-files-found: error
