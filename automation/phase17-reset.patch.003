@@ -1,0 +1,125 @@
+     {
++        uint8_t phase_index = UINT8_C(0x0b);
++        uint8_t phase_state = UINT8_C(0xff);
++        uint8_t phase_a5 = UINT8_C(0x7a);
++        uint8_t phase_a7 = 0u;
++        uint8_t resulting_phase_index = 0u;
++        uint8_t resulting_phase_a5 = UINT8_C(0xff);
++        uint8_t resulting_phase_a7 = 0u;
++        const uint32_t phase_object = UINT32_C(0x00513000);
++
++        CHECK(
++            vf2_model2a_write(
++                &machine, UINT32_C(0x005000a4), &phase_index, 1u
++            ) == VF2_OK
++        );
++        CHECK(
++            vf2_model2a_write(
++                &machine, UINT32_C(0x005000a5), &phase_a5, 1u
++            ) == VF2_OK
++        );
++        CHECK(
++            vf2_model2a_write(
++                &machine, UINT32_C(0x005000a6), &phase_state, 1u
++            ) == VF2_OK
++        );
++        CHECK(
++            vf2_model2a_write(
++                &machine, UINT32_C(0x005000a7), &phase_a7, 1u
++            ) == VF2_OK
++        );
++        CHECK(
++            vf2_model2a_write_u32(
++                &machine, UINT32_C(0x00500704), UINT32_C(0x04000104)
++            ) == VF2_OK
++        );
++        CHECK(
++            vf2_model2a_write_u32(
++                &machine, UINT32_C(0x00500864), phase_object
++            ) == VF2_OK
++        );
++        write_test_u16(
++            &machine, phase_object + UINT32_C(0x80), UINT16_C(0x1234)
++        );
++        write_test_u16(
++            &machine, UINT32_C(0x01000000), UINT16_C(0xffff)
++        );
++        write_test_u16(
++            &machine, UINT32_C(0x010017fe), UINT16_C(0xffff)
++        );
++        enter_parent(&cpu, UINT32_C(0x0000a6c0));
++        memset(&report, 0, sizeof(report));
++
++        CHECK(
++            vf2_hybrid_post_frame_bridge_execute(
++                &machine, &cpu, &report
++            ) == VF2_OK
++        );
++        CHECK(report.kind == VF2_HYBRID_BRIDGE_FRAME_DISPATCH_TICK);
++        CHECK(report.recovered_instruction_count == UINT64_C(12657));
++        CHECK(report.recovered_procedure_calls == UINT64_C(5));
++        CHECK(report.recovered_procedure_returns == UINT64_C(6));
++        CHECK(report.changed_values == UINT64_C(3084));
++        CHECK(report.bytes_written == 6166u);
++        CHECK(cpu.executed_instructions == UINT64_C(12657));
++        CHECK(cpu.procedure_calls == UINT64_C(6));
++        CHECK(cpu.procedure_returns == UINT64_C(6));
++        CHECK(cpu.maximum_local_frame_depth == 4u);
++        CHECK(cpu.registers[VF2_I960_G0_REGISTER] == UINT32_C(0x00078004));
++        CHECK(cpu.registers[VF2_I960_G0_REGISTER + 1u] == 0u);
++        CHECK(cpu.registers[VF2_I960_G0_REGISTER + 9u] == UINT32_C(0x0100013c));
++        CHECK(
++            vf2_model2a_read(
++                &machine, UINT32_C(0x005000a4),
++                &resulting_phase_index, 1u
++            ) == VF2_OK
++        );
++        CHECK(resulting_phase_index == UINT8_C(0x8b));
++        CHECK(
++            vf2_model2a_read(
++                &machine, UINT32_C(0x005000a5),
++                &resulting_phase_a5, 1u
++            ) == VF2_OK
++        );
++        CHECK(resulting_phase_a5 == 0u);
++        CHECK(
++            vf2_model2a_read(
++                &machine, UINT32_C(0x005000a7),
++                &resulting_phase_a7, 1u
++            ) == VF2_OK
++        );
++        CHECK(resulting_phase_a7 == UINT8_C(0xff));
++        CHECK(
++            read_test_u16(
++                &machine, phase_object + UINT32_C(0x80)
++            ) == UINT16_C(0)
++        );
++        CHECK(
++            read_test_u16(
++                &machine, UINT32_C(0x01000000)
++            ) == UINT16_C(32)
++        );
++        CHECK(
++            read_test_u16(
++                &machine, UINT32_C(0x010017fe)
++            ) == UINT16_C(32)
++        );
++        CHECK(
++            read_test_u16(
++                &machine, UINT32_C(0x0100013c)
++            ) == UINT16_C(0x8045)
++        );
++        CHECK(
++            read_test_u16(
++                &machine, UINT32_C(0x0100013e)
++            ) == UINT16_C(0x8058)
++        );
++        CHECK(
++            read_test_u16(
++                &machine, UINT32_C(0x01000140)
++            ) == UINT16_C(0x8049)
++        );
++        CHECK(
++            read_test_u16(
++                &machine, UINT32_C(0x01000142)
++            ) == UINT16_C(0x8054)
