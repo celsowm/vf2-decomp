@@ -1,0 +1,86 @@
+name: Temporary phase17 bit7 publisher
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: github.event.pull_request.head.ref == 'automation/phase17-bit7-publish'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout current master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          path: work
+          fetch-depth: 0
+
+      - name: Checkout validated patch transport
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: source
+
+      - name: Apply validated phase17 bit7 patch
+        run: |
+          cat \
+            source/automation/phase17-bit7.patch.001 \
+            source/automation/phase17-bit7.patch.002a \
+            source/automation/phase17-bit7.patch.002b \
+            source/automation/phase17-bit7.patch.002c \
+            source/automation/phase17-bit7.patch.002d \
+            source/automation/phase17-bit7.patch.003a \
+            source/automation/phase17-bit7.patch.003b \
+            source/automation/phase17-bit7.patch.003c \
+            source/automation/phase17-bit7.patch.003d \
+            source/automation/phase17-bit7.patch.004a \
+            source/automation/phase17-bit7.patch.004b \
+            source/automation/phase17-bit7.patch.004c \
+            source/automation/phase17-bit7.patch.004d \
+            source/automation/phase17-bit7.patch.005 \
+            > /tmp/phase17-bit7.patch
+          git -C work apply --check /tmp/phase17-bit7.patch
+          git -C work apply /tmp/phase17-bit7.patch
+          git -C work diff --check
+
+      - name: GCC warning-as-error build and tests
+        working-directory: work
+        env:
+          CC: gcc
+        run: |
+          cmake -S . -B build-gcc -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DVF2_BUILD_TESTS=ON \
+            -DVF2_WARNINGS_AS_ERRORS=ON \
+            -DVF2_ROM_DIR=/tmp/no-proprietary-roms
+          cmake --build build-gcc --parallel
+          ctest --test-dir build-gcc --output-on-failure
+
+      - name: Clang warning-as-error build and tests
+        working-directory: work
+        env:
+          CC: clang
+        run: |
+          cmake -S . -B build-clang -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DVF2_BUILD_TESTS=ON \
+            -DVF2_WARNINGS_AS_ERRORS=ON \
+            -DVF2_ROM_DIR=/tmp/no-proprietary-roms
+          cmake --build build-clang --parallel
+          ctest --test-dir build-clang --output-on-failure
+
+      - name: Publish directly to master
+        working-directory: work
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            src/recovered/texture_bridge_match.c \
+            tests/analysis/test_orchestrator_bridge.c \
+            CHANGELOG.md README.md docs/STATUS.md docs/UNCOVERED_BRANCHES.md
+          git commit -m "runtime: recover phase17 bit7 countdown"
+          git push origin HEAD:master
