@@ -1,0 +1,58 @@
+name: Validate and publish endurance CLI
+
+on:
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout current master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          path: work
+          fetch-depth: 0
+
+      - name: Checkout validation source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: patch-source
+
+      - name: Apply endurance tooling
+        run: |
+          mkdir -p work/tools/vf2cycles
+          cp patch-source/tools/vf2cycles/main.c work/tools/vf2cycles/main.c
+          python3 patch-source/.github/endurance/apply.py work
+          git -C work diff --check
+
+      - name: Build and test ROM-independent suite
+        working-directory: work
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DVF2_BUILD_TESTS=ON \
+            -DVF2_WARNINGS_AS_ERRORS=ON \
+            -DVF2_ROM_DIR=/tmp/no-proprietary-roms
+          cmake --build build --parallel
+          ctest --test-dir build --output-on-failure
+          ./build/vf2cycles > /tmp/vf2cycles-usage.txt 2>&1 || true
+          grep -F "Usage:" /tmp/vf2cycles-usage.txt
+
+      - name: Commit directly to master
+        working-directory: work
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            CMakeLists.txt README.md docs/STATUS.md \
+            tools/vf2i960/main.c tools/vf2cycles/main.c
+          git commit -m "runtime: add snapshot endurance runner"
+          git push origin HEAD:master
