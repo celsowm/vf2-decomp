@@ -27,6 +27,16 @@ jobs:
 
       - name: Reconstruct validated phase17 bit7 patch
         run: |
+          wc -c source/automation/phase17-bit7.patch.b64.000 \
+                source/automation/phase17-bit7.patch.b64.001 \
+                source/automation/phase17-bit7.patch.b64.002 \
+                source/automation/phase17-bit7.patch.b64.003 \
+                source/automation/phase17-bit7.patch.b64.004
+          sha256sum source/automation/phase17-bit7.patch.b64.000 \
+                    source/automation/phase17-bit7.patch.b64.001 \
+                    source/automation/phase17-bit7.patch.b64.002 \
+                    source/automation/phase17-bit7.patch.b64.003 \
+                    source/automation/phase17-bit7.patch.b64.004
           cat source/automation/phase17-bit7.patch.b64.000 \
               source/automation/phase17-bit7.patch.b64.001 \
               source/automation/phase17-bit7.patch.b64.002 \
