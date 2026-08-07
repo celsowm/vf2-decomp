@@ -1,0 +1,395 @@
+--- a/include/vf2/i960/snapshot.h
++++ b/include/vf2/i960/snapshot.h
+@@ -91,6 +91,15 @@
+     vf2_i960_snapshot_diff *diff
+ );
+ 
++/* Compare two live CPU/machine states without allocating snapshot buffers. */
++vf2_status vf2_i960_compare_live_state(
++    const vf2_i960_cpu *expected_cpu,
++    const vf2_model2a *expected_machine,
++    const vf2_i960_cpu *actual_cpu,
++    const vf2_model2a *actual_machine,
++    vf2_i960_snapshot_diff *diff
++);
++
+ /* Compare captured memory regions while intentionally ignoring CPU state. */
+ vf2_status vf2_i960_snapshot_compare_memory(
+     const vf2_i960_snapshot *expected,
+--- a/src/i960/snapshot.c
++++ b/src/i960/snapshot.c
+@@ -92,6 +92,12 @@
+     if (destination == NULL || destination_size == NULL || (source == NULL && source_size != 0u)) {
+         return VF2_ERROR_INVALID_ARGUMENT;
+     }
++    if (*destination != NULL && *destination_size == source_size) {
++        if (source_size != 0u) {
++            memcpy(*destination, source, source_size);
++        }
++        return VF2_OK;
++    }
+     if (source_size != 0u) {
+         copy = (uint8_t *)malloc(source_size);
+         if (copy == NULL) {
+@@ -191,7 +197,6 @@
+     if (snapshot == NULL || cpu == NULL || machine == NULL) {
+         return VF2_ERROR_INVALID_ARGUMENT;
+     }
+-    vf2_i960_snapshot_destroy(snapshot);
+     snapshot->cpu = *cpu;
+     writable_regions(snapshot, destination);
+     machine_regions(machine, source);
+@@ -384,6 +389,9 @@
+ static void compare_bytes(const char *component, const uint8_t *expected, const uint8_t *actual, size_t size, vf2_i960_snapshot_diff *diff)
+ {
+     size_t index = 0u;
++    if (size == 0u || memcmp(expected, actual, size) == 0) {
++        return;
++    }
+     for (index = 0u; index < size; ++index) {
+         if (expected[index] != actual[index]) {
+             if (diff->equal) {
+@@ -436,6 +444,100 @@
+     }
+     return VF2_OK;
+ }
++
++vf2_status vf2_i960_compare_live_state(
++    const vf2_i960_cpu *expected_cpu,
++    const vf2_model2a *expected_machine,
++    const vf2_i960_cpu *actual_cpu,
++    const vf2_model2a *actual_machine,
++    vf2_i960_snapshot_diff *diff
++)
++{
++    snapshot_const_region_ref expected_regions[VF2_SNAPSHOT_REGION_COUNT];
++    snapshot_const_region_ref actual_regions[VF2_SNAPSHOT_REGION_COUNT];
++    size_t index = 0u;
++
++    if (expected_cpu == NULL || expected_machine == NULL ||
++        actual_cpu == NULL || actual_machine == NULL || diff == NULL) {
++        return VF2_ERROR_INVALID_ARGUMENT;
++    }
++
++    memset(diff, 0, sizeof(*diff));
++    diff->equal = true;
++    if (expected_cpu->sat != actual_cpu->sat ||
++        expected_cpu->prcb != actual_cpu->prcb ||
++        expected_cpu->ip != actual_cpu->ip ||
++        expected_cpu->process_control != actual_cpu->process_control ||
++        expected_cpu->arithmetic_control != actual_cpu->arithmetic_control ||
++        expected_cpu->interrupt_control != actual_cpu->interrupt_control ||
++        expected_cpu->compare_result != actual_cpu->compare_result ||
++        expected_cpu->reinitialized != actual_cpu->reinitialized ||
++        expected_cpu->local_frame_depth != actual_cpu->local_frame_depth) {
++        diff->equal = false;
++        (void)snprintf(diff->component, sizeof(diff->component), "cpu-state");
++        diff->expected_value = expected_cpu->ip;
++        diff->actual_value = actual_cpu->ip;
++        ++diff->differing_bytes;
++    }
++    for (index = 0u; index < VF2_I960_REGISTER_COUNT; ++index) {
++        if (expected_cpu->registers[index] != actual_cpu->registers[index]) {
++            if (diff->equal) {
++                diff->equal = false;
++                (void)snprintf(diff->component, sizeof(diff->component), "registers");
++                diff->first_offset = index;
++                diff->expected_value = expected_cpu->registers[index];
++                diff->actual_value = actual_cpu->registers[index];
++            }
++            ++diff->differing_bytes;
++        }
++    }
++    if (expected_cpu->local_frame_depth != actual_cpu->local_frame_depth) {
++        return VF2_OK;
++    }
++    for (index = 0u; index < expected_cpu->local_frame_depth; ++index) {
++        size_t reg = 0u;
++        for (reg = 0u; reg < VF2_I960_LOCAL_REGISTER_COUNT; ++reg) {
++            const uint32_t expected_value = expected_cpu->local_frames[index].registers[reg];
++            const uint32_t actual_value = actual_cpu->local_frames[index].registers[reg];
++            if (expected_value != actual_value) {
++                if (diff->equal) {
++                    diff->equal = false;
++                    (void)snprintf(diff->component, sizeof(diff->component), "local-frames");
++                    diff->first_offset = index * VF2_I960_LOCAL_REGISTER_COUNT + reg;
++                    diff->expected_value = expected_value;
++                    diff->actual_value = actual_value;
++                }
++                ++diff->differing_bytes;
++            }
++        }
++    }
++
++    machine_regions(expected_machine, expected_regions);
++    machine_regions(actual_machine, actual_regions);
++    for (index = 0u; index < VF2_SNAPSHOT_REGION_COUNT; ++index) {
++        if (expected_regions[index].size != actual_regions[index].size) {
++            if (diff->equal) {
++                diff->equal = false;
++                (void)snprintf(diff->component, sizeof(diff->component), "region-size");
++                diff->first_offset = index;
++                diff->expected_value = (uint32_t)expected_regions[index].size;
++                diff->actual_value = (uint32_t)actual_regions[index].size;
++            }
++            ++diff->differing_bytes;
++            return VF2_OK;
++        }
++    }
++    for (index = 0u; index < VF2_SNAPSHOT_REGION_COUNT; ++index) {
++        compare_bytes(
++            expected_regions[index].name,
++            expected_regions[index].data,
++            actual_regions[index].data,
++            expected_regions[index].size,
++            diff
++        );
++    }
++    return VF2_OK;
++}
+ 
+ vf2_status vf2_i960_snapshot_compare_memory(
+     const vf2_i960_snapshot *expected,
+--- a/src/recovered/native_differential.c
++++ b/src/recovered/native_differential.c
+@@ -52,25 +52,17 @@
+     vf2_i960_snapshot_diff *diff
+ )
+ {
+-    vf2_status status = vf2_i960_snapshot_capture(
+-        reference_snapshot,
++    vf2_status status = VF2_OK;
++
++    (void)reference_snapshot;
++    (void)native_snapshot;
++    status = vf2_i960_compare_live_state(
+         reference_cpu,
+-        reference_machine
++        reference_machine,
++        native_cpu,
++        native_machine,
++        diff
+     );
+-    if (status == VF2_OK) {
+-        status = vf2_i960_snapshot_capture(
+-            native_snapshot,
+-            native_cpu,
+-            native_machine
+-        );
+-    }
+-    if (status == VF2_OK) {
+-        status = vf2_i960_snapshot_compare(
+-            reference_snapshot,
+-            native_snapshot,
+-            diff
+-        );
+-    }
+     if (status == VF2_OK && diff->equal) {
+         compare_execution_counters(reference_cpu, native_cpu, diff);
+     }
+--- a/src/recovered/native_differential_step.c
++++ b/src/recovered/native_differential_step.c
+@@ -52,25 +52,17 @@
+     vf2_i960_snapshot_diff *diff
+ )
+ {
+-    vf2_status status = vf2_i960_snapshot_capture(
+-        reference_snapshot,
++    vf2_status status = VF2_OK;
++
++    (void)reference_snapshot;
++    (void)native_snapshot;
++    status = vf2_i960_compare_live_state(
+         reference_cpu,
+-        reference_machine
++        reference_machine,
++        native_cpu,
++        native_machine,
++        diff
+     );
+-    if (status == VF2_OK) {
+-        status = vf2_i960_snapshot_capture(
+-            native_snapshot,
+-            native_cpu,
+-            native_machine
+-        );
+-    }
+-    if (status == VF2_OK) {
+-        status = vf2_i960_snapshot_compare(
+-            reference_snapshot,
+-            native_snapshot,
+-            diff
+-        );
+-    }
+     if (status == VF2_OK && diff->equal) {
+         compare_execution_counters(reference_cpu, native_cpu, diff);
+     }
+--- a/tests/i960/test_snapshot.c
++++ b/tests/i960/test_snapshot.c
+@@ -84,6 +84,68 @@
+         return 3;
+     }
+ 
++    {
++        vf2_model2a live_machine;
++        vf2_i960_cpu live_cpu;
++        uint8_t *const reused_work_ram = first.work_ram;
++
++        memset(&live_machine, 0, sizeof(live_machine));
++        memset(&live_cpu, 0, sizeof(live_cpu));
++        if (!vf2_model2a_initialize(&live_machine)) {
++            (void)remove(path);
++            vf2_i960_snapshot_destroy(&first);
++            vf2_i960_snapshot_destroy(&second);
++            vf2_model2a_shutdown(&machine);
++            return 4;
++        }
++        status = vf2_i960_snapshot_restore(&first, &live_cpu, &live_machine);
++        if (status == VF2_OK) {
++            status = vf2_i960_compare_live_state(
++                &cpu,
++                &machine,
++                &live_cpu,
++                &live_machine,
++                &diff
++            );
++        }
++        if (status != VF2_OK || !diff.equal) {
++            vf2_model2a_shutdown(&live_machine);
++            (void)remove(path);
++            vf2_i960_snapshot_destroy(&first);
++            vf2_i960_snapshot_destroy(&second);
++            vf2_model2a_shutdown(&machine);
++            return 5;
++        }
++        live_machine.work_ram[7] ^= 1u;
++        status = vf2_i960_compare_live_state(
++            &cpu,
++            &machine,
++            &live_cpu,
++            &live_machine,
++            &diff
++        );
++        if (status != VF2_OK || diff.equal ||
++            strcmp(diff.component, "work-ram") != 0 ||
++            diff.first_offset != 7u) {
++            vf2_model2a_shutdown(&live_machine);
++            (void)remove(path);
++            vf2_i960_snapshot_destroy(&first);
++            vf2_i960_snapshot_destroy(&second);
++            vf2_model2a_shutdown(&machine);
++            return 6;
++        }
++        status = vf2_i960_snapshot_capture(&first, &cpu, &machine);
++        if (status != VF2_OK || first.work_ram != reused_work_ram) {
++            vf2_model2a_shutdown(&live_machine);
++            (void)remove(path);
++            vf2_i960_snapshot_destroy(&first);
++            vf2_i960_snapshot_destroy(&second);
++            vf2_model2a_shutdown(&machine);
++            return 7;
++        }
++        vf2_model2a_shutdown(&live_machine);
++    }
++
+     (void)remove(path);
+     vf2_i960_snapshot_destroy(&first);
+     vf2_i960_snapshot_destroy(&second);
+--- a/README.md
++++ b/README.md
+@@ -274,9 +274,14 @@
+ `--failure-prefix` is present, so normal endurance runs avoid that extra copy. A
+ successful run never interprets instructions on the native side.
+ 
+-A ROM-backed endurance run from the fifth-dispatch checkpoint has now completed
+-1,000 additional repeated-address cycles (36,000 blocks / 1,582,507 recovered
+-instructions) with exact per-block differential state equality.
++A ROM-backed strict endurance chain from the fifth-dispatch checkpoint has now
++completed 10,000 additional repeated-address cycles (360,000 blocks / 15,689,445
++recovered instructions) with exact per-block differential state equality. The
++final chained checkpoint is again `fa_game_info` at `0x0001645c`, with scheduler
++entry / frame IRQ 10,003. The strict comparator now checks the two live CPU and
++mutable-memory states directly, snapshot capture reuses same-sized region buffers,
++and equal regions take a `memcmp` fast path while mismatches retain byte-precise
++diagnostics.
+ 
+ For longer scouting runs, `--boundary-probe` keeps the same recovered-native and
+ reference instruction-count lockstep but defers the expensive complete snapshot
+@@ -301,7 +306,7 @@
+ replaying earlier accepted cycles. Using the verified ROM set, boundary probes
+ have reached scheduler entry / frame IRQ 16,384 with complete cycle-end CPU,
+ counter, local-frame and mutable-memory equality. The stricter published
+-per-block corridor remains the 1,000-cycle result above.
++per-block corridor is now the 10,000-cycle result above.
+ 
+ Controlled state-transition probing has also recovered both phase-17 navigation
+ directions. Gameplay bit 13 (`0x00002000`) steps backward (`11 -> 10`, with
+--- a/docs/STATUS.md
++++ b/docs/STATUS.md
+@@ -118,13 +118,19 @@
+ runner performs public one-block differential steps and can persist the last
+ fully matched state immediately before a failure.
+ 
+-ROM-backed endurance now extends the proven corridor substantially beyond the
+-fifth entry. A verified 36/36 ROM set completed 1,000 additional repeated-
+-address cycles with exact CPU, local-frame, counter, frame-event and mutable-
+-memory equality: 36,000 additional native blocks and 1,582,507 recovered i960
+-instructions. The final checkpoint is again `fa_game_info` at `0x0001645c`,
+-with 1,003 scheduler entries and 1,003 injected frame IRQs accumulated by the
+-native runtime.
++ROM-backed endurance now extends the strict proven corridor substantially beyond
++the fifth entry. A verified 36/36 ROM set completed 10,000 additional repeated-
++address cycles with exact per-block CPU, local-frame, counter, frame-event and
++mutable-memory equality: 360,000 additional native blocks and 15,689,445
++recovered i960 instructions. The final chained checkpoint is again
++`fa_game_info` at `0x0001645c`, with 10,003 scheduler entries and 10,003
++injected frame IRQs accumulated by the native runtime.
++
++The strict comparison path now compares live CPU and mutable machine state
++directly instead of materializing two temporary full snapshots for every block.
++Snapshot capture reuses same-sized region buffers, and equal memory regions use
++a `memcmp` fast path while differing regions still fall back to the byte scan
++that reports the exact component and first differing offset.
+ 
+ That endurance run exposed and fixed two previously unobserved periodic paths:
+ 
+@@ -145,8 +151,8 @@
+ so long probes can resume without replaying earlier cycles.
+ 
+ Using the verified ROM set, cycle-boundary probing reached scheduler entry and
+-frame IRQ 16,384 with complete cycle-end state equality. This does **not** extend
+-the strict per-block acceptance claim beyond the published 1,000-cycle corridor.
++frame IRQ 16,384 with complete cycle-end state equality. This scouting result
++remains distinct from the now-published 10,000-cycle strict per-block corridor.
+ It does show that passive repeated-frame execution has settled into a stable
+ state: the observed mode remains `0x00020000`, phase state/index remain
+ `0xff`/`0x0b`, and gameplay flags remain zero.
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -2,6 +2,17 @@
+ 
+ ## Unreleased
+ 
++- accelerated strict per-block differential acceptance without weakening its
++  equality contract: live CPU/mutable-memory state is compared directly,
++  snapshot captures reuse same-sized buffers, and equal regions use `memcmp`
++  before falling back to byte-precise mismatch diagnostics;
++- added ROM-independent regression coverage for live-state equality/mismatch
++  reporting and snapshot-buffer reuse;
++- extended the verified 36/36-ROM strict fifth-dispatch endurance corridor to
++  10,000 chained repeated-address cycles: 360,000 blocks / 15,689,445 recovered
++  i960 instructions with per-block equality, ending again at `0x0001645c` with
++  scheduler entry / frame IRQ 10,003; the existing 16,384-cycle boundary probe
++  remains scouting evidence under its intentionally weaker cycle-end contract;
+ - recovered the phase-17 bit-7 indirect dispatch for observed index `0x8b`:
+   `0x00059154` clears the flag and dispatches through table entry `0x0005ff00`
+   to `0x0005ef60`; the first visit now reproduces the ROM's game-meter update,
+@@ -53,7 +64,7 @@
+ - added `vf2_native_differential_probe_cycles` and `vf2cycles --boundary-probe` for long-horizon repeated-frame scouting: reference and native execution remain instruction-count locked per recovered block, frame-wait host state is checked on each wait block, complete CPU/mutable-memory state is compared at cycle boundaries, and any failing cycle restores both machines plus native runtime state to its exact start for strict replay;
+ - added `vf2cycles --output-snapshot <file>` to persist successful endurance boundaries together with the versioned `.runtime` sidecar, allowing long ROM-backed probes to resume without replaying earlier cycles;
+ - added ROM-independent coverage for the zero-cycle probe contract and retained the existing strict per-block runner unchanged as the acceptance path;
+-- ROM-backed cycle-boundary probing from the proven fifth-dispatch corridor reached scheduler entry / frame IRQ 16,384 with complete cycle-end state equality; this is scouting evidence only and does not broaden the published 1,000-cycle strict per-block claim. The repeated state remains on the same mode/phase/gameplay fast paths, so v0.2.0 work now shifts toward controlled state-transition evidence rather than passive endurance of the same attractor;
++- ROM-backed cycle-boundary probing from the proven fifth-dispatch corridor reached scheduler entry / frame IRQ 16,384 with complete cycle-end state equality; this remains scouting evidence distinct from the published 10,000-cycle strict per-block claim. The repeated state remains on the same mode/phase/gameplay fast paths, so v0.2.0 work now shifts toward controlled state-transition evidence rather than passive endurance of the same attractor;
+ - recovered the `0x0000a75c` busy subpath of `frame_geometry_gate`: the two
+   observed transitions through `0x0000a748 -> 0x0000a800` (the
+   `state[0x0050002a] != 17` retry-write, eight instructions and one byte,
