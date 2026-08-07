@@ -24,3 +24,5 @@ jobs:
           name: source-bundle-live-compare
           path: source-bundle.zip
           if-no-files-found: error
+
+# soft-reset source refresh
