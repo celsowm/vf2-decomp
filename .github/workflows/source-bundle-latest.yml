@@ -1,0 +1,26 @@
+name: Temporary latest source bundle
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    if: github.event.pull_request.head.ref == 'automation/source-bundle-latest'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+      - name: Build source archive
+        run: git archive --format=zip --output=source-bundle.zip HEAD
+      - name: Upload source archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-bundle-latest
+          path: source-bundle.zip
+          if-no-files-found: error
