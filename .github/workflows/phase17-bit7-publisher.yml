@@ -27,20 +27,17 @@ jobs:
 
       - name: Reconstruct validated phase17 bit7 patch
         run: |
-          wc -c source/automation/phase17-bit7.patch.b64.000 \
-                source/automation/phase17-bit7.patch.b64.001 \
-                source/automation/phase17-bit7.patch.b64.002 \
-                source/automation/phase17-bit7.patch.b64.003 \
-                source/automation/phase17-bit7.patch.b64.004
-          sha256sum source/automation/phase17-bit7.patch.b64.000 \
-                    source/automation/phase17-bit7.patch.b64.001 \
-                    source/automation/phase17-bit7.patch.b64.002 \
-                    source/automation/phase17-bit7.patch.b64.003 \
-                    source/automation/phase17-bit7.patch.b64.004
+          echo "457bd1e0b72882d0fe203e6c152a5b7c62c1bcc9bb1b9c71614a9431f0c69a5d  source/automation/phase17-bit7.patch.b64.000" | sha256sum -c -
+          echo "28602e56a64c1a2fec148d8926f581ec96d5ef5c6bb3f6e75f300a9a76dd677f  source/automation/phase17-bit7.patch.b64.001" | sha256sum -c -
+          echo "af638e9b7b4fd06ae8f5b3abb5c9a0a40b34f995d2860ec066849c821f826b1a  source/automation/phase17-bit7.patch.b64.002" | sha256sum -c -
+          echo "fee774c9c9907811e62c19a393ef52171ea53251ba41a25d3ff79bdc30c9e3e9  source/automation/phase17-bit7.patch.b64.003a" | sha256sum -c -
+          echo "f1eb6b8718d64d921cdd4940481e9b2900fa3156c78ea24260a0d0a2841e74c3  source/automation/phase17-bit7.patch.b64.003b" | sha256sum -c -
+          echo "ede1296d48be3423c9b4cd15924655469e3e2ade7d7814c3faab4193daf01a17  source/automation/phase17-bit7.patch.b64.004" | sha256sum -c -
           cat source/automation/phase17-bit7.patch.b64.000 \
               source/automation/phase17-bit7.patch.b64.001 \
               source/automation/phase17-bit7.patch.b64.002 \
-              source/automation/phase17-bit7.patch.b64.003 \
+              source/automation/phase17-bit7.patch.b64.003a \
+              source/automation/phase17-bit7.patch.b64.003b \
               source/automation/phase17-bit7.patch.b64.004 \
               > /tmp/phase17-bit7.patch.b64
           base64 -d /tmp/phase17-bit7.patch.b64 > /tmp/phase17-bit7.patch
