@@ -1,0 +1,275 @@
+from pathlib import Path
+import sys
+
+
+def replace_once(path: Path, old: str, new: str) -> None:
+    text = path.read_text()
+    count = text.count(old)
+    if count != 1:
+        raise SystemExit(f"expected one match in {path}, found {count}")
+    path.write_text(text.replace(old, new, 1))
+
+
+def main() -> None:
+    if len(sys.argv) != 2:
+        raise SystemExit("usage: apply_runtime_state_checkpoints.py ROOT")
+    root = Path(sys.argv[1])
+
+    native_runtime_h = root / "include/vf2/native_runtime.h"
+    replace_once(
+        native_runtime_h,
+        '#include "vf2/status.h"\n\n',
+        '#include "vf2/status.h"\n\n'
+        '#define VF2_NATIVE_RUNTIME_STATE_VERSION 1u\n\n',
+    )
+    replace_once(
+        native_runtime_h,
+        'vf2_status vf2_native_runtime_run_until(\n'
+        '    vf2_model2a *machine,\n'
+        '    vf2_i960_cpu *cpu,\n'
+        '    vf2_native_runtime_state *state,\n'
+        '    uint32_t stop_address,\n'
+        '    size_t max_blocks,\n'
+        '    vf2_native_runtime_run_report *report\n'
+        ');\n\n'
+        'const char *vf2_native_runtime_step_kind_name(\n',
+        'vf2_status vf2_native_runtime_run_until(\n'
+        '    vf2_model2a *machine,\n'
+        '    vf2_i960_cpu *cpu,\n'
+        '    vf2_native_runtime_state *state,\n'
+        '    uint32_t stop_address,\n'
+        '    size_t max_blocks,\n'
+        '    vf2_native_runtime_run_report *report\n'
+        ');\n\n'
+        '/* Persist the host-side state that is intentionally outside the\n'
+        ' * architectural i960 snapshot. The fixed-width, little-endian\n'
+        ' * format is versioned and protected by CRC32. */\n'
+        'vf2_status vf2_native_runtime_state_write_file(\n'
+        '    const vf2_native_runtime_state *state,\n'
+        '    const char *path\n'
+        ');\n\n'
+        'vf2_status vf2_native_runtime_state_read_file(\n'
+        '    vf2_native_runtime_state *state,\n'
+        '    const char *path\n'
+        ');\n\n'
+        'const char *vf2_native_runtime_step_kind_name(\n',
+    )
+
+    native_diff_h = root / "include/vf2/native_differential.h"
+    replace_once(
+        native_diff_h,
+        'typedef struct vf2_native_differential_cycles_report {\n'
+        '    uint32_t repeated_address;\n'
+        '    uint32_t final_reference_address;\n'
+        '    uint32_t final_native_address;\n'
+        '    size_t requested_cycles;\n'
+        '    size_t completed_cycles;\n'
+        '    size_t blocks_compared;\n'
+        '    uint64_t reference_instructions_executed;\n'
+        '    uint64_t native_recovered_instructions;\n'
+        '    vf2_native_differential_report last_cycle;\n'
+        '    int completed;\n'
+        '} vf2_native_differential_cycles_report;\n\n',
+        'typedef struct vf2_native_differential_cycles_report {\n'
+        '    uint32_t repeated_address;\n'
+        '    uint32_t final_reference_address;\n'
+        '    uint32_t final_native_address;\n'
+        '    size_t requested_cycles;\n'
+        '    size_t completed_cycles;\n'
+        '    size_t blocks_compared;\n'
+        '    uint64_t reference_instructions_executed;\n'
+        '    uint64_t native_recovered_instructions;\n'
+        '    vf2_native_differential_report last_cycle;\n'
+        '    int completed;\n'
+        '} vf2_native_differential_cycles_report;\n\n'
+        'typedef struct vf2_native_differential_step_report {\n'
+        '    uint32_t start_address;\n'
+        '    uint32_t final_reference_address;\n'
+        '    uint32_t final_native_address;\n'
+        '    uint64_t reference_instructions_executed;\n'
+        '    uint64_t native_recovered_instructions;\n'
+        '    vf2_native_runtime_step_report native_step;\n'
+        '    vf2_i960_snapshot_diff diff;\n'
+        '    int matched;\n'
+        '} vf2_native_differential_step_report;\n\n',
+    )
+    replace_once(
+        native_diff_h,
+        '/* Execute the recovered native runtime and the reference i960 in lockstep.\n',
+        '/* Execute exactly one recovered block and the same number of reference\n'
+        ' * instructions, then compare complete CPU, counter, frame-wait and mutable\n'
+        ' * memory state. The native side never falls back to interpretation. */\n'
+        'vf2_status vf2_native_differential_step(\n'
+        '    vf2_model2a *reference_machine,\n'
+        '    vf2_i960_cpu *reference_cpu,\n'
+        '    vf2_model2a *native_machine,\n'
+        '    vf2_i960_cpu *native_cpu,\n'
+        '    vf2_native_runtime_state *native_state,\n'
+        '    vf2_native_differential_step_report *report\n'
+        ');\n\n'
+        '/* Execute the recovered native runtime and the reference i960 in lockstep.\n',
+    )
+
+    cmake = root / "CMakeLists.txt"
+    replace_once(
+        cmake,
+        '    src/recovered/native_runtime.c\n'
+        '    src/recovered/native_differential.c\n',
+        '    src/recovered/native_runtime.c\n'
+        '    src/recovered/native_runtime_state.c\n'
+        '    src/recovered/native_differential.c\n'
+        '    src/recovered/native_differential_step.c\n',
+    )
+    replace_once(
+        cmake,
+        '    add_test(\n'
+        '        NAME vf2_native_runtime\n'
+        '        COMMAND vf2_native_runtime_tests\n'
+        '    )\n\n'
+        '    add_executable(vf2_native_differential_tests\n',
+        '    add_test(\n'
+        '        NAME vf2_native_runtime\n'
+        '        COMMAND vf2_native_runtime_tests\n'
+        '    )\n\n'
+        '    add_executable(vf2_native_runtime_state_tests\n'
+        '        tests/recovered/test_native_runtime_state.c\n'
+        '    )\n'
+        '    target_link_libraries(vf2_native_runtime_state_tests PRIVATE vf2_core)\n'
+        '    vf2_set_project_warnings(vf2_native_runtime_state_tests)\n\n'
+        '    add_test(\n'
+        '        NAME vf2_native_runtime_state\n'
+        '        COMMAND vf2_native_runtime_state_tests\n'
+        '    )\n\n'
+        '    add_executable(vf2_native_differential_tests\n',
+    )
+
+    vf2i960 = root / "tools/vf2i960/main.c"
+    old_snapshot = '''            if (native_fifth_dispatch && g_native_snapshot_path != NULL) {
+                vf2_i960_snapshot output_snapshot;
+                vf2_i960_snapshot_init(&output_snapshot);
+                status = vf2_i960_snapshot_capture(
+                    &output_snapshot,
+                    &native_cpu,
+                    &native_machine
+                );
+                if (status == VF2_OK) {
+                    status = vf2_i960_snapshot_write_file(
+                        &output_snapshot,
+                        g_native_snapshot_path
+                    );
+                }
+                vf2_i960_snapshot_destroy(&output_snapshot);
+                if (status == VF2_OK) {
+                    printf("Fifth-dispatch snapshot:            %s\\n",
+                           g_native_snapshot_path);
+                } else {
+                    fprintf(stderr, "Could not write fifth-dispatch snapshot: %s\\n",
+                            vf2_status_string(status));
+                }
+            }
+'''
+    new_snapshot = '''            if (native_fifth_dispatch && g_native_snapshot_path != NULL) {
+                vf2_i960_snapshot output_snapshot;
+                const size_t snapshot_path_length =
+                    strlen(g_native_snapshot_path);
+                char *runtime_state_path = NULL;
+
+                vf2_i960_snapshot_init(&output_snapshot);
+                if (snapshot_path_length <=
+                    SIZE_MAX - sizeof(".runtime")) {
+                    runtime_state_path = (char *)malloc(
+                        snapshot_path_length + sizeof(".runtime")
+                    );
+                }
+                if (runtime_state_path == NULL) {
+                    status = VF2_ERROR_OUT_OF_MEMORY;
+                } else {
+                    memcpy(
+                        runtime_state_path,
+                        g_native_snapshot_path,
+                        snapshot_path_length
+                    );
+                    memcpy(
+                        runtime_state_path + snapshot_path_length,
+                        ".runtime",
+                        sizeof(".runtime")
+                    );
+                }
+                if (status == VF2_OK) {
+                    status = vf2_i960_snapshot_capture(
+                        &output_snapshot,
+                        &native_cpu,
+                        &native_machine
+                    );
+                }
+                if (status == VF2_OK) {
+                    status = vf2_i960_snapshot_write_file(
+                        &output_snapshot,
+                        g_native_snapshot_path
+                    );
+                }
+                if (status == VF2_OK) {
+                    status = vf2_native_runtime_state_write_file(
+                        &runtime_state,
+                        runtime_state_path
+                    );
+                }
+                vf2_i960_snapshot_destroy(&output_snapshot);
+                if (status == VF2_OK) {
+                    printf("Fifth-dispatch snapshot:            %s\\n",
+                           g_native_snapshot_path);
+                    printf("Fifth-dispatch runtime state:       %s\\n",
+                           runtime_state_path);
+                } else {
+                    (void)remove(g_native_snapshot_path);
+                    if (runtime_state_path != NULL) {
+                        (void)remove(runtime_state_path);
+                    }
+                    fprintf(
+                        stderr,
+                        "Could not write fifth-dispatch checkpoint: %s\\n",
+                        vf2_status_string(status)
+                    );
+                }
+                free(runtime_state_path);
+            }
+'''
+    replace_once(vf2i960, old_snapshot, new_snapshot)
+
+    readme = root / "README.md"
+    replace_once(
+        readme,
+        'The command stops at the first unsupported native block, reference execution\n'
+        'failure or state mismatch and prints the partial cycle, last recovered step and\n'
+        'first differing component. A successful run never interprets instructions on\n'
+        'the native side.\n',
+        'The fifth-dispatch command writes both `fifth-dispatch.vf2snap` and the\n'
+        'versioned `fifth-dispatch.vf2snap.runtime` host-state sidecar. `vf2cycles`\n'
+        'loads the sidecar automatically, or accepts an explicit `--state` path.\n\n'
+        'The command stops at the first unsupported native block, reference execution\n'
+        'failure or state mismatch and prints the partial cycle, last recovered step and\n'
+        'first differing component. Add `--failure-prefix fifth-sweep-failure` to write\n'
+        'the last fully matched pre-block state as `.vf2snap`, `.runtime` and `.txt`\n'
+        'files. Re-running those files reproduces the unsupported block without replaying\n'
+        'the accepted corridor. A successful run never interprets instructions on the\n'
+        'native side.\n',
+    )
+
+    status_doc = root / "docs/STATUS.md"
+    replace_once(
+        status_doc,
+        'This tooling does not extend the ROM-proven boundary by itself. Its first\n'
+        'expected failure identifies the concrete unsupported block that must be\n'
+        'recovered before a strict sixth-dispatch contract can be recorded.\n',
+        'The checkpoint now includes a versioned, CRC-protected runtime-state sidecar\n'
+        'covering frame-wait progress and all native aggregate counters. The endurance\n'
+        'runner performs public one-block differential steps and can persist the last\n'
+        'fully matched state immediately before a failure.\n\n'
+        'This tooling does not extend the ROM-proven boundary by itself. Its first\n'
+        'expected failure identifies the concrete unsupported block that must be\n'
+        'recovered before a strict sixth-dispatch contract can be recorded.\n',
+    )
+
+
+if __name__ == "__main__":
+    main()
