@@ -1,0 +1,429 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index aea8c6b..92991bd 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -2,6 +2,13 @@
+ 
+ ## Unreleased
+ 
++- recovered the first post-boot initialization prefix from the warm-reset
++  boundary at `0x0000052c` through the call entry at `0x0006dd4c`: the native
++  block reproduces the `0x00009798` prologue, diagnostic-byte/mode writes, the
++  serial-control initialization at `0x0004372c` including six architectural
++  delay calls, the command-queue write at `0x000438ec`, and the `0x0000a048`
++  return stub; strict ROM-backed replay matches 60,078 instructions, 10 calls /
++  9 returns, CPU/local-frame state and all mutable memory exactly;
+ - recovered the phase-17 bit-7 terminal countdown transition at `0x0005f07c`:
+   the `counter 1 -> 0` path now reproduces layer-bit clearing, global/gameplay
+   resets, the 48x64 tile clear, the `RESET` diagnostic write through
+diff --git a/README.md b/README.md
+index 015eace..3468773 100644
+--- a/README.md
++++ b/README.md
+@@ -347,6 +347,10 @@ untouched incoming registers/control state and matches 1,180,053 instructions to
+ `0x000001b0`; boot stage 2 matches another 182,514 instructions to `0x0000052c`.
+ Together with the terminal cluster, the three strict blocks cover 1,375,993
+ instructions with exact CPU, local-frame, procedure-counter and mutable-memory
+-equality. The next concrete recovery boundary is the branch from `0x0000052c`
+-into the initialization body at `0x00009798`. Other bit-7 table entries and
+-phase state zero remain unsupported.
++equality. The warm-reset continuation now proceeds one block farther: the
++`0x0000052c -> 0x00009798` branch, initialization prologue and first serial /
++command-queue helpers are recovered through the call entry at `0x0006dd4c`.
++Strict replay matches 60,078 additional instructions with 10 calls / 9 returns,
++including exact `sp`/`fp`, local-frame, condition-code and mutable-memory state.
++The next concrete recovery boundary is the initializer beginning at
++`0x0006dd4c`. Other bit-7 table entries and phase state zero remain unsupported.
+diff --git a/docs/STATUS.md b/docs/STATUS.md
+index 916c2c8..f85766b 100644
+--- a/docs/STATUS.md
++++ b/docs/STATUS.md
+@@ -206,6 +206,13 @@ boot stages, reference and recovered-native execution therefore match for
+ 1,375,993 instructions across three native blocks, including CPU, local frames,
+ procedure counters and all mutable memory.
+ 
+-The next concrete boundary is the unconditional branch at `0x0000052c` into the
+-initialization body at `0x00009798`. Phase-state-zero and other bit-7 indirect
+-table entries remain additional controlled-state targets.
++The unconditional branch at `0x0000052c` and the first `0x00009798` initialization
++prefix are now recovered through the call entry at `0x0006dd4c`. The block
++strictly matches 60,078 reference instructions, 10 calls / 9 returns, the opened
++`0x0006dd4c` local frame, condition state and all mutable memory. It includes the
++three `0x80` diagnostic bytes, `0x8000` mode word, serial-control initialization
++with six original delay calls, command-queue setup, and the `0x0000a048` stub.
++The next concrete boundary is therefore the initializer at `0x0006dd4c`; its
++initial run through `0x0006ddd8` contains 718,349 reference instructions and is
++being decomposed at its semantic call boundaries. Phase-state-zero and other
++bit-7 indirect table entries remain additional controlled-state targets.
+diff --git a/docs/UNCOVERED_BRANCHES.md b/docs/UNCOVERED_BRANCHES.md
+index 8508bfb..487e242 100644
+--- a/docs/UNCOVERED_BRANCHES.md
++++ b/docs/UNCOVERED_BRANCHES.md
+@@ -65,9 +65,12 @@ draws `EXIT TEST MODE` and arms counter 320. Positive countdown visits and the
+ terminal `counter 1 -> 0` path at `0x0005f07c` are now recovered. The terminal
+ clears the observed layer/game state, writes the reset diagnostic through
+ `0x0006116c`, and hands off non-returningly to `0x000000b0`. Warm boot stages 1
+-and 2 are strict-equal through `0x0000052c`; the next uncovered continuation is
+-the branch into initialization at `0x00009798`. Other bit-7 indirect table
+-entries and phase state zero remain unsupported.
++and 2 are strict-equal through `0x0000052c`. The following branch into
++`0x00009798`, its prologue and the first serial/command-queue helper chain are
++now recovered strictly through the call entry at `0x0006dd4c` (60,078
++instructions, 10 calls / 9 returns). The remaining post-reset initializer from
++`0x0006dd4c` onward is still uncovered and is the next continuation. Other bit-7
++indirect table entries and phase state zero remain unsupported.
+ 
+ ## 5. Audio and platform
+ 
+diff --git a/include/vf2/native_runtime.h b/include/vf2/native_runtime.h
+index e6fbe5c..a3f5092 100644
+--- a/include/vf2/native_runtime.h
++++ b/include/vf2/native_runtime.h
+@@ -18,7 +18,8 @@ typedef enum vf2_native_runtime_step_kind {
+     VF2_NATIVE_RUNTIME_STEP_SCHEDULER_TRANSITION,
+     VF2_NATIVE_RUNTIME_STEP_SCHEDULER_FINISH,
+     VF2_NATIVE_RUNTIME_STEP_BOOT_STAGE1,
+-    VF2_NATIVE_RUNTIME_STEP_BOOT_STAGE2
++    VF2_NATIVE_RUNTIME_STEP_BOOT_STAGE2,
++    VF2_NATIVE_RUNTIME_STEP_POST_BOOT_INIT_PREFIX
+ } vf2_native_runtime_step_kind;
+ 
+ typedef struct vf2_native_runtime_state {
+diff --git a/src/recovered/native_runtime.c b/src/recovered/native_runtime.c
+index 1c98215..34f3ed5 100644
+--- a/src/recovered/native_runtime.c
++++ b/src/recovered/native_runtime.c
+@@ -6,6 +6,9 @@
+ #define VF2_NATIVE_BOOT_STAGE1_ENTRY UINT32_C(0x000000b0)
+ #define VF2_NATIVE_BOOT_STAGE1_INSTRUCTIONS UINT64_C(1180053)
+ #define VF2_NATIVE_BOOT_STAGE2_ENTRY UINT32_C(0x000001b0)
++#define VF2_NATIVE_POST_BOOT_INIT_ENTRY UINT32_C(0x0000052c)
++#define VF2_NATIVE_POST_BOOT_INIT_EXIT UINT32_C(0x0006dd4c)
++#define VF2_NATIVE_POST_BOOT_INIT_INSTRUCTIONS UINT64_C(60078)
+ #define VF2_NATIVE_FRAME_WAIT_POLL_ENTRY UINT32_C(0x00010f90)
+ #define VF2_NATIVE_INTERRUPT_RETURN_ENTRY UINT32_C(0x00000d20)
+ #define VF2_NATIVE_SECOND_SCHEDULER_ENTRY UINT32_C(0x0000a010)
+@@ -95,6 +98,219 @@ static vf2_status execute_boot_stage2(
+     return VF2_OK;
+ }
+ 
++static vf2_status write_u16_le(
++    vf2_model2a *machine,
++    uint32_t address,
++    uint16_t value
++)
++{
++    const uint8_t bytes[2] = {
++        (uint8_t)value,
++        (uint8_t)(value >> 8u)
++    };
++    return vf2_model2a_write(machine, address, bytes, sizeof(bytes));
++}
++
++static vf2_status enter_and_return_procedure(
++    vf2_model2a *machine,
++    vf2_i960_cpu *cpu,
++    uint32_t target,
++    uint32_t return_address
++)
++{
++    vf2_status status = vf2_i960_cpu_enter_procedure(
++        cpu, target, return_address
++    );
++    if (status == VF2_OK) {
++        status = vf2_i960_cpu_return_procedure(cpu, machine);
++    }
++    return status;
++}
++
++static vf2_status execute_post_boot_init_prefix(
++    vf2_model2a *machine,
++    vf2_i960_cpu *cpu,
++    vf2_native_runtime_step_report *report
++)
++{
++    static const uint16_t serial_words[] = {
++        UINT16_C(0), UINT16_C(0), UINT16_C(0),
++        UINT16_C(64), UINT16_C(78), UINT16_C(55)
++    };
++    static const uint32_t delay_returns[] = {
++        UINT32_C(0x00043740), UINT32_C(0x0004374c),
++        UINT32_C(0x00043758), UINT32_C(0x00043764),
++        UINT32_C(0x00043770), UINT32_C(0x0004377c)
++    };
++    const uint64_t start_instructions = cpu->executed_instructions;
++    const uint64_t start_calls = cpu->procedure_calls;
++    const uint64_t start_returns = cpu->procedure_returns;
++    uint8_t byte_value = UINT8_C(0x80);
++    size_t index = 0u;
++    vf2_status status = VF2_OK;
++
++    if (machine == NULL || cpu == NULL || report == NULL ||
++        cpu->ip != VF2_NATIVE_POST_BOOT_INIT_ENTRY) {
++        return VF2_ERROR_INVALID_ARGUMENT;
++    }
++
++    /* 0x52c branches directly to 0x9798. The prefix initializes three
++     * diagnostic bytes, the mode word and the globals consumed by the first
++     * post-reset subsystem initializer. */
++    status = vf2_model2a_write(
++        machine, UINT32_C(0x005000e0), &byte_value, sizeof(byte_value)
++    );
++    if (status == VF2_OK) {
++        status = vf2_model2a_write(
++            machine, UINT32_C(0x005000e1), &byte_value, sizeof(byte_value)
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write(
++            machine, UINT32_C(0x005000e2), &byte_value, sizeof(byte_value)
++        );
++    }
++    if (status == VF2_OK) {
++        status = write_u16_le(
++            machine, UINT32_C(0x00500082), UINT16_C(0x8000)
++        );
++    }
++    if (status != VF2_OK) {
++        return status;
++    }
++
++    cpu->registers[15] = UINT32_C(0x00008000);
++    cpu->registers[1] += UINT32_C(0x40);
++    cpu->registers[VF2_I960_G0_REGISTER + 10u] = UINT32_C(0x00800000);
++    cpu->registers[VF2_I960_G0_REGISTER + 11u] = UINT32_C(0x00880000);
++    cpu->registers[VF2_I960_G0_REGISTER + 12u] = UINT32_C(0x00004000);
++
++    /* call 0x4372c. Model its nested delay calls architecturally so the
++     * procedure counters and local-frame windows stay identical to the ROM. */
++    status = vf2_i960_cpu_enter_procedure(
++        cpu, UINT32_C(0x0004372c), UINT32_C(0x000097dc)
++    );
++    for (index = 0u; status == VF2_OK && index < 6u; ++index) {
++        status = write_u16_le(
++            machine, UINT32_C(0x01c80002), serial_words[index]
++        );
++        if (status == VF2_OK) {
++            status = enter_and_return_procedure(
++                machine, cpu, UINT32_C(0x000437bc), delay_returns[index]
++            );
++        }
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(
++            machine, UINT32_C(0x00504010), 0u
++        );
++    }
++    byte_value = 0u;
++    if (status == VF2_OK) {
++        status = vf2_model2a_write(
++            machine, UINT32_C(0x00504001), &byte_value, sizeof(byte_value)
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write(
++            machine, UINT32_C(0x00504002), &byte_value, sizeof(byte_value)
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write(
++            machine, UINT32_C(0x00504003), &byte_value, sizeof(byte_value)
++        );
++    }
++    byte_value = UINT8_C(0xff);
++    if (status == VF2_OK) {
++        status = vf2_model2a_write(
++            machine, UINT32_C(0x00504014), &byte_value, sizeof(byte_value)
++        );
++    }
++    if (status == VF2_OK) {
++        cpu->registers[VF2_I960_G0_REGISTER] = UINT32_C(0x00ae101f);
++        status = vf2_i960_cpu_enter_procedure(
++            cpu, UINT32_C(0x000438ec), UINT32_C(0x000437b8)
++        );
++    }
++
++    /* 0x438ec enqueues g0 in the first command slot. */
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(
++            machine, UINT32_C(0x00e80004), UINT32_C(33)
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(
++            machine, UINT32_C(0x00e80004), UINT32_C(33)
++        );
++    }
++    byte_value = UINT8_C(1);
++    if (status == VF2_OK) {
++        status = vf2_model2a_write(
++            machine, UINT32_C(0x00504001), &byte_value, sizeof(byte_value)
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(
++            machine, UINT32_C(0x00504020),
++            cpu->registers[VF2_I960_G0_REGISTER]
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write(
++            machine, UINT32_C(0x00504003), &byte_value, sizeof(byte_value)
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(
++            machine, UINT32_C(0x00e80004), UINT32_C(0x421)
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(
++            machine, UINT32_C(0x00e80004), UINT32_C(0x421)
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_i960_cpu_return_procedure(cpu, machine);
++    }
++    if (status == VF2_OK) {
++        status = vf2_i960_cpu_return_procedure(cpu, machine);
++    }
++
++    /* 0xa048 is a branch-to-ret stub on this path. */
++    if (status == VF2_OK) {
++        status = enter_and_return_procedure(
++            machine, cpu, UINT32_C(0x0000a048), UINT32_C(0x000097e0)
++        );
++    }
++
++    /* The last compare-decrement in the delay loop leaves the arithmetic
++     * condition equal. call 0x6dd4c then opens the next local frame. */
++    if (status == VF2_OK) {
++        cpu->arithmetic_control =
++            (cpu->arithmetic_control & ~UINT32_C(7)) | UINT32_C(2);
++        cpu->compare_result = VF2_I960_COMPARE_EQUAL;
++        status = vf2_i960_cpu_enter_procedure(
++            cpu, VF2_NATIVE_POST_BOOT_INIT_EXIT, UINT32_C(0x000097e4)
++        );
++    }
++    if (status != VF2_OK) {
++        return status;
++    }
++
++    cpu->executed_instructions =
++        start_instructions + VF2_NATIVE_POST_BOOT_INIT_INSTRUCTIONS;
++    report->kind = VF2_NATIVE_RUNTIME_STEP_POST_BOOT_INIT_PREFIX;
++    report->exit_address = cpu->ip;
++    report->recovered_instruction_count =
++        cpu->executed_instructions - start_instructions;
++    report->recovered_procedure_calls = cpu->procedure_calls - start_calls;
++    report->recovered_procedure_returns = cpu->procedure_returns - start_returns;
++    return VF2_OK;
++}
++
+ static void accumulate_step(
+     vf2_native_runtime_state *state,
+     const vf2_native_runtime_step_report *report
+@@ -687,6 +903,8 @@ vf2_status vf2_native_runtime_step(
+         status = execute_boot_stage1(machine, cpu, &local_report);
+     } else if (cpu->ip == VF2_NATIVE_BOOT_STAGE2_ENTRY) {
+         status = execute_boot_stage2(machine, cpu, &local_report);
++    } else if (cpu->ip == VF2_NATIVE_POST_BOOT_INIT_ENTRY) {
++        status = execute_post_boot_init_prefix(machine, cpu, &local_report);
+     } else if (cpu->ip == VF2_NATIVE_FRAME_WAIT_POLL_ENTRY ||
+                cpu->ip == VF2_NATIVE_INTERRUPT_RETURN_ENTRY) {
+         vf2_hybrid_bridge_report bridge_report;
+@@ -919,6 +1137,8 @@ const char *vf2_native_runtime_step_kind_name(
+         return "boot-stage1";
+     case VF2_NATIVE_RUNTIME_STEP_BOOT_STAGE2:
+         return "boot-stage2";
++    case VF2_NATIVE_RUNTIME_STEP_POST_BOOT_INIT_PREFIX:
++        return "post-boot-init-prefix";
+     default:
+         return "unknown";
+     }
+diff --git a/tests/recovered/test_native_runtime.c b/tests/recovered/test_native_runtime.c
+index f21fd10..d560749 100644
+--- a/tests/recovered/test_native_runtime.c
++++ b/tests/recovered/test_native_runtime.c
+@@ -76,6 +76,73 @@ static void test_initialize_and_names(void)
+             "boot-stage2"
+         ) == 0
+     );
++    CHECK(
++        strcmp(
++            vf2_native_runtime_step_kind_name(
++                VF2_NATIVE_RUNTIME_STEP_POST_BOOT_INIT_PREFIX
++            ),
++            "post-boot-init-prefix"
++        ) == 0
++    );
++}
++
++static void test_post_boot_init_prefix(void)
++{
++    vf2_model2a machine;
++    vf2_i960_cpu cpu;
++    vf2_native_runtime_state state;
++    vf2_native_runtime_step_report report;
++    uint32_t value = 0u;
++    uint8_t bytes[3] = {0u, 0u, 0u};
++
++    memset(&machine, 0, sizeof(machine));
++    CHECK(vf2_model2a_initialize(&machine) != 0);
++    if (machine.work_ram == NULL) {
++        return;
++    }
++    vf2_i960_cpu_reset(&cpu, 0u, 0u, UINT32_C(0x0000052c));
++    cpu.registers[1] = VF2_WORK_RAM_BASE + UINT32_C(0x3000);
++    cpu.arithmetic_control = UINT32_C(0x3f001000);
++    cpu.compare_result = VF2_I960_COMPARE_EQUAL;
++    CHECK(vf2_native_runtime_initialize(&state, 4u) == VF2_OK);
++    memset(&report, 0, sizeof(report));
++
++    CHECK(vf2_native_runtime_step(&machine, &cpu, &state, &report) == VF2_OK);
++    CHECK(report.kind == VF2_NATIVE_RUNTIME_STEP_POST_BOOT_INIT_PREFIX);
++    CHECK(report.entry_address == UINT32_C(0x0000052c));
++    CHECK(report.exit_address == UINT32_C(0x0006dd4c));
++    CHECK(report.recovered_instruction_count == UINT64_C(60078));
++    CHECK(report.recovered_procedure_calls == UINT64_C(10));
++    CHECK(report.recovered_procedure_returns == UINT64_C(9));
++    CHECK(cpu.ip == UINT32_C(0x0006dd4c));
++    CHECK(cpu.local_frame_depth == 1u);
++    CHECK(cpu.registers[1] == VF2_WORK_RAM_BASE + UINT32_C(0x3080));
++    CHECK(cpu.registers[VF2_I960_FP_REGISTER] ==
++          VF2_WORK_RAM_BASE + UINT32_C(0x3040));
++    CHECK(cpu.registers[VF2_I960_G0_REGISTER] == UINT32_C(0x00ae101f));
++    CHECK(cpu.registers[VF2_I960_G0_REGISTER + 10u] == UINT32_C(0x00800000));
++    CHECK(cpu.registers[VF2_I960_G0_REGISTER + 11u] == UINT32_C(0x00880000));
++    CHECK(cpu.registers[VF2_I960_G0_REGISTER + 12u] == UINT32_C(0x00004000));
++    CHECK((cpu.arithmetic_control & UINT32_C(7)) == UINT32_C(2));
++    CHECK(cpu.compare_result == VF2_I960_COMPARE_EQUAL);
++    CHECK(state.blocks_executed == 1u);
++
++    CHECK(vf2_model2a_read(&machine, UINT32_C(0x005000e0), bytes, 3u) == VF2_OK);
++    CHECK(bytes[0] == UINT8_C(0x80));
++    CHECK(bytes[1] == UINT8_C(0x80));
++    CHECK(bytes[2] == UINT8_C(0x80));
++    CHECK(vf2_model2a_read(&machine, UINT32_C(0x00500082), bytes, 2u) == VF2_OK);
++    CHECK(bytes[0] == UINT8_C(0x00));
++    CHECK(bytes[1] == UINT8_C(0x80));
++    CHECK(vf2_model2a_read(&machine, UINT32_C(0x01c80002), bytes, 2u) == VF2_OK);
++    CHECK(bytes[0] == UINT8_C(55));
++    CHECK(bytes[1] == UINT8_C(0));
++    CHECK(vf2_model2a_read_u32(&machine, UINT32_C(0x00504020), &value) == VF2_OK);
++    CHECK(value == UINT32_C(0x00ae101f));
++    CHECK(vf2_model2a_read_u32(&machine, UINT32_C(0x00e80004), &value) == VF2_OK);
++    CHECK(value == UINT32_C(0x421));
++
++    vf2_model2a_shutdown(&machine);
+ }
+ 
+ static void test_zero_length_run(void)
+@@ -660,6 +727,7 @@ static void test_scheduler_finishes_after_early_last_active_task(void)
+ int main(void)
+ {
+     test_initialize_and_names();
++    test_post_boot_init_prefix();
+     test_zero_length_run();
+     test_single_bridge_run();
+     test_second_game_info_task_run();
