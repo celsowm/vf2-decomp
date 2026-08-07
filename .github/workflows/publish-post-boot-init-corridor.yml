@@ -31,6 +31,7 @@ jobs:
           base64 -d source/automation/post-boot-corridor.patch.gz.b64 | gunzip > /tmp/post-boot-corridor.patch
           git -C work apply --check /tmp/post-boot-corridor.patch
           git -C work apply /tmp/post-boot-corridor.patch
+          cp source/src/recovered/recovery_internal.h work/src/recovered/recovery_internal.h
           git -C work diff --check
 
       - name: GCC warning-as-error build and tests
@@ -68,6 +69,7 @@ jobs:
             CHANGELOG.md README.md docs/STATUS.md docs/UNCOVERED_BRANCHES.md \
             include/vf2/native_runtime.h \
             src/recovered/native_runtime.c \
+            src/recovered/recovery_internal.h \
             src/recovered/texture_bridge_match.c \
             tests/recovered/test_native_runtime.c
           git commit -m "runtime: recover post-boot initialization corridor"
