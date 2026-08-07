@@ -28,9 +28,8 @@ jobs:
       - name: Require validated base and apply patch
         run: |
           test "$(git -C work rev-parse HEAD)" = "951f5171dd0f1488adbb54698d1fbb4203e7b36d"
-          base64 -d source/automation/post-boot-init-prefix.patch.gz.b64 | gunzip > /tmp/post-boot-init-prefix.patch
-          git -C work apply --check /tmp/post-boot-init-prefix.patch
-          git -C work apply /tmp/post-boot-init-prefix.patch
+          git -C work apply --check ../source/automation/post-boot-init-prefix.patch
+          git -C work apply ../source/automation/post-boot-init-prefix.patch
           git -C work diff --check
 
       - name: GCC warning-as-error build and tests
