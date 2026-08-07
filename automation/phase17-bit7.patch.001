@@ -1,0 +1,206 @@
+--- a/src/recovered/texture_bridge_match.c
++++ b/src/recovered/texture_bridge_match.c
+@@ -883,7 +883,7 @@
+     return status;
+ }
+ 
+-static vf2_status phase16_crc16(
++static vf2_status compute_table_crc16(
+     const vf2_model2a *machine,
+     uint32_t source,
+     uint32_t count,
+@@ -1169,7 +1169,7 @@
+ 
+     cpu->registers[VF2_I960_G0_REGISTER + 1u] = 0u;
+     cpu->registers[VF2_I960_G0_REGISTER + 2u] = UINT32_C(0x644);
+-    status = phase16_crc16(
++    status = compute_table_crc16(
+         machine,
+         base + UINT32_C(0x33a8),
+         UINT32_C(0x644),
+@@ -1418,6 +1418,346 @@
+     report->recovered_instruction_count = UINT64_C(52571);
+     report->recovered_procedure_calls = UINT64_C(26);
+     report->recovered_procedure_returns = UINT64_C(27);
++    report->cpu_poststate_applied = 1;
++    return VF2_OK;
++}
++
++static vf2_status execute_frame_phase17_bit7_index11(
++    vf2_model2a *machine,
++    vf2_i960_cpu *cpu,
++    vf2_hybrid_bridge_report *report,
++    uint32_t saved_g4,
++    uint8_t flagged_phase_index
++)
++{
++    const uint64_t start_instructions = cpu->executed_instructions;
++    const uint64_t start_calls = cpu->procedure_calls;
++    const uint64_t start_returns = cpu->procedure_returns;
++    const uint32_t frame_dispatch_return =
++        cpu->local_frames[cpu->local_frame_depth - 1u].registers[2];
++    vf2_hybrid_bridge_report meter_report;
++    uint32_t indirect_target = 0u;
++    uint32_t base = 0u;
++    uint32_t saved_g9 = 0u;
++    uint32_t player0 = 0u;
++    uint32_t player1 = 0u;
++    uint32_t screen_record = 0u;
++    uint32_t screen_source = 0u;
++    uint32_t screen_destination = 0u;
++    uint32_t base_flags = 0u;
++    uint16_t crc = 0u;
++    uint64_t characters = 0u;
++    uint64_t accounted = 0u;
++    uint8_t mode = 0u;
++    uint8_t phase_a5 = 0u;
++    uint8_t system_flags = 0u;
++    int first_visit = 0;
++    uint64_t expected_instructions = 0u;
++    uint64_t expected_calls = 0u;
++    uint64_t expected_returns = 0u;
++    vf2_status status = VF2_OK;
++
++    memset(&meter_report, 0, sizeof(meter_report));
++    if (flagged_phase_index != UINT8_C(0x8b) ||
++        cpu->local_frame_depth == 0u) {
++        return VF2_ERROR_UNSUPPORTED;
++    }
++    status = vf2_model2a_read_u32(
++        machine,
++        UINT32_C(0x0005fea8) +
++            (uint32_t)(flagged_phase_index & UINT8_C(0x7f)) * UINT32_C(8),
++        &indirect_target
++    );
++    if (status != VF2_OK || indirect_target != UINT32_C(0x0005ef60)) {
++        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    }
++    status = vf2_model2a_read_u32(
++        machine, UINT32_C(0x0050016c), &base
++    );
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(
++            machine, UINT32_C(0x00500804), &player0
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(
++            machine, UINT32_C(0x00500808), &player1
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read(
++            machine, base + UINT32_C(0x3324), &mode, sizeof(mode)
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(
++            machine, base + UINT32_C(0x3320), &base_flags
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read(
++            machine, UINT32_C(0x005000a5), &phase_a5, sizeof(phase_a5)
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read(
++            machine, UINT32_C(0x00500171), &system_flags,
++            sizeof(system_flags)
++        );
++    }
++    first_visit = phase_a5 == 0u;
++    if (status != VF2_OK || mode == UINT8_C(25) ||
++        (base_flags & UINT32_C(3)) != 0u ||
++        (!first_visit && phase_a5 != UINT8_C(0xff)) ||
++        (first_visit && (system_flags & UINT8_C(1)) == 0u)) {
++        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    }
++    expected_instructions =
++        first_visit ? UINT64_C(13286) : UINT64_C(626);
++    expected_calls = first_visit ? UINT64_C(27) : UINT64_C(25);
++    expected_returns = first_visit ? UINT64_C(28) : UINT64_C(26);
++
++    /* Recreate the ROM call chain a6c0 -> 10b5c -> 58fe0. Keeping these
++     * frames real, instead of merely adjusting aggregate counters, preserves
++     * the local-window and stack bytes subsequently touched by 0x20f0. */
++    status = vf2_i960_cpu_enter_procedure(
++        cpu, UINT32_C(0x00010b5c), UINT32_C(0x0000a6f4)
++    );
++    if (status != VF2_OK) {
++        return status;
++    }
++    cpu->registers[3] = UINT32_C(0xff);
++    cpu->registers[1] += UINT32_C(4);
++    status = vf2_model2a_write_u32(
++        machine, cpu->registers[1] - UINT32_C(4), saved_g4
++    );
++    if (status == VF2_OK) {
++        status = vf2_i960_cpu_enter_procedure(
++            cpu, UINT32_C(0x00058fe0), UINT32_C(0x00010b78)
++        );
++    }
++    if (status != VF2_OK) {
++        return status;
++    }
++
++    cpu->registers[VF2_I960_G0_REGISTER + 4u] = base;
++    cpu->registers[VF2_I960_G0_REGISTER + 7u] = player0;
++    cpu->registers[VF2_I960_G0_REGISTER + 8u] = player1;
++    status = vf2_model2a_read_u32(
++        machine, UINT32_C(0x00500700), &cpu->registers[9]
++    );
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(
++            machine, UINT32_C(0x00500704), &cpu->registers[8]
++        );
++    }
++    cpu->registers[3] =
++        (uint32_t)(flagged_phase_index & UINT8_C(0x7f));
++    if (status != VF2_OK) {
++        return status;
++    }
++
++    /* 0x0005ef60 saves g9, then the observed mode takes the 0x20f0 call. */
++    cpu->registers[1] += UINT32_C(4);
++    saved_g9 = cpu->registers[VF2_I960_G0_REGISTER + 9u];
++    status = vf2_model2a_write_u32(
++        machine, cpu->registers[1] - UINT32_C(4), saved_g9
++    );
++    cpu->registers[VF2_I960_G0_REGISTER + 9u] = base;
++    cpu->registers[15] = mode;
++    if (status == VF2_OK) {
++        status = vf2_i960_cpu_enter_procedure(
++            cpu, VF2_GAME_METER_UPDATE_ENTRY, UINT32_C(0x0005ef90)
++        );
++    }
++    if (status == VF2_OK) {
++        status = execute_game_meter_update(machine, cpu, &meter_report);
++    }
++    if (status != VF2_OK || cpu->ip != UINT32_C(0x0005ef90)) {
++        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    }
++    status = vf2_model2a_read_u32(
++        machine, cpu->registers[1] - UINT32_C(4),
++        &cpu->registers[VF2_I960_G0_REGISTER + 9u]
++    );
++    cpu->registers[1] -= UINT32_C(4);
++    if (status != VF2_OK ||
++        cpu->registers[VF2_I960_G0_REGISTER + 9u] != saved_g9) {
++        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    }
++
++    /* 0x0005ff54 -> 0x00009480: CRC 15 bytes at base+0x3320. */
++    status = vf2_i960_cpu_enter_procedure(
++        cpu, UINT32_C(0x0005ff54), UINT32_C(0x0005efa0)
++    );
++    if (status != VF2_OK) {
++        return status;
++    }
++    cpu->registers[15] = base;
++    cpu->registers[VF2_I960_G0_REGISTER] = base + UINT32_C(0x3320);
++    cpu->registers[VF2_I960_G0_REGISTER + 2u] = UINT32_C(15);
++    cpu->registers[VF2_I960_G0_REGISTER + 1u] = 0u;
++    status = vf2_i960_cpu_enter_procedure(
++        cpu, UINT32_C(0x00009480), UINT32_C(0x0005ff70)
++    );

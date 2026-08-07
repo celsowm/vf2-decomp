@@ -1,0 +1,11 @@
+@@ -1466,9 +1806,13 @@
+             machine, UINT32_C(0x00500704), &gameplay_flags
+         );
+     }
+-    if (status != VF2_OK || phase_state == 0u ||
+-        (phase_index & UINT8_C(0x80)) != 0u) {
+-        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    if (status != VF2_OK || phase_state == 0u) {
++        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    }
++    if ((phase_index & UINT8_C(0x80)) != 0u) {

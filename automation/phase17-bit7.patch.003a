@@ -1,0 +1,63 @@
++        return execute_frame_phase17_bit7_index11(
++            machine, cpu, report, saved_g4, phase_index
++        );
+     }
+     phase_step_forward =
+         (gameplay_flags & UINT32_C(0x08001008)) != 0u;
+--- a/tests/analysis/test_orchestrator_bridge.c
++++ b/tests/analysis/test_orchestrator_bridge.c
+@@ -554,6 +554,7 @@
+     uint8_t *rom = NULL;
+     uint8_t selector = 1u;
+     uint32_t value = 0u;
++    uint8_t crc_table[512] = {0};
+     const size_t rom_size = (size_t)UINT32_C(0x00080000);
+ 
+     CHECK(vf2_model2a_initialize(&machine) != 0);
+@@ -599,7 +600,30 @@
+     memcpy(
+         rom + UINT32_C(0x00078044), "START", sizeof("START")
+     );
++    write_rom_u32(
++        rom, UINT32_C(0x0005ff00), UINT32_C(0x0005ef60)
++    );
++    write_rom_u32(
++        rom, UINT32_C(0x0005ff1c), UINT32_C(0x00078060)
++    );
++    write_rom_u32(
++        rom, UINT32_C(0x00078060), UINT32_C(0x01000bb2)
++    );
++    memcpy(
++        rom + UINT32_C(0x00078064),
++        "EXIT TEST MODE", sizeof("EXIT TEST MODE")
++    );
++    rom[UINT32_C(0x000027ac)] = UINT8_C(0);
++    rom[UINT32_C(0x000027ad)] = UINT8_C(1);
++    rom[UINT32_C(0x000027e2)] = UINT8_C(0x10);
++    rom[UINT32_C(0x000027e6)] = UINT8_C(0x20);
++    rom[UINT32_C(0x000028b8)] = UINT8_C(0);
+     CHECK(vf2_model2a_attach_main_rom(&machine, rom, rom_size) == VF2_OK);
++    CHECK(
++        vf2_model2a_attach_main_data(
++            &machine, crc_table, sizeof(crc_table)
++        ) == VF2_OK
++    );
+     CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00508000), 0u) == VF2_OK);
+     CHECK(vf2_model2a_write(&machine, UINT32_C(0x0050002a), &selector, 1u) == VF2_OK);
+     CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00500024), UINT32_C(640)) == VF2_OK);
+@@ -788,6 +812,136 @@
+                 &machine, UINT32_C(0x01000142)
+             ) == UINT16_C(0x8054)
+         );
++    }
++
++    {
++        uint8_t phase_index = UINT8_C(0x8b);
++        uint8_t phase_a5 = 0u;
++        uint8_t phase_state = UINT8_C(0xff);
++        uint8_t system_flags = UINT8_C(1);
++        uint8_t resulting_a5 = 0u;
++        uint8_t zero_bytes[8] = {0};
++
++        CHECK(
++            vf2_model2a_write(

@@ -1,0 +1,57 @@
++            screen_record > UINT32_MAX - UINT32_C(4)) {
++            return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++        }
++        screen_source = screen_record + UINT32_C(4);
++        cpu->registers[15] = screen_record;
++        cpu->registers[VF2_I960_G0_REGISTER + 9u] = screen_destination;
++        cpu->registers[VF2_I960_G0_REGISTER] = screen_source;
++        status = vf2_i960_cpu_enter_procedure(
++            cpu, UINT32_C(0x00007fc0), UINT32_C(0x0005efd8)
++        );
++        if (status == VF2_OK) {
++            status = copy_diagnostic_text(
++                machine, screen_source, screen_destination, &characters
++            );
++        }
++        if (status == VF2_OK) {
++            status = vf2_i960_cpu_return_procedure(cpu, machine);
++        }
++        if (status == VF2_OK) {
++            cpu->registers[15] = UINT32_C(320);
++            status = vf2_model2a_write_u32(
++                machine, UINT32_C(0x00500024), UINT32_C(320)
++            );
++        }
++        if (status == VF2_OK) {
++            const uint8_t ff = UINT8_C(0xff);
++            cpu->registers[15] = UINT32_C(0xff);
++            status = vf2_model2a_write(
++                machine, UINT32_C(0x005000a5), &ff, sizeof(ff)
++            );
++        }
++        cpu->registers[6] = system_flags;
++    } else {
++        uint32_t countdown = 0u;
++
++        status = vf2_model2a_read_u32(
++            machine, UINT32_C(0x00500024), &countdown
++        );
++        --countdown;
++        if (status == VF2_OK) {
++            status = vf2_model2a_write_u32(
++                machine, UINT32_C(0x00500024), countdown
++            );
++        }
++        cpu->registers[3] = countdown;
++        /* The <= 0 terminal transition at 0x0005f07c is intentionally left
++         * fail-closed until that much later state is reached and captured. */
++        if (status != VF2_OK || (int32_t)countdown <= 0) {
++            return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++        }
++    }
++    if (status != VF2_OK) {
++        return status;
++    }
++
++    /* ret from 0x5ef60/58fe0, wrapper restore, then ret from a6c0. */
++    set_equal_condition(cpu);

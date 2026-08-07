@@ -1,0 +1,55 @@
++    cpu->registers[VF2_I960_G0_REGISTER + 1u] = 0u;
++    status = vf2_i960_cpu_enter_procedure(
++        cpu, UINT32_C(0x00009480), UINT32_C(0x0005ff70)
++    );
++    if (status == VF2_OK) {
++        status = compute_table_crc16(
++            machine, base + UINT32_C(0x3320), UINT32_C(15), &crc
++        );
++    }
++    if (status == VF2_OK) {
++        cpu->registers[VF2_I960_G0_REGISTER] = crc;
++        status = vf2_i960_cpu_return_procedure(cpu, machine);
++    }
++    if (status == VF2_OK && cpu->ip == UINT32_C(0x0005ff70)) {
++        status = write_u16(machine, UINT32_C(0x01d03300), crc);
++    }
++    if (status == VF2_OK) {
++        status = vf2_i960_cpu_return_procedure(cpu, machine);
++    }
++    if (status != VF2_OK || cpu->ip != UINT32_C(0x0005efa0)) {
++        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    }
++
++    cpu->registers[3] = UINT32_C(0xff);
++    cpu->registers[4] = phase_a5;
++    if (first_visit) {
++        /* First visit: clear the plane and draw the phase-11 diagnostic
++         * label, then arm the 320-frame countdown. */
++        cpu->registers[VF2_I960_G0_REGISTER + 9u] = UINT32_C(0x01000000);
++        cpu->registers[VF2_I960_G0_REGISTER] = UINT32_C(64);
++        cpu->registers[VF2_I960_G0_REGISTER + 1u] = UINT32_C(48);
++        status = vf2_i960_cpu_enter_procedure(
++            cpu, UINT32_C(0x00008ef0), UINT32_C(0x0005efc4)
++        );
++        if (status == VF2_OK) {
++            status = clear_tile_plane_64x48(
++                machine, UINT32_C(0x01000000)
++            );
++        }
++        if (status == VF2_OK) {
++            status = vf2_i960_cpu_return_procedure(cpu, machine);
++        }
++        if (status == VF2_OK) {
++            /* 0x00008ef0 leaves g1 cleared on the observed 64x48 fill. */
++            cpu->registers[VF2_I960_G0_REGISTER + 1u] = 0u;
++            status = vf2_model2a_read_u32(
++                machine, UINT32_C(0x0005ff1c), &screen_record
++            );
++        }
++        if (status == VF2_OK) {
++            status = vf2_model2a_read_u32(
++                machine, screen_record, &screen_destination
++            );
++        }
++        if (status != VF2_OK ||
