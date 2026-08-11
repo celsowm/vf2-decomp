@@ -17,6 +17,7 @@ jobs:
         run: |
           python3 .scratch/apply_phase17_easy_controls.py
           python3 .scratch/fix_phase17_easy_controls.py
+          python3 .scratch/apply_phase17_easy_tests.py
           git diff --check
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -29,6 +30,8 @@ jobs:
         with:
           name: phase17-next-linux-x64
           path: |
+            build/vf2_phase17_zero_tests
             build/vf2_phase17_next_probe
+            tests/recovered/test_phase17_zero.c
             src/recovered/native_runtime.c
             src/recovered/texture_bridge_match.c
