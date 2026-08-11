@@ -1,0 +1,23 @@
+name: Recovery source artifact
+
+on:
+  push:
+    branches:
+      - work/phase17-next-lab
+
+permissions:
+  contents: read
+
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: recovery-source-tree
+          path: |
+            src
+            include
+            tests
+            CMakeLists.txt
