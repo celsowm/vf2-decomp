@@ -14,11 +14,14 @@ jobs:
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
       - name: Build differential tools
         run: cmake --build build --target vf2_phase17_zero_tests vf2_tgp_tests vf2i960 --parallel 2
+      - name: Build copro probe
+        run: cc -std=c17 -Wall -Wextra -Werror -Iinclude tests/recovered/probe_phase17_copro.c build/libvf2_core.a -lm -o build/vf2_phase17_copro_probe
       - name: Upload binaries
         uses: actions/upload-artifact@v4
         with:
           name: phase17-linux-x64
           path: |
             build/vf2_phase17_zero_tests
+            build/vf2_phase17_copro_probe
             build/vf2_tgp_tests
             build/vf2i960
