@@ -10,16 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Apply staged patches
+      - name: Apply staged changes
         run: |
           git apply --check .scratch/phase17-copro.patch
           git apply .scratch/phase17-copro.patch
-          sed -i 's/@@ -37,3 +37,83 @@/@@ -37,3 +37,84 @@/' .scratch/phase17-copro-test.patch
-          sed -i 's/@@ -314,3 +420,21 @@/@@ -314,2 +421,20 @@/' .scratch/phase17-copro-test.patch
-          sed -i 's/@@ -316,3 +440,27 @@/@@ -316,2 +441,26 @@/' .scratch/phase17-copro-test.patch
-          sed -i 's/@@ -334,3 +482,7 @@/@@ -334,2 +483,6 @@/' .scratch/phase17-copro-test.patch
-          git apply --check .scratch/phase17-copro-test.patch
-          git apply .scratch/phase17-copro-test.patch
+          python3 .scratch/apply_phase17_test.py
+          git diff --check
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
       - name: Build differential tools
