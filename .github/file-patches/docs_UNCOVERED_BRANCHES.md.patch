@@ -1,0 +1,34 @@
+diff --git a/docs/UNCOVERED_BRANCHES.md b/docs/UNCOVERED_BRANCHES.md
+index e12e5af..cfb2214 100644
+--- a/docs/UNCOVERED_BRANCHES.md
++++ b/docs/UNCOVERED_BRANCHES.md
+@@ -149,10 +149,16 @@ at `0x00009924`; alternate game-state classifications and split-screen flag
+ paths remain unsupported. The observed `0x0001128c` accumulator and `0x000113f4`
+ profile defaults are recovered through `0x0000992c`, followed by the inline
+ gameplay-global initialization through `0x000099fc`. Alternate accumulator
+-modes and signed profile overrides remain unsupported. The observed zero-mode
+-path through `0x0001fcc0`, its 26-float defaults and ROM profile load are
+-recovered through `0x0001fe60`; the palette wrapper then reaches nested entry
+-`0x00002c38`. The observed palette body is recovered for its 28-row by
++modes and signed profile overrides remain unsupported. The `0x0001fcc0`
++input-profile selector is now strict-differentially recovered for the baseline
++path and controlled modes 6, 10, 11 and 12. Fighter-mode pairs `2/1` and `1/2`
++select mode 12, flag bits 21+20 or a live mode byte exercise mode 10, control
++byte 2 redirects mode 10 to mode 11, and `0x0001ff0c` reproduces the mode-10
++and mode-6 float override tables after the shared 26-float fill. The subsequent
++ROM profile loader also covers `profile == 4`, including its `0x10cc` timeout
++write. Seven controlled states match the reference at all three native block
++boundaries (21/21 comparisons) through `0x0001fe60`; the palette wrapper then
++reaches nested entry `0x00002c38`. The observed palette body is recovered for its 28-row by
+ 32-entry RGB ramp and page latch, including the return stub at `0x00020050`.
+ The resumed `0x0001fe64` prefix through the `0x4b410` helper and state clears
+ is recovered, as is the 90-instruction `0x0002eab8` initializer and nested
+@@ -163,7 +169,7 @@ to selector 3. Selector 3's phase-zero `0x0000ae78` mode-table worker is now
+ recovered for both the live fallback profile and the zero-derived alternate
+ profile, including its two descriptor expanders and both ROM text sources.
+ Selector 3 phase 8's opaque `0x00009444` handoff and phase 16 and above,
+-alternate input modes, other bit-7 indirect table entries and phase-state-zero
++remaining input modes, other bit-7 indirect table entries and phase-state-zero
+ continuation remain unsupported. The subsequent `0x00002de4` palette-page
+ upload is now covered for both its inactive condition-preserving return and its
+ active 28-page RGB upload path.
