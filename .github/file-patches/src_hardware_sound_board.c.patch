@@ -1,0 +1,22 @@
+diff --git a/src/hardware/sound_board.c b/src/hardware/sound_board.c
+index 52dc043..45bc7f8 100644
+--- a/src/hardware/sound_board.c
++++ b/src/hardware/sound_board.c
+@@ -223,7 +223,7 @@ vf2_status vf2_sound_board_write_u8(
+     }
+     if (address == VF2_SCSP_CONTROL_BASE) {
+         board->control = (uint16_t)((board->control & 0x00ffu) |
+-                                    ((uint16_t)value << 8u));
++                                    ((uint32_t)value << 8u));
+         return VF2_OK;
+     }
+     if (address == VF2_SCSP_CONTROL_BASE + 1u) {
+@@ -1419,7 +1419,7 @@ static vf2_status sound_board_dispatch_e0(
+ )
+ {
+     uint16_t combined = (uint16_t)((command & 0x7fu) |
+-                                   ((uint16_t)(payload & 0x7fu) << 7u));
++                                   ((uint32_t)(payload & 0x7fu) << 7u));
+     uint16_t transformed = (uint16_t)(combined >> 5u);
+     uint8_t table_index = (uint8_t)transformed;
+     uint8_t table_number = (uint8_t)(descriptor[7u] & 0x0fu);
