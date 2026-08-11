@@ -9,29 +9,82 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  artifact:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Apply measured controls
+      - name: Apply clean candidate
         run: |
-          python3 .scratch/apply_phase17_easy_controls.py
-          python3 .scratch/fix_phase17_easy_controls.py
+          python3 .scratch/apply_phase17_material_polygon.py
           python3 .scratch/apply_phase17_easy_tests.py
           git diff --check
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-      - name: Build core
+      - name: Build differential test
         run: cmake --build build --target vf2_phase17_zero_tests --parallel 2
-      - name: Build next probe
-        run: cc -std=c17 -Wall -Wextra -Werror -Iinclude tests/recovered/probe_phase17_next.c build/libvf2_core.a -lm -o build/vf2_phase17_next_probe
-      - name: Upload probe and sources
+      - name: Upload candidate
         uses: actions/upload-artifact@v4
         with:
-          name: phase17-next-linux-x64
+          name: phase17-material-polygon-clean
           path: |
             build/vf2_phase17_zero_tests
-            build/vf2_phase17_next_probe
             tests/recovered/test_phase17_zero.c
-            src/recovered/native_runtime.c
             src/recovered/texture_bridge_match.c
+
+  build:
+    name: ${{ matrix.compiler }} release
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - compiler: gcc
+            cc: gcc
+          - compiler: clang
+            cc: clang
+    env:
+      CC: ${{ matrix.cc }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply clean candidate
+        run: |
+          python3 .scratch/apply_phase17_material_polygon.py
+          python3 .scratch/apply_phase17_easy_tests.py
+          git diff --check
+      - name: Configure
+        run: >-
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DVF2_BUILD_TESTS=ON
+          -DVF2_WARNINGS_AS_ERRORS=ON
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  sanitizers:
+    name: clang ASan and UBSan
+    runs-on: ubuntu-latest
+    env:
+      CC: clang
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply clean candidate
+        run: |
+          python3 .scratch/apply_phase17_material_polygon.py
+          python3 .scratch/apply_phase17_easy_tests.py
+          git diff --check
+      - name: Configure
+        run: >-
+          cmake -S . -B build-asan -G Ninja
+          -DCMAKE_BUILD_TYPE=Debug
+          -DVF2_BUILD_TESTS=ON
+          -DVF2_WARNINGS_AS_ERRORS=ON
+          -DVF2_ENABLE_SANITIZERS=ON
+      - name: Build
+        run: cmake --build build-asan --parallel
+      - name: Test
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: ctest --test-dir build-asan --output-on-failure
