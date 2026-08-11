@@ -1,0 +1,20 @@
+diff --git a/src/platform/platform_software.c b/src/platform/platform_software.c
+index 89a8b9b..b505c4d 100644
+--- a/src/platform/platform_software.c
++++ b/src/platform/platform_software.c
+@@ -115,13 +115,13 @@ vf2_status vf2_platform_fill_rect(
+     start_y = y < 0 ? 0 : y;
+     end_x = x > (int32_t)platform->width ? (int32_t)platform->width : x;
+     end_y = y > (int32_t)platform->height ? (int32_t)platform->height : y;
+-    if (width < INT32_MAX - x) {
++    if ((int64_t)width < (int64_t)INT32_MAX - (int64_t)x) {
+         const int32_t requested_end = x + width;
+         if (requested_end < end_x) {
+             end_x = requested_end;
+         }
+     }
+-    if (height < INT32_MAX - y) {
++    if ((int64_t)height < (int64_t)INT32_MAX - (int64_t)y) {
+         const int32_t requested_end = y + height;
+         if (requested_end < end_y) {
+             end_y = requested_end;
