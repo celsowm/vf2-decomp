@@ -1,0 +1,52 @@
+diff --git a/src/recovered/texture_bridge_match.c b/src/recovered/texture_bridge_match.c
+--- a/src/recovered/texture_bridge_match.c
++++ b/src/recovered/texture_bridge_match.c
+@@ -3018,6 +3018,10 @@ static vf2_status execute_frame_phase17_zero_control_menu(
+     const uint64_t start_calls = cpu->procedure_calls;
+     const uint64_t start_returns = cpu->procedure_returns;
+     const uint32_t outer_stack = cpu->registers[1];
++    const uint32_t entry_g11 =
++        cpu->registers[VF2_I960_G0_REGISTER + 11u];
++    const uint32_t entry_g12 =
++        cpu->registers[VF2_I960_G0_REGISTER + 12u];
+     vf2_hybrid_bridge_report text_report;
+@@ -3705,9 +3709,20 @@ static vf2_status execute_frame_phase17_zero_control_menu(
+         if (status != VF2_OK || table_target != idle_targets[menu_index]) {
+             return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
+         }
+-        if (effective_input_flags != 0u || effective_previous_flags != 0u ||
+-            navigation_flags != 0u) {
+-            return VF2_ERROR_UNSUPPORTED;
++        if (menu_index == UINT8_C(3) || menu_index == UINT8_C(5)) {
++            const uint32_t supported_input =
++                (UINT32_C(1) << 14u) | (UINT32_C(1) << 15u);
++
++            if ((effective_input_flags & ~supported_input) != 0u ||
++                effective_previous_flags != effective_input_flags ||
++                navigation_flags != 0u ||
++                effective_input_flags == supported_input) {
++                return VF2_ERROR_UNSUPPORTED;
++            }
++        } else if (effective_input_flags != 0u ||
++                   effective_previous_flags != 0u ||
++                   navigation_flags != 0u) {
++                return VF2_ERROR_UNSUPPORTED;
+         }
+@@ -3742,8 +3757,8 @@ static vf2_status execute_frame_phase17_zero_control_menu(
+         cpu->registers[VF2_I960_G0_REGISTER + 8u] = player1;
+         cpu->registers[VF2_I960_G0_REGISTER + 9u] = final_g9;
+         cpu->registers[VF2_I960_G0_REGISTER + 10u] = 0u;
+-        cpu->registers[VF2_I960_G0_REGISTER + 11u] = 0u;
+-        cpu->registers[VF2_I960_G0_REGISTER + 12u] = 0u;
++        cpu->registers[VF2_I960_G0_REGISTER + 11u] = entry_g11;
++        cpu->registers[VF2_I960_G0_REGISTER + 12u] = entry_g12;
+         cpu->registers[VF2_I960_G0_REGISTER + 13u] = 0u;
+@@ -3762,6 +3777,10 @@ static vf2_status execute_frame_phase17_zero_control_menu(
+         }
+         expected_instructions =
+             instruction_counts[menu_index] + idle_wrapper_adjustment;
++        if ((menu_index == UINT8_C(3) || menu_index == UINT8_C(5)) &&
++            effective_input_flags != 0u) {
++            expected_instructions += UINT64_C(5);
++        }
+         status = finish_recovered_procedure(
