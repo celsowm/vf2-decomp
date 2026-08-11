@@ -1,0 +1,22 @@
+name: Current source bundle
+
+on:
+  push:
+    branches: [automation/current-source-bundle-20260811]
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Archive tracked source
+        run: git archive --format=zip HEAD -o current-source.zip
+      - name: Upload source bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: current-source-bundle
+          path: current-source.zip
+          if-no-files-found: error
