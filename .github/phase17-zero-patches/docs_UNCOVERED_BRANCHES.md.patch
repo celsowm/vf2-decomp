@@ -1,7 +1,7 @@
 diff --git a/docs/UNCOVERED_BRANCHES.md b/docs/UNCOVERED_BRANCHES.md
 --- a/docs/UNCOVERED_BRANCHES.md
 +++ b/docs/UNCOVERED_BRANCHES.md
-@@ -166,10 +166,15 @@ frame-dispatch bridge now covers selector 2's `0x0000ab0c` reset and advances
+@@ -166,8 +166,14 @@ frame-dispatch bridge now covers selector 2's `0x0000ab0c` reset and advances
  to selector 3. Selector 3's phase-zero `0x0000ae78` mode-table worker is now
  recovered for both the live fallback profile and the zero-derived alternate
  profile, including its two descriptor expanders and both ROM text sources.
