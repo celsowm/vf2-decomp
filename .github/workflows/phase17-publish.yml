@@ -1,0 +1,37 @@
+name: Phase17 clean candidate
+
+on:
+  push:
+    branches:
+      - work/phase17-copro-oracle
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Preserve proven transforms
+        run: |
+          cp .scratch/phase17-copro.patch /tmp/phase17-copro.patch
+          cp .scratch/apply_phase17_test.py /tmp/apply_phase17_test.py
+      - name: Build clean candidate commit
+        run: |
+          git fetch origin work/phase17-controls-clean
+          git checkout -B work/phase17-controls-clean origin/work/phase17-controls-clean
+          git apply --check /tmp/phase17-copro.patch
+          git apply /tmp/phase17-copro.patch
+          python3 /tmp/apply_phase17_test.py
+          git diff --check
+          changed="$(git diff --name-only | sort)"
+          expected="$(printf '%s\n' src/recovered/texture_bridge_match.c tests/recovered/test_phase17_zero.c | sort)"
+          test "$changed" = "$expected"
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/recovered/texture_bridge_match.c tests/recovered/test_phase17_zero.c
+          git commit -m "Recover measured phase17 internal controls"
+          git push origin HEAD:work/phase17-controls-clean
