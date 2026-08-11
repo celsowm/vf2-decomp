@@ -1,7 +1,8 @@
 diff --git a/src/recovered/texture_bridge_match.c b/src/recovered/texture_bridge_match.c
 --- a/src/recovered/texture_bridge_match.c
 +++ b/src/recovered/texture_bridge_match.c
-@@ -3020,4 +3020,8 @@
+@@ -3029,5 +3029,9 @@
+     const uint64_t start_instructions = cpu->executed_instructions;
      const uint64_t start_calls = cpu->procedure_calls;
      const uint64_t start_returns = cpu->procedure_returns;
      const uint32_t outer_stack = cpu->registers[1];
@@ -10,7 +11,7 @@ diff --git a/src/recovered/texture_bridge_match.c b/src/recovered/texture_bridge
 +    const uint32_t entry_g12 =
 +        cpu->registers[VF2_I960_G0_REGISTER + 12u];
      vf2_hybrid_bridge_report text_report;
-@@ -3710,5 +3714,15 @@
+@@ -3707,5 +3711,15 @@
 -        if (effective_input_flags != 0u || effective_previous_flags != 0u ||
 -            navigation_flags != 0u) {
 -            return VF2_ERROR_UNSUPPORTED;
@@ -30,14 +31,16 @@ diff --git a/src/recovered/texture_bridge_match.c b/src/recovered/texture_bridge
 +            return VF2_ERROR_UNSUPPORTED;
 +        }
          status = phase17_zero_render_missing_body(
-@@ -3747,4 +3762,4 @@
+@@ -3733,6 +3747,6 @@
          cpu->registers[VF2_I960_G0_REGISTER + 9u] = final_g9;
          cpu->registers[VF2_I960_G0_REGISTER + 10u] = 0u;
 -        cpu->registers[VF2_I960_G0_REGISTER + 11u] = 0u;
 -        cpu->registers[VF2_I960_G0_REGISTER + 12u] = 0u;
 +        cpu->registers[VF2_I960_G0_REGISTER + 11u] = entry_g11;
 +        cpu->registers[VF2_I960_G0_REGISTER + 12u] = entry_g12;
-@@ -3770,3 +3785,7 @@
+         cpu->registers[VF2_I960_G0_REGISTER + 13u] = 0u;
+         cpu->registers[VF2_I960_G14_REGISTER] = UINT32_C(0x000550d4);
+@@ -3749,3 +3763,7 @@
          expected_instructions =
              instruction_counts[menu_index] + idle_wrapper_adjustment;
 +        if ((menu_index == UINT8_C(3) || menu_index == UINT8_C(5)) &&
