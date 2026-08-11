@@ -1,0 +1,17 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -2,6 +2,13 @@
+ 
+ ## Unreleased
+ 
++- recovered selector 17's `phase_state == 0` idle control-test corridor through
++  `0x00010b5c -> 0x00055008 -> 0x00055330`: menu index 0 now composes the
++  recovered text thunk, mirrors the control halfword into both fighters, clears
++  their control bit 5 and executes the short `task_control0` initialization for
++  both sides; strict ROM-backed comparison matches complete CPU and mutable RAM
++  for both visible `CONTROL_TEST` (267 instructions) and runtime-bit-9 blanked
++  text (266 instructions) variants;
+ - recovered the post-boot `0x0001fcc0` input-profile selector for controlled
+   modes 6, 10, 11 and 12, including both fighter-order mode-12 branches, the
+   flag-driven mode-10 path, control-byte mode-11 redirect, mode-6/mode-10 float
