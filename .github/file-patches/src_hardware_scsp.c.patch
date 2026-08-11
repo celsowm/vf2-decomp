@@ -1,0 +1,13 @@
+diff --git a/src/hardware/scsp.c b/src/hardware/scsp.c
+index 0e5edd0..83dbeba 100644
+--- a/src/hardware/scsp.c
++++ b/src/hardware/scsp.c
+@@ -166,7 +166,7 @@ static int16_t slot_sample_at(
+         if (read_sample_byte(scsp, start + address, &value) != VF2_OK) {
+             return 0;
+         }
+-        return (int16_t)((int16_t)(int8_t)value << 8);
++        return (int16_t)((int32_t)(int8_t)value * INT32_C(256));
+     }
+     return read_sample_pcm16(scsp, start + (address & ~1u));
+ }
