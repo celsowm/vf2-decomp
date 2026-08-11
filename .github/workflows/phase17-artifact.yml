@@ -14,6 +14,7 @@ jobs:
         run: |
           git apply --check .scratch/phase17-copro.patch
           git apply .scratch/phase17-copro.patch
+          sed -i 's/@@ -37,3 +37,83 @@/@@ -37,3 +37,84 @@/' .scratch/phase17-copro-test.patch
           git apply --check .scratch/phase17-copro-test.patch
           git apply .scratch/phase17-copro-test.patch
       - name: Configure
