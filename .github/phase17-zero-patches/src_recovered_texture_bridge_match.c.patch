@@ -1,0 +1,344 @@
+--- a/src/recovered/texture_bridge_match.c
++++ b/src/recovered/texture_bridge_match.c
+@@ -1999,6 +1999,327 @@
+     return VF2_OK;
+ }
+ 
++static vf2_status phase17_zero_initialize_control_fighter(
++    vf2_model2a *machine,
++    uint32_t fighter
++)
++{
++    uint32_t zero = 0u;
++    uint16_t zero16 = 0u;
++    uint8_t input = 0u;
++    uint8_t one = UINT8_C(1);
++    vf2_status status = VF2_OK;
++
++    status = vf2_model2a_write_u32(
++        machine, fighter + UINT32_C(0x1208), UINT32_C(8)
++    );
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(
++            machine, fighter + UINT32_C(0x1208), zero
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(
++            machine, fighter + UINT32_C(0x1218), zero
++        );
++    }
++    if (status == VF2_OK) {
++        status = write_u16(
++            machine, fighter + UINT32_C(0x120e), zero16
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(
++            machine, fighter + UINT32_C(0x121c), zero
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(
++            machine, fighter + UINT32_C(0x123c), zero
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read(
++            machine, fighter + UINT32_C(0x1200), &input, sizeof(input)
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write(
++            machine, fighter + UINT32_C(0x1280), &input, sizeof(input)
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write(
++            machine, fighter + UINT32_C(0x1281), &input, sizeof(input)
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write(
++            machine, fighter + UINT32_C(0x1202), &one, sizeof(one)
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write(
++            machine, fighter + UINT32_C(0x1203), &one, sizeof(one)
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write(
++            machine, fighter + UINT32_C(0x1204), &one, sizeof(one)
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write(
++            machine, fighter + UINT32_C(0x1205), &one, sizeof(one)
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write(
++            machine, fighter + UINT32_C(0x1206), &one, sizeof(one)
++        );
++    }
++    return status;
++}
++
++static vf2_status execute_frame_phase17_zero_idle(
++    vf2_model2a *machine,
++    vf2_i960_cpu *cpu,
++    vf2_hybrid_bridge_report *report
++)
++{
++    const uint64_t start_instructions = cpu->executed_instructions;
++    const uint64_t start_calls = cpu->procedure_calls;
++    const uint64_t start_returns = cpu->procedure_returns;
++    const uint32_t outer_stack = cpu->registers[1];
++    vf2_hybrid_bridge_report text_report;
++    uint32_t runtime_flags = 0u;
++    uint32_t player0 = 0u;
++    uint32_t player1 = 0u;
++    uint32_t control = 0u;
++    uint32_t descriptor = 0u;
++    uint32_t descriptor_target = 0u;
++    uint32_t table_target = 0u;
++    uint32_t input_flags = 0u;
++    uint32_t previous_flags = 0u;
++    uint32_t input_descriptor = 0u;
++    uint16_t fighter_control = 0u;
++    uint8_t menu_index = 0u;
++    uint8_t control_a = 0u;
++    uint8_t control_b = 0u;
++    uint64_t expected_instructions = 0u;
++    vf2_status status = VF2_OK;
++
++    memset(&text_report, 0, sizeof(text_report));
++    status = vf2_model2a_read_u32(
++        machine, UINT32_C(0x00508000), &runtime_flags
++    );
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(
++            machine, UINT32_C(0x00500804), &player0
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(
++            machine, UINT32_C(0x00500808), &player1
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(
++            machine, UINT32_C(0x00500814), &control
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(
++            machine, UINT32_C(0x0050070c), &previous_flags
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(
++            machine, UINT32_C(0x00500700), &input_flags
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read(
++            machine, UINT32_C(0x00508008), &menu_index, sizeof(menu_index)
++        );
++    }
++    if (status != VF2_OK || menu_index != 0u ||
++        (input_flags & (UINT32_C(1) << 5u)) != 0u ||
++        ((input_flags ^ previous_flags) & (UINT32_C(1) << 5u)) != 0u) {
++        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    }
++    status = vf2_model2a_read_u32(
++        machine, UINT32_C(0x00055128), &table_target
++    );
++    if (status != VF2_OK || table_target != UINT32_C(0x00055330)) {
++        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    }
++    status = vf2_model2a_read_u32(
++        machine, UINT32_C(0x0050081c), &descriptor
++    );
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(
++            machine, descriptor + UINT32_C(0x0c), &descriptor_target
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(
++            machine, UINT32_C(0x00500860), &input_descriptor
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read(
++            machine, UINT32_C(0x0050a0b8), &control_a, sizeof(control_a)
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read(
++            machine, UINT32_C(0x0050a0b9), &control_b, sizeof(control_b)
++        );
++    }
++    if (status != VF2_OK || descriptor_target != UINT32_C(0x0001b9ac) ||
++        (input_descriptor & (UINT32_C(1) << 28u)) != 0u ||
++        control_a != 0u || control_b != 0u) {
++        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    }
++    {
++        uint32_t input_control = 0u;
++        uint32_t input_control_word = 0u;
++        status = vf2_model2a_read_u32(
++            machine, UINT32_C(0x0050083c), &input_control
++        );
++        if (status == VF2_OK) {
++            status = vf2_model2a_read_u32(
++                machine, input_control, &input_control_word
++            );
++        }
++        if (status != VF2_OK ||
++            (input_control_word & (UINT32_C(1) << 3u)) != 0u) {
++            return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++        }
++        status = vf2_model2a_read_u32(
++            machine, UINT32_C(0x00500840), &input_control
++        );
++        if (status == VF2_OK) {
++            status = vf2_model2a_read_u32(
++                machine, input_control, &input_control_word
++            );
++        }
++        if (status != VF2_OK ||
++            (input_control_word & (UINT32_C(1) << 3u)) != 0u) {
++            return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++        }
++    }
++
++    status = write_u16(
++        machine, UINT32_C(0x00500082), UINT16_C(0x8000)
++    );
++    if (status == VF2_OK) {
++        cpu->registers[14] =
++            (runtime_flags & (UINT32_C(1) << 9u)) != 0u
++                ? UINT32_C(0x00055370)
++                : UINT32_C(0x0005534c);
++        cpu->registers[25] = UINT32_C(0x01000186);
++        cpu->ip = UINT32_C(0x00009444);
++        status = execute_inline_text_thunk(machine, cpu, &text_report);
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read(
++            machine, UINT32_C(0x005000a0), &fighter_control,
++            sizeof(fighter_control)
++        );
++    }
++    if (status == VF2_OK) {
++        status = write_u16(
++            machine, player0 + UINT32_C(0x1ac), fighter_control
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(machine, player0, &previous_flags);
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(
++            machine, player0, previous_flags & ~(UINT32_C(1) << 5u)
++        );
++    }
++    if (status == VF2_OK) {
++        status = write_u16(
++            machine, player1 + UINT32_C(0x1ac), fighter_control
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(machine, player1, &previous_flags);
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(
++            machine, player1, previous_flags & ~(UINT32_C(1) << 5u)
++        );
++    }
++    if (status == VF2_OK) {
++        cpu->registers[VF2_I960_G14_REGISTER] = UINT32_C(0x000550d4);
++        status = vf2_model2a_write_u32(
++            machine, outer_stack + UINT32_C(128),
++            cpu->registers[VF2_I960_G14_REGISTER]
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(
++            machine, descriptor + UINT32_C(0x0c), UINT32_C(0x0001b9dc)
++        );
++    }
++    if (status == VF2_OK) {
++        status = phase17_zero_initialize_control_fighter(machine, player0);
++    }
++    if (status == VF2_OK) {
++        status = phase17_zero_initialize_control_fighter(machine, player1);
++    }
++    if (status == VF2_OK) {
++        status = write_u16(
++            machine, UINT32_C(0x00500082), UINT16_C(0x8000)
++        );
++    }
++    if (status != VF2_OK) {
++        return status;
++    }
++
++    cpu->registers[VF2_I960_G0_REGISTER + 6u] = control;
++    cpu->registers[VF2_I960_G0_REGISTER + 7u] = player1;
++    cpu->registers[VF2_I960_G0_REGISTER + 8u] = player0;
++    cpu->registers[VF2_I960_G0_REGISTER + 13u] = descriptor;
++    cpu->registers[VF2_I960_G14_REGISTER] = UINT32_C(0x000550d4);
++    set_equal_condition(cpu);
++    account_nested_procedure(cpu, UINT64_C(5), UINT64_C(5));
++    if (cpu->maximum_local_frame_depth < cpu->local_frame_depth + 4u) {
++        cpu->maximum_local_frame_depth = cpu->local_frame_depth + 4u;
++    }
++    expected_instructions =
++        (runtime_flags & (UINT32_C(1) << 9u)) != 0u
++            ? UINT64_C(266)
++            : UINT64_C(267);
++    status = finish_recovered_procedure(
++        machine, cpu,
++        expected_instructions -
++            (cpu->executed_instructions - start_instructions)
++    );
++    if (status != VF2_OK) {
++        return status;
++    }
++
++    report->kind = VF2_HYBRID_BRIDGE_FRAME_DISPATCH_TICK;
++    report->entry_address = VF2_FRAME_DISPATCH_TICK_ENTRY;
++    report->exit_address = cpu->ip;
++    report->iterations = UINT64_C(1);
++    report->changed_values = UINT64_C(32);
++    report->bytes_written = 80u + text_report.bytes_written;
++    report->recovered_instruction_count = expected_instructions;
++    report->recovered_procedure_calls =
++        cpu->procedure_calls - start_calls;
++    report->recovered_procedure_returns =
++        cpu->procedure_returns - start_returns;
++    report->cpu_poststate_applied = 1;
++    return VF2_OK;
++}
++
+ static vf2_status execute_frame_phase17(
+     vf2_model2a *machine,
+     vf2_i960_cpu *cpu,
+@@ -2043,8 +2364,11 @@
+             machine, UINT32_C(0x00500704), &gameplay_flags
+         );
+     }
+-    if (status != VF2_OK || phase_state == 0u) {
+-        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    if (status != VF2_OK) {
++        return status;
++    }
++    if (phase_state == 0u) {
++        return execute_frame_phase17_zero_idle(machine, cpu, report);
+     }
+     if ((phase_index & UINT8_C(0x80)) != 0u) {
+         return execute_frame_phase17_bit7_index11(
