@@ -1,3 +1,4 @@
 base=d03be30c12b6fa1a81cd954c86cd3c245a029fdf
 patch=ce412fd8e8cfbd27832951087524054dffb4f6d888bffa703e7dc3819a0a9d5e
 rom-local=98/98
+retry=decompressed-sha
