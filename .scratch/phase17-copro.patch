@@ -10,7 +10,7 @@ diff --git a/src/recovered/texture_bridge_match.c b/src/recovered/texture_bridge
 +    const uint32_t entry_g12 =
 +        cpu->registers[VF2_I960_G0_REGISTER + 12u];
      vf2_hybrid_bridge_report text_report;
-@@ -3710,5 +3714,16 @@
+@@ -3710,5 +3714,15 @@
 -        if (effective_input_flags != 0u || effective_previous_flags != 0u ||
 -            navigation_flags != 0u) {
 -            return VF2_ERROR_UNSUPPORTED;
