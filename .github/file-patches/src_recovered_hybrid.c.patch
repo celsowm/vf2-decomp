@@ -1,0 +1,35 @@
+diff --git a/src/recovered/hybrid.c b/src/recovered/hybrid.c
+index 1120a33..1e8f829 100644
+--- a/src/recovered/hybrid.c
++++ b/src/recovered/hybrid.c
+@@ -3094,30 +3094,6 @@ static vf2_status hybrid_execute_game_info_18644(
+     return status;
+ }
+ 
+-static vf2_status hybrid_run_rom_to(
+-    vf2_model2a *machine,
+-    vf2_i960_cpu *cpu,
+-    uint32_t stop_address
+-)
+-{
+-    vf2_i960_run_options options;
+-    vf2_i960_run_result result;
+-    vf2_status status = VF2_OK;
+-
+-    memset(&options, 0, sizeof(options));
+-    options.stop_address = stop_address;
+-    options.max_steps = VF2_INTERPRETED_TASK_STEP_LIMIT;
+-    options.stop_on_self_branch = false;
+-    memset(&result, 0, sizeof(result));
+-    status = vf2_i960_run(cpu, machine, &options, &result);
+-    if (status == VF2_OK &&
+-        (result.halt_reason != VF2_I960_HALT_STOP_ADDRESS ||
+-         cpu->ip != stop_address)) {
+-        status = VF2_ERROR_UNSUPPORTED;
+-    }
+-    return status;
+-}
+-
+ /* Translate the observed 0x181c0 -> 0x184ec conditional corridor. Controlled
+  * probes now cover the g0 == 0, 1, 2 and 3 directions; the small
+  * 0x18e08/0x18e00 helpers are translated through their shared command-port
