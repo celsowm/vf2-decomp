@@ -3,7 +3,7 @@ name: Apply validated master patch
 on:
   push:
     branches: [automation/current-source-bundle-20260811]
-    paths: [.github/validated-master.patch]
+    paths: [.github/patch-ready]
 
 permissions:
   contents: write
@@ -25,10 +25,11 @@ jobs:
           path: repo
       - name: Verify base and apply patch
         run: |
+          cat infra/.github/patch-parts/part-* > validated-master.patch
           cd repo
           test "$(git rev-parse HEAD)" = "3de50c5a6e76d6e396a96bee3fce8dece54dc74b"
-          git apply --check ../infra/.github/validated-master.patch
-          git apply ../infra/.github/validated-master.patch
+          git apply --check ../validated-master.patch
+          git apply ../validated-master.patch
           git diff --check
       - name: GCC release
         run: |
