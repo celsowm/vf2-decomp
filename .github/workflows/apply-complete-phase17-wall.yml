@@ -1,0 +1,66 @@
+name: Apply complete phase17 wall
+
+on:
+  push:
+    branches: [automation/phase17-wall-publish-20260811]
+    paths: [.github/phase17-wall-ready]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout validation branch
+        uses: actions/checkout@v4
+        with:
+          ref: automation/phase17-wall-publish-20260811
+          path: infra
+      - name: Checkout master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+          path: repo
+      - name: Verify base and patch
+        run: |
+          cd repo
+          test "$(git rev-parse HEAD)" = "d03be30c12b6fa1a81cd954c86cd3c245a029fdf"
+          base64 -d ../infra/.github/phase17-wall.patch.gz.b64 > /tmp/phase17-wall.patch.gz
+          echo "c5b21db7cb28387ba3e606b11eaeed0f58e351be58f30c21424499c5fc0ad70d  /tmp/phase17-wall.patch.gz" | sha256sum -c -
+          gzip -dc /tmp/phase17-wall.patch.gz > /tmp/phase17-wall.patch
+          echo "ce412fd8e8cfbd27832951087524054dffb4f6d888bffa703e7dc3819a0a9d5e  /tmp/phase17-wall.patch" | sha256sum -c -
+          git apply --check /tmp/phase17-wall.patch
+          git apply /tmp/phase17-wall.patch
+          git diff --check
+          test "$(git diff --name-only | sort | tr '\n' ' ')" = "CHANGELOG.md docs/STATUS.md docs/UNCOVERED_BRANCHES.md src/i960/executor.c src/recovered/texture_bridge_match.c tests/i960/test_executor.c tests/recovered/test_phase17_zero.c "
+      - name: GCC release
+        run: |
+          cd repo
+          CC=gcc cmake -S . -B build-gcc -G Ninja -DCMAKE_BUILD_TYPE=Release -DVF2_BUILD_TESTS=ON -DVF2_WARNINGS_AS_ERRORS=ON
+          cmake --build build-gcc --parallel
+          ctest --test-dir build-gcc --output-on-failure
+      - name: Clang release
+        run: |
+          cd repo
+          CC=clang cmake -S . -B build-clang -G Ninja -DCMAKE_BUILD_TYPE=Release -DVF2_BUILD_TESTS=ON -DVF2_WARNINGS_AS_ERRORS=ON
+          cmake --build build-clang --parallel
+          ctest --test-dir build-clang --output-on-failure
+      - name: Clang sanitizers
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          cd repo
+          CC=clang cmake -S . -B build-asan -G Ninja -DCMAKE_BUILD_TYPE=Debug -DVF2_BUILD_TESTS=ON -DVF2_WARNINGS_AS_ERRORS=ON -DVF2_ENABLE_SANITIZERS=ON
+          cmake --build build-asan --parallel
+          ctest --test-dir build-asan --output-on-failure
+      - name: Commit to master
+        run: |
+          cd repo
+          git config user.name "Celso Fontes"
+          git config user.email "celsowm@users.noreply.github.com"
+          git add -A
+          git commit -m "Recover complete phase-17 zero-state control menu"
+          git push origin HEAD:master
