@@ -23,13 +23,14 @@ jobs:
           ref: master
           fetch-depth: 0
           path: repo
-      - name: Verify base and apply patch
+      - name: Verify base and apply patches
         run: |
-          cat infra/.github/patch-b64/part-* | base64 --decode > validated-master.patch
           cd repo
           test "$(git rev-parse HEAD)" = "3de50c5a6e76d6e396a96bee3fce8dece54dc74b"
-          git apply --check ../validated-master.patch
-          git apply ../validated-master.patch
+          for patch in ../infra/.github/file-patches/*.patch; do
+            git apply --check "$patch"
+            git apply "$patch"
+          done
           git diff --check
       - name: GCC release
         run: |
