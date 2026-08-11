@@ -1,0 +1,21 @@
+diff --git a/docs/STATUS.md b/docs/STATUS.md
+--- a/docs/STATUS.md
++++ b/docs/STATUS.md
+@@ -20,7 +20,7 @@
+ | `vf2i960 native-fifth-dispatch` | `MATCH`: 830 blocks / 7,402,741 instructions |
+ | `vf2i960 native-sixth-dispatch` | `MATCH`: 866 blocks / 7,404,913 instructions |
+ | Repeated-cycle differential API | Strict per-block + cycle-boundary probe + resumable checkpoints |
+-| ROM-independent / ROM-backed CTest targets | 18 / 27, 45 total |
++| ROM-independent / ROM-backed CTest targets | 18 / 28, 46 total |
+ | 68000 audio vectors, board map, voice maintenance and command dispatcher | Voice maintenance plus bounded 0x80, zero/nonzero-stream 0x90 lookup/no-live return, both 0x11d0 voice-helper branches, the populated-table 0x90 allocator prefix, live B0 0x1/0x2 packed SCSP +0x13 writes, 0xa0 stream-descriptor initialization, 0x1f7c normal/C-D packets, B0 0x10 control, F0 wait/search, FF/F7 skips, FF/2F sentinels and ordinary/F1 pointer re-entry, 0xc0, 0xe0 and selected 0xb0 command/ring paths integrated; allocator sample-table copy, high-bit stream controls, other handlers and synthesis remain open |
+@@ -341,5 +341,10 @@ also recovered. The subsequent `0x2de4` palette-page worker is now covered
+ for its inactive condition-preserving return and active 28-page RGB upload.
+-Remaining input modes, phase-state-zero and other bit-7 indirect table entries
+-remain additional controlled-state targets.
++Selector 17's `phase_state == 0` wrapper is now recovered for the idle menu-index-0
++control-test path through `0x00055008 -> 0x00055330`, including its text thunk,
++fighter control-halfword mirror, bit-5 clears and both short `task_control0`
++initializations. The visible and runtime-bit-9 blanked text variants are strict
++ROM matches at 267 and 266 instructions respectively. Remaining input modes,
++other phase-zero menu indices/input transitions and other bit-7 indirect table
++entries remain additional controlled-state targets.
