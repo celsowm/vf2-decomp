@@ -16,6 +16,7 @@ jobs:
       - name: Apply measured controls
         run: |
           python3 .scratch/apply_phase17_easy_controls.py
+          python3 .scratch/fix_phase17_easy_controls.py
           git diff --check
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
