@@ -1,0 +1,24 @@
+name: Phase17 scratch artifact
+
+on:
+  push:
+    branches:
+      - work/phase17-copro-oracle
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build differential tools
+        run: cmake --build build --target vf2_phase17_zero_tests vf2_tgp_tests vf2i960 --parallel 2
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase17-linux-x64
+          path: |
+            build/vf2_phase17_zero_tests
+            build/vf2_tgp_tests
+            build/vf2i960
