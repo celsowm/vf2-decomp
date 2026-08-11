@@ -1,0 +1,186 @@
+diff --git a/tests/recovered/test_post_boot_input_profiles.c b/tests/recovered/test_post_boot_input_profiles.c
+new file mode 100644
+index 0000000..b1df3cf
+--- /dev/null
++++ b/tests/recovered/test_post_boot_input_profiles.c
+@@ -0,0 +1,180 @@
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++#include "vf2/model2a.h"
++#include "vf2/native_differential.h"
++#include "vf2/rom.h"
++
++static int failures = 0;
++
++#define CHECK(expression)                                           \
++    do {                                                            \
++        if (!(expression)) {                                        \
++            fprintf(stderr, "FAILED %s:%d: %s\n",                 \
++                    __FILE__, __LINE__, #expression);               \
++            ++failures;                                             \
++        }                                                           \
++    } while (0)
++
++typedef struct input_profile_case {
++    const char *name;
++    uint8_t fighter0_mode;
++    uint8_t fighter1_mode;
++    uint8_t input_mode;
++    uint32_t flags;
++    uint8_t control;
++    uint64_t expected_counts[3];
++} input_profile_case;
++
++static vf2_status write_u8(vf2_model2a *machine, uint32_t address, uint8_t value)
++{
++    return vf2_model2a_write(machine, address, &value, sizeof(value));
++}
++
++static vf2_status initialize_case(
++    vf2_model2a *machine,
++    const input_profile_case *test_case
++)
++{
++    static const uint32_t fighter0 = UINT32_C(0x00510000);
++    static const uint32_t fighter1 = UINT32_C(0x00511000);
++    vf2_status status = vf2_model2a_write_u32(
++        machine, UINT32_C(0x00500804), fighter0);
++
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(
++            machine, UINT32_C(0x00500808), fighter1);
++    }
++    if (status == VF2_OK) {
++        status = write_u8(machine, fighter0 + UINT32_C(0x1b1),
++                          test_case->fighter0_mode);
++    }
++    if (status == VF2_OK) {
++        status = write_u8(machine, fighter1 + UINT32_C(0x1b1),
++                          test_case->fighter1_mode);
++    }
++    if (status == VF2_OK) {
++        status = write_u8(machine, UINT32_C(0x00500064),
++                          test_case->input_mode);
++    }
++    if (status == VF2_OK) {
++        status = write_u8(machine, UINT32_C(0x0050004c),
++                          test_case->control);
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(
++            machine, UINT32_C(0x00500068), test_case->flags);
++    }
++    return status;
++}
++
++static void run_case(
++    const input_profile_case *test_case,
++    const uint8_t *main_rom,
++    size_t main_rom_size
++)
++{
++    vf2_model2a reference_machine;
++    vf2_model2a native_machine;
++    vf2_i960_cpu reference_cpu;
++    vf2_i960_cpu native_cpu;
++    vf2_native_runtime_state native_state;
++    size_t step_index = 0u;
++
++    memset(&reference_machine, 0, sizeof(reference_machine));
++    memset(&native_machine, 0, sizeof(native_machine));
++    CHECK(vf2_model2a_initialize(&reference_machine));
++    CHECK(vf2_model2a_initialize(&native_machine));
++    if (reference_machine.work_ram == NULL || native_machine.work_ram == NULL) {
++        vf2_model2a_shutdown(&reference_machine);
++        vf2_model2a_shutdown(&native_machine);
++        return;
++    }
++
++    CHECK(vf2_model2a_attach_main_rom(
++              &reference_machine, main_rom, main_rom_size) == VF2_OK);
++    CHECK(vf2_model2a_attach_main_rom(
++              &native_machine, main_rom, main_rom_size) == VF2_OK);
++    CHECK(initialize_case(&reference_machine, test_case) == VF2_OK);
++    CHECK(initialize_case(&native_machine, test_case) == VF2_OK);
++
++    vf2_i960_cpu_reset(&reference_cpu, 0u, 0u, UINT32_C(0x000099fc));
++    reference_cpu.registers[1] = UINT32_C(0x0050f000);
++    reference_cpu.registers[31] = UINT32_C(0x0050e000);
++    native_cpu = reference_cpu;
++    CHECK(vf2_native_runtime_initialize(&native_state, 4u) == VF2_OK);
++
++    for (step_index = 0u; step_index < 3u; ++step_index) {
++        vf2_native_differential_step_report report;
++        vf2_status status = VF2_OK;
++
++        memset(&report, 0, sizeof(report));
++        status = vf2_native_differential_step(
++            &reference_machine, &reference_cpu,
++            &native_machine, &native_cpu,
++            &native_state, &report);
++        if (status != VF2_OK || report.matched == 0) {
++            fprintf(
++                stderr,
++                "%s step %zu mismatch: status=%d component=%s offset=%zu "
++                "expected=0x%08x actual=0x%08x\n",
++                test_case->name, step_index + 1u, (int)status,
++                report.diff.component, report.diff.first_offset,
++                (unsigned)report.diff.expected_value,
++                (unsigned)report.diff.actual_value);
++        }
++        CHECK(status == VF2_OK);
++        CHECK(report.matched == 1);
++        CHECK(report.native_recovered_instructions ==
++              test_case->expected_counts[step_index]);
++        if (status != VF2_OK) {
++            break;
++        }
++    }
++
++    vf2_model2a_shutdown(&reference_machine);
++    vf2_model2a_shutdown(&native_machine);
++}
++
++int main(int argc, char **argv)
++{
++    static const input_profile_case cases[] = {
++        {"mode-zero", 0u, 0u, 0u, 0u, 0u, {18u, 114u, 17u}},
++        {"fighter-2-1", 2u, 1u, 0u, 0u, 0u, {23u, 114u, 17u}},
++        {"fighter-1-2", 1u, 2u, 0u, 0u, 0u, {25u, 114u, 17u}},
++        {"mode-10", 0u, 0u, 10u, 0u, 0u, {23u, 117u, 19u}},
++        {"mode-10-control-2", 0u, 0u, 10u, 0u, 2u, {22u, 114u, 19u}},
++        {"flag-21-20", 0u, 0u, 0u, UINT32_C(0x00300000), 0u,
++         {21u, 117u, 19u}},
++        {"mode-6", 0u, 0u, 6u, 0u, 0u, {18u, 136u, 17u}},
++    };
++    uint8_t *main_rom = NULL;
++    size_t main_rom_size = 0u;
++    size_t index = 0u;
++
++    if (argc != 2) {
++        fprintf(stderr, "usage: %s ROM_DIR\n", argv[0]);
++        return EXIT_FAILURE;
++    }
++    CHECK(vf2_romset_build_region(
++              argv[1], VF2_REGION_MAINCPU,
++              &main_rom, &main_rom_size) == VF2_OK);
++    if (main_rom == NULL) {
++        return EXIT_FAILURE;
++    }
++
++    for (index = 0u; index < sizeof(cases) / sizeof(cases[0]); ++index) {
++        run_case(&cases[index], main_rom, main_rom_size);
++    }
++    free(main_rom);
++
++    if (failures != 0) {
++        fprintf(stderr, "%d post-boot input-profile differential test(s) failed\n",
++                failures);
++        return EXIT_FAILURE;
++    }
++    puts("post-boot input-profile differential tests passed");
++    return EXIT_SUCCESS;
++}
