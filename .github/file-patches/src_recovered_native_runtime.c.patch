@@ -1,0 +1,258 @@
+diff --git a/src/recovered/native_runtime.c b/src/recovered/native_runtime.c
+index f9f8ea9..42d2b9e 100644
+--- a/src/recovered/native_runtime.c
++++ b/src/recovered/native_runtime.c
+@@ -3952,12 +3952,19 @@ execute_post_boot_input_profile_entry(vf2_model2a *machine, vf2_i960_cpu *cpu,
+     const uint64_t start_instructions = cpu->executed_instructions;
+     const uint64_t start_calls = cpu->procedure_calls;
+     const uint64_t start_returns = cpu->procedure_returns;
++    uint64_t recovered_instructions = UINT64_C(1); /* call 0x1fcc0 */
+     uint32_t fighter0 = 0u;
+     uint32_t fighter1 = 0u;
+     uint32_t flags = 0u;
++    uint32_t profile_a = UINT32_C(0x3b32674f);
++    uint32_t profile_b = UINT32_C(0x3f800000);
+     uint8_t fighter0_mode = 0u;
+     uint8_t fighter1_mode = 0u;
+     uint8_t input_mode = 0u;
++    uint8_t mode_control = 0u;
++    uint8_t r14_value = 0u;
++    bool force_mode12 = false;
++    bool special_mode10 = false;
+     vf2_status status = VF2_OK;
+ 
+     if (machine == NULL || cpu == NULL || report == NULL ||
+@@ -3986,38 +3993,114 @@ execute_post_boot_input_profile_entry(vf2_model2a *machine, vf2_i960_cpu *cpu,
+         status = vf2_model2a_read(machine, UINT32_C(0x00500064), &input_mode,
+                                   sizeof(input_mode));
+     }
+-    if (status != VF2_OK || fighter0_mode != 0u || fighter1_mode != 0u ||
+-        input_mode != 0u || (flags & UINT32_C(0x00200000)) != 0u) {
+-        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    if (status != VF2_OK) {
++        return status;
+     }
+ 
+     status = vf2_i960_cpu_enter_procedure(
+         cpu, VF2_NATIVE_POST_BOOT_INPUT_PROFILE_BODY, UINT32_C(0x00009a00));
+-    if (status == VF2_OK) {
++    if (status != VF2_OK) {
++        return status;
++    }
++
++    /* 0x1fcc0..0x1fcec: the two asymmetric fighter-mode pairs select mode 12. */
++    recovered_instructions += UINT64_C(4); /* ld/ld/ldob/cmpobne */
++    r14_value = fighter0_mode;
++    if (fighter0_mode == UINT8_C(2)) {
++        recovered_instructions += UINT64_C(2); /* ldob/cmpobe */
++        r14_value = fighter1_mode;
++        force_mode12 = fighter1_mode == UINT8_C(1);
++    }
++    if (!force_mode12) {
++        recovered_instructions += UINT64_C(2); /* ldob/cmpobne */
++        r14_value = fighter0_mode;
++        if (fighter0_mode == UINT8_C(1)) {
++            recovered_instructions += UINT64_C(2); /* ldob/cmpobne */
++            r14_value = fighter1_mode;
++            force_mode12 = fighter1_mode == UINT8_C(2);
++        }
++    }
++    if (force_mode12) {
++        input_mode = UINT8_C(12);
++        flags &= ~UINT32_C(0x00100000);
++        recovered_instructions += UINT64_C(5); /* lda/stib/ld/clrbit/st */
++        status = vf2_model2a_write(machine, UINT32_C(0x00500064), &input_mode,
++                                   sizeof(input_mode));
++        if (status == VF2_OK) {
++            status = vf2_model2a_write_u32(machine, UINT32_C(0x00500068), flags);
++        }
++        if (status != VF2_OK) {
++            return status;
++        }
++    }
++
++    /* 0x1fd14..0x1fd98: bit 21/20 and an existing mode 10 choose the
++     * special mode-10 constants; control byte 2 converts mode 10 to mode 11. */
++    recovered_instructions += UINT64_C(2); /* ld flags / bbc bit 21 */
++    if ((flags & UINT32_C(0x00200000)) != 0u) {
++        recovered_instructions += UINT64_C(2); /* ld flags / bbs bit 20 */
++        special_mode10 = (flags & UINT32_C(0x00100000)) != 0u;
++    }
++    if (!special_mode10) {
++        recovered_instructions += UINT64_C(2); /* ldob mode / cmpobne 10 */
++        if (input_mode == UINT8_C(10)) {
++            status = vf2_model2a_read(machine, UINT32_C(0x0050004c), &mode_control,
++                                      sizeof(mode_control));
++            if (status != VF2_OK) {
++                return status;
++            }
++            r14_value = mode_control;
++            recovered_instructions += UINT64_C(2); /* ldob / cmpobe 2 */
++            if (mode_control == UINT8_C(2)) {
++                input_mode = UINT8_C(11);
++                recovered_instructions += UINT64_C(2); /* lda/stib */
++                status = vf2_model2a_write(machine, UINT32_C(0x00500064), &input_mode,
++                                           sizeof(input_mode));
++                if (status != VF2_OK) {
++                    return status;
++                }
++            } else {
++                special_mode10 = true;
++            }
++        }
++    }
++
++    if (special_mode10) {
++        input_mode = UINT8_C(10);
++        flags |= UINT32_C(0x00100000);
++        profile_a = UINT32_C(0x3a3117c4);
++        profile_b = UINT32_C(0x40000000);
++        recovered_instructions += UINT64_C(10); /* mode/flag/constants plus branch */
++        status = vf2_model2a_write(machine, UINT32_C(0x00500064), &input_mode,
++                                   sizeof(input_mode));
++        if (status == VF2_OK) {
++            status = vf2_model2a_write_u32(machine, UINT32_C(0x00500068), flags);
++        }
++    } else {
+         flags &= ~UINT32_C(0x00100000);
++        recovered_instructions += UINT64_C(7); /* flag clear and normal constants */
+         status = vf2_model2a_write_u32(machine, UINT32_C(0x00500068), flags);
+     }
+     if (status == VF2_OK) {
+-        status = vf2_model2a_write_u32(machine, UINT32_C(0x0050a000),
+-                                       UINT32_C(0x3b32674f));
++        status = vf2_model2a_write_u32(machine, UINT32_C(0x0050a000), profile_a);
+     }
+     if (status == VF2_OK) {
+-        status = vf2_model2a_write_u32(machine, UINT32_C(0x0050a004),
+-                                       UINT32_C(0x3f800000));
++        status = vf2_model2a_write_u32(machine, UINT32_C(0x0050a004), profile_b);
+     }
+     if (status != VF2_OK) {
+         return status;
+     }
++
+     cpu->registers[3] = fighter0;
+     cpu->registers[4] = fighter1;
+-    cpu->registers[14] = fighter0_mode;
+-    cpu->registers[15] = UINT32_C(0x3f800000);
++    cpu->registers[14] = r14_value;
++    cpu->registers[15] = profile_b;
+     cpu->ip = VF2_NATIVE_POST_BOOT_FLOAT_DEFAULTS_ENTRY;
+-    cpu->executed_instructions = start_instructions + UINT64_C(18);
++    cpu->executed_instructions = start_instructions + recovered_instructions;
+ 
+     report->kind = VF2_NATIVE_RUNTIME_STEP_POST_BOOT_INPUT_PROFILE_ENTRY;
+     report->exit_address = cpu->ip;
+-    report->recovered_instruction_count = UINT64_C(18);
++    report->recovered_instruction_count = recovered_instructions;
+     report->recovered_procedure_calls = cpu->procedure_calls - start_calls;
+     report->recovered_procedure_returns = cpu->procedure_returns - start_returns;
+     return VF2_OK;
+@@ -4029,6 +4112,7 @@ execute_post_boot_float_defaults_init(vf2_model2a *machine, vf2_i960_cpu *cpu,
+     const uint64_t start_instructions = cpu->executed_instructions;
+     const uint64_t start_calls = cpu->procedure_calls;
+     const uint64_t start_returns = cpu->procedure_returns;
++    uint64_t recovered_instructions = UINT64_C(114);
+     uint8_t input_mode = 0u;
+     size_t index = 0u;
+     vf2_status status = VF2_OK;
+@@ -4040,8 +4124,8 @@ execute_post_boot_float_defaults_init(vf2_model2a *machine, vf2_i960_cpu *cpu,
+     }
+     status = vf2_model2a_read(machine, UINT32_C(0x00500064), &input_mode,
+                               sizeof(input_mode));
+-    if (status != VF2_OK || input_mode != 0u) {
+-        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    if (status != VF2_OK) {
++        return status;
+     }
+     status = vf2_i960_cpu_enter_procedure(
+         cpu, VF2_NATIVE_POST_BOOT_FLOAT_DEFAULTS_BODY, UINT32_C(0x0001fdd4));
+@@ -4057,6 +4141,31 @@ execute_post_boot_float_defaults_init(vf2_model2a *machine, vf2_i960_cpu *cpu,
+     if (status == VF2_OK) {
+         status = vf2_i960_cpu_return_procedure(cpu, machine);
+     }
++    if (status == VF2_OK && input_mode == UINT8_C(10)) {
++        status = vf2_model2a_write_u32(machine, UINT32_C(0x0050a124),
++                                       UINT32_C(0x3f0f5c29));
++        if (status == VF2_OK) {
++            status = vf2_model2a_write_u32(machine, UINT32_C(0x0050a128),
++                                           UINT32_C(0x3ef0a3d7));
++        }
++        recovered_instructions = UINT64_C(117);
++    } else if (status == VF2_OK && input_mode == UINT8_C(6)) {
++        static const uint32_t offsets[] = {
++            UINT32_C(0x004), UINT32_C(0x008), UINT32_C(0x010), UINT32_C(0x018),
++            UINT32_C(0x020), UINT32_C(0x038), UINT32_C(0x03c), UINT32_C(0x044),
++            UINT32_C(0x048), UINT32_C(0x04c), UINT32_C(0x054)};
++        static const uint32_t values[] = {
++            UINT32_C(0x3f0a3d71), UINT32_C(0x3f0a3d71), UINT32_C(0x3f6b851f),
++            UINT32_C(0x3f5eb852), UINT32_C(0x3f028f5c), UINT32_C(0x3f0a3d71),
++            UINT32_C(0x3f0a3d71), UINT32_C(0x3f07ae14), UINT32_C(0x3f28f5c3),
++            UINT32_C(0x3f11eb85), UINT32_C(0x3f028f5c)};
++        for (index = 0u; status == VF2_OK && index < sizeof(offsets) / sizeof(offsets[0]);
++             ++index) {
++            status = vf2_model2a_write_u32(machine, UINT32_C(0x0050a0e0) + offsets[index],
++                                           values[index]);
++        }
++        recovered_instructions = UINT64_C(136);
++    }
+     if (status == VF2_OK) {
+         status = vf2_i960_cpu_return_procedure(cpu, machine);
+     }
+@@ -4064,11 +4173,13 @@ execute_post_boot_float_defaults_init(vf2_model2a *machine, vf2_i960_cpu *cpu,
+         return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
+     }
+ 
+-    cpu->compare_result = VF2_I960_COMPARE_LESS;
+-    cpu->executed_instructions = start_instructions + UINT64_C(114);
++    cpu->arithmetic_control =
++        (cpu->arithmetic_control & ~UINT32_C(7)) | UINT32_C(2);
++    cpu->compare_result = VF2_I960_COMPARE_EQUAL;
++    cpu->executed_instructions = start_instructions + recovered_instructions;
+     report->kind = VF2_NATIVE_RUNTIME_STEP_POST_BOOT_FLOAT_DEFAULTS_INIT;
+     report->exit_address = cpu->ip;
+-    report->recovered_instruction_count = cpu->executed_instructions - start_instructions;
++    report->recovered_instruction_count = recovered_instructions;
+     report->recovered_procedure_calls = cpu->procedure_calls - start_calls;
+     report->recovered_procedure_returns = cpu->procedure_returns - start_returns;
+     return VF2_OK;
+@@ -4097,11 +4208,16 @@ execute_post_boot_input_profile_load(vf2_model2a *machine, vf2_i960_cpu *cpu,
+         status = vf2_model2a_read(machine, UINT32_C(0x0006eeae) + table_offset, &profile,
+                                   sizeof(profile));
+     }
+-    if (status != VF2_OK || profile == UINT8_C(4)) {
+-        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    if (status != VF2_OK) {
++        return status;
++    }
++    status = vf2_model2a_write_u32(machine, UINT32_C(0x00501018),
++                                   profile == UINT8_C(4) ? UINT32_C(0x000010cc)
++                                                        : UINT32_C(0x00001388));
++    if (status == VF2_OK) {
++        status = vf2_model2a_read(machine, UINT32_C(0x0006ef0c) + table_offset,
++                                  &halfwords[0], sizeof(halfwords[0]));
+     }
+-    status = vf2_model2a_read(machine, UINT32_C(0x0006ef0c) + table_offset,
+-                              &halfwords[0], sizeof(halfwords[0]));
+     if (status == VF2_OK) {
+         status = write_u16_le(machine, UINT32_C(0x018021ee), halfwords[0]);
+     }
+@@ -4139,12 +4255,14 @@ execute_post_boot_input_profile_load(vf2_model2a *machine, vf2_i960_cpu *cpu,
+     cpu->registers[6] = halfwords[1];
+     cpu->registers[7] = halfwords[2];
+     cpu->registers[12] = input_mode;
+-    cpu->registers[15] = profile;
++    cpu->registers[15] = profile == UINT8_C(4) ? UINT32_C(0x000010cc) : profile;
+     cpu->ip = VF2_NATIVE_POST_BOOT_INPUT_PROFILE_LOAD_EXIT;
+-    cpu->executed_instructions = start_instructions + UINT64_C(17);
++    cpu->executed_instructions = start_instructions +
++        (profile == UINT8_C(4) ? UINT64_C(19) : UINT64_C(17));
+     report->kind = VF2_NATIVE_RUNTIME_STEP_POST_BOOT_INPUT_PROFILE_LOAD;
+     report->exit_address = cpu->ip;
+-    report->recovered_instruction_count = UINT64_C(17);
++    report->recovered_instruction_count =
++        profile == UINT8_C(4) ? UINT64_C(19) : UINT64_C(17);
+     return VF2_OK;
+ }
+ 
