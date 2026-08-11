@@ -27,7 +27,8 @@ jobs:
         run: |
           cd repo
           test "$(git rev-parse HEAD)" = "d03be30c12b6fa1a81cd954c86cd3c245a029fdf"
-          base64 -d ../infra/.github/phase17-wall.patch.gz.b64 > /tmp/phase17-wall.patch.gz
+          cp ../infra/.github/phase17-wall.patch.gz /tmp/phase17-wall.patch.gz
+          echo "c5b21db7cb28387ba3e606b11eaeed0f58e351be58f30c21424499c5fc0ad70d  /tmp/phase17-wall.patch.gz" | sha256sum -c -
           gzip -dc /tmp/phase17-wall.patch.gz > /tmp/phase17-wall.patch
           echo "ce412fd8e8cfbd27832951087524054dffb4f6d888bffa703e7dc3819a0a9d5e  /tmp/phase17-wall.patch" | sha256sum -c -
           git apply --check /tmp/phase17-wall.patch
