@@ -1,0 +1,39 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 7978dc5..ebbc28b 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -84,6 +84,10 @@ target_include_directories(vf2_core
+ 
+ vf2_set_project_warnings(vf2_core)
+ 
++if(NOT MSVC)
++    target_link_libraries(vf2_core PUBLIC m)
++endif()
++
+ add_executable(vf2 src/app/main.c)
+ target_link_libraries(vf2 PRIVATE vf2_core)
+ vf2_set_project_warnings(vf2)
+@@ -294,6 +298,12 @@ if(VF2_BUILD_TESTS)
+         COMMAND vf2_native_differential_tests
+     )
+ 
++    add_executable(vf2_post_boot_input_profile_tests
++        tests/recovered/test_post_boot_input_profiles.c
++    )
++    target_link_libraries(vf2_post_boot_input_profile_tests PRIVATE vf2_core)
++    vf2_set_project_warnings(vf2_post_boot_input_profile_tests)
++
+     add_executable(vf2_native_scheduler_tests
+         tests/recovered/test_native_scheduler.c
+     )
+@@ -306,6 +316,10 @@ if(VF2_BUILD_TESTS)
+     )
+ 
+     if(EXISTS "${VF2_ROM_DIR}")
++        add_test(
++            NAME vf2_post_boot_input_profiles_differential
++            COMMAND vf2_post_boot_input_profile_tests "${VF2_ROM_DIR}"
++        )
+         add_test(
+             NAME vf2_boot_differential
+             COMMAND vf2i960 compare-boot "${VF2_ROM_DIR}"
