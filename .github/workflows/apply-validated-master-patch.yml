@@ -1,0 +1,61 @@
+name: Apply validated master patch
+
+on:
+  push:
+    branches: [automation/current-source-bundle-20260811]
+    paths: [.github/validated-master.patch]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout validation branch
+        uses: actions/checkout@v4
+        with:
+          ref: automation/current-source-bundle-20260811
+          path: infra
+      - name: Checkout master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+          path: repo
+      - name: Verify base and apply patch
+        run: |
+          cd repo
+          test "$(git rev-parse HEAD)" = "3de50c5a6e76d6e396a96bee3fce8dece54dc74b"
+          git apply --check ../infra/.github/validated-master.patch
+          git apply ../infra/.github/validated-master.patch
+          git diff --check
+      - name: GCC release
+        run: |
+          cd repo
+          CC=gcc cmake -S . -B build-gcc -G Ninja -DCMAKE_BUILD_TYPE=Release -DVF2_BUILD_TESTS=ON -DVF2_WARNINGS_AS_ERRORS=ON
+          cmake --build build-gcc --parallel
+          ctest --test-dir build-gcc --output-on-failure
+      - name: Clang release
+        run: |
+          cd repo
+          CC=clang cmake -S . -B build-clang -G Ninja -DCMAKE_BUILD_TYPE=Release -DVF2_BUILD_TESTS=ON -DVF2_WARNINGS_AS_ERRORS=ON
+          cmake --build build-clang --parallel
+          ctest --test-dir build-clang --output-on-failure
+      - name: Clang sanitizers
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          cd repo
+          CC=clang cmake -S . -B build-asan -G Ninja -DCMAKE_BUILD_TYPE=Debug -DVF2_BUILD_TESTS=ON -DVF2_WARNINGS_AS_ERRORS=ON -DVF2_ENABLE_SANITIZERS=ON
+          cmake --build build-asan --parallel
+          ctest --test-dir build-asan --output-on-failure
+      - name: Commit to master
+        run: |
+          cd repo
+          git config user.name "Celso Fontes"
+          git config user.email "celsowm@users.noreply.github.com"
+          git add -A
+          git commit -m "Recover alternate post-boot input profiles"
+          git push origin HEAD:master
