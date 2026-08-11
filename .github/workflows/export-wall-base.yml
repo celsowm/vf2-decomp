@@ -1,0 +1,23 @@
+name: Export wall base
+
+on:
+  push:
+    branches: [automation/export-wall-base-20260811]
+    paths: [.github/export-wall-base-ready]
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: d03be30c12b6fa1a81cd954c86cd3c245a029fdf
+      - name: Bundle source
+        run: zip -qr wall-base.zip . -x '.git/*' 'wall-base.zip'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wall-base
+          path: wall-base.zip
