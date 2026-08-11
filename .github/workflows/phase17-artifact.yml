@@ -5,8 +5,11 @@ on:
     branches:
       - work/phase17-copro-oracle
 
+permissions:
+  contents: read
+
 jobs:
-  build:
+  artifact:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +27,7 @@ jobs:
         run: |
           cc -std=c17 -Wall -Wextra -Werror -Iinclude tests/recovered/probe_phase17_copro.c build/libvf2_core.a -lm -o build/vf2_phase17_copro_probe
           cc -std=c17 -Wall -Wextra -Werror -Iinclude tests/recovered/probe_phase17_copro_matrix.c build/libvf2_core.a -lm -o build/vf2_phase17_copro_matrix_probe
-      - name: Upload binaries
+      - name: Upload binaries and candidate sources
         uses: actions/upload-artifact@v4
         with:
           name: phase17-linux-x64
@@ -34,3 +37,65 @@ jobs:
             build/vf2_phase17_copro_matrix_probe
             build/vf2_tgp_tests
             build/vf2i960
+            src/recovered/texture_bridge_match.c
+            tests/recovered/test_phase17_zero.c
+
+  build:
+    name: ${{ matrix.compiler }} release
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - compiler: gcc
+            cc: gcc
+          - compiler: clang
+            cc: clang
+    env:
+      CC: ${{ matrix.cc }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply staged changes
+        run: |
+          git apply --check .scratch/phase17-copro.patch
+          git apply .scratch/phase17-copro.patch
+          python3 .scratch/apply_phase17_test.py
+          git diff --check
+      - name: Configure
+        run: >-
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DVF2_BUILD_TESTS=ON
+          -DVF2_WARNINGS_AS_ERRORS=ON
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  sanitizers:
+    name: clang ASan and UBSan
+    runs-on: ubuntu-latest
+    env:
+      CC: clang
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply staged changes
+        run: |
+          git apply --check .scratch/phase17-copro.patch
+          git apply .scratch/phase17-copro.patch
+          python3 .scratch/apply_phase17_test.py
+          git diff --check
+      - name: Configure
+        run: >-
+          cmake -S . -B build-asan -G Ninja
+          -DCMAKE_BUILD_TYPE=Debug
+          -DVF2_BUILD_TESTS=ON
+          -DVF2_WARNINGS_AS_ERRORS=ON
+          -DVF2_ENABLE_SANITIZERS=ON
+      - name: Build
+        run: cmake --build build-asan --parallel
+      - name: Test
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: ctest --test-dir build-asan --output-on-failure
