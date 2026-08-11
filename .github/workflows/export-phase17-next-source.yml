@@ -1,0 +1,24 @@
+name: Export phase17 next source
+
+on:
+  push:
+    branches: [automation/source-bundle-phase17-next]
+    paths: [.github/export-phase17-next-ready]
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 31fea035ddfa87d028feea79cf6637bba47c1762
+      - name: Bundle source
+        run: |
+          git archive --format=zip --output=current-source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phase17-next-source
+          path: current-source.zip
