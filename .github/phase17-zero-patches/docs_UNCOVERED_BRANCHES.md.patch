@@ -1,0 +1,20 @@
+diff --git a/docs/UNCOVERED_BRANCHES.md b/docs/UNCOVERED_BRANCHES.md
+--- a/docs/UNCOVERED_BRANCHES.md
++++ b/docs/UNCOVERED_BRANCHES.md
+@@ -166,10 +166,15 @@ frame-dispatch bridge now covers selector 2's `0x0000ab0c` reset and advances
+ to selector 3. Selector 3's phase-zero `0x0000ae78` mode-table worker is now
+ recovered for both the live fallback profile and the zero-derived alternate
+ profile, including its two descriptor expanders and both ROM text sources.
++Selector 17's `phase_state == 0` wrapper now follows its separate `0x00055008`
++dispatcher for the idle menu-index-0 path. The `0x00055330` control-test entry
++composes the recovered text thunk, mirrors the control halfword into both
++fighters, clears their bit 5 and executes the short `task_control0`
++initialization twice. Both `CONTROL_TEST` and runtime-bit-9 blank-text variants
++are strict ROM-backed matches (267/266 instructions).
+ Selector 3 phase 8's opaque `0x00009444` handoff and phase 16 and above,
+-remaining input modes, other bit-7 indirect table entries and phase-state-zero
+-continuation remain unsupported. The subsequent `0x00002de4` palette-page
++remaining input modes, other bit-7 indirect table entries, other phase-zero menu
++indices and input-transition branches remain unsupported. The subsequent `0x00002de4` palette-page
+ upload is now covered for both its inactive condition-preserving return and its
+ active 28-page RGB upload path.
