@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Apply staged patch
+        run: git apply --check .scratch/phase17-copro.patch && git apply .scratch/phase17-copro.patch
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
       - name: Build differential tools
