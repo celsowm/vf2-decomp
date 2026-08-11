@@ -1,0 +1,20 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 7de010a..18d7bd3 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -2,6 +2,15 @@
+ 
+ ## Unreleased
+ 
++- recovered the post-boot `0x0001fcc0` input-profile selector for controlled
++  modes 6, 10, 11 and 12, including both fighter-order mode-12 branches, the
++  flag-driven mode-10 path, control-byte mode-11 redirect, mode-6/mode-10 float
++  overrides and the `profile == 4` `0x10cc` timeout path; seven controlled
++  states match the original i960 after each of the three recovered blocks
++  (`0x99fc -> 0x1fdd0 -> 0x1fdd4 -> 0x1fe60`), 21/21 strict comparisons;
++- restored warning-as-error portability across GCC/Clang by removing the unused
++  ROM runner, making bit masks/shifts and signed sample accumulation explicit,
++  and linking libm on non-MSVC builds;
+ - recovered the observed post-boot initializer from `0x0006dd4c` through the
+   caller boundary at `0x000098b0` as 15 strict native blocks: 1,498,968
+   reference/recovered instructions with exact CPU, local-frame, procedure-counter
