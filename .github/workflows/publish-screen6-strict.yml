@@ -31,9 +31,10 @@ jobs:
           cp control/.scratch/apply_screen6_strict.py target/.scratch/apply_screen6_strict.py
           cd target
           python3 .scratch/apply_screen6_strict.py
-          git diff --check
-          test "$(git status --short | grep -v '^?? .scratch/apply_screen6_strict.py$' | wc -l)" -eq 2
           rm .scratch/apply_screen6_strict.py
+          rmdir .scratch 2>/dev/null || true
+          git diff --check
+          test "$(git status --short | wc -l)" -eq 2
       - name: Build and test
         run: |
           cmake -S target -B target/build -G Ninja \
