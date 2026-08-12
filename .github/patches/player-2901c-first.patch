@@ -1,0 +1,352 @@
+--- a/src/recovered/hybrid.c
++++ b/src/recovered/hybrid.c
+@@ -2452,6 +2452,336 @@
+     return VF2_OK;
+ }
+ 
++static vf2_status hybrid_execute_player_2901c_first_to_27dcc(
++    vf2_model2a *machine,
++    vf2_i960_cpu *cpu
++)
++{
++    const uint32_t player = cpu != NULL
++        ? cpu->registers[VF2_I960_G0_REGISTER + 7u] : 0u;
++    const uint32_t port = cpu != NULL
++        ? cpu->registers[VF2_I960_G0_REGISTER + 11u] +
++          cpu->registers[VF2_I960_G0_REGISTER + 12u]
++        : 0u;
++    uint32_t state_flags = 0u;
++    uint32_t player_flags = 0u;
++    uint32_t r4 = 0u;
++    uint32_t r5 = 0u;
++    uint32_t r8 = 0u;
++    uint32_t r9 = 0u;
++    uint32_t r10 = 0u;
++    uint32_t r11 = 0u;
++    uint32_t r12 = 0u;
++    uint32_t r13 = 0u;
++    uint32_t r14 = 0u;
++    uint32_t cursor = 0u;
++    uint16_t half = 0u;
++    uint8_t bdc = 0u;
++    uint8_t control = 0u;
++    uint8_t cursor_byte = 0u;
++    vf2_status status = VF2_OK;
++
++    if (machine == NULL || cpu == NULL ||
++        cpu->ip != UINT32_C(0x0002901c) || player == 0u ||
++        cpu->local_frame_depth < 5u ||
++        cpu->registers[VF2_I960_G0_REGISTER + 1u] != UINT32_C(1) ||
++        cpu->registers[VF2_I960_G0_REGISTER] != player + UINT32_C(0x146) ||
++        cpu->registers[VF2_I960_G0_REGISTER + 3u] !=
++            player + UINT32_C(0xc06) ||
++        cpu->registers[VF2_I960_G0_REGISTER + 4u] !=
++            player + UINT32_C(0xb00) ||
++        cpu->registers[VF2_I960_G0_REGISTER + 5u] !=
++            player + UINT32_C(0xba8) ||
++        cpu->registers[VF2_I960_G0_REGISTER + 6u] !=
++            UINT32_C(0x000296a0) ||
++        cpu->compare_result != VF2_I960_COMPARE_EQUAL) {
++        return VF2_ERROR_UNSUPPORTED;
++    }
++
++    status = hybrid_read_u8(machine, player + UINT32_C(0xbdc), &bdc);
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(
++            machine, player + UINT32_C(0x1a4), &state_flags
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(machine, player, &player_flags);
++    }
++    if (status == VF2_OK) {
++        status = hybrid_read_u8(machine, player + UINT32_C(4), &control);
++    }
++    if (status != VF2_OK || (bdc & UINT8_C(2)) != 0u ||
++        (state_flags & UINT32_C(0x00016000)) != 0u ||
++        (state_flags & UINT32_C(0x0000020c)) == 0u ||
++        (player_flags & (UINT32_C(1) << 6u)) != 0u ||
++        (control & UINT8_C(1)) != 0u) {
++        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    }
++
++    /* 0x29050: publish the fixed command header and the three observed
++     * input triples.  Scalar command operands share the FIFO address while
++     * ldt/stt triples use its adjacent words, matching the i960 bus accesses. */
++    status = vf2_model2a_write_u32(machine, port, UINT32_C(0x03000606));
++    if (status == VF2_OK) {
++        status = hybrid_read_u32_triple(
++            machine, cpu->registers[VF2_I960_G0_REGISTER + 6u],
++            &r12, &r13, &r14
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port, r12);
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port + UINT32_C(4), r13);
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port + UINT32_C(8), r14);
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port, UINT32_C(0x1f803f3f));
++    }
++    if (status == VF2_OK) {
++        status = hybrid_read_u16(
++            machine,
++            cpu->registers[VF2_I960_G0_REGISTER + 5u] + UINT32_C(4), &half
++        );
++        r12 = (uint32_t)(int32_t)(int16_t)half;
++    }
++    if (status == VF2_OK) {
++        status = hybrid_read_u16(
++            machine,
++            cpu->registers[VF2_I960_G0_REGISTER + 5u] + UINT32_C(2), &half
++        );
++        r13 = (uint32_t)(int32_t)(int16_t)half;
++    }
++    if (status == VF2_OK) {
++        status = hybrid_read_u16(
++            machine, cpu->registers[VF2_I960_G0_REGISTER + 5u], &half
++        );
++        r14 = (uint32_t)(int32_t)(int16_t)half;
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port, r12);
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port + UINT32_C(4), r13);
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port + UINT32_C(8), r14);
++    }
++    cpu->registers[VF2_I960_G0_REGISTER + 5u] += UINT32_C(6);
++
++    if (status == VF2_OK) {
++        status = hybrid_read_u16(
++            machine,
++            cpu->registers[VF2_I960_G0_REGISTER + 3u] + UINT32_C(2), &half
++        );
++    }
++    if (status == VF2_OK && half != 0u) {
++        return VF2_ERROR_UNSUPPORTED;
++    }
++    if (status == VF2_OK) {
++        status = hybrid_read_u16(
++            machine, cpu->registers[VF2_I960_G0_REGISTER + 3u], &half
++        );
++    }
++    if (status == VF2_OK && half != 0u) {
++        return VF2_ERROR_UNSUPPORTED;
++    }
++    if (status == VF2_OK) {
++        status = hybrid_read_u16(
++            machine,
++            cpu->registers[VF2_I960_G0_REGISTER + 3u] + UINT32_C(4), &half
++        );
++    }
++    if (status == VF2_OK && half != 0u) {
++        return VF2_ERROR_UNSUPPORTED;
++    }
++    cpu->registers[VF2_I960_G0_REGISTER + 3u] += UINT32_C(6);
++
++    /* g1 == 1 reaches the 0x29158 adjustment path. */
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port, UINT32_C(0x35006a6a));
++    }
++    if (status == VF2_OK) {
++        status = hybrid_read_u32_triple(
++            machine, player + UINT32_C(0xb0c), &r8, &r9, &r10
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port, r8);
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port + UINT32_C(4), r9);
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port + UINT32_C(8), r10);
++    }
++    if (status == VF2_OK) {
++        status = hybrid_read_u32_triple(machine, port, &r8, &r9, &r10);
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port, UINT32_C(0x13802727));
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port, r8);
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port, r10);
++    }
++    if (status == VF2_OK) {
++        status = hybrid_read_u16(machine, port, &half);
++        r11 = (uint32_t)(int32_t)(int16_t)half;
++    }
++    if (status != VF2_OK || (int32_t)r11 < 0 || r11 > UINT32_C(0x2000)) {
++        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    }
++    r11 >>= 1u;
++
++    status = hybrid_read_u16(machine, player + UINT32_C(0xbe6), &half);
++    if (status == VF2_OK) {
++        r10 = (uint32_t)(int32_t)(int16_t)half;
++        {
++            const int32_t delta = (int32_t)r10 - (int32_t)r11;
++            if (delta < -256 || delta > 256) {
++                return VF2_ERROR_UNSUPPORTED;
++            }
++        }
++        status = hybrid_write_u16(
++            machine, player + UINT32_C(0xbe6), (uint16_t)r11
++        );
++    }
++
++    /* 0x29214: transform the first full-precision triple.  g1 != 2 selects
++     * the compact 0x29354 branch used on this first invocation. */
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port, UINT32_C(0x35006a6a));
++    }
++    if (status == VF2_OK) {
++        status = hybrid_read_u32_triple(
++            machine, cpu->registers[VF2_I960_G0_REGISTER + 4u],
++            &r8, &r9, &r10
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port, r8);
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port + UINT32_C(4), r9);
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port + UINT32_C(8), r10);
++    }
++    if (status == VF2_OK) {
++        status = hybrid_read_u32_triple(machine, port, &r8, &r9, &r10);
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port, UINT32_C(0x13802727));
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port, r8);
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port, r9);
++    }
++    if (status == VF2_OK) {
++        status = hybrid_read_u16(machine, port, &half);
++        r4 = (uint32_t)(0u - (uint32_t)(int32_t)(int16_t)half);
++    }
++    if (status == VF2_OK) {
++        status = hybrid_write_u16(
++            machine,
++            cpu->registers[VF2_I960_G0_REGISTER] + UINT32_C(4),
++            (uint16_t)r4
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port, UINT32_C(0x16802d2d));
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port, r8);
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port, r9);
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(machine, port, &r5);
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port, UINT32_C(0x13802727));
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port, r5);
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port, r10);
++    }
++    if (status == VF2_OK) {
++        status = hybrid_read_u16(machine, port, &half);
++        r5 = (uint32_t)(int32_t)(int16_t)half;
++    }
++    if (status == VF2_OK) {
++        status = hybrid_write_u16(
++            machine,
++            cpu->registers[VF2_I960_G0_REGISTER] + UINT32_C(2),
++            (uint16_t)r5
++        );
++    }
++    if (status != VF2_OK || r4 == 0u || r5 != 0u) {
++        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    }
++
++    /* r4 is nonzero on the measured path, so the ROM appends one signed
++     * diagnostic word to the geometry log ring and advances its byte cursor. */
++    status = vf2_model2a_read_u32(machine, UINT32_C(0x005001e4), &cursor);
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(
++            machine, UINT32_C(0x0090e000) + cursor, r4
++        );
++    }
++    cursor += UINT32_C(4);
++    cursor_byte = (uint8_t)cursor;
++    if (status == VF2_OK) {
++        status = vf2_model2a_write(
++            machine, UINT32_C(0x005001e4), &cursor_byte, sizeof(cursor_byte)
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port, UINT32_C(0x37006e6e));
++    }
++    if (status != VF2_OK) {
++        return status;
++    }
++
++    cpu->registers[VF2_I960_G0_REGISTER + 6u] += UINT32_C(12);
++    cpu->registers[VF2_I960_G0_REGISTER + 4u] += UINT32_C(12);
++    cpu->registers[VF2_I960_G0_REGISTER] += UINT32_C(6);
++    cpu->registers[VF2_I960_G0_REGISTER + 1u] += UINT32_C(1);
++    cpu->executed_instructions += UINT64_C(94);
++    status = vf2_i960_cpu_return_procedure(cpu, machine);
++    if (status != VF2_OK || cpu->ip != UINT32_C(0x00027d94)) {
++        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    }
++    ++cpu->executed_instructions;
++
++    /* 0x27d94..0x27dc8 is the caller tail before the second 0x2901c call. */
++    status = vf2_model2a_write_u32(machine, port, UINT32_C(0x33806767));
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port, UINT32_C(0x00003a0c));
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(machine, port, UINT32_C(0x00800101));
++    }
++    if (status != VF2_OK) {
++        return status;
++    }
++    cpu->registers[15u] = UINT32_C(0x00800101);
++    cpu->compare_result = VF2_I960_COMPARE_EQUAL;
++    cpu->ip = UINT32_C(0x00027dcc);
++    cpu->executed_instructions += UINT64_C(9);
++    return VF2_OK;
++}
++
+ static vf2_status hybrid_execute_player_27d90_call(
+     vf2_model2a *machine,
+     vf2_i960_cpu *cpu
+@@ -5517,10 +5847,8 @@
+                                                                     UINT32_C(0x00027d90), &task_report
+                                                                 );
+                                                             } else if (status == VF2_OK) {
+-                                                                status = hybrid_execute_interpreted_until(
+-                                                                    machine, cpu,
+-                                                                    UINT32_C(0x0002901c),
+-                                                                    UINT32_C(0x00027dcc)
++                                                                status = hybrid_execute_player_2901c_first_to_27dcc(
++                                                                    machine, cpu
+                                                                 );
+                                                                 if (status == VF2_ERROR_UNSUPPORTED) {
+                                                                     interpreted_task = 1;
