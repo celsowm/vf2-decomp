@@ -20,7 +20,6 @@ jobs:
         run: |
           set -euo pipefail
           patch=.github/patches/player-27fa4.patch
-          echo '5f9ba32a02a28b1d815df473493ddf6d17575e22d125215bf5586d515dd7321b  '"$patch" | sha256sum -c -
           cp "$patch" "$RUNNER_TEMP/player.patch"
           git fetch origin master
           test "$(git rev-parse origin/master)" = "f16140e89c56dc064ee102b7703e4a0aeb353152"
@@ -28,6 +27,7 @@ jobs:
           test "$(git hash-object src/recovered/hybrid.c)" = "b58aeaa08bb753ba5c28e24d79423e0e78af631a"
           git apply --check "$RUNNER_TEMP/player.patch"
           git apply "$RUNNER_TEMP/player.patch"
+          test "$(git hash-object src/recovered/hybrid.c)" = "a5bd9cedf4bfd5224fb3c29845e023783b3cc7c5"
           git diff --check
       - name: GCC Release Werror
         run: |
