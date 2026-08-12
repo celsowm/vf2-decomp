@@ -1,0 +1,50 @@
+name: Publish phase17 texture clean
+
+on:
+  push:
+    branches:
+      - work/phase17-texture-clean
+    paths:
+      - .github/workflows/publish-phase17-texture-clean.yml
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout candidate control branch
+        uses: actions/checkout@v4
+        with:
+          path: control
+      - name: Checkout exact master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          path: target
+          fetch-depth: 0
+      - name: Verify base and apply clean patch
+        run: |
+          test "$(git -C target rev-parse HEAD)" = "5057839ddc7e4d4ad5f1d992c9cec385489b51c3"
+          cd target
+          python3 ../control/.scratch/apply_phase17_texture_clean.py
+          git diff --check
+          git status --short
+          test "$(git status --short | wc -l)" -eq 2
+      - name: Configure and build
+        run: |
+          cmake -S target -B target/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DVF2_BUILD_TESTS=ON \
+            -DVF2_WARNINGS_AS_ERRORS=ON
+          cmake --build target/build --parallel
+          ctest --test-dir target/build --output-on-failure
+      - name: Commit to master
+        working-directory: target
+        run: |
+          git config user.name "celsowm"
+          git config user.email "celsowm@gmail.com"
+          git add src/recovered/texture_bridge_match.c tests/recovered/test_phase17_zero.c
+          git commit -m "Recover strict phase17 texture controls"
+          git push origin HEAD:master
