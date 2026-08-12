@@ -1,0 +1,54 @@
+name: Temporary player 27dd0 publisher
+
+on:
+  push:
+    branches:
+      - automation/player-27dd0-publish
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify transport and apply patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          patch=.github/patches/player-27dd0.patch
+          echo '0dad8369ce8ea5c8fef16ae5931ea234a8e1be6d5297e256eeb3a28c4b194540  '"$patch" | sha256sum -c -
+          cp "$patch" "$RUNNER_TEMP/player.patch"
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "425d2e26e94c40bda983ff347613e3c044a1aa68"
+          git checkout --detach origin/master
+          git apply --check "$RUNNER_TEMP/player.patch"
+          git apply "$RUNNER_TEMP/player.patch"
+          git diff --check
+      - name: GCC Release Werror
+        run: |
+          cmake -S . -B build-gcc -G Ninja -DCMAKE_BUILD_TYPE=Release -DVF2_BUILD_TESTS=ON
+          cmake --build build-gcc -j2
+          ctest --test-dir build-gcc --output-on-failure
+      - name: Clang Release Werror
+        run: |
+          CC=clang cmake -S . -B build-clang -G Ninja -DCMAKE_BUILD_TYPE=Release -DVF2_BUILD_TESTS=ON
+          cmake --build build-clang -j2
+          ctest --test-dir build-clang --output-on-failure
+      - name: Clang ASan UBSan
+        run: |
+          CC=clang cmake -S . -B build-san -G Ninja -DCMAKE_BUILD_TYPE=Debug -DVF2_BUILD_TESTS=ON -DVF2_ENABLE_SANITIZERS=ON
+          cmake --build build-san -j2
+          ctest --test-dir build-san --output-on-failure
+      - name: Publish atomic recovery to master
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/recovered/hybrid.c
+          git commit -m 'Recover observed player 27dd0 continuation'
+          git push origin HEAD:master
