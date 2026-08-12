@@ -1,0 +1,277 @@
+--- a/src/recovered/hybrid.c
++++ b/src/recovered/hybrid.c
+@@ -2191,6 +2197,261 @@
+     return status;
+ }
+ 
++
++static vf2_status hybrid_execute_player_2826c_to_27d90(
++    vf2_model2a *machine,
++    vf2_i960_cpu *cpu
++)
++{
++    const uint32_t player = cpu != NULL
++        ? cpu->registers[VF2_I960_G0_REGISTER + 7u] : 0u;
++    const uint32_t scratch = cpu != NULL ? cpu->registers[6u] : 0u;
++    const uint32_t copro_address = cpu != NULL
++        ? cpu->registers[VF2_I960_G0_REGISTER + 11u] +
++          cpu->registers[VF2_I960_G0_REGISTER + 12u]
++        : 0u;
++    uint32_t source = scratch + UINT32_C(0x690);
++    uint32_t flags = 0u;
++    uint32_t phase_word = 0u;
++    uint32_t relative = 0u;
++    uint32_t values[3] = {0u, 0u, 0u};
++    uint32_t word = 0u;
++    uint16_t counter = 0u;
++    uint16_t state_code = 0u;
++    uint16_t half = 0u;
++    uint8_t status_byte = 0u;
++    uint8_t control_byte = 0u;
++    size_t index = 0u;
++    size_t component = 0u;
++    vf2_status status = VF2_OK;
++
++    if (machine == NULL || cpu == NULL ||
++        cpu->ip != UINT32_C(0x0002826c) ||
++        player == 0u || scratch == 0u || cpu->local_frame_depth < 5u ||
++        cpu->compare_result != VF2_I960_COMPARE_EQUAL) {
++        return VF2_ERROR_UNSUPPORTED;
++    }
++    status = hybrid_read_u16(machine, player + UINT32_C(0x1aa), &counter);
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(
++            machine, player + UINT32_C(0x804), &word
++        );
++    }
++    if (status == VF2_OK) {
++        status = hybrid_read_u8(
++            machine, player + UINT32_C(0xbdd), &status_byte
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(machine, player, &flags);
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_read_u32(
++            machine, UINT32_C(0x00500034), &phase_word
++        );
++    }
++    if (status == VF2_OK) {
++        status = hybrid_read_u16(
++            machine, player + UINT32_C(0x1a8), &state_code
++        );
++    }
++    if (status == VF2_OK) {
++        status = hybrid_read_u8(machine, player + UINT32_C(4), &control_byte);
++    }
++    if (status != VF2_OK || counter != UINT16_C(1) ||
++        (word & UINT32_C(0x00020010)) != 0u || status_byte != 0u ||
++        (flags & (UINT32_C(1) << 2u)) != 0u || phase_word > UINT32_C(6) ||
++        state_code == UINT16_C(0x00d8) || state_code == UINT16_C(0x0519) ||
++        (control_byte & UINT8_C(1)) != 0u) {
++        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    }
++
++    /* status == 0 takes the 0x283c0 path and clears the 72-byte staging area. */
++    {
++        uint8_t zero[72] = {0};
++        status = vf2_model2a_write(
++            machine, player + UINT32_C(0xbe8), zero, sizeof(zero)
++        );
++    }
++
++    /* 0x2859c distributes the 240-byte expansion emitted by 0x28780. */
++    for (index = 0u; status == VF2_OK && index < 4u; ++index) {
++        status = vf2_model2a_read_u32(
++            machine,
++            UINT32_C(0x00029714) + (uint32_t)index * UINT32_C(4),
++            &relative
++        );
++        for (component = 0u; status == VF2_OK && component < 3u; ++component) {
++            status = vf2_model2a_read_u32(
++                machine, source + (uint32_t)component * UINT32_C(4),
++                &values[component]
++            );
++            if (status == VF2_OK) {
++                status = hybrid_write_u16(
++                    machine,
++                    player + relative + (uint32_t)component * UINT32_C(2),
++                    (uint16_t)values[component]
++                );
++            }
++        }
++        source += UINT32_C(12);
++    }
++    for (component = 0u; status == VF2_OK && component < 3u; ++component) {
++        status = vf2_model2a_read_u32(
++            machine, source + (uint32_t)component * UINT32_C(4),
++            &values[component]
++        );
++        if (status == VF2_OK) {
++            status = hybrid_write_u16(
++                machine,
++                player + UINT32_C(0x140) + (uint32_t)component * UINT32_C(2),
++                (uint16_t)values[component]
++            );
++        }
++    }
++    source += UINT32_C(12);
++    for (index = 0u; status == VF2_OK && index < 7u; ++index) {
++        for (component = 0u; status == VF2_OK && component < 3u; ++component) {
++            status = vf2_model2a_read_u32(
++                machine, source + (uint32_t)component * UINT32_C(4),
++                &values[component]
++            );
++            if (status == VF2_OK) {
++                status = hybrid_write_u16(
++                    machine,
++                    player + UINT32_C(0xba8) + (uint32_t)index * UINT32_C(6) +
++                        (uint32_t)component * UINT32_C(2),
++                    (uint16_t)values[component]
++                );
++            }
++        }
++        source += UINT32_C(12);
++    }
++    for (component = 0u; status == VF2_OK && component < 3u; ++component) {
++        status = vf2_model2a_read_u32(
++            machine, source + (uint32_t)component * UINT32_C(4),
++            &values[component]
++        );
++        if (status == VF2_OK) {
++            status = vf2_model2a_write_u32(
++                machine,
++                player + UINT32_C(0x80) + (uint32_t)component * UINT32_C(4),
++                values[component]
++            );
++        }
++    }
++    source += UINT32_C(12);
++    for (index = 0u; status == VF2_OK && index < 7u; ++index) {
++        for (component = 0u; status == VF2_OK && component < 3u; ++component) {
++            status = vf2_model2a_read_u32(
++                machine, source + (uint32_t)component * UINT32_C(4),
++                &values[component]
++            );
++            if (status == VF2_OK) {
++                status = vf2_model2a_write_u32(
++                    machine,
++                    player + UINT32_C(0xb00) + (uint32_t)index * UINT32_C(12) +
++                        (uint32_t)component * UINT32_C(4),
++                    values[component]
++                );
++            }
++        }
++        source += UINT32_C(12);
++    }
++    if (status != VF2_OK) {
++        return status;
++    }
++
++    /* The observed phase/state gates branch directly to the procedure RET. */
++    status = vf2_i960_cpu_return_procedure(cpu, machine);
++    if (status != VF2_OK || cpu->ip != UINT32_C(0x00027d04)) {
++        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    }
++
++    /* 0x27d04..0x27d8c emits three overwritten triples followed by the
++     * persistent 0x00800101 command and prepares the next geometry call. */
++    status = vf2_model2a_write_u32(
++        machine, copro_address, UINT32_C(0x31006262)
++    );
++    for (component = 0u; status == VF2_OK && component < 3u; ++component) {
++        status = vf2_model2a_read_u32(
++            machine,
++            player + UINT32_C(0x80) + (uint32_t)component * UINT32_C(4),
++            &values[component]
++        );
++        if (status == VF2_OK) {
++            status = vf2_model2a_write_u32(
++                machine, copro_address + (uint32_t)component * UINT32_C(4),
++                values[component]
++            );
++        }
++    }
++    {
++        static const uint32_t offsets[3] = {
++            UINT32_C(0x144), UINT32_C(0x142), UINT32_C(0x140)
++        };
++        for (component = 0u; status == VF2_OK && component < 3u; ++component) {
++            status = hybrid_read_u16(
++                machine, player + offsets[component], &half
++            );
++            if (status == VF2_OK) {
++                status = vf2_model2a_write_u32(
++                    machine, copro_address + (uint32_t)component * UINT32_C(4),
++                    (uint32_t)(int32_t)(int16_t)half
++                );
++            }
++        }
++    }
++    {
++        static const uint32_t offsets[3] = {
++            UINT32_C(0xc02), UINT32_C(0xc00), UINT32_C(0xc04)
++        };
++        for (component = 0u; status == VF2_OK && component < 3u; ++component) {
++            status = hybrid_read_u16(
++                machine, player + offsets[component], &half
++            );
++            if (status == VF2_OK) {
++                status = vf2_model2a_write_u32(
++                    machine, copro_address + (uint32_t)component * UINT32_C(4),
++                    (uint32_t)(int32_t)(int16_t)half
++                );
++            }
++            cpu->registers[12u + component] =
++                (uint32_t)(int32_t)(int16_t)half;
++        }
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(
++            machine, copro_address, UINT32_C(0x33806767)
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(
++            machine, copro_address, UINT32_C(29) << 9u
++        );
++    }
++    if (status == VF2_OK) {
++        status = vf2_model2a_write_u32(
++            machine, copro_address, UINT32_C(0x00800101)
++        );
++    }
++    if (status != VF2_OK) {
++        return status;
++    }
++
++    cpu->registers[15u] = UINT32_C(0x00800101);
++    cpu->registers[VF2_I960_G0_REGISTER] = player + UINT32_C(0x146);
++    cpu->registers[VF2_I960_G0_REGISTER + 1u] = UINT32_C(1);
++    cpu->registers[VF2_I960_G0_REGISTER + 3u] = player + UINT32_C(0xc06);
++    cpu->registers[VF2_I960_G0_REGISTER + 4u] = player + UINT32_C(0xb00);
++    cpu->registers[VF2_I960_G0_REGISTER + 5u] = player + UINT32_C(0xba8);
++    cpu->registers[VF2_I960_G0_REGISTER + 6u] = UINT32_C(0x000296a0);
++    cpu->compare_result = VF2_I960_COMPARE_EQUAL;
++    cpu->ip = UINT32_C(0x00027d90);
++    cpu->executed_instructions += UINT64_C(222);
++    return VF2_OK;
++}
++
+ static vf2_status hybrid_execute_player_27d90_call(
+     vf2_model2a *machine,
+     vf2_i960_cpu *cpu
+@@ -5236,10 +5497,8 @@
+                                                             UINT32_C(0x00028780), &task_report
+                                                         );
+                                                     } else if (status == VF2_OK) {
+-                                                        status = hybrid_execute_interpreted_until(
+-                                                            machine, cpu,
+-                                                            UINT32_C(0x0002826c),
+-                                                            UINT32_C(0x00027d90)
++                                                        status = hybrid_execute_player_2826c_to_27d90(
++                                                            machine, cpu
+                                                         );
+                                                         if (status == VF2_ERROR_UNSUPPORTED) {
+                                                             interpreted_task = 1;
