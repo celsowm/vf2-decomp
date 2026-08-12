@@ -1,0 +1,55 @@
+name: Temporary player 27fa4 publisher v2
+
+on:
+  push:
+    branches:
+      - automation/player-27fa4-publish-v2
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reassemble, verify and apply patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .github/patches/player-27fa4.b64.* | base64 -d > "$RUNNER_TEMP/player.patch"
+          echo '5f9ba32a02a28b1d815df473493ddf6d17575e22d125215bf5586d515dd7321b  '"$RUNNER_TEMP/player.patch" | sha256sum -c -
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "f16140e89c56dc064ee102b7703e4a0aeb353152"
+          git checkout --detach origin/master
+          test "$(git hash-object src/recovered/hybrid.c)" = "b58aeaa08bb753ba5c28e24d79423e0e78af631a"
+          git apply --check "$RUNNER_TEMP/player.patch"
+          git apply "$RUNNER_TEMP/player.patch"
+          test "$(git hash-object src/recovered/hybrid.c)" = "a5bd9cedf4bfd5224fb3c29845e023783b3cc7c5"
+          git diff --check
+      - name: GCC Release Werror
+        run: |
+          cmake -S . -B build-gcc -G Ninja -DCMAKE_BUILD_TYPE=Release -DVF2_BUILD_TESTS=ON
+          cmake --build build-gcc -j2
+          ctest --test-dir build-gcc --output-on-failure
+      - name: Clang Release Werror
+        run: |
+          CC=clang cmake -S . -B build-clang -G Ninja -DCMAKE_BUILD_TYPE=Release -DVF2_BUILD_TESTS=ON
+          cmake --build build-clang -j2
+          ctest --test-dir build-clang --output-on-failure
+      - name: Clang ASan UBSan
+        run: |
+          CC=clang cmake -S . -B build-san -G Ninja -DCMAKE_BUILD_TYPE=Debug -DVF2_BUILD_TESTS=ON -DVF2_ENABLE_SANITIZERS=ON
+          cmake --build build-san -j2
+          ctest --test-dir build-san --output-on-failure
+      - name: Publish atomic recovery to master
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/recovered/hybrid.c
+          git commit -m 'Recover observed player 27fa4 continuation'
+          git push origin HEAD:master
