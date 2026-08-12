@@ -1,0 +1,54 @@
+name: Temporary first player 2901c publisher
+
+on:
+  push:
+    branches:
+      - automation/player-2901c-first-publish
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify transport and apply patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          patch=.github/patches/player-2901c-first.patch
+          echo 'aabed8131c83926afacf60b1348662559f46e9327c8b2cdb8e7b1b025fe16e9b  '"$patch" | sha256sum -c -
+          cp "$patch" "$RUNNER_TEMP/player.patch"
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "0c46b36c31a41e3e36bb2905665c9d988a205081"
+          git checkout --detach origin/master
+          git apply --check "$RUNNER_TEMP/player.patch"
+          git apply "$RUNNER_TEMP/player.patch"
+          git diff --check
+      - name: GCC Release Werror
+        run: |
+          cmake -S . -B build-gcc -G Ninja -DCMAKE_BUILD_TYPE=Release -DVF2_BUILD_TESTS=ON
+          cmake --build build-gcc -j2
+          ctest --test-dir build-gcc --output-on-failure
+      - name: Clang Release Werror
+        run: |
+          CC=clang cmake -S . -B build-clang -G Ninja -DCMAKE_BUILD_TYPE=Release -DVF2_BUILD_TESTS=ON
+          cmake --build build-clang -j2
+          ctest --test-dir build-clang --output-on-failure
+      - name: Clang ASan UBSan
+        run: |
+          CC=clang cmake -S . -B build-san -G Ninja -DCMAKE_BUILD_TYPE=Debug -DVF2_BUILD_TESTS=ON -DVF2_ENABLE_SANITIZERS=ON
+          cmake --build build-san -j2
+          ctest --test-dir build-san --output-on-failure
+      - name: Publish atomic recovery to master
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/recovered/hybrid.c
+          git commit -m 'Recover first observed player 2901c path'
+          git push origin HEAD:master
