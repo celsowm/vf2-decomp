@@ -1,15 +1,16 @@
-name: Temporary phase17 bit7 publisher
+name: Temporary recurring camera bit7 publisher
 
 on:
-  pull_request:
-    branches: [master]
+  push:
+    branches: [automation/phase17-bit7-publish]
+    paths:
+      - .github/workflows/phase17-bit7-publisher.yml
 
 permissions:
   contents: write
 
 jobs:
   publish:
-    if: github.event.pull_request.head.ref == 'automation/phase17-bit7-publish'
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout current master
@@ -22,31 +23,70 @@ jobs:
       - name: Checkout validated patch transport
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.sha }}
           path: source
 
-      - name: Reconstruct validated phase17 bit7 patch
+      - name: Verify transport and apply strict bit7 patch
+        shell: bash
         run: |
-          echo "457bd1e0b72882d0fe203e6c152a5b7c62c1bcc9bb1b9c71614a9431f0c69a5d  source/automation/phase17-bit7.patch.b64.000" | sha256sum -c -
-          echo "28602e56a64c1a2fec148d8926f581ec96d5ef5c6bb3f6e75f300a9a76dd677f  source/automation/phase17-bit7.patch.b64.001" | sha256sum -c -
-          echo "af638e9b7b4fd06ae8f5b3abb5c9a0a40b34f995d2860ec066849c821f826b1a  source/automation/phase17-bit7.patch.b64.002" | sha256sum -c -
-          echo "fee774c9c9907811e62c19a393ef52171ea53251ba41a25d3ff79bdc30c9e3e9  source/automation/phase17-bit7.patch.b64.003a" | sha256sum -c -
-          echo "f1eb6b8718d64d921cdd4940481e9b2900fa3156c78ea24260a0d0a2841e74c3  source/automation/phase17-bit7.patch.b64.003b" | sha256sum -c -
-          echo "ede1296d48be3423c9b4cd15924655469e3e2ade7d7814c3faab4193daf01a17  source/automation/phase17-bit7.patch.b64.004" | sha256sum -c -
-          cat source/automation/phase17-bit7.patch.b64.000 \
-              source/automation/phase17-bit7.patch.b64.001 \
-              source/automation/phase17-bit7.patch.b64.002 \
-              source/automation/phase17-bit7.patch.b64.003a \
-              source/automation/phase17-bit7.patch.b64.003b \
-              source/automation/phase17-bit7.patch.b64.004 \
-              > /tmp/phase17-bit7.patch.b64
-          base64 -d /tmp/phase17-bit7.patch.b64 > /tmp/phase17-bit7.patch
-          echo "784f2a91dea420913cf5e31f884802130f3c3fbd851cbe55a4dad1f8c4fffffe  /tmp/phase17-bit7.patch" | sha256sum -c -
-          git -C work apply --check /tmp/phase17-bit7.patch
-          git -C work apply /tmp/phase17-bit7.patch
-          git -C work diff --check
+          set -euo pipefail
+          expected_master=e73ea5d0220fb7a9e7830ed3645d26923586594f
+          test "$(git -C work rev-parse HEAD)" = "$expected_master"
 
-      - name: GCC warning-as-error build and tests
+          echo "aa6617a69456644a066cbf60b5273fb1ee0d4a4ebf91ae922ba7d0275d9c0f93  source/automation/recurring-camera-bit7-v3.patch.b64.000" | sha256sum -c -
+          echo "28003ced1af89fa091fbe47e1d8fd147d3f1e1182a29f1c8087f32c0420b201c  source/automation/recurring-camera-bit7-v3.patch.b64.001" | sha256sum -c -
+          echo "ff6818da44b26bf2b7be748544ad6f421b5133cf2cc35a36671c1dcb3739e7ca  source/automation/recurring-camera-bit7-v3.patch.b64.002" | sha256sum -c -
+          echo "39ffbb6dee9e523d0c5fc200f46b8cea1f13a5bc31eac52e2df4dd5c667b5007  source/automation/recurring-camera-bit7-v3.patch.b64.003" | sha256sum -c -
+          echo "9849c860c5fd44b40a07800c55f07f44b33da050284f3efbba804b538066064d  source/automation/recurring-camera-bit7-v3.patch.b64.004" | sha256sum -c -
+          echo "78e633ac41424e5f28e3222b5b3ee6c03e09d76029369e45a9593395ec523beb  source/automation/recurring-camera-bit7-v3.patch.b64.005" | sha256sum -c -
+          echo "8ab5006794c48145bb695af44bdb49bdd6f411aa3332372a9de99b79a9645519  source/automation/recurring-camera-bit7-v3.patch.b64.006" | sha256sum -c -
+          echo "96ad7cce76c9a984ab256e985a353e584669c24268cdea032eec3b4c506c85f6  source/automation/recurring-camera-bit7-v3.patch.b64.007a" | sha256sum -c -
+          echo "29f0684c88f0dfcb05310e9bf4de3daa0fded4e04db779a4e34fcfe98fe0313f  source/automation/recurring-camera-bit7-v3.patch.b64.007b" | sha256sum -c -
+          echo "12a104d07dde0ffe25a1e3243e9581326eb1afb996c5280fb096f4b37f29c4b6  source/automation/recurring-camera-bit7-v3.patch.b64.007c" | sha256sum -c -
+          echo "a76848de71c9d58880f315e9d80a5f94c1f9aaad2383329bb3d14973616acf0f  source/automation/recurring-camera-bit7-v3.patch.b64.008a" | sha256sum -c -
+          echo "184df716fd4d2f5869a2d619a53017f35dfed8b0ee56a2140498e7a199303561  source/automation/recurring-camera-bit7-v3.patch.b64.008b" | sha256sum -c -
+          echo "d937eca2da6865c0215be7c08a84efc9ccf7a5d3cadf7904a1ec052498e03298  source/automation/recurring-camera-bit7-v3.patch.b64.008c" | sha256sum -c -
+          echo "9ac7c6024aae6479ea73f3f07df2534b1638319dcda13f16a6b06277eb79f907  source/automation/recurring-camera-bit7-v3.patch.b64.009a" | sha256sum -c -
+          echo "ac730cce29a33cc55d01d1194a3ad2a13fefec470bc5353fd133da8fba65d065  source/automation/recurring-camera-bit7-v3.patch.b64.009b" | sha256sum -c -
+          echo "d4ac3d7db56b0021217eed29f248fd7151e7b13e6e6c44454e839631b260d95e  source/automation/recurring-camera-bit7-v3.patch.b64.009c" | sha256sum -c -
+          echo "4bd71a513f4629399736af4729101220a62cf7aac3852e97714355bb232124b3  source/automation/recurring-camera-bit7-v3.patch.b64.010a" | sha256sum -c -
+          echo "730c97287e5b1e6efa93be09961e35feee560ee35c067e1919f7be4a0e5f892c  source/automation/recurring-camera-bit7-v3.patch.b64.010b" | sha256sum -c -
+          echo "39c0280d7859eab9ec21fb2fb08700a152812792f1ff594099304efb1723ba69  source/automation/recurring-camera-bit7-v3.patch.b64.010c" | sha256sum -c -
+          echo "d39d18c46a8b547da81c407e6d14d500cd4b0439d654473e0c3dac20a7af9f9e  source/automation/recurring-camera-bit7-v3.patch.b64.011" | sha256sum -c -
+
+          cat \
+            source/automation/recurring-camera-bit7-v3.patch.b64.000 \
+            source/automation/recurring-camera-bit7-v3.patch.b64.001 \
+            source/automation/recurring-camera-bit7-v3.patch.b64.002 \
+            source/automation/recurring-camera-bit7-v3.patch.b64.003 \
+            source/automation/recurring-camera-bit7-v3.patch.b64.004 \
+            source/automation/recurring-camera-bit7-v3.patch.b64.005 \
+            source/automation/recurring-camera-bit7-v3.patch.b64.006 \
+            source/automation/recurring-camera-bit7-v3.patch.b64.007a \
+            source/automation/recurring-camera-bit7-v3.patch.b64.007b \
+            source/automation/recurring-camera-bit7-v3.patch.b64.007c \
+            source/automation/recurring-camera-bit7-v3.patch.b64.008a \
+            source/automation/recurring-camera-bit7-v3.patch.b64.008b \
+            source/automation/recurring-camera-bit7-v3.patch.b64.008c \
+            source/automation/recurring-camera-bit7-v3.patch.b64.009a \
+            source/automation/recurring-camera-bit7-v3.patch.b64.009b \
+            source/automation/recurring-camera-bit7-v3.patch.b64.009c \
+            source/automation/recurring-camera-bit7-v3.patch.b64.010a \
+            source/automation/recurring-camera-bit7-v3.patch.b64.010b \
+            source/automation/recurring-camera-bit7-v3.patch.b64.010c \
+            source/automation/recurring-camera-bit7-v3.patch.b64.011 \
+            > /tmp/recurring-camera-bit7.patch.b64
+          base64 -d /tmp/recurring-camera-bit7.patch.b64 > /tmp/recurring-camera-bit7.patch
+          echo "22e7bf95c69f9d76199aded54fa46d655d4920aaa4b16ed64a4c60f244dd9553  /tmp/recurring-camera-bit7.patch" | sha256sum -c -
+
+          git -C work apply --check /tmp/recurring-camera-bit7.patch
+          git -C work apply /tmp/recurring-camera-bit7.patch
+          git -C work diff --check
+          actual="$(git -C work diff --name-only | sort)"
+          expected="$(printf '%s\n' src/recovered/hybrid.c src/recovered/native_runtime.c src/recovered/tasks.c tests/test_main.c | sort)"
+          test "$actual" = "$expected"
+
+      - name: GCC Release warning-as-error build and tests
         working-directory: work
         env:
           CC: gcc
@@ -59,7 +99,7 @@ jobs:
           cmake --build build-gcc --parallel
           ctest --test-dir build-gcc --output-on-failure
 
-      - name: Clang warning-as-error build and tests
+      - name: Clang Release warning-as-error build and tests
         working-directory: work
         env:
           CC: clang
@@ -72,14 +112,35 @@ jobs:
           cmake --build build-clang --parallel
           ctest --test-dir build-clang --output-on-failure
 
-      - name: Publish directly to master
+      - name: Clang ASan plus UBSan build and tests
         working-directory: work
+        env:
+          CC: clang
+          ASAN_OPTIONS: detect_leaks=1
+          UBSAN_OPTIONS: print_stacktrace=1
         run: |
+          cmake -S . -B build-san -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" \
+            -DVF2_BUILD_TESTS=ON \
+            -DVF2_WARNINGS_AS_ERRORS=ON \
+            -DVF2_ROM_DIR=/tmp/no-proprietary-roms
+          cmake --build build-san --parallel
+          ctest --test-dir build-san --output-on-failure
+
+      - name: Publish atomic recovery to master
+        working-directory: work
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_master=e73ea5d0220fb7a9e7830ed3645d26923586594f
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "$expected_master"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            src/recovered/texture_bridge_match.c \
-            tests/analysis/test_orchestrator_bridge.c \
-            CHANGELOG.md README.md docs/STATUS.md docs/UNCOVERED_BRANCHES.md
-          git commit -m "runtime: recover phase17 bit7 countdown"
+          git add src/recovered/hybrid.c src/recovered/native_runtime.c src/recovered/tasks.c tests/test_main.c
+          actual="$(git diff --cached --name-only | sort)"
+          expected="$(printf '%s\n' src/recovered/hybrid.c src/recovered/native_runtime.c src/recovered/tasks.c tests/test_main.c | sort)"
+          test "$actual" = "$expected"
+          git commit -m "Recover strict recurring camera bit7 paths"
           git push origin HEAD:master
