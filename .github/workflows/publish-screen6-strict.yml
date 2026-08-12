@@ -27,6 +27,7 @@ jobs:
       - name: Verify base and apply candidate
         run: |
           test "$(git -C target rev-parse HEAD)" = "226f88ed26469c8634a579c65459f28be388fb21"
+          mkdir -p target/.scratch
           cp control/.scratch/apply_screen6_strict.py target/.scratch/apply_screen6_strict.py
           cd target
           python3 .scratch/apply_screen6_strict.py
