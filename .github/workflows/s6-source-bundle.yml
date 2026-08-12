@@ -1,0 +1,25 @@
+name: Screen6 source bundle
+
+on:
+  push:
+    branches:
+      - work/s6-hardware-oracle
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: s6-source
+          path: |
+            CMakeLists.txt
+            include
+            src
+            tests
+            tools
+          if-no-files-found: error
