@@ -1,0 +1,131 @@
+--- a/src/recovered/hybrid.c
++++ b/src/recovered/hybrid.c
+@@ -1985,6 +1985,7 @@
+     uint16_t counter = 0u;
+     uint32_t scratch = 0u;
+     uint32_t mode = 0u;
++    uint32_t curve = 0u;
+     uint8_t status_byte = 0u;
+     vf2_status result = VF2_OK;
+ 
+@@ -2005,6 +2006,15 @@
+             machine, UINT32_C(0x00500068), &mode
+         );
+     }
++    /* The controlled bit-31 snapshot reaches the bit-20-clear table path.
++     * Its table pointer is null, so the ROM branches directly to the shared
++     * counter/status tail at 0x2825c. */
++    if (result == VF2_OK &&
++        (mode & (UINT32_C(1) << 20u)) == 0u) {
++        result = vf2_model2a_read_u32(
++            machine, player + UINT32_C(0x854), &curve
++        );
++    }
+     if (result == VF2_OK) {
+         result = hybrid_read_u8(
+             machine, player + UINT32_C(0xbdd), &status_byte
+@@ -2012,16 +2022,19 @@
+     }
+     if (result != VF2_OK || counter != 1u ||
+         (mode & (UINT32_C(1) << 17u)) != 0u ||
+-        (mode & (UINT32_C(1) << 20u)) == 0u) {
++        ((mode & (UINT32_C(1) << 20u)) == 0u && curve != 0u)) {
+         return VF2_ERROR_UNSUPPORTED;
+     }
+     cpu->registers[VF2_I960_G0_REGISTER + 6u] = counter;
+     cpu->registers[6] = scratch;
+     cpu->registers[VF2_I960_G0_REGISTER + 5u] = scratch + UINT32_C(0x690);
+-    cpu->registers[10] = mode;
++    cpu->registers[10] = (mode & (UINT32_C(1) << 20u)) != 0u
++        ? mode : curve;
+     cpu->registers[15] = status_byte;
+     cpu->ip = UINT32_C(0x00028268);
+-    cpu->executed_instructions += UINT64_C(11);
++    cpu->executed_instructions +=
++        (mode & (UINT32_C(1) << 20u)) != 0u
++            ? UINT64_C(10) : UINT64_C(11);
+     return VF2_OK;
+ }
+ 
+@@ -2075,7 +2088,8 @@
+     vf2_status status = VF2_OK;
+ 
+     if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x00028780) ||
+-        player == 0u || cpu->local_frame_depth < 6u) {
++        player == 0u || cpu->local_frame_depth < 6u ||
++        cpu->compare_result != VF2_I960_COMPARE_EQUAL) {
+         return VF2_ERROR_UNSUPPORTED;
+     }
+     status = vf2_model2a_read_u32(machine, player, &player_flags);
+@@ -2102,41 +2116,36 @@
+     g5 = cpu->registers[VF2_I960_G0_REGISTER + 5u];
+     output_start = g5;
+ 
++    /* cmpobe does not update the i960 arithmetic condition.  On the
++     * observed entry it is EQUAL, so the following bg at 0x2879c is never
++     * taken: every non-type-4 cell consumes one byte from g3. */
+     for (cell = 0u; status == VF2_OK && cell < 60u; ++cell) {
+         status = hybrid_read_u8(machine, g4, &type);
+         if (status != VF2_OK) {
+             break;
+         }
+-        if (type < 4u) {
+-            if (type == 3u) {
+-                value = 0u;
+-                status = vf2_model2a_write_u32(machine, g5, value);
+-            } else {
+-                g2 += UINT32_C(4);
+-            }
+-        } else if (type == 4u) {
++        if (type == 4u) {
+             status = vf2_model2a_read_u32(machine, g2, &value);
+             if (status == VF2_OK) {
+                 status = vf2_model2a_write_u32(machine, g5, value);
+             }
+             g2 += UINT32_C(4);
++            offset = UINT32_C(4);
+         } else {
+             status = hybrid_read_u8(machine, g3, &table_index);
+             if (status == VF2_OK) {
+                 ++g3;
+-                if (type == 5u) {
+-                    offset = (uint32_t)table_index << 2u;
+-                } else {
+-                    index = (uint32_t)table_index;
+-                    offset = (index * 3u) << 2u;
+-                }
+-                status = vf2_model2a_read_u32(
+-                    machine, g2 + offset, &value
+-                );
++                status = vf2_model2a_read_u32(machine, g2, &value);
+             }
+             if (status == VF2_OK) {
+                 status = vf2_model2a_write_u32(machine, g5, value);
+             }
++            if (type == 5u) {
++                offset = (uint32_t)table_index << 2u;
++            } else {
++                index = (uint32_t)table_index;
++                offset = (index * UINT32_C(3)) << 2u;
++            }
+             g2 += offset;
+         }
+         last_value = value;
+@@ -2241,7 +2250,7 @@
+     vf2_status status = VF2_OK;
+ 
+     status = hybrid_execute_interpreted_until(
+-        machine, cpu, UINT32_C(0x00029414), UINT32_C(0x00014400)
++        machine, cpu, UINT32_C(0x00028178), UINT32_C(0x00014400)
+     );
+     if (status == VF2_OK) {
+         status = hybrid_execute_player_repeated_call(
+@@ -2332,7 +2341,7 @@
+     }
+     cpu->registers[14u] = 0u;
+     cpu->ip = UINT32_C(0x00028178);
+-    cpu->executed_instructions += UINT64_C(6);
++    cpu->executed_instructions += UINT64_C(7);
+     status = vf2_i960_cpu_return_procedure(cpu, machine);
+     if (status == VF2_OK) {
+         ++cpu->executed_instructions;
