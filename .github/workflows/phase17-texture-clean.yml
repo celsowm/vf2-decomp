@@ -1,0 +1,87 @@
+name: Phase17 texture clean
+
+on:
+  push:
+    branches:
+      - work/phase17-texture-clean
+
+permissions:
+  contents: read
+
+jobs:
+  artifact:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply candidate
+        run: |
+          python3 .scratch/apply_phase17_texture_clean.py
+          git diff --check
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DVF2_BUILD_TESTS=ON
+      - name: Build differential test
+        run: cmake --build build --target vf2_phase17_zero_tests --parallel 2
+      - name: Upload candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase17-texture-clean
+          path: |
+            build/vf2_phase17_zero_tests
+            src/recovered/texture_bridge_match.c
+            tests/recovered/test_phase17_zero.c
+
+  release:
+    name: ${{ matrix.compiler }} release
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - compiler: gcc
+            cc: gcc
+          - compiler: clang
+            cc: clang
+    env:
+      CC: ${{ matrix.cc }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply candidate
+        run: |
+          python3 .scratch/apply_phase17_texture_clean.py
+          git diff --check
+      - name: Configure
+        run: >-
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DVF2_BUILD_TESTS=ON
+          -DVF2_WARNINGS_AS_ERRORS=ON
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  sanitizers:
+    name: clang ASan and UBSan
+    runs-on: ubuntu-latest
+    env:
+      CC: clang
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply candidate
+        run: |
+          python3 .scratch/apply_phase17_texture_clean.py
+          git diff --check
+      - name: Configure
+        run: >-
+          cmake -S . -B build-asan -G Ninja
+          -DCMAKE_BUILD_TYPE=Debug
+          -DVF2_BUILD_TESTS=ON
+          -DVF2_WARNINGS_AS_ERRORS=ON
+          -DVF2_ENABLE_SANITIZERS=ON
+      - name: Build
+        run: cmake --build build-asan --parallel
+      - name: Test
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: ctest --test-dir build-asan --output-on-failure
