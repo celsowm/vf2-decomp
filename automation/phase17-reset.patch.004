@@ -1,0 +1,110 @@
++        );
++    }
++
++    {
+         uint8_t phase_index = UINT8_C(0x0b);
+         uint8_t phase_state = UINT8_C(0xff);
+         uint8_t resulting_phase_index = 0u;
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -2,6 +2,17 @@
+ 
+ ## Unreleased
+ 
++- recovered the phase-17 gameplay mask `0x04000104` reset/display branch in
++  `0x00058fe0`: controlled ROM-backed replay sets phase-index bit 7, clears the
++  phase auxiliary byte, latches `0xff`, zeroes the object marker, reproduces the
++  ROM's 48x64 tile-plane clear through `0x00008ef0`, and centers/copies the
++  phase label through `0x00060410 -> 0x00007fc0`; the resulting dispatcher is
++  12,657 instructions with 5 calls / 6 returns and the enclosing
++  `main-final-cluster` matches the reference exactly at 12,889 instructions;
++- strict replay remains equal for the next 35 recovered blocks after that
++  controlled reset and now stops at the following `main-final-cluster`, where
++  the newly-set phase-index bit 7 selects the still-unrecovered indirect branch
++  at `0x00059154`;
+ - recovered the phase-17 forward-step gameplay mask `0x08001008` in
+   `0x00058fe0`: controlled ROM-backed differential execution proves the same
+   double-indirect old/new phase-marker protocol as the step-back branch, with
+@@ -18,9 +29,9 @@
+   ROM's double-indirect table, and the enclosing `main-final-cluster` plus a
+   complete 36-block scheduler cycle now match the reference i960 exactly;
+ - added ROM-independent phase-17 tests for forward/backward ordinary and wrap
+-  cases plus forward-over-bit13 priority, while retaining `0x04000104`,
+-  phase-state-zero and phase-index-bit-7 paths as fail-closed
+-  `VF2_ERROR_UNSUPPORTED`;
++  cases, forward-over-bit13 priority, and the reset/display path including the
++  48x64 clear and centered `EXIT` label; phase-state-zero and phase-index-bit-7
++  indirect dispatch remain fail-closed `VF2_ERROR_UNSUPPORTED`;
+ - added `vf2_native_differential_probe_cycles` and `vf2cycles --boundary-probe` for long-horizon repeated-frame scouting: reference and native execution remain instruction-count locked per recovered block, frame-wait host state is checked on each wait block, complete CPU/mutable-memory state is compared at cycle boundaries, and any failing cycle restores both machines plus native runtime state to its exact start for strict replay;
+ - added `vf2cycles --output-snapshot <file>` to persist successful endurance boundaries together with the versioned `.runtime` sidecar, allowing long ROM-backed probes to resume without replaying earlier cycles;
+ - added ROM-independent coverage for the zero-cycle probe contract and retained the existing strict per-block runner unchanged as the acceptance path;
+--- a/README.md
++++ b/README.md
+@@ -311,3 +311,13 @@
+ instruction `main-final-cluster` variants and their complete following 36-block
+ cycles. This is targeted branch evidence rather than an extension of the
+ passive endurance claim.
++
++The next controlled phase transition is now recovered as well. Injecting
++`0x04000104` at the same pre-`main-final-cluster` boundary sets phase-index bit
++7, clears the phase auxiliary byte, stores `0xff` in the companion state byte,
++zeros the current object marker, clears the 48x64 tile plane to word `0x0020`,
++and centers the ROM phase label (`EXIT` for index 11) through the original
++`0x00060410 -> 0x00007fc0` text path. Strict differential replay matches the
++12,889-instruction enclosing cluster exactly and stays equal for the following
++35 blocks. The next observed boundary is the bit-7 indirect dispatch at
++`0x00059154`, which remains fail-closed.
+--- a/docs/STATUS.md
++++ b/docs/STATUS.md
+@@ -166,7 +166,16 @@
+ state-transition evidence, not a claim that passive natural execution reaches
+ these branches.
+ 
+-The next high-value v0.2.0 target remains controlled evidence collection for
+-additional match, selection, fighter/object and alternate phase paths, followed
+-by strict replay and recovery of each newly reached branch, rather than
+-unbounded passive endurance in the same attractor.
++The phase-17 reset/display mask `0x04000104` is now recovered from the same
++controlled boundary. The ROM sets phase-index bit 7, clears the auxiliary phase
++byte, latches `0xff`, zeroes the current object marker, clears the 48x64 tile
++plane to `0x0020`, and centers/copies the current phase label. The recovered
++dispatch accounts 12,657 instructions with 5 calls / 6 returns; the complete
++12,889-instruction `main-final-cluster` is strict-equal, followed by 35 more
++equal recovered blocks. The first subsequent failure is the expected phase-index
++bit-7 indirect dispatch at `0x00059154`.
++
++The next high-value v0.2.0 target is therefore that observed bit-7 indirect
++phase dispatch, followed by controlled evidence for phase-state-zero, additional
++match/selection and fighter/object paths rather than unbounded passive endurance
++in the same attractor.
+--- a/docs/UNCOVERED_BRANCHES.md
++++ b/docs/UNCOVERED_BRANCHES.md
+@@ -49,16 +49,18 @@
+ - TGP command protocol, transforms, clipping, projection and rasterization; and
+ - production rendering output.
+ 
+-The observed phase-17 dispatcher path is accepted when phase state is non-zero
+-and phase-index bit 7 is clear. Controlled ROM-backed differential evidence now
+-recovers both phase-navigation directions in `0x00058fe0`: gameplay mask
+-`0x08001008` advances the index with `11 -> 0` wraparound, while bit 13
+-(`0x00002000`) decrements it with `0 -> 11` wraparound. Both mark the old
+-double-indirect phase target with `0x8020` and the new target with `0x801c`, and
+-the forward mask has ROM-accurate priority when both conditions are present.
+-The independent gameplay mask `0x04000104`, phase state zero, and phase-index
+-bit-7 indirect dispatch remain unsupported. The deep geometry reset path through
+-`0x00008ef0`, `0x0006116c` and `0x000000b0` is also still unobserved.
++The observed phase-17 dispatcher path is accepted when phase state is non-zero.
++Controlled ROM-backed differential evidence recovers both phase-navigation
++directions in `0x00058fe0`: gameplay mask `0x08001008` advances the index with
++`11 -> 0` wraparound, while bit 13 (`0x00002000`) decrements it with `0 -> 11`
++wraparound. Both mark the old double-indirect phase target with `0x8020` and the
++new target with `0x801c`, and the forward mask has ROM-accurate priority. The
++`0x04000104` reset/display path is also recovered: it sets phase-index bit 7,
++clears the 48x64 tile plane through `0x00008ef0`, and centers the phase label via
++`0x00060410 -> 0x00007fc0`. Strict replay then reaches the next concrete gap:
++the phase-index bit-7 indirect dispatch at `0x00059154`. Phase state zero also
++remains unsupported. The separate geometry-reset chain through `0x00008ef0`,
++`0x0006116c` and `0x000000b0` remains unobserved as a whole.
+ 
+ ## 5. Audio and platform
+ 
