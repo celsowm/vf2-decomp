@@ -1,0 +1,11 @@
++The resulting observed bit-7 entry (`0x8b`) is also recovered: `0x00059154`
++selects `0x0005ef60`, whose first visit performs meter+CRC, clears the tile plane,
++draws `EXIT TEST MODE` and arms counter 320. Positive countdown visits are
++recovered and a boundary probe reaches the exact `counter 1` state. Still
++uncovered are the terminal `counter 1 -> 0` path from `0x0005f07c`, other bit-7
++indirect table entries, and phase state zero. The terminal trace is now observed
++through `0x0006116c` to `0x000000b0`, but it remains fail-closed until its
++non-returning soft-reset handoff is validated against the existing boot recovery.
+ 
+ ## 5. Audio and platform
+ 
