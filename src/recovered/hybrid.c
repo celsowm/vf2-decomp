@@ -5575,6 +5575,58 @@ static vf2_status hybrid_execute_game_info_18644(
             }
         }
     }
+    if (status == VF2_OK) {
+        const uint32_t state8 = UINT32_C(1) << 8u;
+        const uint32_t state8_bit1 = state8 | (UINT32_C(1) << 1u);
+        const uint32_t state8_bit4 = state8 | (UINT32_C(1) << 4u);
+        const bool baseline_or_single_bit1 =
+            (r7 == state8 && r8 == state8) ||
+            (r7 == state8 && r8 == state8_bit1) ||
+            (r8 == state8 && r7 == state8_bit1);
+
+        if (baseline_or_single_bit1) {
+            if (return_address == UINT32_C(0x000164b0)) {
+                if (!countdown_path) {
+                    if (mode_bit6) {
+                        body_instructions += UINT32_C(4);
+                    } else {
+                        --body_instructions;
+                    }
+                }
+            } else if (return_address == UINT32_C(0x000164c4)) {
+                if (countdown_path) {
+                    --body_instructions;
+                } else if (mode_bit6) {
+                    body_instructions -= UINT32_C(5);
+                }
+            }
+        } else if (r7 == state8_bit1 && r8 == state8_bit1) {
+            if (return_address == UINT32_C(0x000164c4)) {
+                if (countdown_path) {
+                    --body_instructions;
+                } else {
+                    body_instructions -= mode_bit6
+                        ? UINT32_C(3) : UINT32_C(4);
+                }
+            }
+        } else if (r7 == state8_bit4 && r8 == state8_bit4) {
+            if (return_address == UINT32_C(0x000164b0)) {
+                if (countdown_path || mode_bit6) {
+                    body_instructions += UINT32_C(8);
+                } else {
+                    body_instructions += UINT32_C(3);
+                }
+            } else if (return_address == UINT32_C(0x000164c4)) {
+                if (countdown_path) {
+                    body_instructions += UINT32_C(7);
+                } else if (mode_bit6) {
+                    body_instructions -= UINT32_C(9);
+                } else {
+                    body_instructions += UINT32_C(4);
+                }
+            }
+        }
+    }
     if (status == VF2_OK && !shared_bit1_path) {
         /* 0x189d0 BBS 1 skips this entire threshold block.  Otherwise
          * 0x189ec BBC 6 selects the normal 0x1b7ec threshold; bit 6 set
