@@ -4728,8 +4728,13 @@ static vf2_status hybrid_execute_game_info_18644(
         const bool bilateral_cross_bit1_bit4 =
             (r7 == state8_bit1 && r8 == state8_bit4) ||
             (r7 == state8_bit4 && r8 == state8_bit1);
+        const uint32_t state8_bit1_bit4 =
+            state8 | (UINT32_C(1) << 1u) | (UINT32_C(1) << 4u);
+        const bool bilateral_both_bit1_bit4 =
+            r7 == state8_bit1_bit4 && r8 == state8_bit1_bit4;
         if (!bilateral_bit1 && !bilateral_bit4 && !bilateral_both_bit4 &&
-            !bilateral_both_bit1 && !bilateral_cross_bit1_bit4) {
+            !bilateral_both_bit1 && !bilateral_cross_bit1_bit4 &&
+            !bilateral_both_bit1_bit4) {
             /* The measured bilateral bit1/bit4 compositions are admitted;
              * other mixed states remain explicit unsupported boundaries. */
             status = VF2_ERROR_UNSUPPORTED;
@@ -4825,9 +4830,13 @@ static vf2_status hybrid_execute_game_info_18644(
         const bool cross_bilateral =
             (r7 == isolated_state8_bit1 && r8 == state8_bit4) ||
             (r7 == state8_bit4 && r8 == isolated_state8_bit1);
+        const uint32_t state8_bit1_bit4 =
+            isolated_state8_bit1 | (UINT32_C(1) << 4u);
+        const bool both_bit1_bit4 =
+            r7 == state8_bit1_bit4 && r8 == state8_bit1_bit4;
         if (!forward_isolated && !reverse_isolated &&
             !forward_bilateral && !reverse_bilateral && !both_bilateral &&
-            !cross_bilateral) {
+            !cross_bilateral && !both_bit1_bit4) {
             /* Only the measured isolated and bilateral state8+bit1
              * compositions are admitted here. */
             status = VF2_ERROR_UNSUPPORTED;
@@ -5432,7 +5441,11 @@ static vf2_status hybrid_execute_game_info_18644(
             const bool cross_bit1_bit4 =
                 (r7 == state8_bit1 && r8 == state8_bit4) ||
                 (r7 == state8_bit4 && r8 == state8_bit1);
-            if (!both_bit4 && !cross_bit1_bit4) {
+            const uint32_t state8_bit1_bit4 =
+                state8_bit1 | (UINT32_C(1) << 4u);
+            const bool both_bit1_bit4 =
+                r7 == state8_bit1_bit4 && r8 == state8_bit1_bit4;
+            if (!both_bit4 && !cross_bit1_bit4 && !both_bit1_bit4) {
                 status = VF2_ERROR_UNSUPPORTED;
             }
         }
