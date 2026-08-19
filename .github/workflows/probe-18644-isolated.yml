@@ -1,0 +1,130 @@
+name: Isolated 0x18644 probe
+on:
+  pull_request:
+    branches: [master]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add temporary isolated probe command
+        shell: bash
+        run: |
+          cat >> src/recovered/hybrid.c <<'EOF'
+
+          vf2_status vf2_debug_game_info_18644(
+              vf2_model2a *machine,
+              vf2_i960_cpu *cpu,
+              uint32_t return_address
+          )
+          {
+              return hybrid_execute_game_info_18644(machine, cpu, return_address);
+          }
+          EOF
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('tools/vf2i960/main.c')
+          s = p.read_text()
+          anchor = '#undef main\n'
+          block = r'''
+
+extern vf2_status vf2_debug_game_info_18644(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu,
+    uint32_t return_address
+);
+
+static int command_probe_18644_native(
+    const char *rom_directory,
+    const char *snapshot_path,
+    uint32_t return_address,
+    const char *output_snapshot_path
+)
+{
+    uint8_t *image = NULL;
+    size_t image_size = 0u;
+    vf2_i960_boot_vectors vectors;
+    vf2_model2a machine;
+    vf2_i960_cpu cpu;
+    vf2_i960_snapshot snapshot;
+    vf2_status status = VF2_OK;
+
+    memset(&machine, 0, sizeof(machine));
+    memset(&cpu, 0, sizeof(cpu));
+    vf2_i960_snapshot_init(&snapshot);
+
+    status = load_maincpu(rom_directory, &image, &image_size, &vectors);
+    (void)vectors;
+    if (status == VF2_OK) {
+        status = initialize_boot_machine(
+            rom_directory, &machine, image, image_size
+        );
+    }
+    if (status == VF2_OK) {
+        status = vf2_i960_snapshot_read_file(&snapshot, snapshot_path);
+    }
+    if (status == VF2_OK) {
+        status = vf2_i960_snapshot_restore(&snapshot, &cpu, &machine);
+    }
+    if (status == VF2_OK) {
+        status = vf2_debug_game_info_18644(&machine, &cpu, return_address);
+    }
+    if (status == VF2_OK) {
+        status = vf2_i960_snapshot_capture(&snapshot, &cpu, &machine);
+    }
+    if (status == VF2_OK) {
+        status = vf2_i960_snapshot_write_file(&snapshot, output_snapshot_path);
+    }
+
+    fprintf(
+        status == VF2_OK ? stdout : stderr,
+        "probe-18644-native status=%s ip=0x%08x instructions=%llu calls=%llu returns=%llu\n",
+        vf2_status_string(status),
+        (unsigned)cpu.ip,
+        (unsigned long long)cpu.executed_instructions,
+        (unsigned long long)cpu.procedure_calls,
+        (unsigned long long)cpu.procedure_returns
+    );
+
+    vf2_i960_snapshot_destroy(&snapshot);
+    free(image);
+    return status == VF2_OK ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+'''
+          if anchor not in s:
+              raise SystemExit('main include anchor missing')
+          s = s.replace(anchor, anchor + block, 1)
+          main_anchor = 'int main(int argc, char **argv)\n{\n'
+          dispatch = r'''int main(int argc, char **argv)
+{
+    if (argc >= 2 && strcmp(argv[1], "probe-18644-native") == 0) {
+        uint32_t return_address = 0u;
+        if (argc != 6 || !parse_u32(argv[4], &return_address)) {
+            fprintf(
+                stderr,
+                "Usage: %s probe-18644-native <rom-directory> <input.vf2snap> <return-address> <output.vf2snap>\n",
+                argv[0]
+            );
+            return EXIT_FAILURE;
+        }
+        return command_probe_18644_native(
+            argv[2], argv[3], return_address, argv[5]
+        );
+    }
+'''
+          if main_anchor not in s:
+              raise SystemExit('main dispatch anchor missing')
+          s = s.replace(main_anchor, dispatch, 1)
+          p.write_text(s)
+          PY
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DVF2_BUILD_TESTS=ON -DVF2_WARNINGS_AS_ERRORS=ON
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vf2i960-18644-probe
+          path: build/vf2i960
+          if-no-files-found: error
