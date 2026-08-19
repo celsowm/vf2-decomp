@@ -4077,7 +4077,7 @@ static vf2_status hybrid_execute_game_info_18c64(
         &flags
     );
     if (status == VF2_OK && (flags & (UINT32_C(1) << 2u)) != 0u) {
-        status = VF2_ERROR_UNSUPPORTED;
+        status = (vf2_status)201;
     }
     if (status == VF2_OK) {
         cpu->ip = UINT32_C(0x00018d40);
@@ -4139,7 +4139,7 @@ static vf2_status hybrid_execute_game_info_18144_suffix(
         r4 &= ~UINT32_C(0x80000000);
         r6 &= ~UINT32_C(0x80000000);
         if ((int32_t)r4 < (int32_t)r6) {
-            status = VF2_ERROR_UNSUPPORTED;
+            status = (vf2_status)202;
             hybrid_set_compare_result(cpu, VF2_I960_COMPARE_LESS);
         } else if ((int32_t)r4 > (int32_t)r6) {
             hybrid_set_compare_result(cpu, VF2_I960_COMPARE_GREATER);
@@ -4247,7 +4247,7 @@ static vf2_status hybrid_execute_game_info_18144_suffix(
             machine, UINT32_C(0x00508000), &r15
         );
         if (status == VF2_OK && (r15 & (UINT32_C(1) << 5u)) != 0u) {
-            status = VF2_ERROR_UNSUPPORTED;
+            status = (vf2_status)203;
         }
     }
     if (status == VF2_OK) {
@@ -4667,7 +4667,7 @@ static vf2_status hybrid_execute_game_info_18644(
     }
     if (status == VF2_OK && !high_result &&
         (int32_t)r9 > (int32_t)r3) {
-        status = VF2_ERROR_UNSUPPORTED;
+        status = (vf2_status)204;
     }
     if (status == VF2_OK && high_result &&
         (int32_t)r9 > (int32_t)r3) {
@@ -4728,11 +4728,16 @@ static vf2_status hybrid_execute_game_info_18644(
         const bool bilateral_cross_bit1_bit4 =
             (r7 == state8_bit1 && r8 == state8_bit4) ||
             (r7 == state8_bit4 && r8 == state8_bit1);
+        const uint32_t state8_bit1_bit4 =
+            state8 | (UINT32_C(1) << 1u) | (UINT32_C(1) << 4u);
+        const bool bilateral_both_bit1_bit4 =
+            r7 == state8_bit1_bit4 && r8 == state8_bit1_bit4;
         if (!bilateral_bit1 && !bilateral_bit4 && !bilateral_both_bit4 &&
-            !bilateral_both_bit1 && !bilateral_cross_bit1_bit4) {
+            !bilateral_both_bit1 && !bilateral_cross_bit1_bit4 &&
+            !bilateral_both_bit1_bit4) {
             /* The measured bilateral bit1/bit4 compositions are admitted;
              * other mixed states remain explicit unsupported boundaries. */
-            status = VF2_ERROR_UNSUPPORTED;
+            status = (vf2_status)205;
         }
     }
     /* The nonzero countdown corridor enters the shared 0x18890 tail. */
@@ -4756,7 +4761,7 @@ static vf2_status hybrid_execute_game_info_18644(
             status = vf2_model2a_read_u32(machine, fighter1, &r15);
             if (status == VF2_OK &&
                 (r15 & (UINT32_C(1) << 29u)) != 0u) {
-                status = VF2_ERROR_UNSUPPORTED;
+                status = (vf2_status)206;
             }
             if (status == VF2_OK &&
                 (r8 & (UINT32_C(1) << 8u)) != 0u) {
@@ -4793,7 +4798,7 @@ static vf2_status hybrid_execute_game_info_18644(
                     /* The isolated bit-4 fast path is ROM-backed only
                      * with a zero countdown. Two-sided bit 8 and mixed
                      * state combinations remain fail-closed. */
-                    status = VF2_ERROR_UNSUPPORTED;
+                    status = (vf2_status)207;
                 }
             }
         }
@@ -4803,7 +4808,7 @@ static vf2_status hybrid_execute_game_info_18644(
         r8 == 0u) {
         /* The swapped isolated state8+bit4 countdown corridor has not
          * been recovered; keep the direct-entry orientation fail-closed. */
-        status = VF2_ERROR_UNSUPPORTED;
+        status = (vf2_status)208;
     }
     if (status == VF2_OK &&
         (((r7 | r8) & (UINT32_C(1) << 1u)) != 0u) &&
@@ -4825,12 +4830,16 @@ static vf2_status hybrid_execute_game_info_18644(
         const bool cross_bilateral =
             (r7 == isolated_state8_bit1 && r8 == state8_bit4) ||
             (r7 == state8_bit4 && r8 == isolated_state8_bit1);
+        const uint32_t state8_bit1_bit4 =
+            isolated_state8_bit1 | (UINT32_C(1) << 4u);
+        const bool both_bit1_bit4 =
+            r7 == state8_bit1_bit4 && r8 == state8_bit1_bit4;
         if (!forward_isolated && !reverse_isolated &&
             !forward_bilateral && !reverse_bilateral && !both_bilateral &&
-            !cross_bilateral) {
+            !cross_bilateral && !both_bit1_bit4) {
             /* Only the measured isolated and bilateral state8+bit1
              * compositions are admitted here. */
-            status = VF2_ERROR_UNSUPPORTED;
+            status = (vf2_status)209;
         }
     }
     if (status == VF2_OK &&
@@ -5432,8 +5441,12 @@ static vf2_status hybrid_execute_game_info_18644(
             const bool cross_bit1_bit4 =
                 (r7 == state8_bit1 && r8 == state8_bit4) ||
                 (r7 == state8_bit4 && r8 == state8_bit1);
-            if (!both_bit4 && !cross_bit1_bit4) {
-                status = VF2_ERROR_UNSUPPORTED;
+            const uint32_t state8_bit1_bit4 =
+                state8_bit1 | (UINT32_C(1) << 4u);
+            const bool both_bit1_bit4 =
+                r7 == state8_bit1_bit4 && r8 == state8_bit1_bit4;
+            if (!both_bit4 && !cross_bit1_bit4 && !both_bit1_bit4) {
+                status = (vf2_status)210;
             }
         }
     }
