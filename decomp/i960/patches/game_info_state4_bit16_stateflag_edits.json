@@ -1,0 +1,9 @@
+{
+  "target": "src/recovered/hybrid.c",
+  "edits": [
+    {
+      "old": "        if (status == VF2_OK) {\n            status = hybrid_execute_game_info_18144_conditional_body(\n                machine, cpu, fighter, flags,\n                &conditional_body_instructions\n            );\n        }\n        if (status == VF2_OK) {\n            cpu->ip = UINT32_C(0x000184ec);\n        }",
+      "new": "        if (status == VF2_OK) {\n            status = hybrid_execute_game_info_18144_conditional_body(\n                machine, cpu, fighter, flags,\n                &conditional_body_instructions\n            );\n        }\n        if (status == VF2_OK && state4_fast_path &&\n            (flags & (UINT32_C(1) << 16u)) != 0u) {\n            /* The measured state-4 + bit-16 corridor leaves state bit 11\n             * set at the 0x184ec rejoin. */\n            flags |= UINT32_C(1) << 11u;\n            status = vf2_model2a_write_u32(\n                machine, fighter + UINT32_C(0x000001a4), flags\n            );\n        }\n        if (status == VF2_OK) {\n            cpu->ip = UINT32_C(0x000184ec);\n        }"
+    }
+  ]
+}
