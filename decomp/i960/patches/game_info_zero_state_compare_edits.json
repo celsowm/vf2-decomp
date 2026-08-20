@@ -1,0 +1,9 @@
+{
+  "target": "src/recovered/hybrid.c",
+  "edits": [
+    {
+      "old": "    if (status == VF2_OK) {\n        cpu->ip = UINT32_C(0x00018a50);\n        cpu->executed_instructions += body_instructions + tail_instruction_delta;",
+      "new": "    if (status == VF2_OK && r7 == 0u && r8 == 0u) {\n        /* The neutral zero/zero state leaves the final signed compare in\n         * GREATER. This is observable at both fa_game_info return sites. */\n        hybrid_set_compare_result(cpu, VF2_I960_COMPARE_GREATER);\n    }\n    if (status == VF2_OK) {\n        cpu->ip = UINT32_C(0x00018a50);\n        cpu->executed_instructions += body_instructions + tail_instruction_delta;"
+    }
+  ]
+}
