@@ -10,8 +10,8 @@
       "new": "            !bilateral_cross_bit1_bit1_bit2 &&\n            !bilateral_cross_bit1_bit4_bit1_bit2_bit4 &&\n            !bilateral_cross_bit1_bit2_bit1_bit2_bit4) {\n"
     },
     {
-      "old": "        const bool cross_bit1_bit4_bit1_bit2_bit4 =\n            (r7 == state8_bit1_bit4 && r8 == state8_bit1_bit2_bit4) ||\n            (r8 == state8_bit1_bit4 && r7 == state8_bit1_bit2_bit4);\n",
-      "new": "        const bool cross_bit1_bit4_bit1_bit2_bit4 =\n            (r7 == state8_bit1_bit4 && r8 == state8_bit1_bit2_bit4) ||\n            (r8 == state8_bit1_bit4 && r7 == state8_bit1_bit2_bit4);\n        const bool cross_bit1_bit2_bit1_bit2_bit4 =\n            (r7 == state8_bit1_bit2 && r8 == state8_bit1_bit2_bit4) ||\n            (r8 == state8_bit1_bit2 && r7 == state8_bit1_bit2_bit4);\n"
+      "old": "        const bool cross_bit1_bit4_bit1_bit2_bit4 =\n            (r7 == state8_bit1_bit4 && r8 == state8_bit1_bit2_bit4) ||\n            (r8 == state8_bit1_bit4 && r7 == state8_bit1_bit2_bit4);\n        if (!forward_isolated && !reverse_isolated &&\n",
+      "new": "        const bool cross_bit1_bit4_bit1_bit2_bit4 =\n            (r7 == state8_bit1_bit4 && r8 == state8_bit1_bit2_bit4) ||\n            (r8 == state8_bit1_bit4 && r7 == state8_bit1_bit2_bit4);\n        const bool cross_bit1_bit2_bit1_bit2_bit4 =\n            (r7 == state8_bit1_bit2 && r8 == state8_bit1_bit2_bit4) ||\n            (r8 == state8_bit1_bit2 && r7 == state8_bit1_bit2_bit4);\n        if (!forward_isolated && !reverse_isolated &&\n"
     },
     {
       "old": "            !class6_102_112 && !cross_bit1_bit2 && !cross_bit1_bit1_bit2 &&\n            !cross_bit1_bit4_bit1_bit2_bit4) {\n",
