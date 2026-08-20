@@ -4761,6 +4761,9 @@ static vf2_status hybrid_execute_game_info_18644(
         const bool bilateral_cross_bit4_bit2_bit4 =
             (r7 == state8_bit4 && r8 == state8_bit2_bit4) ||
             (r8 == state8_bit4 && r7 == state8_bit2_bit4);
+        const bool bilateral_cross_bit2_bit2_bit4 =
+            (r7 == state8_bit2 && r8 == state8_bit2_bit4) ||
+            (r8 == state8_bit2 && r7 == state8_bit2_bit4);
         const uint32_t state8_bit1_bit2 =
             state8 | (UINT32_C(1) << 1u) | (UINT32_C(1) << 2u);
         const bool bilateral_cross_bit1_bit1_bit2 =
@@ -4778,6 +4781,7 @@ static vf2_status hybrid_execute_game_info_18644(
             !bilateral_class5_110_112 && !bilateral_class6_102_112 &&
             !bilateral_cross_bit2_bit4 && !bilateral_cross_bit1_bit2 &&
             !bilateral_asym_bit2_bit4 && !bilateral_cross_bit4_bit2_bit4 &&
+            !bilateral_cross_bit2_bit2_bit4 &&
             !bilateral_cross_bit1_bit1_bit2 &&
             !bilateral_cross_bit1_bit4_bit1_bit2_bit4) {
             /* The measured bilateral bit1/bit4 compositions are admitted;
@@ -5910,11 +5914,14 @@ static vf2_status hybrid_execute_game_info_18644(
             const bool cross_bit4_bit2_bit4 =
                 (r7 == state8_bit4 && r8 == state8_bit2_bit4) ||
                 (r8 == state8_bit4 && r7 == state8_bit2_bit4);
+            const bool cross_bit2_bit2_bit4 =
+                (r7 == state8_bit2 && r8 == state8_bit2_bit4) ||
+                (r8 == state8_bit2_bit4 && r7 == state8_bit2);
             if (!both_bit4 && !cross_bit1_bit4 && !both_bit1_bit4 &&
                 !both_bit2_bit4 && !both_bit2 && !asym_bit2 &&
                 !class5_110_112 && !class6_102_112 &&
                 !cross_bit2_bit4 && !asym_bit2_bit4 &&
-                !cross_bit4_bit2_bit4) {
+                !cross_bit4_bit2_bit4 && !cross_bit2_bit2_bit4) {
                 status = VF2_ERROR_UNSUPPORTED;
             }
         }
