@@ -17,16 +17,18 @@ jobs:
         run: python3 decomp/i960/tools/apply_exact_edits.py decomp/i960/patches/game_info_18144_lda_1f8_edits.json
       - name: Recover observed 0x17b68 bit7 path
         run: python3 decomp/i960/tools/apply_exact_edits.py decomp/i960/patches/game_info_17b68_state4_bit7_edits.json
+      - name: Apply state4 accounting
+        run: python3 decomp/i960/tools/apply_exact_edits.py decomp/i960/patches/game_info_state4_neutral_accounting_edits.json
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DVF2_BUILD_TESTS=ON -DVF2_WARNINGS_AS_ERRORS=ON
       - name: Build
         run: cmake --build build --parallel
       - name: Test
         run: ctest --test-dir build --output-on-failure
-      - name: Upload corrected candidate
+      - name: Upload exact candidate
         uses: actions/upload-artifact@v4
         with:
-          name: vf2i960-state4-neutral-bit7
+          name: vf2i960-state4-neutral-exact
           path: |
             build/vf2i960
             decomp/i960/tools/diagnose_game_info_pair.py
