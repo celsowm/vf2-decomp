@@ -1,0 +1,13 @@
+{
+  "target": "src/recovered/hybrid.c",
+  "edits": [
+    {
+      "old": "            state4_prefix_instructions =\n                (flags & (UINT32_C(1) << 14u)) != 0u\n                    ? UINT32_C(5) : UINT32_C(4);",
+      "new": "            if ((flags & (UINT32_C(1) << 16u)) != 0u) {\n                state4_prefix_instructions = UINT32_C(7);\n            } else if ((flags & (UINT32_C(1) << 14u)) != 0u) {\n                state4_prefix_instructions = UINT32_C(5);\n            } else {\n                state4_prefix_instructions = UINT32_C(4);\n            }"
+    },
+    {
+      "old": "        native_instructions +=\n            (native_state4_neutral_fighter_path ||\n             native_state4_bit14_fighter_path)\n                ? UINT64_C(2) : UINT64_C(1);",
+      "new": "        native_instructions +=\n            (native_state4_neutral_fighter_path ||\n             native_state4_bit14_fighter_path ||\n             native_state4_bit16_fighter_path)\n                ? UINT64_C(2) : UINT64_C(1);"
+    }
+  ]
+}
