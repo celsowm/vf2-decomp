@@ -1,0 +1,9 @@
+{
+  "target": "src/recovered/hybrid.c",
+  "edits": [
+    {
+      "old": "            {\n                const uint32_t state8_bit1 =\n                    (UINT32_C(1) << 8u) | (UINT32_C(1) << 1u);\n                const uint32_t state8_bit4 =\n                    (UINT32_C(1) << 8u) | (UINT32_C(1) << 4u);\n                const bool cross_forward =\n                    r7 == state8_bit1 && r8 == state8_bit4;\n                const bool cross_reverse =\n                    r7 == state8_bit4 && r8 == state8_bit1;",
+      "new": "            {\n                const uint32_t state8_bit1 =\n                    (UINT32_C(1) << 8u) | (UINT32_C(1) << 1u);\n                const uint32_t state8_bit4 =\n                    (UINT32_C(1) << 8u) | (UINT32_C(1) << 4u);\n                const uint32_t state8_bit2_bit4 =\n                    state8_bit4 | (UINT32_C(1) << 2u);\n                const bool cross_forward =\n                    r7 == state8_bit1 &&\n                    (r8 == state8_bit4 || r8 == state8_bit2_bit4);\n                const bool cross_reverse =\n                    (r7 == state8_bit4 || r7 == state8_bit2_bit4) &&\n                    r8 == state8_bit1;"
+    }
+  ]
+}
