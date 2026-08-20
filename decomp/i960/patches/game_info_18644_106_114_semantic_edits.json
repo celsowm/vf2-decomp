@@ -1,0 +1,21 @@
+{
+  "target": "src/recovered/hybrid.c",
+  "edits": [
+    {
+      "old": "        const bool bilateral_class3_106_110 =\n            (r7 == (state8 | (UINT32_C(1) << 1u) | (UINT32_C(1) << 2u)) && r8 == state8_bit4) ||\n            (r8 == (state8 | (UINT32_C(1) << 1u) | (UINT32_C(1) << 2u)) && r7 == state8_bit4);\n        const uint32_t state8_bit1_bit2_bit4_for_104_116 =",
+      "new": "        const bool bilateral_class3_106_110 =\n            (r7 == (state8 | (UINT32_C(1) << 1u) | (UINT32_C(1) << 2u)) && r8 == state8_bit4) ||\n            (r8 == (state8 | (UINT32_C(1) << 1u) | (UINT32_C(1) << 2u)) && r7 == state8_bit4);\n        const bool bilateral_class3_106_114 =\n            (r7 == (state8 | (UINT32_C(1) << 1u) | (UINT32_C(1) << 2u)) && r8 == state8_bit2_bit4) ||\n            (r8 == (state8 | (UINT32_C(1) << 1u) | (UINT32_C(1) << 2u)) && r7 == state8_bit2_bit4);\n        const uint32_t state8_bit1_bit2_bit4_for_104_116 ="
+    },
+    {
+      "old": "            !bilateral_class3_104_112 && !bilateral_class3_106_110 &&\n            !bilateral_class3_104_116 && !bilateral_class3_100_116 &&",
+      "new": "            !bilateral_class3_104_112 && !bilateral_class3_106_110 &&\n            !bilateral_class3_106_114 && !bilateral_class3_104_116 &&\n            !bilateral_class3_100_116 &&"
+    },
+    {
+      "old": "        const bool class3_106_110 =\n            (r7 == state8_bit1_bit2 && r8 == state8_bit4) ||\n            (r8 == state8_bit1_bit2 && r7 == state8_bit4);\n        const uint32_t state8_bit1_bit2_bit4_for_104_116 =",
+      "new": "        const bool class3_106_110 =\n            (r7 == state8_bit1_bit2 && r8 == state8_bit4) ||\n            (r8 == state8_bit1_bit2 && r7 == state8_bit4);\n        const bool class3_106_114 =\n            (r7 == state8_bit1_bit2 && r8 == state8_bit2_bit4) ||\n            (r8 == state8_bit1_bit2 && r7 == state8_bit2_bit4);\n        const uint32_t state8_bit1_bit2_bit4_for_104_116 ="
+    },
+    {
+      "old": "            !class3_102_114 && !class3_104_112 && !class3_106_110 &&\n            !class3_104_116 && !class3_100_116 &&",
+      "new": "            !class3_102_114 && !class3_104_112 && !class3_106_110 &&\n            !class3_106_114 && !class3_104_116 && !class3_100_116 &&"
+    }
+  ]
+}
