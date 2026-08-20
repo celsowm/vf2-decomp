@@ -1,0 +1,9 @@
+{
+  "target": "src/recovered/hybrid.c",
+  "edits": [
+    {
+      "old": "    const bool native_state4_neutral_fighter_path =\n        (fighter0_state == 4u || fighter1_state == 4u) &&\n        ((fighter0_state_flags | fighter1_state_flags) &\n         conditional_state_mask) == 0u;\n    native_18644_fighter_path =\n        native_bit14_fighter_path || native_bit16_fighter_path ||\n        native_bit15_fighter_path || native_bit6_fighter_path ||\n        native_state4_neutral_fighter_path;",
+      "new": "    const bool native_state4_neutral_fighter_path =\n        (fighter0_state == 4u || fighter1_state == 4u) &&\n        ((fighter0_state_flags | fighter1_state_flags) &\n         conditional_state_mask) == 0u;\n    const bool native_state4_bit14_fighter_path =\n        (fighter0_state == 4u || fighter1_state == 4u) &&\n        ((fighter0_state_flags | fighter1_state_flags) &\n         (UINT32_C(1) << 14u)) != 0u &&\n        ((fighter0_state_flags | fighter1_state_flags) &\n         ((UINT32_C(1) << 15u) | (UINT32_C(1) << 16u) |\n          (UINT32_C(1) << 6u))) == 0u &&\n        (int32_t)shared_fighter_threshold >= 0;\n    native_18644_fighter_path =\n        native_bit14_fighter_path || native_bit16_fighter_path ||\n        native_bit15_fighter_path || native_bit6_fighter_path ||\n        native_state4_neutral_fighter_path ||\n        native_state4_bit14_fighter_path;"
+    }
+  ]
+}
