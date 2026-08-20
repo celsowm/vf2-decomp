@@ -1,0 +1,9 @@
+{
+  "target": "src/recovered/hybrid.c",
+  "edits": [
+    {
+      "old": "                const bool cross_forward =\n                    (r7 == state8_bit1 &&\n                     (r8 == state8_bit4 || r8 == state8_bit2_bit4)) ||\n                    (r7 == state8_bit1_bit2 && r8 == state8_bit4);\n                const bool cross_reverse =\n                    ((r7 == state8_bit4 || r7 == state8_bit2_bit4) &&\n                     r8 == state8_bit1) ||\n                    (r7 == state8_bit4 && r8 == state8_bit1_bit2);",
+      "new": "                const bool cross_forward =\n                    (r7 == state8_bit1 &&\n                     (r8 == state8_bit4 || r8 == state8_bit2_bit4)) ||\n                    (r7 == state8_bit1_bit2 &&\n                     (r8 == state8_bit4 || r8 == state8_bit2_bit4));\n                const bool cross_reverse =\n                    ((r7 == state8_bit4 || r7 == state8_bit2_bit4) &&\n                     r8 == state8_bit1) ||\n                    ((r7 == state8_bit4 || r7 == state8_bit2_bit4) &&\n                     r8 == state8_bit1_bit2);"
+    }
+  ]
+}
