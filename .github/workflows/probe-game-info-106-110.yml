@@ -1,0 +1,31 @@
+name: Probe game-info 0x106-0x110
+on:
+  pull_request:
+    branches: [master]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply semantic edits
+        run: python3 decomp/i960/tools/apply_exact_edits.py decomp/i960/patches/game_info_18644_106_110_semantic_edits.json
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DVF2_BUILD_TESTS=ON -DVF2_WARNINGS_AS_ERRORS=ON
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Upload semantic candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: vf2i960-106-110-semantic
+          path: |
+            build/vf2i960
+            decomp/i960/tools/diagnose_game_info_pair.py
+            decomp/i960/tools/validate_game_info_pair.py
+            decomp/i960/tools/run_game_info_child.py
+            decomp/i960/tools/game_info_18644_common.py
+            decomp/i960/tools/compare_snapshot_counters.py
+          if-no-files-found: error
