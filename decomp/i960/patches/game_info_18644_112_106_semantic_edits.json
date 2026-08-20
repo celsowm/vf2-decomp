@@ -6,16 +6,16 @@
       "new": "        const bool bilateral_cross_bit1_bit4_bit2_bit4 =\n            (r7 == state8_bit1_bit4 && r8 == state8_bit2_bit4) ||\n            (r8 == state8_bit1_bit4 && r7 == state8_bit2_bit4);\n        const bool bilateral_cross_bit1_bit4_bit1_bit2 =\n            (r7 == state8_bit1_bit4 && r8 == state8_bit1_bit2) ||\n            (r8 == state8_bit1_bit4 && r7 == state8_bit1_bit2);\n"
     },
     {
-      "old": "            !bilateral_cross_bit1_bit2_bit1_bit2_bit4 &&\n            !bilateral_cross_bit1_bit4_bit2_bit4 &&\n            !bilateral_cross_bit2_bit4_bit1_bit2_bit4) {\n",
-      "new": "            !bilateral_cross_bit1_bit2_bit1_bit2_bit4 &&\n            !bilateral_cross_bit1_bit4_bit2_bit4 &&\n            !bilateral_cross_bit1_bit4_bit1_bit2 &&\n            !bilateral_cross_bit2_bit4_bit1_bit2_bit4) {\n"
+      "old": "            !bilateral_cross_bit1_bit2_bit1_bit2_bit4 &&\n            !bilateral_cross_bit1_bit4_bit2_bit4 &&\n            !bilateral_cross_bit2_bit4_bit1_bit2_bit4 &&\n            !bilateral_class5_110_116) {\n",
+      "new": "            !bilateral_cross_bit1_bit2_bit1_bit2_bit4 &&\n            !bilateral_cross_bit1_bit4_bit2_bit4 &&\n            !bilateral_cross_bit1_bit4_bit1_bit2 &&\n            !bilateral_cross_bit2_bit4_bit1_bit2_bit4 &&\n            !bilateral_class5_110_116) {\n"
     },
     {
       "old": "        const bool cross_bit1_bit4_bit2_bit4 =\n            (r7 == state8_bit1_bit4 && r8 == state8_bit2_bit4) ||\n            (r8 == state8_bit1_bit4 && r7 == state8_bit2_bit4);\n",
       "new": "        const bool cross_bit1_bit4_bit2_bit4 =\n            (r7 == state8_bit1_bit4 && r8 == state8_bit2_bit4) ||\n            (r8 == state8_bit1_bit4 && r7 == state8_bit2_bit4);\n        const bool cross_bit1_bit4_bit1_bit2 =\n            (r7 == state8_bit1_bit4 && r8 == state8_bit1_bit2) ||\n            (r8 == state8_bit1_bit4 && r7 == state8_bit1_bit2);\n"
     },
     {
-      "old": "            !cross_bit1_bit2_bit1_bit2_bit4 &&\n            !cross_bit1_bit4_bit2_bit4 &&\n            !cross_bit2_bit4_bit1_bit2_bit4) {\n",
-      "new": "            !cross_bit1_bit2_bit1_bit2_bit4 &&\n            !cross_bit1_bit4_bit2_bit4 &&\n            !cross_bit1_bit4_bit1_bit2 &&\n            !cross_bit2_bit4_bit1_bit2_bit4) {\n"
+      "old": "            !cross_bit1_bit2_bit1_bit2_bit4 &&\n            !cross_bit1_bit4_bit2_bit4 &&\n            !cross_bit2_bit4_bit1_bit2_bit4 &&\n            !class5_110_116) {\n",
+      "new": "            !cross_bit1_bit2_bit1_bit2_bit4 &&\n            !cross_bit1_bit4_bit2_bit4 &&\n            !cross_bit1_bit4_bit1_bit2 &&\n            !cross_bit2_bit4_bit1_bit2_bit4 &&\n            !class5_110_116) {\n"
     }
   ]
 }
