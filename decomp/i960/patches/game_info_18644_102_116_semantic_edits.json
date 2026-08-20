@@ -3,7 +3,7 @@
   "edits": [
     {
       "old": "        const bool bilateral_class6_102_112 =\n            (r7 == state8_bit1 && r8 == state8_bit1_bit4) ||\n            (r8 == state8_bit1 && r7 == state8_bit1_bit4);\n",
-      "new": "        const bool bilateral_class6_102_112 =\n            (r7 == state8_bit1 && r8 == state8_bit1_bit4) ||\n            (r8 == state8_bit1 && r7 == state8_bit1_bit4);\n        const bool bilateral_class6_102_116 =\n            (r7 == state8_bit1 && r8 == state8_bit1_bit2_bit4) ||\n            (r8 == state8_bit1 && r7 == state8_bit1_bit2_bit4);\n"
+      "new": "        const bool bilateral_class6_102_112 =\n            (r7 == state8_bit1 && r8 == state8_bit1_bit4) ||\n            (r8 == state8_bit1 && r7 == state8_bit1_bit4);\n        const uint32_t state8_bit1_bit2_bit4_for_102_116 =\n            state8_bit1_bit4 | (UINT32_C(1) << 2u);\n        const bool bilateral_class6_102_116 =\n            (r7 == state8_bit1 &&\n             r8 == state8_bit1_bit2_bit4_for_102_116) ||\n            (r8 == state8_bit1 &&\n             r7 == state8_bit1_bit2_bit4_for_102_116);\n"
     },
     {
       "old": "            !bilateral_class5_110_112 && !bilateral_class6_102_112 &&\n            !bilateral_cross_bit2_bit4 && !bilateral_cross_bit1_bit2 &&\n",
@@ -11,7 +11,7 @@
     },
     {
       "old": "        const bool class6_102_112 =\n            (r7 == isolated_state8_bit1 && r8 == state8_bit1_bit4) ||\n            (r8 == isolated_state8_bit1 && r7 == state8_bit1_bit4);\n",
-      "new": "        const bool class6_102_112 =\n            (r7 == isolated_state8_bit1 && r8 == state8_bit1_bit4) ||\n            (r8 == isolated_state8_bit1 && r7 == state8_bit1_bit4);\n        const bool class6_102_116 =\n            (r7 == isolated_state8_bit1 && r8 == state8_bit1_bit2_bit4) ||\n            (r8 == isolated_state8_bit1 && r7 == state8_bit1_bit2_bit4);\n"
+      "new": "        const bool class6_102_112 =\n            (r7 == isolated_state8_bit1 && r8 == state8_bit1_bit4) ||\n            (r8 == isolated_state8_bit1 && r7 == state8_bit1_bit4);\n        const uint32_t state8_bit1_bit2_bit4_for_102_116 =\n            state8_bit1_bit4 | (UINT32_C(1) << 2u);\n        const bool class6_102_116 =\n            (r7 == isolated_state8_bit1 &&\n             r8 == state8_bit1_bit2_bit4_for_102_116) ||\n            (r8 == isolated_state8_bit1 &&\n             r7 == state8_bit1_bit2_bit4_for_102_116);\n"
     },
     {
       "old": "            !cross_bilateral && !both_bit1_bit4 && !class5_110_112 &&\n            !class6_102_112 && !cross_bit1_bit2 && !both_bit1_bit2 &&\n",
