@@ -3,23 +3,38 @@ on:
   pull_request:
     branches: [master]
 permissions:
-  contents: read
+  contents: write
 jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Apply semantic edits
         run: python3 decomp/i960/tools/apply_exact_edits.py decomp/i960/patches/game_info_18644_102_116_semantic_edits.json
+      - name: Apply measured accounting
+        run: python3 decomp/i960/tools/apply_exact_edits.py decomp/i960/patches/game_info_18644_102_116_accounting_edits.json
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DVF2_BUILD_TESTS=ON -DVF2_WARNINGS_AS_ERRORS=ON
       - name: Build
         run: cmake --build build --parallel
       - name: Test
         run: ctest --test-dir build --output-on-failure
-      - name: Upload semantic candidate
+      - name: Upload accounted candidate
         uses: actions/upload-artifact@v4
         with:
-          name: vf2i960-102-116-semantic
+          name: vf2i960-102-116-accounted
           path: build/vf2i960
           if-no-files-found: error
+      - name: Publish clean source candidate
+        run: |
+          cp src/recovered/hybrid.c /tmp/hybrid.c
+          git fetch origin master
+          git switch -C recover-game-info-102-116 origin/master
+          cp /tmp/hybrid.c src/recovered/hybrid.c
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/recovered/hybrid.c
+          git commit -m 'candidate: recover exact 0x102-0x116 corridor'
+          git push --force-with-lease origin recover-game-info-102-116
