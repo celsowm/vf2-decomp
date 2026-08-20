@@ -1,0 +1,21 @@
+{
+  "target": "src/recovered/hybrid.c",
+  "edits": [
+    {
+      "old": "        const bool bilateral_cross_bit1_bit2_bit1_bit2_bit4 =\n            (r7 == state8_bit1_bit2 && r8 == state8_bit1_bit2_bit4) ||\n            (r8 == state8_bit1_bit2 && r7 == state8_bit1_bit2_bit4);\n",
+      "new": "        const bool bilateral_cross_bit1_bit2_bit1_bit2_bit4 =\n            (r7 == state8_bit1_bit2 && r8 == state8_bit1_bit2_bit4) ||\n            (r8 == state8_bit1_bit2 && r7 == state8_bit1_bit2_bit4);\n        const bool bilateral_cross_bit1_bit4_bit2_bit4 =\n            (r7 == state8_bit1_bit4 && r8 == state8_bit2_bit4) ||\n            (r8 == state8_bit1_bit4 && r7 == state8_bit2_bit4);\n"
+    },
+    {
+      "old": "            !bilateral_cross_bit1_bit4_bit1_bit2_bit4 &&\n            !bilateral_cross_bit1_bit2_bit1_bit2_bit4) {\n",
+      "new": "            !bilateral_cross_bit1_bit4_bit1_bit2_bit4 &&\n            !bilateral_cross_bit1_bit2_bit1_bit2_bit4 &&\n            !bilateral_cross_bit1_bit4_bit2_bit4) {\n"
+    },
+    {
+      "old": "        const bool cross_bit1_bit2_bit1_bit2_bit4 =\n            (r7 == state8_bit1_bit2 && r8 == state8_bit1_bit2_bit4) ||\n            (r8 == state8_bit1_bit2 && r7 == state8_bit1_bit2_bit4);\n",
+      "new": "        const bool cross_bit1_bit2_bit1_bit2_bit4 =\n            (r7 == state8_bit1_bit2 && r8 == state8_bit1_bit2_bit4) ||\n            (r8 == state8_bit1_bit2 && r7 == state8_bit1_bit2_bit4);\n        const uint32_t state8_bit2_bit4 =\n            (UINT32_C(1) << 8u) | (UINT32_C(1) << 2u) |\n            (UINT32_C(1) << 4u);\n        const bool cross_bit1_bit4_bit2_bit4 =\n            (r7 == state8_bit1_bit4 && r8 == state8_bit2_bit4) ||\n            (r8 == state8_bit1_bit4 && r7 == state8_bit2_bit4);\n"
+    },
+    {
+      "old": "            !cross_bit1_bit4_bit1_bit2_bit4 &&\n            !cross_bit1_bit2_bit1_bit2_bit4) {\n",
+      "new": "            !cross_bit1_bit4_bit1_bit2_bit4 &&\n            !cross_bit1_bit2_bit1_bit2_bit4 &&\n            !cross_bit1_bit4_bit2_bit4) {\n"
+    }
+  ]
+}
