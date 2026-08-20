@@ -1,0 +1,25 @@
+name: Probe game-info 0x100-0x112
+on:
+  pull_request:
+    branches: [master]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply semantic edits
+        run: python3 decomp/i960/tools/apply_exact_edits.py decomp/i960/patches/game_info_18644_100_112_semantic_edits.json
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DVF2_BUILD_TESTS=ON -DVF2_WARNINGS_AS_ERRORS=ON
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Upload semantic candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: vf2i960-100-112-semantic
+          path: build/vf2i960
+          if-no-files-found: error
