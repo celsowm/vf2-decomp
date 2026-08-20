@@ -1,0 +1,9 @@
+{
+  "target": "src/recovered/hybrid.c",
+  "edits": [
+    {
+      "old": "    if (status == VF2_OK) {\n        status = vf2_model2a_read_u32(\n            machine, fighter + UINT32_C(0x000001f8), &table\n        );\n    }\n    if (status == VF2_OK) {\n        status = vf2_model2a_read_u32(machine, table, &r4);\n    }",
+      "new": "    if (status == VF2_OK) {\n        /* 0x1850c is LDA, not LD: r5 receives the address of the\n         * inline 16-entry float table at fighter+0x1f8. */\n        table = fighter + UINT32_C(0x000001f8);\n        status = vf2_model2a_read_u32(machine, table, &r4);\n    }"
+    }
+  ]
+}
