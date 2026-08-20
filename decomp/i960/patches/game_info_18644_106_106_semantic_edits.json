@@ -1,0 +1,21 @@
+{
+  "target": "src/recovered/hybrid.c",
+  "edits": [
+    {
+      "old": "        const uint32_t state8_bit1_bit2 =\n            state8 | (UINT32_C(1) << 1u) | (UINT32_C(1) << 2u);\n        const bool bilateral_cross_bit1_bit1_bit2 =\n",
+      "new": "        const uint32_t state8_bit1_bit2 =\n            state8 | (UINT32_C(1) << 1u) | (UINT32_C(1) << 2u);\n        const bool bilateral_both_bit1_bit2 =\n            r7 == state8_bit1_bit2 && r8 == state8_bit1_bit2;\n        const bool bilateral_cross_bit1_bit1_bit2 =\n"
+    },
+    {
+      "old": "            !bilateral_cross_bit2_bit2_bit4 &&\n            !bilateral_cross_bit1_bit1_bit2 &&\n",
+      "new": "            !bilateral_cross_bit2_bit2_bit4 &&\n            !bilateral_both_bit1_bit2 &&\n            !bilateral_cross_bit1_bit1_bit2 &&\n"
+    },
+    {
+      "old": "        const uint32_t state8_bit1_bit2 =\n            isolated_state8_bit1 | (UINT32_C(1) << 2u);\n        const bool cross_bit1_bit1_bit2 =\n",
+      "new": "        const uint32_t state8_bit1_bit2 =\n            isolated_state8_bit1 | (UINT32_C(1) << 2u);\n        const bool both_bit1_bit2 =\n            r7 == state8_bit1_bit2 && r8 == state8_bit1_bit2;\n        const bool cross_bit1_bit1_bit2 =\n"
+    },
+    {
+      "old": "            !class6_102_112 && !cross_bit1_bit2 && !cross_bit1_bit1_bit2 &&\n",
+      "new": "            !class6_102_112 && !cross_bit1_bit2 && !both_bit1_bit2 &&\n            !cross_bit1_bit1_bit2 &&\n"
+    }
+  ]
+}
