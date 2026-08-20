@@ -15,6 +15,8 @@ jobs:
         run: python3 decomp/i960/tools/apply_exact_edits.py decomp/i960/patches/game_info_zero_state_compare_edits.json
       - name: Fix 0x18144 LDA table semantics
         run: python3 decomp/i960/tools/apply_exact_edits.py decomp/i960/patches/game_info_18144_lda_1f8_edits.json
+      - name: Recover observed 0x17b68 bit7 path
+        run: python3 decomp/i960/tools/apply_exact_edits.py decomp/i960/patches/game_info_17b68_state4_bit7_edits.json
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DVF2_BUILD_TESTS=ON -DVF2_WARNINGS_AS_ERRORS=ON
       - name: Build
@@ -24,7 +26,7 @@ jobs:
       - name: Upload corrected candidate
         uses: actions/upload-artifact@v4
         with:
-          name: vf2i960-state4-neutral-final
+          name: vf2i960-state4-neutral-bit7
           path: |
             build/vf2i960
             decomp/i960/tools/diagnose_game_info_pair.py
@@ -43,4 +45,4 @@ jobs:
           cp /tmp/hybrid.c src/recovered/hybrid.c
           git add src/recovered/hybrid.c
           git commit -m "candidate: recover neutral state4 game-info path"
-          git push --force-with-lease origin recover-game-info-state4-neutral
+          git push --force origin recover-game-info-state4-neutral
