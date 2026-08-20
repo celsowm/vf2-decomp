@@ -3,7 +3,7 @@ on:
   pull_request:
     branches: [master]
 permissions:
-  contents: read
+  contents: write
 jobs:
   probe:
     runs-on: ubuntu-latest
@@ -31,3 +31,14 @@ jobs:
             decomp/i960/tools/game_info_18644_common.py
             decomp/i960/tools/compare_snapshot_counters.py
           if-no-files-found: error
+      - name: Publish clean source candidate
+        run: |
+          cp src/recovered/hybrid.c /tmp/hybrid.c
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin master
+          git switch -C recover-game-info-102-114 origin/master
+          cp /tmp/hybrid.c src/recovered/hybrid.c
+          git add src/recovered/hybrid.c
+          git commit -m "candidate: recover exact 0x102-0x114 corridor"
+          git push --force origin recover-game-info-102-114
