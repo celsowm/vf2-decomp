@@ -3,13 +3,13 @@ on:
   pull_request:
     branches: [master]
 permissions:
-  contents: read
+  contents: write
 jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Apply semantic edits
+      - name: Apply exact edits
         run: python3 decomp/i960/tools/apply_exact_edits.py decomp/i960/patches/game_info_18644_112_114_semantic_edits.json
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DVF2_BUILD_TESTS=ON -DVF2_WARNINGS_AS_ERRORS=ON
@@ -20,6 +20,17 @@ jobs:
       - name: Publish analysis binary
         uses: actions/upload-artifact@v4
         with:
-          name: vf2i960-112-114-semantic
+          name: vf2i960-112-114-accounted
           path: build/vf2i960
           if-no-files-found: error
+      - name: Publish clean source candidate
+        run: |
+          cp src/recovered/hybrid.c /tmp/hybrid.c
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin master
+          git switch -C recover-game-info-112-114 origin/master
+          cp /tmp/hybrid.c src/recovered/hybrid.c
+          git add src/recovered/hybrid.c
+          git commit -m "candidate: recover exact 0x112-0x114 corridor"
+          git push --force origin recover-game-info-112-114
