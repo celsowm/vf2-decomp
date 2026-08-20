@@ -1,0 +1,21 @@
+{
+  "target": "src/recovered/hybrid.c",
+  "edits": [
+    {
+      "old": "        const bool bilateral_class6_102_112 =\n            (r7 == state8_bit1 && r8 == state8_bit1_bit4) ||\n            (r8 == state8_bit1 && r7 == state8_bit1_bit4);\n",
+      "new": "        const bool bilateral_class6_102_112 =\n            (r7 == state8_bit1 && r8 == state8_bit1_bit4) ||\n            (r8 == state8_bit1 && r7 == state8_bit1_bit4);\n        const bool bilateral_class3_100_112 =\n            (r7 == state8 && r8 == state8_bit1_bit4) ||\n            (r8 == state8 && r7 == state8_bit1_bit4);\n"
+    },
+    {
+      "old": "            !bilateral_class5_110_112 && !bilateral_class6_102_112 &&\n            !bilateral_class6_102_116 &&\n",
+      "new": "            !bilateral_class5_110_112 && !bilateral_class6_102_112 &&\n            !bilateral_class3_100_112 && !bilateral_class6_102_116 &&\n"
+    },
+    {
+      "old": "        const bool class6_102_112 =\n            (r7 == isolated_state8_bit1 && r8 == state8_bit1_bit4) ||\n            (r8 == isolated_state8_bit1 && r7 == state8_bit1_bit4);\n",
+      "new": "        const bool class6_102_112 =\n            (r7 == isolated_state8_bit1 && r8 == state8_bit1_bit4) ||\n            (r8 == isolated_state8_bit1 && r7 == state8_bit1_bit4);\n        const bool class3_100_112 =\n            (r7 == (UINT32_C(1) << 8u) && r8 == state8_bit1_bit4) ||\n            (r8 == (UINT32_C(1) << 8u) && r7 == state8_bit1_bit4);\n"
+    },
+    {
+      "old": "            !cross_bilateral && !both_bit1_bit4 && !class5_110_112 &&\n            !class6_102_112 && !class6_102_116 &&\n",
+      "new": "            !cross_bilateral && !both_bit1_bit4 && !class5_110_112 &&\n            !class6_102_112 && !class3_100_112 && !class6_102_116 &&\n"
+    }
+  ]
+}
