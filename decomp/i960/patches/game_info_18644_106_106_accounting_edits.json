@@ -1,0 +1,9 @@
+{
+  "target": "src/recovered/hybrid.c",
+  "edits": [
+    {
+      "old": "    if (status == VF2_OK) {\n        const uint32_t state8_bit1_bit2 =\n            (UINT32_C(1) << 8u) | (UINT32_C(1) << 1u) |\n            (UINT32_C(1) << 2u);\n        const uint32_t state8_bit1_bit2_bit4 =\n",
+      "new": "    if (status == VF2_OK) {\n        const uint32_t state8_bit1_bit2 =\n            (UINT32_C(1) << 8u) | (UINT32_C(1) << 1u) |\n            (UINT32_C(1) << 2u);\n        const bool both_bit1_bit2 =\n            r7 == state8_bit1_bit2 && r8 == state8_bit1_bit2;\n\n        if (both_bit1_bit2) {\n            if (return_address == UINT32_C(0x000164b0)) {\n                body_instructions += countdown_path\n                    ? UINT32_C(11) : UINT32_C(9);\n            } else if (return_address == UINT32_C(0x000164c4)) {\n                body_instructions += countdown_path\n                    ? UINT32_C(10)\n                    : (mode_bit6 ? UINT32_C(6) : UINT32_C(5));\n            }\n        }\n    }\n    if (status == VF2_OK) {\n        const uint32_t state8_bit1_bit2 =\n            (UINT32_C(1) << 8u) | (UINT32_C(1) << 1u) |\n            (UINT32_C(1) << 2u);\n        const uint32_t state8_bit1_bit2_bit4 =\n"
+    }
+  ]
+}
