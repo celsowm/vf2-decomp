@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import itertools
 import json
 from collections import Counter, defaultdict
 
@@ -8,7 +9,12 @@ def stable_outcome(record):
     outcome = record.get("outcome")
     if not outcome:
         return ("probe_failure", record.get("returncode"))
-    reads = tuple(sorted((item["address"], item["value"]) for item in outcome.get("reads_u32", [])))
+    reads = tuple(
+        sorted(
+            (item.get("address"), item.get("value"), item.get("error"))
+            for item in outcome.get("reads_u32", [])
+        )
+    )
     return (
         outcome.get("status"),
         outcome.get("halt_reason"),
@@ -27,37 +33,108 @@ def load_records(path):
                 yield json.loads(line)
 
 
-def try_boolean_minimize(records, input_names, target_outcome):
+def parse_bitfield(spec):
+    name, separator, bit_text = spec.partition(":")
+    if not separator or not name or not bit_text:
+        raise ValueError(f"invalid bitfield specification: {spec!r}")
+    bits = [int(value, 0) for value in bit_text.split(",")]
+    if len(set(bits)) != len(bits) or any(bit < 0 or bit > 31 for bit in bits):
+        raise ValueError(f"invalid bit positions in: {spec!r}")
+    return name, bits
+
+
+def feature_vector(record, boolean_names, bitfields):
+    inputs = record.get("inputs", {})
+    names = []
+    values = []
+
+    for name in boolean_names:
+        value = inputs.get(name)
+        if value not in (0, 1):
+            raise ValueError(f"{name!r} is not binary in every case")
+        names.append(name)
+        values.append(value)
+
+    for field_name, bits in bitfields:
+        if field_name not in inputs:
+            raise ValueError(f"missing bitfield input {field_name!r}")
+        field_value = int(inputs[field_name])
+        for bit in bits:
+            names.append(f"{field_name}_b{bit}")
+            values.append(1 if field_value & (1 << bit) else 0)
+
+    return tuple(names), tuple(values)
+
+
+def try_boolean_minimize(records, boolean_names, bitfields, target_outcome):
     try:
         from sympy import symbols
         from sympy.logic import SOPform, simplify_logic
     except ImportError:
-        return None
+        return None, "sympy is not installed"
 
-    if not input_names:
-        return None
-    for record in records:
-        values = record.get("inputs", {})
-        if any(values.get(name) not in (0, 1) for name in input_names):
-            return None
+    if not boolean_names and not bitfields:
+        return None, None
 
-    vars_ = symbols(" ".join(input_names))
-    if len(input_names) == 1:
-        vars_ = (vars_,)
-    minterms = []
-    for record in records:
-        if stable_outcome(record) == target_outcome:
-            minterms.append([record["inputs"][name] for name in input_names])
+    vectors = {}
+    feature_names = None
+    try:
+        for record in records:
+            names, vector = feature_vector(record, boolean_names, bitfields)
+            feature_names = names
+            outcome = stable_outcome(record)
+            previous = vectors.get(vector)
+            if previous is not None and previous != outcome:
+                return None, "selected boolean features do not fully determine the outcome"
+            vectors[vector] = outcome
+    except ValueError as error:
+        return None, str(error)
+
+    if feature_names is None:
+        return None, "no cases"
+
+    expected = 1 << len(feature_names)
+    if len(vectors) != expected:
+        return None, f"truth table is incomplete ({len(vectors)}/{expected} feature vectors)"
+
+    variables = symbols(" ".join(feature_names))
+    if len(feature_names) == 1:
+        variables = (variables,)
+
+    minterms = [list(vector) for vector, outcome in vectors.items() if outcome == target_outcome]
     if not minterms:
-        return None
-    return str(simplify_logic(SOPform(vars_, minterms), form="dnf", force=True))
+        return None, None
+    if len(minterms) == expected:
+        return "True", None
+
+    expression = SOPform(variables, minterms)
+    return str(simplify_logic(expression, form="dnf", force=True)), None
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Group vf2 sweep outcomes and infer simple boolean rules")
+    parser = argparse.ArgumentParser(
+        description="Group vf2 sweep outcomes and infer measured boolean rules"
+    )
     parser.add_argument("input")
-    parser.add_argument("--boolean", nargs="*", default=[], help="binary dimension names to minimize")
+    parser.add_argument(
+        "--boolean",
+        nargs="*",
+        default=[],
+        help="dimension names whose values are explicitly 0/1",
+    )
+    parser.add_argument(
+        "--bitfield",
+        action="append",
+        default=[],
+        metavar="NAME:BITS",
+        help="expand an integer input into bit features, e.g. flags:1,2,4,6,8",
+    )
     args = parser.parse_args()
+
+    try:
+        bitfields = [parse_bitfield(spec) for spec in args.bitfield]
+    except ValueError as error:
+        parser.error(str(error))
 
     records = list(load_records(args.input))
     groups = defaultdict(list)
@@ -69,17 +146,26 @@ def main():
     print()
 
     ranked = sorted(groups.items(), key=lambda item: (-len(item[1]), repr(item[0])))
+    reported_reason = None
     for index, (outcome, members) in enumerate(ranked, 1):
         print(f"outcome {index}: {len(members)} cases")
         print(f"  signature: {outcome}")
         if members:
             print(f"  example inputs: {members[0].get('inputs', {})}")
-        rule = try_boolean_minimize(records, args.boolean, outcome)
+        rule, reason = try_boolean_minimize(records, args.boolean, bitfields, outcome)
         if rule is not None:
             print(f"  minimized rule: {rule}")
+        if reason is not None:
+            reported_reason = reason
         print()
 
-    failures = Counter(record.get("returncode") for record in records if record.get("returncode"))
+    if reported_reason is not None:
+        print(f"boolean minimization unavailable: {reported_reason}")
+        print()
+
+    failures = Counter(
+        record.get("returncode") for record in records if record.get("returncode")
+    )
     if failures:
         print("probe failures:")
         for code, count in sorted(failures.items()):
