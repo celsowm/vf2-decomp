@@ -45,6 +45,44 @@ python tools/python/sweep_state.py \
 
 Every output line records the exact inputs and structured `vf2probe` result. Snapshot-specific addresses must come from measured evidence; checked-in scenarios are templates rather than recovery claims.
 
+## Measured `0x18644` scenario generation
+
+`decomp/i960/tools/make_game_info_probe_scenario.py` bridges the generic tooling to the existing `fa_game_info` evidence. It reconstructs the proven `0x164ac` boundary with `vf2i960 native-fifth-dispatch`, reads the live fighter pointers and mode pointer from that snapshot, resolves the `+0x1a4` flag and `+0xa00` selector fields, and writes a scenario containing only measured addresses.
+
+For the current positive state-8 low-bit family:
+
+```sh
+python decomp/i960/tools/make_game_info_probe_scenario.py \
+  build/vf2i960 \
+  build/vf2probe \
+  roms/vf2 \
+  out/state8-positive.json \
+  --state 8 \
+  --bits 1,2,4,6,8 \
+  --threshold 0
+
+python tools/python/check_scenario.py out/state8-positive.json
+```
+
+That default five-bit family yields 4,096 complete Cartesian cases across two fighters, countdown and mode-bit-6. It can be swept exhaustively:
+
+```sh
+python tools/python/sweep_state.py \
+  out/state8-positive.json \
+  --output out/state8-positive.jsonl
+```
+
+or used as the mutation domain for coverage-guided exploration:
+
+```sh
+python tools/python/explore_state.py \
+  out/state8-positive.json \
+  --corpus out/state8-corpus \
+  --iterations 10000
+```
+
+State 4 defaults to bits 6/14/15/16. Thresholds are repeatable, so `--threshold -1 --threshold 0` measures both endpoints in one generated scenario. Higher state-8 bits can be selected explicitly with `--bits`; large bit sets are generally better suited to `explore_state.py` than a full Cartesian sweep.
+
 ## Rule inference
 
 `tools/python/infer_rules.py` groups sweep cases by stable observable outcome. Explicit binary dimensions and selected bits from integer mask dimensions can be minimized with SymPy when the measured truth table is complete and the selected features uniquely determine the result.
