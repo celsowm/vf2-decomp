@@ -20,6 +20,7 @@ jobs:
           python3 -m py_compile
           decomp/i960/enumerate_game_info_18644.py
           decomp/i960/tools/*.py
+          tools/python/*.py
 
   build:
     name: ${{ matrix.compiler }} release
