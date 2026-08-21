@@ -1,0 +1,1 @@
+Scenario files under this directory are experiment templates, not decompilation evidence. Addresses that depend on a particular snapshot must be replaced with measured values before a sweep is used to support recovered C.
