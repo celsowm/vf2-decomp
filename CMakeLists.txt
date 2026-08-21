@@ -86,7 +86,7 @@ add_library(vf2_core STATIC
 
 set_source_files_properties(
     src/hardware/model2a.c
-    PROPERTIES COMPILE_DEFINITIONS "vf2_model2a_read=vf2_model2a_read_impl;vf2_model2a_write=vf2_model2a_write_impl"
+    PROPERTIES COMPILE_DEFINITIONS "vf2_model2a_read=vf2_model2a_read_impl;vf2_model2a_write=vf2_model2a_write_impl;vf2_model2a_read_u32=vf2_model2a_read_u32_impl;vf2_model2a_write_u32=vf2_model2a_write_u32_impl"
 )
 
 set_source_files_properties(
