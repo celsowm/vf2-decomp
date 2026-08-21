@@ -19,20 +19,6 @@ typedef vf2_status (*vf2_model2a_copro_write_callback)(
     size_t size
 );
 
-typedef enum vf2_model2a_memory_access_kind {
-    VF2_MODEL2A_MEMORY_READ = 0,
-    VF2_MODEL2A_MEMORY_WRITE
-} vf2_model2a_memory_access_kind;
-
-typedef void (*vf2_model2a_memory_access_callback)(
-    void *context,
-    vf2_model2a_memory_access_kind kind,
-    uint32_t address,
-    const void *data,
-    size_t size,
-    vf2_status status
-);
-
 enum {
     VF2_MAIN_ROM_BASE = 0x00000000u,
     VF2_MAIN_ROM_SIZE = 0x00200000u,
@@ -130,8 +116,6 @@ typedef struct vf2_model2a {
     vf2_model2a_copro_read_callback copro_read_callback;
     vf2_model2a_copro_write_callback copro_write_callback;
     void *copro_callback_context;
-    vf2_model2a_memory_access_callback memory_access_callback;
-    void *memory_access_context;
     uint32_t input;
 } vf2_model2a;
 
@@ -164,16 +148,6 @@ vf2_status vf2_model2a_set_copro_callbacks(
     vf2_model2a *machine,
     vf2_model2a_copro_read_callback read_callback,
     vf2_model2a_copro_write_callback write_callback,
-    void *context
-);
-
-/* Install an optional observer around public Model 2A memory accesses. The
- * observer is diagnostic only: it cannot change the access result. For reads,
- * data is non-NULL only on successful accesses; writes expose the supplied
- * source bytes regardless of status. */
-vf2_status vf2_model2a_set_memory_access_callback(
-    vf2_model2a *machine,
-    vf2_model2a_memory_access_callback callback,
     void *context
 );
 
