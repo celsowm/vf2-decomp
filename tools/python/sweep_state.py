@@ -13,6 +13,10 @@ def parse_int(value):
     return int(str(value), 0)
 
 
+def cli_int(value):
+    return f"-{abs(value):#x}" if value < 0 else f"{value:#x}"
+
+
 def load_scenario(path):
     with open(path, "r", encoding="utf-8") as stream:
         data = json.load(stream)
@@ -28,9 +32,10 @@ def dimension_values(dimension):
         return [parse_int(value) for value in dimension["values"]]
     if "bits" in dimension:
         bits = [parse_int(bit) for bit in dimension["bits"]]
+        base = parse_int(dimension.get("base", 0))
         values = []
         for mask in range(1 << len(bits)):
-            value = 0
+            value = base
             for index, bit in enumerate(bits):
                 if mask & (1 << index):
                     value |= 1 << bit
@@ -42,9 +47,12 @@ def dimension_values(dimension):
 def mutation_args(dimension, value):
     kind = dimension.get("kind")
     if kind == "reg":
-        return ["--set-reg", f"{dimension['register']}={value:#x}"]
+        return ["--set-reg", f"{dimension['register']}={cli_int(value)}"]
     if kind in {"u8", "u16", "u32"}:
-        return [f"--set-{kind}", f"{parse_int(dimension['address']):#x}={value:#x}"]
+        return [
+            f"--set-{kind}",
+            f"{parse_int(dimension['address']):#x}={cli_int(value)}",
+        ]
     raise ValueError(f"unsupported dimension kind: {kind}")
 
 
@@ -86,7 +94,9 @@ def run_case(scenario, names, dimensions, values, case_index):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Sweep vf2probe state dimensions from a JSON scenario")
+    parser = argparse.ArgumentParser(
+        description="Sweep vf2probe state dimensions from a JSON scenario"
+    )
     parser.add_argument("scenario")
     parser.add_argument("--output", required=True)
     parser.add_argument("--limit", type=int, default=0, help="stop after N generated cases")
@@ -112,7 +122,10 @@ def main():
             if record["returncode"] != 0:
                 failure_count += 1
 
-    print(f"sweep complete: {case_count} cases, {failure_count} probe failures", file=sys.stderr)
+    print(
+        f"sweep complete: {case_count} cases, {failure_count} probe failures",
+        file=sys.stderr,
+    )
     return 1 if failure_count else 0
 
 
