@@ -121,6 +121,32 @@ def write_json(path, value):
         stream.write("\n")
 
 
+def load_existing_corpus(manifest_path, names):
+    global_edges = set()
+    corpus_inputs = []
+    seen_inputs = set()
+    if not manifest_path.exists():
+        return global_edges, corpus_inputs, seen_inputs
+
+    with manifest_path.open("r", encoding="utf-8") as stream:
+        for line in stream:
+            if not line.strip():
+                continue
+            record = json.loads(line)
+            inputs = record.get("inputs", {})
+            try:
+                values = tuple(parse_int(inputs[name]) for name in names)
+            except KeyError as error:
+                raise ValueError(
+                    f"existing corpus does not match current scenario; missing {error.args[0]!r}"
+                ) from error
+            corpus_inputs.append(values)
+            seen_inputs.add(values)
+            for edge in record.get("new_edges", []):
+                global_edges.add((int(edge["from"]), int(edge["to"])))
+    return global_edges, corpus_inputs, seen_inputs
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Coverage-guided exploration above vf2probe guest i960 traces"
@@ -145,14 +171,14 @@ def main():
     corpus_dir = Path(args.corpus)
     corpus_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = corpus_dir / "manifest.jsonl"
-    global_edges = set()
-    corpus_inputs = []
-    seen_inputs = set()
+    global_edges, corpus_inputs, seen_inputs = load_existing_corpus(manifest_path, names)
+    starting_cases = len(corpus_inputs)
+    starting_edges = len(global_edges)
 
     manifest = manifest_path.open("a", encoding="utf-8")
     try:
         for iteration in range(args.iterations):
-            if iteration == 0 or not corpus_inputs:
+            if not corpus_inputs:
                 candidate = baseline
             else:
                 candidate = mutate(
@@ -210,8 +236,9 @@ def main():
         manifest.close()
 
     print(
-        f"exploration complete: {len(corpus_inputs)} corpus cases, "
-        f"{len(global_edges)} unique guest edges",
+        f"exploration complete: +{len(corpus_inputs) - starting_cases} corpus cases, "
+        f"+{len(global_edges) - starting_edges} guest edges "
+        f"({len(corpus_inputs)} cases / {len(global_edges)} edges total)",
         file=sys.stderr,
     )
     return 0
