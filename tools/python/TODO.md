@@ -1,0 +1,4 @@
+- add guest-edge coverage corpus
+- add memory-access observers
+- add testcase minimization
+- infer candidate object layouts
