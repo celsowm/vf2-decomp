@@ -36,6 +36,7 @@ typedef struct vf2_probe_options {
     uint64_t max_steps;
     int has_stop_address;
     int trace;
+    int memory_trace;
     vf2_probe_mutation mutations[VF2_PROBE_MAX_MUTATIONS];
     size_t mutation_count;
     uint32_t reads_u32[VF2_PROBE_MAX_READS];
@@ -44,6 +45,8 @@ typedef struct vf2_probe_options {
 
 typedef struct vf2_probe_trace_context {
     int enabled;
+    int memory_enabled;
+    const vf2_i960_cpu *cpu;
 } vf2_probe_trace_context;
 
 static void print_usage(FILE *stream, const char *program)
@@ -61,7 +64,8 @@ static void print_usage(FILE *stream, const char *program)
         "  --set-u32 <addr=value>     mutate little-endian 32-bit value\n"
         "  --read-u32 <address>       include final 32-bit memory value\n"
         "  --output-snapshot <file>   save the resulting CPU/machine state\n"
-        "  --trace                    emit one JSON record per instruction\n",
+        "  --trace                    emit one JSON record per instruction\n"
+        "  --memory-trace             emit successful bus accesses plus steps\n",
         VF2_VERSION_STRING,
         program
     );
@@ -203,6 +207,8 @@ static int parse_options(int argc, char **argv, vf2_probe_options *options)
             }
         } else if (strcmp(argument, "--trace") == 0) {
             options->trace = 1;
+        } else if (strcmp(argument, "--memory-trace") == 0) {
+            options->memory_trace = 1;
         } else if ((strcmp(argument, "--set-reg") == 0 ||
                     strcmp(argument, "--set-u8") == 0 ||
                     strcmp(argument, "--set-u16") == 0 ||
@@ -319,6 +325,35 @@ static void trace_callback(
         event->ip_after,
         (unsigned)event->instruction.size
     );
+}
+
+static void memory_callback(
+    const vf2_model2a_memory_access *access,
+    void *user_data
+)
+{
+    vf2_probe_trace_context *context = (vf2_probe_trace_context *)user_data;
+    const uint8_t *bytes = NULL;
+    size_t index = 0u;
+    uint64_t step = 0u;
+    if (context == NULL || !context->memory_enabled || context->cpu == NULL ||
+        access == NULL || access->data == NULL) {
+        return;
+    }
+    bytes = (const uint8_t *)access->data;
+    step = context->cpu->executed_instructions + UINT64_C(1);
+    printf(
+        "{\"type\":\"memory\",\"step\":%" PRIu64
+        ",\"kind\":\"%s\",\"address\":%u,\"size\":%zu,\"bytes\":\"",
+        step,
+        access->kind == VF2_MODEL2A_MEMORY_READ ? "read" : "write",
+        access->address,
+        access->size
+    );
+    for (index = 0u; index < access->size; ++index) {
+        printf("%02x", (unsigned)bytes[index]);
+    }
+    puts("\"}");
 }
 
 static void print_final(
@@ -453,16 +488,35 @@ int main(int argc, char **argv)
     }
 
     if (status == VF2_OK) {
-        trace_context.enabled = options.trace;
+        trace_context.enabled = options.trace || options.memory_trace;
+        trace_context.memory_enabled = options.memory_trace;
+        trace_context.cpu = &cpu;
+        if (options.memory_trace) {
+            status = vf2_model2a_set_memory_observer(
+                &machine, memory_callback, &trace_context
+            );
+        }
+    }
+    if (status == VF2_OK) {
         run_options.stop_address = options.has_stop_address ? options.stop_address : UINT32_MAX;
         run_options.max_steps = options.max_steps;
         run_options.stop_on_self_branch = true;
-        run_options.trace_callback = options.trace ? trace_callback : NULL;
+        run_options.trace_callback = trace_context.enabled ? trace_callback : NULL;
         run_options.trace_user_data = &trace_context;
         status = vf2_i960_run(&cpu, &machine, &run_options, &run_result);
     } else {
         run_result.status = status;
         run_result.halt_reason = VF2_I960_HALT_NONE;
+    }
+
+    if (options.memory_trace && machine_initialized) {
+        vf2_status observer_status = vf2_model2a_set_memory_observer(
+            &machine, NULL, NULL
+        );
+        if (status == VF2_OK && observer_status != VF2_OK) {
+            status = observer_status;
+            run_result.status = observer_status;
+        }
     }
 
     if (status == VF2_OK) {
