@@ -1,0 +1,22 @@
+{
+  "probe": "build/vf2probe",
+  "rom_dir": "roms/vf2",
+  "snapshot": "sixth-entry.vf2snap",
+  "until": "0x000164c4",
+  "max_steps": 200000,
+  "dimensions": [
+    {
+      "name": "fighter0_flags",
+      "kind": "u32",
+      "address": "0x00500000",
+      "bits": [1, 2, 4, 6, 8]
+    },
+    {
+      "name": "g0",
+      "kind": "reg",
+      "register": "g0",
+      "values": [0, 1, 2, 3]
+    }
+  ],
+  "read_u32": ["0x00500000"]
+}
