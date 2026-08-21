@@ -31,6 +31,7 @@ typedef struct vf2_probe_mutation {
 typedef struct vf2_probe_options {
     const char *rom_directory;
     const char *snapshot_path;
+    const char *output_snapshot_path;
     uint32_t stop_address;
     uint64_t max_steps;
     int has_stop_address;
@@ -59,6 +60,7 @@ static void print_usage(FILE *stream, const char *program)
         "  --set-u16 <addr=value>     mutate little-endian 16-bit value\n"
         "  --set-u32 <addr=value>     mutate little-endian 32-bit value\n"
         "  --read-u32 <address>       include final 32-bit memory value\n"
+        "  --output-snapshot <file>   save the resulting CPU/machine state\n"
         "  --trace                    emit one JSON record per instruction\n",
         VF2_VERSION_STRING,
         program
@@ -88,6 +90,26 @@ static int parse_u32(const char *text, uint32_t *value)
         return 0;
     }
     *value = (uint32_t)parsed;
+    return 1;
+}
+
+static int parse_u32_value(const char *text, uint32_t *value)
+{
+    char *end = NULL;
+    long long parsed = 0;
+    if (text == NULL || value == NULL || text[0] == '\0') {
+        return 0;
+    }
+    if (text[0] != '-') {
+        return parse_u32(text, value);
+    }
+    errno = 0;
+    parsed = strtoll(text, &end, 0);
+    if (errno != 0 || end == text || *end != '\0' ||
+        parsed < (long long)INT32_MIN || parsed > -1) {
+        return 0;
+    }
+    *value = (uint32_t)(int32_t)parsed;
     return 1;
 }
 
@@ -132,7 +154,7 @@ static int parse_assignment(
     }
     memcpy(left, text, length);
     left[length] = '\0';
-    return parse_u32(equals + 1, value);
+    return parse_u32_value(equals + 1, value);
 }
 
 static int append_mutation(
@@ -168,6 +190,8 @@ static int parse_options(int argc, char **argv, vf2_probe_options *options)
             options->rom_directory = argv[++index];
         } else if (strcmp(argument, "--snapshot") == 0 && index + 1 < argc) {
             options->snapshot_path = argv[++index];
+        } else if (strcmp(argument, "--output-snapshot") == 0 && index + 1 < argc) {
+            options->output_snapshot_path = argv[++index];
         } else if (strcmp(argument, "--until") == 0 && index + 1 < argc) {
             if (!parse_u32(argv[++index], &options->stop_address)) {
                 return 0;
@@ -307,12 +331,14 @@ static void print_final(
     size_t index = 0u;
     printf(
         "{\"type\":\"final\",\"status\":\"%s\",\"halt_reason\":\"%s\","
-        "\"ip\":%u,\"executed_instructions\":%" PRIu64
+        "\"ip\":%u,\"run_instructions\":%" PRIu64
+        ",\"executed_instructions\":%" PRIu64
         ",\"procedure_calls\":%" PRIu64 ",\"procedure_returns\":%" PRIu64
         ",\"reads_u32\":[",
         vf2_status_string(run_result->status),
         vf2_i960_halt_reason_name(run_result->halt_reason),
         cpu->ip,
+        run_result->executed_instructions,
         cpu->executed_instructions,
         cpu->procedure_calls,
         cpu->procedure_returns
@@ -340,6 +366,26 @@ static void print_final(
         }
     }
     puts("]}");
+}
+
+static vf2_status write_output_snapshot(
+    const char *path,
+    const vf2_i960_cpu *cpu,
+    const vf2_model2a *machine
+)
+{
+    vf2_i960_snapshot output;
+    vf2_status status = VF2_OK;
+    if (path == NULL) {
+        return VF2_OK;
+    }
+    vf2_i960_snapshot_init(&output);
+    status = vf2_i960_snapshot_capture(&output, cpu, machine);
+    if (status == VF2_OK) {
+        status = vf2_i960_snapshot_write_file(&output, path);
+    }
+    vf2_i960_snapshot_destroy(&output);
+    return status;
 }
 
 int main(int argc, char **argv)
@@ -417,6 +463,13 @@ int main(int argc, char **argv)
     } else {
         run_result.status = status;
         run_result.halt_reason = VF2_I960_HALT_NONE;
+    }
+
+    if (status == VF2_OK) {
+        status = write_output_snapshot(options.output_snapshot_path, &cpu, &machine);
+        if (status != VF2_OK) {
+            run_result.status = status;
+        }
     }
 
     print_final(&options, &cpu, &machine, &run_result);
