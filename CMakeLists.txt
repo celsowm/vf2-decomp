@@ -134,12 +134,16 @@ add_executable(vf2recover tools/vf2recover/main.c)
 target_link_libraries(vf2recover PRIVATE vf2_core)
 vf2_set_project_warnings(vf2recover)
 
+add_executable(vf2probe tools/vf2probe/main.c)
+target_link_libraries(vf2probe PRIVATE vf2_core)
+vf2_set_project_warnings(vf2probe)
+
 add_executable(vf2m68k tools/vf2m68k/main.c)
 target_link_libraries(vf2m68k PRIVATE vf2_core)
 vf2_set_project_warnings(vf2m68k)
 
 include(GNUInstallDirs)
-install(TARGETS vf2 vf2rom vf2i960 vf2cycles vf2recover vf2m68k
+install(TARGETS vf2 vf2rom vf2i960 vf2cycles vf2recover vf2probe vf2m68k
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
 )
 
@@ -161,6 +165,7 @@ if(VF2_BUILD_TESTS)
 
     add_test(NAME vf2_tests COMMAND vf2_tests)
     add_test(NAME vf2recover_help COMMAND vf2recover --help)
+    add_test(NAME vf2probe_help COMMAND vf2probe --help)
 
     add_executable(vf2_orchestrator_limits_tests
         tests/analysis/test_orchestrator_limits.c
