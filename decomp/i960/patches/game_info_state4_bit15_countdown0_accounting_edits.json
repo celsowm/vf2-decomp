@@ -1,0 +1,9 @@
+{
+  "target": "src/recovered/hybrid.c",
+  "edits": [
+    {
+      "old": "    if (native_state4_bit15_fighter_path) {\n        native_instructions += UINT64_C(1);\n    }",
+      "new": "    if (native_state4_bit15_fighter_path) {\n        native_instructions += UINT64_C(1);\n        if (fighter0_state == 4u &&\n            (fighter0_state_flags & (UINT32_C(1) << 15u)) != 0u) {\n            ++native_instructions;\n        }\n        if (fighter1_state == 4u &&\n            (fighter1_state_flags & (UINT32_C(1) << 15u)) != 0u) {\n            ++native_instructions;\n        }\n    }"
+    }
+  ]
+}
