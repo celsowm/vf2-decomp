@@ -10,7 +10,7 @@ python -m venv .venv
 pip install -r tools/python/requirements.txt
 ```
 
-Only `sympy` is required by the initial rule-minimization path. The remaining packages are staged for the next exploration iterations and remain optional to the C build.
+Only `sympy` is required by the initial rule-minimization path. The remaining packages are analysis-only and do not affect the C build.
 
 ## `sweep_state.py`
 
@@ -69,6 +69,49 @@ python tools/python/infer_rules.py out/state8.jsonl \
 
 The minimizer refuses to produce a rule if the selected features do not uniquely determine the observed outcome or if the measured truth table is incomplete. A minimized expression is still only a hypothesis: implement it in recovered C and prove it with the normal ROM-backed differential suite before accepting the path.
 
+## `explore_state.py`
+
+This is the coverage-guided layer. It uses the same declarative scenario but chooses mutations from previously useful inputs instead of enumerating the full Cartesian product. `vf2probe --trace` provides exact guest i960 edges (`ip_before -> ip_after`). A candidate enters the corpus only when it adds at least one edge that has never been seen before.
+
+```sh
+python tools/python/explore_state.py \
+  path/to/measured-scenario.json \
+  --corpus out/fa_player-corpus \
+  --iterations 10000 \
+  --seed 1 \
+  --max-mutations 3
+```
+
+Accepted cases produce:
+
+```text
+out/fa_player-corpus/
+  manifest.jsonl
+  case-00000.json
+  case-00000.vf2snap
+  case-00001.json
+  case-00001.vf2snap
+  ...
+```
+
+The corpus is resumable. Running the command again reconstructs previously discovered edges from `manifest.jsonl`, retains existing input seeds and continues case numbering. The random seed makes mutation choice reproducible for a given corpus state.
+
+The saved `.vf2snap` is the post-execution checkpoint for the accepted input. The accompanying JSON records the exact starting mutations and the new guest edges that justified retaining it.
+
+## `minimize_case.py`
+
+A coverage discovery often contains more mutations than the branch actually needs. The minimizer starts from an accepted corpus JSON record and repeatedly restores dimensions toward the scenario baseline. For bit-mask dimensions it then attempts to clear individual swept bits while re-running the reference executor each time.
+
+```sh
+python tools/python/minimize_case.py \
+  path/to/measured-scenario.json \
+  out/fa_player-corpus/case-00017.json \
+  --edge 0x00018bd4:0x00018c30 \
+  --output out/minimized-18bd4-18c30.json
+```
+
+The result is a smaller measured input that still reaches the requested guest edge. It is evidence for analysis, not automatically accepted recovered semantics.
+
 ## Next layer
 
-The next automation step is guest-edge coverage/corpus retention (`vf2explore`), followed by memory-access tracing and testcase minimization. `z3-solver`, `hypothesis`, `duckdb`, `pyarrow` and `networkx` are already isolated as analysis-only dependencies for those iterations.
+The next high-value addition is memory-access tracing around the Model 2A bus so reached branches can be correlated with repeated `base + offset` accesses. That will feed candidate fighter/object structure inference. `z3-solver`, `hypothesis`, `duckdb`, `pyarrow` and `networkx` remain isolated as analysis-only dependencies for those iterations.
