@@ -14,6 +14,26 @@ vf2_status vf2_model2a_write_impl(
     size_t size
 );
 
+vf2_status vf2_model2a_read_u32_impl(
+    const vf2_model2a *machine,
+    uint32_t address,
+    uint32_t *value
+);
+
+vf2_status vf2_model2a_write_u32_impl(
+    vf2_model2a *machine,
+    uint32_t address,
+    uint32_t value
+);
+
+static void encode_u32_le(uint32_t value, uint8_t bytes[4])
+{
+    bytes[0] = (uint8_t)value;
+    bytes[1] = (uint8_t)(value >> 8u);
+    bytes[2] = (uint8_t)(value >> 16u);
+    bytes[3] = (uint8_t)(value >> 24u);
+}
+
 static void observe_access(
     const vf2_model2a *machine,
     vf2_model2a_memory_access_kind kind,
@@ -71,6 +91,36 @@ vf2_status vf2_model2a_write(
     vf2_status status = vf2_model2a_write_impl(machine, address, source, size);
     if (status == VF2_OK) {
         observe_access(machine, VF2_MODEL2A_MEMORY_WRITE, address, source, size);
+    }
+    return status;
+}
+
+vf2_status vf2_model2a_read_u32(
+    const vf2_model2a *machine,
+    uint32_t address,
+    uint32_t *value
+)
+{
+    uint8_t bytes[4];
+    vf2_status status = vf2_model2a_read_u32_impl(machine, address, value);
+    if (status == VF2_OK) {
+        encode_u32_le(*value, bytes);
+        observe_access(machine, VF2_MODEL2A_MEMORY_READ, address, bytes, sizeof(bytes));
+    }
+    return status;
+}
+
+vf2_status vf2_model2a_write_u32(
+    vf2_model2a *machine,
+    uint32_t address,
+    uint32_t value
+)
+{
+    uint8_t bytes[4];
+    vf2_status status = vf2_model2a_write_u32_impl(machine, address, value);
+    if (status == VF2_OK) {
+        encode_u32_le(value, bytes);
+        observe_access(machine, VF2_MODEL2A_MEMORY_WRITE, address, bytes, sizeof(bytes));
     }
     return status;
 }
