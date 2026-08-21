@@ -32,62 +32,70 @@ def load_scenario_bases(path):
     return bases
 
 
-def load_trace(path):
-    steps = {}
-    accesses = []
-    with open(path, "r", encoding="utf-8") as stream:
-        for line_number, line in enumerate(stream, 1):
-            if not line.strip():
-                continue
-            record = json.loads(line)
-            kind = record.get("type")
-            if kind == "step":
-                steps[int(record["step"])] = int(record["ip_before"])
-            elif kind == "memory":
-                accesses.append(
-                    {
-                        "line": line_number,
-                        "step": int(record["step"]),
-                        "kind": record["kind"],
-                        "address": int(record["address"]),
-                        "size": int(record["size"]),
-                        "bytes": record.get("bytes", ""),
-                    }
-                )
-    for access in accesses:
-        access["ip"] = steps.get(access["step"])
-    return steps, accesses
-
-
-def summarize(bases, accesses, window):
-    fields = defaultdict(lambda: {
+def new_field():
+    return {
         "bases": set(),
         "reads": 0,
         "writes": 0,
         "sizes": Counter(),
         "ips": Counter(),
         "addresses": Counter(),
-    })
+    }
+
+
+def apply_access(fields, bases, window, access, ip):
+    matched = False
+    for base_name, base in bases.items():
+        offset = access["address"] - base
+        if 0 <= offset < window:
+            matched = True
+            field = fields[offset]
+            field["bases"].add(base_name)
+            field["sizes"][access["size"]] += 1
+            field["addresses"][access["address"]] += 1
+            if access["kind"] == "read":
+                field["reads"] += 1
+            else:
+                field["writes"] += 1
+            if ip is not None:
+                field["ips"][ip] += 1
+    return matched
+
+
+def summarize_trace(path, bases, window):
+    fields = defaultdict(new_field)
+    pending = defaultdict(list)
+    total_accesses = 0
     unmatched = 0
-    for access in accesses:
-        matched = False
-        for base_name, base in bases.items():
-            offset = access["address"] - base
-            if 0 <= offset < window:
-                matched = True
-                field = fields[offset]
-                field["bases"].add(base_name)
-                field["sizes"][access["size"]] += 1
-                field["addresses"][access["address"]] += 1
-                if access["kind"] == "read":
-                    field["reads"] += 1
-                else:
-                    field["writes"] += 1
-                if access["ip"] is not None:
-                    field["ips"][access["ip"]] += 1
-        if not matched:
-            unmatched += 1
-    return fields, unmatched
+
+    with open(path, "r", encoding="utf-8") as stream:
+        for line in stream:
+            if not line.strip():
+                continue
+            record = json.loads(line)
+            kind = record.get("type")
+            if kind == "memory":
+                total_accesses += 1
+                pending[int(record["step"])].append(
+                    {
+                        "kind": record["kind"],
+                        "address": int(record["address"]),
+                        "size": int(record["size"]),
+                    }
+                )
+            elif kind == "step":
+                step = int(record["step"])
+                ip = int(record["ip_before"])
+                for access in pending.pop(step, []):
+                    if not apply_access(fields, bases, window, access, ip):
+                        unmatched += 1
+
+    for accesses in pending.values():
+        for access in accesses:
+            if not apply_access(fields, bases, window, access, None):
+                unmatched += 1
+
+    return fields, total_accesses, unmatched
 
 
 def field_records(fields):
@@ -175,17 +183,16 @@ def main():
     if not bases:
         parser.error("provide --scenario with fighter metadata or at least one --base")
 
-    _, accesses = load_trace(args.trace)
-    fields, unmatched = summarize(bases, accesses, args.window)
+    fields, total_accesses, unmatched = summarize_trace(args.trace, bases, args.window)
     records = field_records(fields)
-    print_report(records, bases, len(accesses), unmatched, args.min_count, args.limit)
+    print_report(records, bases, total_accesses, unmatched, args.min_count, args.limit)
 
     if args.json_output:
         payload = {
             "trace": args.trace,
             "bases": {name: value for name, value in bases.items()},
             "window": args.window,
-            "accesses": len(accesses),
+            "accesses": total_accesses,
             "unmatched": unmatched,
             "fields": records,
         }
