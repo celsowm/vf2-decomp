@@ -1,0 +1,9 @@
+{
+  "target": "src/recovered/hybrid.c",
+  "edits": [
+    {
+      "old": "    if (native_state4_bit15_fighter_path) {\n        native_instructions += UINT64_C(1);\n        if (fighter0_state == 4u &&\n            (fighter0_state_flags & (UINT32_C(1) << 15u)) != 0u) {\n            ++native_instructions;\n        }\n        if (fighter1_state == 4u &&\n            (fighter1_state_flags & (UINT32_C(1) << 15u)) != 0u) {\n            ++native_instructions;\n        }\n    }",
+      "new": "    if (native_state4_bit15_fighter_path) {\n        const uint32_t bit14_bit15_mask =\n            (UINT32_C(1) << 14u) | (UINT32_C(1) << 15u);\n        const uint32_t other_conditional_mask =\n            (UINT32_C(1) << 6u) | (UINT32_C(1) << 16u);\n        native_instructions += UINT64_C(1);\n        if (fighter0_state == 4u &&\n            (fighter0_state_flags & (UINT32_C(1) << 15u)) != 0u) {\n            ++native_instructions;\n            if ((fighter0_state_flags & bit14_bit15_mask) == bit14_bit15_mask &&\n                (fighter0_state_flags & other_conditional_mask) == 0u) {\n                native_instructions += UINT64_C(4);\n            }\n        }\n        if (fighter1_state == 4u &&\n            (fighter1_state_flags & (UINT32_C(1) << 15u)) != 0u) {\n            ++native_instructions;\n            if ((fighter1_state_flags & bit14_bit15_mask) == bit14_bit15_mask &&\n                (fighter1_state_flags & other_conditional_mask) == 0u) {\n                native_instructions += UINT64_C(4);\n            }\n        }\n    }"
+    }
+  ]
+}
