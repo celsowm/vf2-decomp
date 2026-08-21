@@ -1,0 +1,9 @@
+{
+  "target": "src/recovered/hybrid.c",
+  "edits": [
+    {
+      "old": "    if (status == VF2_OK && native_state4_bit15_fighter_path) {\n        status = vf2_model2a_read(\n            machine, UINT32_C(0x0050a0b6), &countdown, sizeof(countdown)\n        );\n        if (status == VF2_OK) {\n            native_state4_bit15_fighter_path = countdown != 0u;\n            native_18644_fighter_path =\n                native_18644_fighter_path ||\n                native_state4_bit15_fighter_path;\n        }\n    }",
+      "new": "    if (status == VF2_OK && native_state4_bit15_fighter_path) {\n        status = vf2_model2a_read(\n            machine, UINT32_C(0x0050a0b6), &countdown, sizeof(countdown)\n        );\n        if (status == VF2_OK) {\n            /* Probe the remaining state-4/bit-15 corridor even when the\n             * global countdown byte is zero. The child already models the\n             * state-4/bit-15 prefix; keep other mixed-bit cases fail-closed. */\n            native_18644_fighter_path =\n                native_18644_fighter_path ||\n                native_state4_bit15_fighter_path;\n        }\n    }"
+    }
+  ]
+}
