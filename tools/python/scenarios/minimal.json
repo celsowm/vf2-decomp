@@ -1,0 +1,14 @@
+{
+  "probe": "build/vf2probe",
+  "rom_dir": "roms/vf2",
+  "snapshot": "checkpoint.vf2snap",
+  "max_steps": 1000,
+  "dimensions": [
+    {
+      "name": "g0",
+      "kind": "reg",
+      "register": "g0",
+      "values": [0, 1]
+    }
+  ]
+}
