@@ -43,6 +43,7 @@ add_library(vf2_core STATIC
     src/game/game.c
     src/hardware/geometry.c
     src/hardware/model2a.c
+    src/hardware/model2a_observer.c
     src/hardware/scsp.c
     src/hardware/sound_board.c
     src/hardware/tgp.c
@@ -81,6 +82,11 @@ add_library(vf2_core STATIC
     src/recovered/runtime_interrupts.c
     src/recovered/scheduler.c
     src/recovered/tasks.c
+)
+
+set_source_files_properties(
+    src/hardware/model2a.c
+    PROPERTIES COMPILE_DEFINITIONS "vf2_model2a_read=vf2_model2a_read_impl;vf2_model2a_write=vf2_model2a_write_impl"
 )
 
 set_source_files_properties(
@@ -208,6 +214,14 @@ if(VF2_BUILD_TESTS)
     vf2_set_project_warnings(vf2_geometry_tests)
 
     add_test(NAME vf2_geometry COMMAND vf2_geometry_tests)
+
+    add_executable(vf2_model2a_observer_tests
+        tests/hardware/test_model2a_observer.c
+    )
+    target_link_libraries(vf2_model2a_observer_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_model2a_observer_tests)
+
+    add_test(NAME vf2_model2a_observer COMMAND vf2_model2a_observer_tests)
 
     add_executable(vf2_platform_tests
         tests/platform/test_platform.c
