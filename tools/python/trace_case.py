@@ -74,9 +74,13 @@ def main():
         values[name] = value
         command += mutation_args(dimension, value)
 
-    completed = subprocess.run(command, text=True, capture_output=True)
-    with open(args.output, "w", encoding="utf-8") as stream:
-        stream.write(completed.stdout)
+    with open(args.output, "w", encoding="utf-8") as output:
+        completed = subprocess.run(
+            command,
+            text=True,
+            stdout=output,
+            stderr=subprocess.PIPE,
+        )
 
     print(
         f"trace case wrote {args.output}: returncode={completed.returncode} inputs={values}",
