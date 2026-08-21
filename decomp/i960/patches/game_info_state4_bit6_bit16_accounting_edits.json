@@ -1,0 +1,9 @@
+{
+  "target": "src/recovered/hybrid.c",
+  "edits": [
+    {
+      "old": "    if (native_state4_bit6_bit14_fighter_path) {\n        ++native_instructions;\n    }",
+      "new": "    if (native_state4_bit6_bit14_fighter_path) {\n        ++native_instructions;\n    }\n    if (native_state4_bit6_bit16_fighter_path) {\n        ++native_instructions;\n    }"
+    }
+  ]
+}
