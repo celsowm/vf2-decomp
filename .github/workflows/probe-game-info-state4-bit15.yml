@@ -11,15 +11,28 @@ jobs:
       - uses: actions/checkout@v4
       - name: Apply semantic edits
         run: python3 decomp/i960/tools/apply_exact_edits.py decomp/i960/patches/game_info_state4_bit15_countdown0_semantic_edits.json
+      - name: Apply measured accounting
+        run: python3 decomp/i960/tools/apply_exact_edits.py decomp/i960/patches/game_info_state4_bit15_countdown0_accounting_edits.json
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DVF2_BUILD_TESTS=ON -DVF2_WARNINGS_AS_ERRORS=ON
       - name: Build
         run: cmake --build build --parallel
       - name: Test
         run: ctest --test-dir build --output-on-failure
-      - name: Upload semantic candidate
+      - name: Upload exact candidate
         uses: actions/upload-artifact@v4
         with:
-          name: vf2i960-state4-bit15-countdown0-semantic
+          name: vf2i960-state4-bit15-countdown0-exact
           path: build/vf2i960
           if-no-files-found: error
+      - name: Publish clean source candidate
+        run: |
+          cp src/recovered/hybrid.c /tmp/hybrid.c
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin master
+          git switch -C recover-game-info-state4-bit15 origin/master
+          cp /tmp/hybrid.c src/recovered/hybrid.c
+          git add src/recovered/hybrid.c
+          git commit -m "candidate: recover exact state4 bit15 countdown-zero path"
+          git push --force origin recover-game-info-state4-bit15
