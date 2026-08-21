@@ -10,7 +10,9 @@ def parse_int(value):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Validate a vf2 sweep scenario without executing it")
+    parser = argparse.ArgumentParser(
+        description="Validate a vf2 sweep scenario without executing it"
+    )
     parser.add_argument("scenario")
     args = parser.parse_args()
 
@@ -34,24 +36,37 @@ def main():
         if kind == "reg" and not dimension.get("register"):
             raise SystemExit(f"register dimension {name} requires register")
         if kind != "reg":
-            parse_int(dimension["address"])
+            address = parse_int(dimension["address"])
+            if address < 0 or address > 0xFFFFFFFF:
+                raise SystemExit(f"dimension {name} has invalid address")
         if ("values" in dimension) == ("bits" in dimension):
             raise SystemExit(f"dimension {name} requires exactly one of values or bits")
         if "values" in dimension:
             values = [parse_int(value) for value in dimension["values"]]
             if not values:
                 raise SystemExit(f"dimension {name} has no values")
+            if any(value < -0x80000000 or value > 0xFFFFFFFF for value in values):
+                raise SystemExit(f"dimension {name} contains a value outside 32 bits")
             total *= len(values)
         else:
             bits = [parse_int(bit) for bit in dimension["bits"]]
+            base = parse_int(dimension.get("base", 0))
             if len(set(bits)) != len(bits) or any(bit < 0 or bit > 31 for bit in bits):
                 raise SystemExit(f"dimension {name} has invalid/repeated bit positions")
+            if base < 0 or base > 0xFFFFFFFF:
+                raise SystemExit(f"dimension {name} has an invalid base mask")
+            if any(base & (1 << bit) for bit in bits):
+                raise SystemExit(f"dimension {name} base overlaps swept bits")
             total *= 1 << len(bits)
 
     if "until" in data:
-        parse_int(data["until"])
-    for address in data.get("read_u32", []):
-        parse_int(address)
+        until = parse_int(data["until"])
+        if until < 0 or until > 0xFFFFFFFF:
+            raise SystemExit("until is outside the 32-bit address space")
+    for address_value in data.get("read_u32", []):
+        address = parse_int(address_value)
+        if address < 0 or address > 0xFFFFFFFF:
+            raise SystemExit("read_u32 contains an invalid address")
 
     print(f"valid scenario: {len(data['dimensions'])} dimensions, {total} generated cases")
     return 0
