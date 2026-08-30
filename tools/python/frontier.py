@@ -113,12 +113,13 @@ class FunctionTable:
 
 
 class EdgeRecord:
-    __slots__ = ("witnesses", "snapshots", "halted_unsupported")
+    __slots__ = ("witnesses", "snapshots", "halted_unsupported", "is_call")
 
     def __init__(self) -> None:
         self.witnesses = 0
         self.snapshots: set = set()
         self.halted_unsupported = 0
+        self.is_call = False
 
 
 class Frontier:
@@ -148,10 +149,13 @@ class Frontier:
                 if kind == "step":
                     ip_before = parse_int(record["ip_before"])
                     ip_after = parse_int(record.get("ip_after", ip_before))
+                    is_call_step = bool(record.get("is_call", False))
                     record_edge = self.edges.setdefault(
                         (ip_before, ip_after), EdgeRecord()
                     )
                     record_edge.witnesses += 1
+                    if is_call_step:
+                        record_edge.is_call = True
                     self.address_executions[ip_before] += 1
                     stats["steps"] += 1
                     hits = pending_memory.pop(parse_int(record["step"]), None)
@@ -201,8 +205,11 @@ class Frontier:
                     target = parse_int(edge["to"])
                 except (KeyError, ValueError, TypeError):
                     continue
+                is_call_edge = bool(edge.get("is_call", False))
                 edge_record = self.edges.setdefault((source, target), EdgeRecord())
                 edge_record.witnesses += 1
+                if is_call_edge:
+                    edge_record.is_call = True
                 for name in snapshots:
                     edge_record.snapshots.add(name)
                 if halted:
@@ -260,6 +267,12 @@ class Frontier:
                 + (4 if not source_native and not target_native else 0)
                 + (6 if distance is not None and distance <= 64 else 0)
             )
+            is_call = record.is_call or (
+                target_fn[0] is not None and target == target_fn[0]
+            )
+            call_target_name = target_fn[1] if is_call else None
+            call_target_status = target_fn[2] if is_call else None
+
             ranked.append(
                 {
                     "from": hex32(source),
@@ -267,6 +280,9 @@ class Frontier:
                     "witnesses": record.witnesses,
                     "snapshots": sorted(record.snapshots),
                     "unsupported_finals": record.halted_unsupported,
+                    "is_call": is_call,
+                    "call_target_name": call_target_name,
+                    "call_target_status": call_target_status,
                     "from_function": source_fn[1],
                     "from_status": source_fn[2],
                     "to_function": target_fn[1],
@@ -414,15 +430,19 @@ def main() -> int:
                 f"{'dist':>6}  function(status)\n"
             )
             for item in ranked:
+                edge_type = "CALL" if item["is_call"] else "JUMP"
                 edge = f"{item['from']}->{item['to']}"
                 where = item["from_function"] or "?"
                 status = item["from_status"] or "unknown"
+                call_info = ""
+                if item["is_call"] and item["call_target_name"]:
+                    call_info = f" -> call {item['call_target_name']}({item['call_target_status'] or 'unknown'})"
                 output.write(
-                    f"{edge:<25} {item['witnesses']:>5} "
+                    f"{edge:<25} {edge_type:<4} {item['witnesses']:>5} "
                     f"{len(item['snapshots']):>5} "
                     f"{item['unsupported_finals']:>5} "
                     f"{item['boundary_distance'] if item['boundary_distance'] is not None else '-':>6}  "
-                    f"{where}({status})\n"
+                    f"{where}({status}){call_info}\n"
                 )
         unsupported = frontier.top_unsupported(10)
         if unsupported and not args.as_json:
