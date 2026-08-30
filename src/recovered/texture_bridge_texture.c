@@ -401,6 +401,40 @@ static vf2_status execute_texture_strip_upload(
     return finish_recovered_procedure(machine, cpu, instructions + UINT64_C(1));
 }
 
+static vf2_status execute_texture_upload_7fc(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu,
+    uint32_t return_address
+)
+{
+    return execute_texture_strip_upload(
+        machine,
+        cpu,
+        UINT32_C(0x000007fc),
+        return_address,
+        UINT32_C(7),
+        UINT32_C(0x2a0),
+        UINT32_C(1)
+    );
+}
+
+static vf2_status execute_texture_upload_7f0(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu,
+    uint32_t return_address
+)
+{
+    return execute_texture_strip_upload(
+        machine,
+        cpu,
+        UINT32_C(0x000007f0),
+        return_address,
+        UINT32_C(1),
+        UINT32_C(0x300),
+        UINT32_C(2)
+    );
+}
+
 static vf2_status execute_pending_texture_secondary_upload(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu
@@ -451,14 +485,10 @@ static vf2_status execute_pending_texture_secondary_upload(
     cpu->registers[VF2_I960_G0_REGISTER + 2u] = UINT32_C(6);
     instructions += UINT64_C(2);
     cpu->executed_instructions += instructions;
-    status = execute_texture_strip_upload(
+    status = execute_texture_upload_7fc(
         machine,
         cpu,
-        UINT32_C(0x000007fc),
-        UINT32_C(0x000007a0),
-        UINT32_C(7),
-        UINT32_C(0x2a0),
-        UINT32_C(1)
+        UINT32_C(0x000007a0)
     );
     if (status != VF2_OK) {
         return status;
@@ -471,14 +501,10 @@ static vf2_status execute_pending_texture_secondary_upload(
         UINT32_C(0x02101020) +
         cpu->registers[VF2_I960_G0_REGISTER + 5u];
     cpu->executed_instructions += UINT64_C(5);
-    status = execute_texture_strip_upload(
+    status = execute_texture_upload_7f0(
         machine,
         cpu,
-        UINT32_C(0x000007f0),
-        UINT32_C(0x000007b8),
-        UINT32_C(1),
-        UINT32_C(0x300),
-        UINT32_C(2)
+        UINT32_C(0x000007b8)
     );
     if (status != VF2_OK) {
         return status;
@@ -491,14 +517,10 @@ static vf2_status execute_pending_texture_secondary_upload(
         UINT32_C(0x021011a0) +
         cpu->registers[VF2_I960_G0_REGISTER + 5u];
     cpu->executed_instructions += UINT64_C(5);
-    status = execute_texture_strip_upload(
+    status = execute_texture_upload_7f0(
         machine,
         cpu,
-        UINT32_C(0x000007f0),
-        UINT32_C(0x000007d0),
-        UINT32_C(1),
-        UINT32_C(0x300),
-        UINT32_C(2)
+        UINT32_C(0x000007d0)
     );
     if (status != VF2_OK) {
         return status;
