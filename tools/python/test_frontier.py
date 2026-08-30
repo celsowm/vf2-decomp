@@ -128,6 +128,34 @@ def test_ranking_prefers_reproducible_boundary():
     print("ok: ranking prefers recovered-boundary exits")
 
 
+def test_call_target_attribution():
+    rows = [
+        {"address": "0x1000", "end": "0x1050", "name": "caller_fn", "status": "recovered"},
+        {"address": "0x2000", "end": "0x2100", "name": "callee_fn", "status": "candidate"},
+    ]
+    functions = FunctionTable(rows)
+    with tempfile.TemporaryDirectory() as tmp:
+        trace = Path(tmp) / "t.jsonl"
+        records = [
+            {"type": "step", "step": 1, "ip_before": 0x1020, "ip_after": 0x2000, "is_call": True},
+            {"type": "step", "step": 2, "ip_before": 0x1030, "ip_after": 0x1040},
+        ]
+        trace.write_text("\n".join(json.dumps(r) for r in records) + "\n")
+        frontier = Frontier()
+        frontier.ingest_trace(trace, "t.jsonl")
+        ranked = frontier.rank_edges(functions, limit=10, exclude_recovered=False)
+        call_edge = next(r for r in ranked if r["from"] == hex32(0x1020))
+        jump_edge = next(r for r in ranked if r["from"] == hex32(0x1030))
+
+        assert call_edge["is_call"] is True
+        assert call_edge["call_target_name"] == "callee_fn"
+        assert call_edge["call_target_status"] == "candidate"
+
+        assert jump_edge["is_call"] is False
+        assert jump_edge["call_target_name"] is None
+    print("ok: call target attribution")
+
+
 def test_classify_input():
     with tempfile.TemporaryDirectory() as tmp:
         trace = Path(tmp) / "t.jsonl"
@@ -147,6 +175,7 @@ def main() -> int:
     test_corpus_manifest_ingestion(True)
     test_corpus_manifest_ingestion(False)
     test_ranking_prefers_reproducible_boundary()
+    test_call_target_attribution()
     test_classify_input()
     print("all frontier tests passed")
     return 0
