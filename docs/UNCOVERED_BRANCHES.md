@@ -690,10 +690,17 @@ are measured. Compact forms now use `& ~0x16` or `& ~0x10016` and share
 * 30 bases without low `30` masks `cd0/mode6` split (`f0 +8/+3, f1 +4/+3, bi +7/+6`) (v0245)
 * quint low `7` masks `cd` split (`cd0 +8/+11, cd1 +3/+6`) (v0246) — high-family base 0x140 now `248/248` exact
 
+### v0248–v0253 bit-21 low variants for remaining bases
+* `0xC140` bit-21 low `16×7=112` masks `+2/+5` no bit11 (v0248)
+* `0x4140` bit-21 low `16×7=112` masks `+2/+4` no bit11 (v0249)
+* `0x14140` bit-21 low `16×7=112` masks `+2/+4` no bit11 (v0250)
+* `0x10140` bit-21 low `16×7=112` masks `+4/+8` plus bit11 (v0251)
+* `0x18140` bit-21 low `16×7=112` masks `+4/+9` plus bit11 (v0252)
+* `0x1C140` bit-21 low `16×7=112` masks `+2/+5` no bit11 (v0253) — plus `0x8140` bit-21 low `112` masks `−3/−5` (v0247) already closed. Total `672` masks.
+
 ### Current positive threshold scope
 
-`1223` masks are now `36/36 exact` for the positive `0x1645c` corridor
-(`120` high family + `991` base/low/high families + `112` base-`0x8140`
-bit-21 low variants (v0247)). All use the measured
+`1895` masks are now `36/36 exact` for the positive `0x1645c` corridor
+(`120` high family + `991` base/low/high families + `784` bit-21 low variants (`112×7` bases: `8140`/`C140`/`4140`/`14140`/`10140`/`18140`/`1C140`)). All use the measured
 stale-frame and compare result. Remaining positive compositions still
 fail closed.
