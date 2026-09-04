@@ -12363,12 +12363,6 @@ hybrid_game_info_18144_post_184ec:
             }
             if (status == VF2_OK) {
                 cpu->registers[VF2_I960_G0_REGISTER + 4u] = 0u;
-                status = hybrid_read_u16(
-                    machine, fighter + UINT32_C(0x00000624), &half
-                );
-            }
-            if (status == VF2_OK && half != 0u) {
-                status = VF2_ERROR_UNSUPPORTED;
             }
             if (status == VF2_OK) {
                 status = vf2_model2a_read_u32(
@@ -12377,41 +12371,80 @@ hybrid_game_info_18144_post_184ec:
             }
             if (status == VF2_OK &&
                 (state_flags & (UINT32_C(1) << 23u)) != 0u) {
-                status = VF2_ERROR_UNSUPPORTED;
-            }
-            if (status == VF2_OK &&
-                (fighter_flags & (UINT32_C(1) << 2u)) != 0u) {
-                status = VF2_ERROR_UNSUPPORTED;
-            }
-            if (status == VF2_OK) {
-                status = hybrid_read_u16(
-                    machine, fighter + UINT32_C(0x0000061c), &half
+                uint32_t zero32 = 0u;
+                vf2_status bit23_status = vf2_model2a_write_u32(
+                    machine, fighter + UINT32_C(0x00000030), zero32
                 );
-            }
-            if (status == VF2_OK && half != 0u) {
-                status = VF2_ERROR_UNSUPPORTED;
-            }
-            if (status == VF2_OK) {
-                status = vf2_model2a_read_u32(
-                    machine, fighter + UINT32_C(0x00000804), &control804
-                );
-            }
-            if (status == VF2_OK &&
-                (control804 & (UINT32_C(1) << 4u)) != 0u) {
-                status = VF2_ERROR_UNSUPPORTED;
-            }
-            if (status == VF2_OK) {
-                status = hybrid_read_u16(
-                    machine, fighter + UINT32_C(0x00000618), &half
-                );
-            }
-            if (status == VF2_OK && half != 0u) {
-                status = VF2_ERROR_UNSUPPORTED;
-            }
-            if (status == VF2_OK) {
-                /* 31 instructions precede RET on this measured path. */
-                cpu->ip = UINT32_C(0x00017c1c);
-                cpu->executed_instructions += UINT64_C(31);
+                if (bit23_status == VF2_OK) {
+                    bit23_status = vf2_model2a_write_u32(
+                        machine, fighter + UINT32_C(0x0000001c), zero32
+                    );
+                }
+                if (bit23_status == VF2_OK) {
+                    bit23_status = hybrid_read_u16(
+                        machine, fighter + UINT32_C(0x00000624), &half
+                    );
+                }
+                if (bit23_status != VF2_OK) {
+                    return bit23_status;
+                }
+                if (half == 0u) {
+                    cpu->ip = UINT32_C(0x00017c1c);
+                    cpu->executed_instructions += UINT64_C(28);
+                } else {
+                    uint32_t one32 = UINT32_C(1);
+                    bit23_status = vf2_model2a_write_u32(
+                        machine, fighter + UINT32_C(0x00000620), one32
+                    );
+                    if (bit23_status != VF2_OK) {
+                        return bit23_status;
+                    }
+                    cpu->ip = UINT32_C(0x00017c1c);
+                    cpu->executed_instructions += UINT64_C(30);
+                }
+            } else {
+                if (status == VF2_OK) {
+                    status = hybrid_read_u16(
+                        machine, fighter + UINT32_C(0x00000624), &half
+                    );
+                }
+                if (status == VF2_OK && half != 0u) {
+                    status = VF2_ERROR_UNSUPPORTED;
+                }
+                if (status == VF2_OK &&
+                    (fighter_flags & (UINT32_C(1) << 2u)) != 0u) {
+                    status = VF2_ERROR_UNSUPPORTED;
+                }
+                if (status == VF2_OK) {
+                    status = hybrid_read_u16(
+                        machine, fighter + UINT32_C(0x0000061c), &half
+                    );
+                }
+                if (status == VF2_OK && half != 0u) {
+                    status = VF2_ERROR_UNSUPPORTED;
+                }
+                if (status == VF2_OK) {
+                    status = vf2_model2a_read_u32(
+                        machine, fighter + UINT32_C(0x00000804), &control804
+                    );
+                }
+                if (status == VF2_OK &&
+                    (control804 & (UINT32_C(1) << 4u)) != 0u) {
+                    status = VF2_ERROR_UNSUPPORTED;
+                }
+                if (status == VF2_OK) {
+                    status = hybrid_read_u16(
+                        machine, fighter + UINT32_C(0x00000618), &half
+                    );
+                }
+                if (status == VF2_OK && half != 0u) {
+                    status = VF2_ERROR_UNSUPPORTED;
+                }
+                if (status == VF2_OK) {
+                    /* 31 instructions precede RET on this measured path. */
+                    cpu->ip = UINT32_C(0x00017c1c);
+                    cpu->executed_instructions += UINT64_C(31);
+                }
             }
         }
     }
@@ -16249,7 +16282,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
          * effect: every pre-fix pair differs only in that one condition
          * byte plus the instruction delta. Bare masks stay on their
          * existing v0176/exact admissions (has_low == 0 disjoint). */
-        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x1B7E3EA9)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xFF7E3EBF)) == UINT32_C(0x00008140)) {
+        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x1BFE3EA9)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xFFFE3EBF)) == UINT32_C(0x00008140)) {
             const bool f0 = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == 0u;
             const bool bl = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == combined_positive_bit6_flags;
             const uint64_t ex = bl ? UINT64_C(5) : UINT64_C(3);
@@ -16269,7 +16302,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
          * the existing C140 high-pair low block (v0232/v0239), just with
          * mandatory bit-21. Bare masks stay on their existing admissions
          * (has_low == 0 disjoint). */
-        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x1B7E3EA9)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xFF7E3EBF)) == UINT32_C(0x0000C140)) {
+        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x1BFE3EA9)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xFFFE3EBF)) == UINT32_C(0x0000C140)) {
             const bool f0 = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == 0u;
             const bool bl = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == combined_positive_bit6_flags;
             native_instructions += bl ? UINT64_C(5) : UINT64_C(2);
@@ -16278,7 +16311,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
         }
         /* ROM-backed v0249+v0254: base 0x4140 middle-high variants — 16 outer x8 low (incl. bare) x any middle
          * =112 masks, +2/+4, no bit11, same stale+compare. */
-        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x1B7E3EA9)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xFF7E3EBF)) == UINT32_C(0x00004140)) {
+        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x1BFE3EA9)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xFFFE3EBF)) == UINT32_C(0x00004140)) {
             const bool f0 = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == 0u;
             const bool bl = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == combined_positive_bit6_flags;
             native_instructions += bl ? UINT64_C(4) : UINT64_C(2);
@@ -16287,7 +16320,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
         }
         /* ROM-backed v0250+v0254: base 0x14140 middle-high variants — 16 outer x8 low (incl. bare) x any middle
          * =112 masks, +2/+4, no bit11. */
-        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x1B7E3EA9)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xFF7E3EBF)) == UINT32_C(0x00014140)) {
+        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x1BFE3EA9)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xFFFE3EBF)) == UINT32_C(0x00014140)) {
             const bool f0 = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == 0u;
             const bool bl = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == combined_positive_bit6_flags;
             native_instructions += bl ? UINT64_C(4) : UINT64_C(2);
@@ -16296,7 +16329,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
         }
         /* ROM-backed v0251+v0254: base 0x10140 middle-high variants — 16 outer x8 low (incl. bare) x any middle (plus bit11)
          * =112 masks, +4/+8 plus bit11. */
-        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x1B7E3EA9)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xFF7E3EBF)) == UINT32_C(0x00010140)) {
+        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x1BFE3EA9)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xFFFE3EBF)) == UINT32_C(0x00010140)) {
             const bool f0 = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == 0u;
             const bool bl = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == combined_positive_bit6_flags;
             native_instructions += bl ? UINT64_C(8) : UINT64_C(4);
@@ -16306,7 +16339,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
         }
         /* ROM-backed v0252+v0254: base 0x18140 middle-high variants — 16 outer x8 low (incl. bare) x any middle (plus bit11)
          * =112 masks, +4/+9 plus bit11. */
-        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x1B7E3EA9)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xFF7E3EBF)) == UINT32_C(0x00018140)) {
+        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x1BFE3EA9)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xFFFE3EBF)) == UINT32_C(0x00018140)) {
             const bool f0 = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == 0u;
             const bool bl = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == combined_positive_bit6_flags;
             native_instructions += bl ? UINT64_C(9) : UINT64_C(4);
@@ -16316,7 +16349,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
         }
         /* ROM-backed v0253+v0254: base 0x1C140 middle-high variants — 16 outer x8 low (incl. bare) x any middle
          * =112 masks, +2/+5, no bit11. */
-        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x1B7E3EA9)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xFF7E3EBF)) == UINT32_C(0x0001C140)) {
+        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x1BFE3EA9)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xFFFE3EBF)) == UINT32_C(0x0001C140)) {
             const bool f0 = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == 0u;
             const bool bl = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == combined_positive_bit6_flags;
             native_instructions += bl ? UINT64_C(5) : UINT64_C(2);
