@@ -698,6 +698,9 @@ are measured. Compact forms now use `& ~0x16` or `& ~0x10016` and share
 * `0x18140` bit-21 low `16×7=112` masks `+4/+9` plus bit11 (v0252)
 * `0x1C140` bit-21 low `16×7=112` masks `+2/+5` no bit11 (v0253) — plus `0x8140` bit-21 low `112` masks `−3/−5` (v0247) already closed. Total `672` masks.
 
+### v0254 middle-high low variants (generalizes v0247–v0253)
+* same 7 bases with `low !=0` and `outer 16` but `MIDDLE=0x1B7E3EA9` (20 bits: `0x200`+`0x400`+… excluding `outer`/`base`/`low`/`bit6`/`0x00800000`). Single-bit middle highs `9` bits and multi-bit combos (`0xC0000`, `0x1B7C0000`, `0x1B7E3EA9`) all share per-base `−3/−5`/`+2/+5`/`+4/+8`/`+4/+9` (v0254). Representative `40` combos `36/36 exact`; `outer`-only stays exact, `0x00800000` stays `NATIVE-FAIL` (excluded).
+
 ### Current positive threshold scope
 
 `1895` masks are now `36/36 exact` for the positive `0x1645c` corridor

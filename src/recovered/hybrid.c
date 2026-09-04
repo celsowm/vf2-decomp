@@ -16240,7 +16240,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
                 }
             }
         }
-        /* ROM-backed v0247: base 0x8140 bit-21 low variants — 16 highs x7 low
+        /* ROM-backed v0247+v0254: base 0x8140 middle-high low variants — 16 outer x7 low x any middle (0x1B7E3EA9) — generalizes 112 bit21-only
          * =112 masks share one measured rule (4032 ROM-backed cases, 36 per
          * mask: 3 distributions x countdown 0/1 x mode-bit-6 0/1 x thresholds
          * 0..2, all uniform): the native dispatcher overcounts by 3
@@ -16249,7 +16249,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
          * effect: every pre-fix pair differs only in that one condition
          * byte plus the instruction delta. Bare masks stay on their
          * existing v0176/exact admissions (has_low == 0 disjoint). */
-        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x00200000)) != 0 && (combined_positive_bit6_flags & UINT32_C(0x00000016)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xE4200016)) == UINT32_C(0x00008140)) {
+        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x1B7E3EA9)) != 0 && (combined_positive_bit6_flags & UINT32_C(0x00000016)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xFF7E3EBF)) == UINT32_C(0x00008140)) {
             const bool f0 = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == 0u;
             const bool bl = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == combined_positive_bit6_flags;
             const uint64_t ex = bl ? UINT64_C(5) : UINT64_C(3);
@@ -16260,7 +16260,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             hybrid_set_compare_result(cpu, countdown_was_nonzero ? VF2_I960_COMPARE_LESS : VF2_I960_COMPARE_EQUAL);
             hybrid_set_stale_low(cpu, f0, bl);
         }
-        /* ROM-backed v0248: base 0xC140 bit-21 low variants — 16 highs x7 low
+        /* ROM-backed v0248+v0254: base 0xC140 middle-high low variants — 16 outer x7 low x any middle (0x1B7E3EA9)
          * =112 masks share one measured rule (4032 ROM-backed cases, 36 per
          * mask: 3 distributions x countdown 0/1 x mode-bit-6 0/1 x thresholds
          * 0..2, all uniform): the native dispatcher undercounts by 2
@@ -16269,34 +16269,34 @@ static vf2_status hybrid_execute_game_info_bit31_native(
          * the existing C140 high-pair low block (v0232/v0239), just with
          * mandatory bit-21. Bare masks stay on their existing admissions
          * (has_low == 0 disjoint). */
-        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x00200000)) != 0 && (combined_positive_bit6_flags & UINT32_C(0x00000016)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xE4200016)) == UINT32_C(0x0000C140)) {
+        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x1B7E3EA9)) != 0 && (combined_positive_bit6_flags & UINT32_C(0x00000016)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xFF7E3EBF)) == UINT32_C(0x0000C140)) {
             const bool f0 = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == 0u;
             const bool bl = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == combined_positive_bit6_flags;
             native_instructions += bl ? UINT64_C(5) : UINT64_C(2);
             hybrid_set_compare_result(cpu, countdown_was_nonzero ? VF2_I960_COMPARE_LESS : VF2_I960_COMPARE_EQUAL);
             hybrid_set_stale_low(cpu, f0, bl);
         }
-        /* ROM-backed v0249: base 0x4140 bit-21 low variants — 16 highs x7 low
+        /* ROM-backed v0249+v0254: base 0x4140 middle-high low variants — 16 outer x7 low x any middle
          * =112 masks, +2/+4, no bit11, same stale+compare. */
-        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x00200000)) != 0 && (combined_positive_bit6_flags & UINT32_C(0x00000016)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xE4200016)) == UINT32_C(0x00004140)) {
+        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x1B7E3EA9)) != 0 && (combined_positive_bit6_flags & UINT32_C(0x00000016)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xFF7E3EBF)) == UINT32_C(0x00004140)) {
             const bool f0 = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == 0u;
             const bool bl = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == combined_positive_bit6_flags;
             native_instructions += bl ? UINT64_C(4) : UINT64_C(2);
             hybrid_set_compare_result(cpu, countdown_was_nonzero ? VF2_I960_COMPARE_LESS : VF2_I960_COMPARE_EQUAL);
             hybrid_set_stale_low(cpu, f0, bl);
         }
-        /* ROM-backed v0250: base 0x14140 bit-21 low variants — 16 highs x7 low
+        /* ROM-backed v0250+v0254: base 0x14140 middle-high low variants — 16 outer x7 low x any middle
          * =112 masks, +2/+4, no bit11. */
-        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x00200000)) != 0 && (combined_positive_bit6_flags & UINT32_C(0x00000016)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xE4200016)) == UINT32_C(0x00014140)) {
+        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x1B7E3EA9)) != 0 && (combined_positive_bit6_flags & UINT32_C(0x00000016)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xFF7E3EBF)) == UINT32_C(0x00014140)) {
             const bool f0 = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == 0u;
             const bool bl = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == combined_positive_bit6_flags;
             native_instructions += bl ? UINT64_C(4) : UINT64_C(2);
             hybrid_set_compare_result(cpu, countdown_was_nonzero ? VF2_I960_COMPARE_LESS : VF2_I960_COMPARE_EQUAL);
             hybrid_set_stale_low(cpu, f0, bl);
         }
-        /* ROM-backed v0251: base 0x10140 bit-21 low variants — 16 highs x7 low
+        /* ROM-backed v0251+v0254: base 0x10140 middle-high low variants — 16 outer x7 low x any middle (plus bit11)
          * =112 masks, +4/+8 plus bit11. */
-        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x00200000)) != 0 && (combined_positive_bit6_flags & UINT32_C(0x00000016)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xE4200016)) == UINT32_C(0x00010140)) {
+        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x1B7E3EA9)) != 0 && (combined_positive_bit6_flags & UINT32_C(0x00000016)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xFF7E3EBF)) == UINT32_C(0x00010140)) {
             const bool f0 = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == 0u;
             const bool bl = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == combined_positive_bit6_flags;
             native_instructions += bl ? UINT64_C(8) : UINT64_C(4);
@@ -16304,9 +16304,9 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             hybrid_set_stale_low(cpu, f0, bl);
             { uint32_t tmp=0u; if (fighter0_state_flags==combined_positive_bit6_flags&&vf2_model2a_read_u32(machine,fighter0+0x1a4u,&tmp)==VF2_OK){tmp|=1u<<11;(void)vf2_model2a_write_u32(machine,fighter0+0x1a4u,tmp);} if (fighter1_state_flags==combined_positive_bit6_flags&&vf2_model2a_read_u32(machine,fighter1+0x1a4u,&tmp)==VF2_OK){tmp|=1u<<11;(void)vf2_model2a_write_u32(machine,fighter1+0x1a4u,tmp);} }
         }
-        /* ROM-backed v0252: base 0x18140 bit-21 low variants — 16 highs x7 low
+        /* ROM-backed v0252+v0254: base 0x18140 middle-high low variants — 16 outer x7 low x any middle (plus bit11)
          * =112 masks, +4/+9 plus bit11. */
-        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x00200000)) != 0 && (combined_positive_bit6_flags & UINT32_C(0x00000016)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xE4200016)) == UINT32_C(0x00018140)) {
+        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x1B7E3EA9)) != 0 && (combined_positive_bit6_flags & UINT32_C(0x00000016)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xFF7E3EBF)) == UINT32_C(0x00018140)) {
             const bool f0 = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == 0u;
             const bool bl = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == combined_positive_bit6_flags;
             native_instructions += bl ? UINT64_C(9) : UINT64_C(4);
@@ -16314,9 +16314,9 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             hybrid_set_stale_low(cpu, f0, bl);
             { uint32_t tmp=0u; if (fighter0_state_flags==combined_positive_bit6_flags&&vf2_model2a_read_u32(machine,fighter0+0x1a4u,&tmp)==VF2_OK){tmp|=1u<<11;(void)vf2_model2a_write_u32(machine,fighter0+0x1a4u,tmp);} if (fighter1_state_flags==combined_positive_bit6_flags&&vf2_model2a_read_u32(machine,fighter1+0x1a4u,&tmp)==VF2_OK){tmp|=1u<<11;(void)vf2_model2a_write_u32(machine,fighter1+0x1a4u,tmp);} }
         }
-        /* ROM-backed v0253: base 0x1C140 bit-21 low variants — 16 highs x7 low
+        /* ROM-backed v0253+v0254: base 0x1C140 middle-high low variants — 16 outer x7 low x any middle
          * =112 masks, +2/+5, no bit11. */
-        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x00200000)) != 0 && (combined_positive_bit6_flags & UINT32_C(0x00000016)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xE4200016)) == UINT32_C(0x0001C140)) {
+        if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & UINT32_C(0x1B7E3EA9)) != 0 && (combined_positive_bit6_flags & UINT32_C(0x00000016)) != 0 && (combined_positive_bit6_flags & ~UINT32_C(0xFF7E3EBF)) == UINT32_C(0x0001C140)) {
             const bool f0 = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == 0u;
             const bool bl = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == combined_positive_bit6_flags;
             native_instructions += bl ? UINT64_C(5) : UINT64_C(2);

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- game_info positive: generalize 7×112 bit21 low masks to full middle-high set `0x1B7E3EA9` (20 bits, ~1M combos per base) with same per-base `−3/−5`/`+2/+5`/`+4/+8`/`+4/+9` accounting — representative 40 single/multi-bit combos `36/36 exact` (v0254, `decomp/i960/notes/game_info_18644_positive_middle_high_v0254.md`);
 - game_info positive: admit 672 base-bit21 low variants (`0x8140` `−3/−5` plus `0xC140` `+2/+5`, `0x4140`/`0x14140` `+2/+4`, `0x10140` `+4/+8`+bit11, `0x18140` `+4/+9`+bit11, `0x1C140` `+2/+5`) — six `16×7` low cubes with mandatory high `0x00200000`, total `1223→1895` positive masks (v0247–v0253, `decomp/i960/notes/game_info_18644_positive_bit21_low_v0248.md`);
 - compacted the positive state-8 `0x8140`/`0x10140`/`0x18140` low-bit cubes from
   twelve explicit `pair ==` blocks to three `& ~0x16 == base` predicates
