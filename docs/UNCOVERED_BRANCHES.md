@@ -707,6 +707,9 @@ are measured. Compact forms now use `& ~0x16` or `& ~0x10016` and share
 ### v0256 bit-23 bridge (extends v0255)
 * recovers `0x17b68` helper `bbs 23,r15,0x17fe8` path: `fighter+0x30=0, fighter+0x1c=0, if 0x624!=0 then fighter+0x620=1`, `28/30` instructions vs `31` for `0x624==0/!=0`, converges to common `0x1853c` tail. `MIDDLE` widens to `0x1BFE3EA9` (`0x1B7E3EA9|0x00800000`, 21 bits) and mask `~0xFFFE3EBF`. Same 7 bases now admit any middle including bit23: `0x00808142` etc `36/36 exact` (representative `12` masks, `7` bases x `16x8` outer/low). Bare `0x00808140` etc exact. Counters adjust via same per-base `−3/−5` etc.
 
+### v0257 bare pure-bit21 fix (extends v0256)
+* bare `0x00208140` etc (`7` bases, outer `16`, middle `0x00200000` alone, low `0`) were `0/36` DIFF `-3` (middle-high over-corrected); they need `0` excess, not `−3/−5`. Guard bare with `((low & 0x16)!=0 || (middle & 0x1BDE3EA9)!=0)` so pure-bit21 bare falls through to native `0` and now `36/36 exact` (`112` masks `16×7`). Low `0x00208142` etc already `36/36`; bare `0x00808140` etc stay `36/36`.
+
 ### Current positive threshold scope
 
 `1895` masks are now `36/36 exact` for the positive `0x1645c` corridor
