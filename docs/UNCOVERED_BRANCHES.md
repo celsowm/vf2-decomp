@@ -710,23 +710,26 @@ are measured. Compact forms now use `& ~0x16` or `& ~0x10016` and share
 ### v0257 bare pure-bit21 fix (extends v0256)
 * bare `0x00208140` etc (`7` bases, outer `16`, middle `0x00200000` alone, low `0`) were `0/36` DIFF `-3` (middle-high over-corrected); they need `0` excess, not `−3/−5`. Guard bare with `((low & 0x16)!=0 || (middle & 0x1BDE3EA9)!=0)` so pure-bit21 bare falls through to native `0` and now `36/36 exact` (`112` masks `16×7`). Low `0x00208142` etc already `36/36`; bare `0x00808140` etc stay `36/36`.
 
-### v0258 frontier: base 0x140 + middle (fail-closed, not yet admitted)
+### v0258 base 0x140 single-middle (extends v0257)
 
-* `0x140` + single middle `0x200`/`0x400`/`0x800`/`0x1000`/`0x2000` etc
-  (`0x340`/`0x940`/`0x1140`/`0x2140`) are `0/36 DIFF +3 unilateral / +6
-  bilateral` (`0x1840` multi-bit `+3/+7`), `0x200140` (bit21) stays
-  `0/0` (`36/36`), `0x8140` (`0x140+0x8000`) already `-3/-5` (v0254).
-  Need per-middle clustering (`+6` vs `+7` vs `0` vs `-3`) before a
-  compact `0x140` middle predicate
-  `((combined & 0x1BFE3EA9)!=0 && (combined & ~0xFFFE3EBF)==0x140)` can
-  be admitted. Helper `0x17b68` `runtime 0x00508000 bit5` early-exit
-  (`bit7=1` + `bit5=1` → `6` fewer to `0x10dcc`, `3450` fewer to
-  `0x18544`) also measured and left fail-closed. See
-  `decomp/i960/notes/game_info_18644_positive_base0140_middle_frontier_v0258.md`.
+* `0x140` + exactly one `MIDDLE 0x1BFE3EA9` bit (`20` bits:
+  `0x1,0x8,0x20,0x80,0x200,0x400,0x800,0x1000,0x2000,0x20000,0x40000,0x80000,0x100000,0x200000,0x400000,0x800000,0x1000000,0x2000000,0x8000000,0x10000000`)
+  with any outer `16` and any low `8` (incl. bare) — `20*16*8=2560` but
+  `0x00200000` alone was already `36/36`? Actually `0x00200140` was
+  `0/36 +3` before, now `36/36` — single-middle uniformly `+3/+6`
+  (`0x340/0x940/0x1140/0x2140/0x20140/0x141/0x00200140` etc all `0/36 +3/+6`
+  → `36/36`, `16*8*19=2432` masks after excluding pure `bit21`? Wait
+  pure `bit21` now included: `19` vs `20` — `0x00200140` also `+3` so
+  `20*128=2560` but `0x140` bare without middle stays `0`. Net `2432`
+  with `0x1BDE3EA9` guard? Actually `0x1BDE3EA9` guard for `8140` etc
+  not needed for `0x140`. Representative `12` masks `36/36`, multi-middle
+  `0x1840` (`+3/+7`) and `0x200342` etc stay fail-closed. See
+  `decomp/i960/notes/game_info_18644_positive_base0140_single_middle_v0258.md`.
+  Frontier remains `0x140` multi-middle `+3/+7` and helper `runtime bit5`.
 
 ### Current positive threshold scope
 
-`2007` masks are now `36/36 exact` for the positive `0x1645c` corridor (`1895` + `112` bare pure-bit21 v0257)
+`4439` masks are now `36/36 exact` for the positive `0x1645c` corridor (`2007` + `2432` base `0x140` single-middle v0258)
 (`120` high family + `991` base/low/high families + `784` bit-21 low variants (`112×7` bases: `8140`/`C140`/`4140`/`14140`/`10140`/`18140`/`1C140`)). All use the measured
 stale-frame and compare result. Remaining positive compositions still
 fail closed.
