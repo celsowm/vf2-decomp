@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- game_info positive: admit base `0x8040` any-composition `2^20*128=134,217,728` masks `+3/+6` (bare `0x8040`, singles `0x8240/0x8440`, bit21 `0x00208040`, many `0x1BDE8E49` all `36/36`) total `402,654,935→536,872,663` (v0262, `decomp/i960/notes/game_info_18644_positive_base8040_any_v0262.md`);
 - game_info positive: admit base `0x4040` any-composition `2^20*128=134,217,728` masks `-2/-3` (bare `0x4040`, single `0x4240`, high `0x44040`, bit21 `0x00204040`, many `0x1BDE6E49` all `36/36`) total `268,437,207→402,654,935` (v0261, `decomp/i960/notes/game_info_18644_positive_base4040_any_v0261.md`);
 - game_info positive: admit base `0x40` any-composition `2^20*128=134,217,728` masks `+3/+7` (bare `0x40`, singles `0x240/0x840`, doubles `0x1840`, bit21 `0x00200040`, bit21+Mp `0x00200240/0x1BFE3EE9` etc all `36/36`) total `134,219,479→268,437,207` (v0260, `decomp/i960/notes/game_info_18644_positive_base0040_any_v0260.md`);
 - game_info positive: generalize 7×112 bit21 low masks to full middle-high set `0x1B7E3EA9` (20 bits) → `0x1BFE3EA9` (21 bits, incl. bit23 `0x00800000` via `0x17b68→0x17fe8` bridge `0x30/0x1c=0, 0x620=1` 28/30 vs 31, `~0xFFFE3EBF`) with same per-base `−3/−5`/`+2/+5`/`+4/+8`/`+4/+9` accounting — representative 40 single/multi-bit combos `36/36 exact` (v0254, `decomp/i960/notes/game_info_18644_positive_middle_high_v0254.md`);

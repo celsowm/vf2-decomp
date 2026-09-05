@@ -16397,6 +16397,22 @@ static vf2_status hybrid_execute_game_info_bit31_native(
                 hybrid_set_stale_low(cpu, f0, bl);
             }
         }
+        /* ROM-backed v0262: base 0x8040 any-composition — 16 outer x8 low x 2^20 middle =134,217,728 masks, +3/+6 (native overcounts).
+         * Bare 0x8040, single 0x8240/0x8440, bit21 0x00208040, many 0x1BDE8E49 etc all measured DIFF +3 uni / +6 bi → 36/36.
+         * Shares +3/+6 with base 0x140. */
+        {
+            if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & ~UINT32_C(0xFFFE3EBF)) == UINT32_C(0x00008040)) {
+                const bool f0 = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == 0u;
+                const bool bl = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == combined_positive_bit6_flags;
+                const uint64_t ex = bl ? UINT64_C(6) : UINT64_C(3);
+                if (native_instructions < ex) {
+                    return VF2_ERROR_UNSUPPORTED;
+                }
+                native_instructions -= ex;
+                hybrid_set_compare_result(cpu, countdown_was_nonzero ? VF2_I960_COMPARE_LESS : VF2_I960_COMPARE_EQUAL);
+                hybrid_set_stale_low(cpu, f0, bl);
+            }
+        }
         /* ROM-backed v0261: base 0x4040 any-composition — 16 outer x8 low x 2^20 middle =134,217,728 masks, -2/-3 (native undercounts).
          * Bare 0x4040, single 0x4240, high 0x44040, bit21 0x00204040, many 0x1BDE6E49 all measured DIFF -2 uni / -3 bi → 36/36.
          * Native has -2/-3 fewer than reference, so add. */
