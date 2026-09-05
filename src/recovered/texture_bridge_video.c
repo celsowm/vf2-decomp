@@ -111,6 +111,14 @@ vf2_status execute_video_register_compose(
 
     if (callback == 0u) {
         callback = UINT32_C(0x00001284);
+    } else if (callback == UINT32_C(0x00001284) &&
+               (inverted & UINT32_C(0x00000008)) != 0u &&
+               (newly_enabled & UINT32_C(0x00f7f700)) == 0u) {
+        /* SERVICE is bit 3 of r8 at 0x1218. When it is held, the ROM takes
+         * that bbs directly to 0x1228 and skips the second bbs at 0x121c.
+         * Relative to the installed-callback/no-change path this removes
+         * exactly one helper instruction. */
+        instructions += UINT64_C(1);
     } else if ((newly_enabled & UINT32_C(0x00f7f700)) == 0u) {
         /* The helper at 0x00001200 keeps an installed callback when no
          * relevant video bits changed. Its non-zero callback path executes
