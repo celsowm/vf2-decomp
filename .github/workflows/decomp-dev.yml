@@ -1,0 +1,33 @@
+name: decomp.dev progress
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    name: Publish VF2 2.1 progress report
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate report inputs
+        run: python3 tools/decomp_dev_report.py --check
+
+      - name: Generate objdiff Report v2
+        run: python3 tools/decomp_dev_report.py --output build/decomp-dev/report.json
+
+      - name: Validate JSON
+        run: python3 -m json.tool build/decomp-dev/report.json >/dev/null
+
+      - name: Upload decomp.dev report
+        uses: actions/upload-artifact@v4
+        with:
+          name: vf2_21_report
+          path: build/decomp-dev/report.json
+          if-no-files-found: error
+          retention-days: 90
