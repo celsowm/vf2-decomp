@@ -21,6 +21,11 @@
 #define VF2_TASK_OSAGE_ENTRY UINT32_C(0x000640f4)
 #define VF2_TASK_OBJECT_ENTRY UINT32_C(0x0006ca64)
 #define VF2_TASK_OBJECT_TABLE UINT32_C(0x0006ca78)
+#define VF2_TASK_OBJECT_HANDLER0_ENTRY UINT32_C(0x0006cae0)
+#define VF2_TASK_OBJECT_HANDLER0_NEXT UINT32_C(0x0006caf0)
+#define VF2_TASK_OBJECT_HANDLER1_ENTRY UINT32_C(0x0006caf4)
+#define VF2_TASK_OBJECT_HANDLER1_NEXT UINT32_C(0x0006cb04)
+#define VF2_TASK_OBJECT_HANDLER2_ENTRY UINT32_C(0x0006cb08)
 #define VF2_TASK_GAME_DISP_ENTRY UINT32_C(0x0002b1bc)
 #define VF2_PLAYER_TASK_WRAPPER_ENTRY UINT32_C(0x000142f4)
 #define VF2_SCHEDULER_RETURN UINT32_C(0x00010dcc)
@@ -18327,6 +18332,29 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
         }
         break;
     }
+
+    case VF2_TASK_OBJECT_HANDLER0_ENTRY:
+    case VF2_TASK_OBJECT_HANDLER1_ENTRY: {
+        const uint32_t next_entry =
+            cpu->ip == VF2_TASK_OBJECT_HANDLER0_ENTRY
+                ? VF2_TASK_OBJECT_HANDLER0_NEXT
+                : VF2_TASK_OBJECT_HANDLER1_NEXT;
+        local_report.kind = VF2_HYBRID_TASK_OBJECT;
+        status = vf2_model2a_write_u32(
+            machine, registry_address + UINT32_C(0x0c), next_entry
+        );
+        if (status == VF2_OK) {
+            body_instructions = UINT64_C(2);
+        }
+        break;
+    }
+
+    case VF2_TASK_OBJECT_HANDLER0_NEXT:
+    case VF2_TASK_OBJECT_HANDLER1_NEXT:
+    case VF2_TASK_OBJECT_HANDLER2_ENTRY:
+        local_report.kind = VF2_HYBRID_TASK_OBJECT;
+        body_instructions = UINT64_C(0);
+        break;
 
     case VF2_TASK_GAME_DISP_ENTRY:
         local_report.kind = VF2_HYBRID_TASK_GAME_DISP;

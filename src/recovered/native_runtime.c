@@ -157,6 +157,11 @@
 #define VF2_NATIVE_KILL_OSAGE_TASK_ENTRY UINT32_C(0x000657dc)
 #define VF2_NATIVE_OSAGE_TASK_ENTRY UINT32_C(0x000640f4)
 #define VF2_NATIVE_OBJECT_TASK_ENTRY UINT32_C(0x0006ca64)
+#define VF2_NATIVE_OBJECT_HANDLER0_ENTRY UINT32_C(0x0006cae0)
+#define VF2_NATIVE_OBJECT_HANDLER0_NEXT UINT32_C(0x0006caf0)
+#define VF2_NATIVE_OBJECT_HANDLER1_ENTRY UINT32_C(0x0006caf4)
+#define VF2_NATIVE_OBJECT_HANDLER1_NEXT UINT32_C(0x0006cb04)
+#define VF2_NATIVE_OBJECT_HANDLER2_ENTRY UINT32_C(0x0006cb08)
 #define VF2_NATIVE_GAME_DISP_TASK_ENTRY UINT32_C(0x0002b1bc)
 #define VF2_NATIVE_TASK_COUNT_ADDRESS UINT32_C(0x00011d94)
 #define VF2_NATIVE_RUNTIME_FLAGS UINT32_C(0x00508000)
@@ -6910,9 +6915,14 @@ vf2_status vf2_native_runtime_step_impl(vf2_model2a *machine, vf2_i960_cpu *cpu,
                cpu->ip == VF2_NATIVE_USER_TASK_ENTRY ||
                cpu->ip == VF2_NATIVE_SOUND_TASK_ENTRY ||
                cpu->ip == VF2_NATIVE_KILL_OSAGE_TASK_ENTRY ||
-               cpu->ip == VF2_NATIVE_OSAGE_TASK_ENTRY ||
-               cpu->ip == VF2_NATIVE_OBJECT_TASK_ENTRY ||
-               cpu->ip == VF2_NATIVE_GAME_DISP_TASK_ENTRY) {
+                cpu->ip == VF2_NATIVE_OSAGE_TASK_ENTRY ||
+                cpu->ip == VF2_NATIVE_OBJECT_TASK_ENTRY ||
+                cpu->ip == VF2_NATIVE_OBJECT_HANDLER0_ENTRY ||
+                cpu->ip == VF2_NATIVE_OBJECT_HANDLER0_NEXT ||
+                cpu->ip == VF2_NATIVE_OBJECT_HANDLER1_ENTRY ||
+                cpu->ip == VF2_NATIVE_OBJECT_HANDLER1_NEXT ||
+                cpu->ip == VF2_NATIVE_OBJECT_HANDLER2_ENTRY ||
+                cpu->ip == VF2_NATIVE_GAME_DISP_TASK_ENTRY) {
         const int recurring_kill = cpu->ip == VF2_NATIVE_KILL_OSAGE_TASK_ENTRY &&
                                    cpu->registers[29] == UINT32_C(0x00515e80);
         uint32_t kill_order_flags = 0u;

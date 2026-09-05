@@ -431,6 +431,12 @@ if(VF2_BUILD_TESTS)
         COMMAND vf2_fighter_candidate_tests
     )
 
+    add_executable(vf2_object_handler_tests
+        tests/recovered/test_object_handlers.c
+    )
+    target_link_libraries(vf2_object_handler_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_object_handler_tests)
+
     if(EXISTS "${VF2_ROM_DIR}")
         add_test(
             NAME vf2_phase17_zero_differential
@@ -439,6 +445,10 @@ if(VF2_BUILD_TESTS)
         add_test(
             NAME vf2_post_boot_input_profiles_differential
             COMMAND vf2_post_boot_input_profile_tests "${VF2_ROM_DIR}"
+        )
+        add_test(
+            NAME vf2_object_handlers_differential
+            COMMAND vf2_object_handler_tests "${VF2_ROM_DIR}"
         )
         add_test(
             NAME vf2_boot_differential

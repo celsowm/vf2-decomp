@@ -771,3 +771,21 @@ are measured. Compact forms now use `& ~0x16` or `& ~0x10016` and share
 (`120` high family + `991` base/low/high families + `784` bit-21 low variants (`112×7` bases: `8140`/`C140`/`4140`/`14140`/`10140`/`18140`/`1C140`)). All use the measured
 stale-frame and compare result. Remaining positive compositions still
 fail closed.
+
+### v0268 fa_object handlers
+
+The `fa_object0/1/2` dispatcher at `0x6ca64` was already native; its five
+continuations are now recovered: init stubs `0x6cae0`/`0x6caf4` rewrite
+`registry+0x0c` to the measured ret continuations `0x6caf0`/`0x6cb04`,
+and `0x6caf0`/`0x6cb04`/`0x6cb08` are bare rets. Each of the six cases
+(dispatcher + five continuations) is `exact` for full CPU state,
+condition state, frame depth, all counters and full work-RAM `memcmp`
+plus report kind/exit/counts (`tests/recovered/test_object_handlers.c`,
+`vf2_object_handlers_differential`). The per-frame re-arm in
+`execute_selector2_body` keeps these dormant in the accepted corridor;
+they were proven from synthetic state. Still open: the `0x6ca84`
+indirect `callx` service loop (count `3` at `0x6cad0`, control blocks
+`[0x500878, 0x50087c, 0x500880]`, called from `0x1dd70`) and the
+`fa_coli` recurring body at `0x221e8` with callees `0x22298` (31
+blocks), `0x22404` (24 blocks), `0x225cc` (174 blocks) and `0x23524`
+(6 blocks). See `decomp/i960/notes/object_handlers_v0268.md`.

@@ -91,3 +91,10 @@ address,end,name,status,source,notes
 0x00002c38,0x00002de4,color_table_rebuild,recovered-rom-anchor,rom-disassembly,Clears and rebuilds 0x00546008 channel triples then commits ready=1 busy=0
 0x00011704,0x00011744,video_table_expand_128,recovered-rom-anchor,rom-disassembly,Copies 128 source bytes per outer iteration to 32-bit-spaced destination entries
 0x00065838,0x000658a4,kill_osage_evaluate_record,recovered-rom-anchor,rom-disassembly,Shared fa_kill_osage record evaluator; continuation/flag gate age threshold bit-3 mark and global kill counter exactly match the semantic helper in src/recovered/tasks.c
+0x0006ca64,0x0006ca78,task_object,recovered-observed-branch,dynamic-differential,fa_object0/1/2 dispatcher: instance-indexed table at 0x6ca78 rewrites registry+0x0c
+0x0006cae0,0x0006caf0,task_object_init0,recovered-observed-branch,dynamic-differential,fa_object0 init stub: rewrites registry+0x0c to 0x6caf0 then returns
+0x0006caf0,0x0006caf4,task_object_init0_ret,recovered-observed-branch,dynamic-differential,Bare ret continuation for fa_object0
+0x0006caf4,0x0006cb04,task_object_init1,recovered-observed-branch,dynamic-differential,fa_object1 init stub: rewrites registry+0x0c to 0x6cb04 then returns
+0x0006cb04,0x0006cb08,task_object_init1_ret,recovered-observed-branch,dynamic-differential,Bare ret continuation for fa_object1
+0x0006cb08,0x0006cb0c,task_object_init2,recovered-observed-branch,dynamic-differential,fa_object2 handler: bare ret
+0x0006ca84,0x0006cad0,object_service_loop,candidate,direct-call,Iterates 3 control blocks from table at 0x6cad4 via callx checking bit 31; called once from 0x1dd70; unrecovered

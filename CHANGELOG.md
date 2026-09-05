@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- object tasks: recover the five `fa_object` handler continuations (`0x6cae0→0x6caf0`, `0x6caf4→0x6cb04`, bare rets `0x6caf0/0x6cb04/0x6cb08`) in `hybrid.c` plus the `native_runtime.c` router entries; all six dispatcher/handler cases are exact for full CPU/condition/frame/counter state and full work-RAM `memcmp` via synthetic-state differential (`tests/recovered/test_object_handlers.c`, `vf2_object_handlers_differential`); the `0x6ca84` service loop and `fa_coli` recurring `0x221e8` family remain open (v0268, `decomp/i960/notes/object_handlers_v0268.md`);
 - game_info positive: admit base `0x10040` any-composition `2^20*128=134,217,728` masks `-4/-7` plus work-RAM `0x510b24/0x512b24|=0x800` (bare `0x10040`, singles `0x10240/0x11240`, bit21 `0x00210040`, many `0x30040/0x50040` all `36/36`) total `671,090,391→805,308,119` (v0264, `decomp/i960/notes/game_info_18644_positive_base10040_any_v0264.md`);
 - game_info positive: close low `0x40` family — admit `0x14040` `-2/-3`, `0x18040` `-4/-8` + work-RAM `0x510b24/0x512b24`, `0x1C040` `-2/-4` each `134,217,728` masks, total `805,308,119→1,207,961,303` (v0265-v0267, `decomp/i960/notes/game_info_18644_positive_low_family_closure_v0265_v0267.md`);
 - game_info positive: admit base `0xC040` any-composition `2^20*128=134,217,728` masks `-2/-4` (bare `0xC040`, single `0xC240`, bit21 `0x0020C040`, many `0x1BDECE49` all `36/36`) total `536,872,663→671,090,391` (v0263, `decomp/i960/notes/game_info_18644_positive_baseC040_any_v0263.md`);
