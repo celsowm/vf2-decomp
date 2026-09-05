@@ -1,8 +1,8 @@
 diff --git a/src/recovered/texture_bridge_video.c b/src/recovered/texture_bridge_video.c
-index 83521fb..0000000 100644
+index 2abd290..942ef74 100644
 --- a/src/recovered/texture_bridge_video.c
 +++ b/src/recovered/texture_bridge_video.c
-@@ -111,6 +111,15 @@ vf2_status execute_video_register_compose(
+@@ -111,6 +111,14 @@ vf2_status execute_video_register_compose(
  
      if (callback == 0u) {
          callback = UINT32_C(0x00001284);
