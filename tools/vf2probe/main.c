@@ -42,6 +42,8 @@ typedef struct vf2_probe_options {
     uint32_t raise_irq_mask;
     uint32_t enter_interrupt_vector;
     uint32_t enter_interrupt_level;
+    int has_input;
+    uint32_t input;
     vf2_probe_mutation mutations[VF2_PROBE_MAX_MUTATIONS];
     size_t mutation_count;
     uint32_t reads_u32[VF2_PROBE_MAX_READS];
@@ -69,8 +71,9 @@ static void print_usage(FILE *stream, const char *program)
         "  --set-u32 <addr=value>     mutate little-endian 32-bit value\n"
         "  --read-u32 <address>       include final 32-bit memory value\n"
         "  --output-snapshot <file>   save the resulting CPU/machine state\n"
-  "  --raise-irq <bits>         raise interrupt lines once after restore\n"
-  "  --enter-interrupt <v=l>    enter interrupt vector v at level l once\n"
+        "  --raise-irq <bits>         raise interrupt lines once after restore\n"
+        "  --enter-interrupt <v=l>    enter interrupt vector v at level l once\n"
+        "  --input <mask>              hold host input mask during execution\n"
         "  --trace                    emit one JSON record per instruction\n"
         "  --memory-trace             emit successful bus accesses plus steps\n",
         VF2_VERSION_STRING,
@@ -221,6 +224,11 @@ static int parse_options(int argc, char **argv, vf2_probe_options *options)
                 return 0;
             }
             options->has_raise_irq = 1;
+        } else if (strcmp(argument, "--input") == 0 && index + 1 < argc) {
+            if (!parse_u32(argv[++index], &options->input)) {
+                return 0;
+            }
+            options->has_input = 1;
         } else if (strcmp(argument, "--enter-interrupt") == 0 && index + 1 < argc) {
             char left[64];
             uint32_t vector = 0u;
@@ -511,6 +519,9 @@ int main(int argc, char **argv)
     }
     for (index = 0u; status == VF2_OK && index < options.mutation_count; ++index) {
         status = apply_mutation(&machine, &cpu, &options.mutations[index]);
+    }
+    if (status == VF2_OK && options.has_input) {
+        status = vf2_model2a_set_input(&machine, options.input);
     }
     if (status == VF2_OK && options.has_raise_irq) {
         status = vf2_model2a_raise_interrupt(&machine, options.raise_irq_mask);

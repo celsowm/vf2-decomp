@@ -5366,14 +5366,14 @@ static int command_native_dispatch_ex(
             status = VF2_ERROR_UNSUPPORTED;
         }
         if (status == VF2_OK &&
-            (bridge_steps != UINT64_C(1270824) ||
-             bridge_recovered_instructions != UINT64_C(1270824) ||
+            (bridge_steps != UINT64_C(1270820) ||
+             bridge_recovered_instructions != UINT64_C(1270820) ||
              bridge_interpreted_instructions != UINT64_C(0) ||
-             bridge_validated_blocks != 192u ||
-             bridge_memory_checkpoints != 190u ||
+             bridge_validated_blocks != 190u ||
+             bridge_memory_checkpoints != 189u ||
              bridge_recovered_calls != UINT64_C(342) ||
              bridge_recovered_returns != UINT64_C(340) ||
-             bridge_block_counts[VF2_HYBRID_BRIDGE_RETURN_STUB] != 2u ||
+             bridge_block_counts[VF2_HYBRID_BRIDGE_RETURN_STUB] != 1u ||
              bridge_block_counts[VF2_HYBRID_BRIDGE_INLINE_TEXT_THUNK] != 0u ||
              bridge_block_counts[VF2_HYBRID_BRIDGE_TEXTURE_STATUS_LINE] != 4u ||
              bridge_block_counts[VF2_HYBRID_BRIDGE_GAME_STATE_CLASSIFY] != 0u ||
@@ -5385,7 +5385,7 @@ static int command_native_dispatch_ex(
              bridge_block_counts[VF2_HYBRID_BRIDGE_TILE_CONTROLLER_UPDATE] != 0u ||
              bridge_block_counts[VF2_HYBRID_BRIDGE_FRAME_TIMER_PREFIX] != 0u ||
              bridge_block_counts[VF2_HYBRID_BRIDGE_INTERRUPT_SAVE_PREFIX] != 1u ||
-             bridge_block_counts[VF2_HYBRID_BRIDGE_INTERRUPT_BUFFER_GATE] != 1u ||
+             bridge_block_counts[VF2_HYBRID_BRIDGE_INTERRUPT_BUFFER_GATE] != 0u ||
              bridge_block_counts[VF2_HYBRID_BRIDGE_INTERRUPT_INPUT_RING] != 1u ||
              bridge_block_counts[VF2_HYBRID_BRIDGE_INTERRUPT_RESTORE_PREFIX] != 1u ||
              bridge_block_counts[VF2_HYBRID_BRIDGE_FRAME_TIMER_SUFFIX] != 1u ||
@@ -5724,17 +5724,17 @@ static int command_native_dispatch_ex(
                 ? 83u
                 : (native_fourth_dispatch ? 45u : 1u));
         const size_t expected_blocks = native_sixth_dispatch
-            ? 874u
+            ? 866u
             : (native_fifth_dispatch
-                ? 836u
-                : (native_fourth_dispatch ? 82u : 44u));
+                ? 830u
+                : (native_fourth_dispatch ? 78u : 42u));
         const uint64_t expected_instructions = native_sixth_dispatch
-            ? UINT64_C(7404917)
+            ? UINT64_C(7404901)
             : (native_fifth_dispatch
-                ? UINT64_C(7402744)
+                ? UINT64_C(7402732)
                 : (native_fourth_dispatch
-                    ? UINT64_C(58871)
-                    : UINT64_C(55240)));
+                    ? UINT64_C(58863)
+                    : UINT64_C(55236)));
         const char *dispatch_label = native_sixth_dispatch
             ? "sixth"
             : (native_fifth_dispatch

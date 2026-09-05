@@ -331,9 +331,9 @@ static vf2_status model2a_read_input_port(
     if (relative == UINT32_C(0x10)) {
         value = model2a_host_input_port(machine, 1u);
     } else if (relative == UINT32_C(0x12)) {
-        value = (uint8_t)~model2a_host_input_port(machine, 2u);
+        value = model2a_host_input_port(machine, 2u);
     } else if (relative == UINT32_C(0x14)) {
-        value = (uint8_t)~model2a_host_input_port(machine, 3u);
+        value = model2a_host_input_port(machine, 3u);
     } else if (port >= 1u && port <= 3u) {
         if ((machine->io_control[0x10u] & (UINT8_C(1) << port)) != 0u) {
             value = model2a_host_input_port(machine, port);

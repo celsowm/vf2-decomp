@@ -21,6 +21,8 @@ typedef struct vf2_cycles_options {
     size_t minimum_blocks;
     size_t maximum_blocks;
     int boundary_probe;
+    int has_input;
+    uint32_t input;
 } vf2_cycles_options;
 
 static void print_usage(const char *program)
@@ -32,7 +34,7 @@ static void print_usage(const char *program)
         "[--state <file>] [--failure-prefix <path>] "
         "[--output-snapshot <file>] [--boundary-probe] "
         "[--cycles <count>] [--min-blocks <count>] "
-        "[--max-blocks <count>]\n",
+        "[--max-blocks <count>] [--input <mask>]\n",
         VF2_VERSION_STRING,
         program
     );
@@ -55,6 +57,16 @@ static int parse_size(const char *text, size_t *value)
     }
 
     *value = (size_t)parsed;
+    return 1;
+}
+
+static int parse_u32(const char *text, uint32_t *value)
+{
+    size_t parsed = 0u;
+    if (!parse_size(text, &parsed) || parsed > UINT32_MAX) {
+        return 0;
+    }
+    *value = (uint32_t)parsed;
     return 1;
 }
 
@@ -109,6 +121,12 @@ static int parse_options(
             if (!parse_size(argv[++index], &options->maximum_blocks)) {
                 return 0;
             }
+        } else if (strcmp(argument, "--input") == 0 &&
+                   index + 1 < argc) {
+            if (!parse_u32(argv[++index], &options->input)) {
+                return 0;
+            }
+            options->has_input = 1;
         } else {
             return 0;
         }
@@ -658,6 +676,12 @@ int main(int argc, char **argv)
             &native_cpu,
             &native_machine
         );
+    }
+    if (status == VF2_OK && options.has_input) {
+        status = vf2_model2a_set_input(&reference_machine, options.input);
+        if (status == VF2_OK) {
+            status = vf2_model2a_set_input(&native_machine, options.input);
+        }
     }
     if (status == VF2_OK) {
         if (options.boundary_probe) {

@@ -250,6 +250,7 @@ execute_post_boot_init_prefix(vf2_model2a *machine, vf2_i960_cpu *cpu,
     const uint64_t start_instructions = cpu->executed_instructions;
     const uint64_t start_calls = cpu->procedure_calls;
     const uint64_t start_returns = cpu->procedure_returns;
+    const uint32_t entry_frame_depth = cpu->local_frame_depth;
     uint8_t byte_value = UINT8_C(0x80);
     size_t index = 0u;
     vf2_status status = VF2_OK;
@@ -362,12 +363,19 @@ execute_post_boot_init_prefix(vf2_model2a *machine, vf2_i960_cpu *cpu,
                                             UINT32_C(0x000097e0));
     }
 
-    /* The last compare-decrement in the delay loop leaves the arithmetic
-     * condition equal. call 0x6dd4c then opens the next local frame. */
+    /* Cold boot reaches this prefix at depth zero and leaves the final
+     * delay compare EQUAL. The measured phase-11 warm-reset path reaches it
+     * with three live frames and leaves that same boundary LESS. */
     if (status == VF2_OK) {
-        cpu->arithmetic_control =
-            (cpu->arithmetic_control & ~UINT32_C(7)) | UINT32_C(2);
-        cpu->compare_result = VF2_I960_COMPARE_EQUAL;
+        if (entry_frame_depth == 0u) {
+            cpu->arithmetic_control =
+                (cpu->arithmetic_control & ~UINT32_C(7)) | UINT32_C(2);
+            cpu->compare_result = VF2_I960_COMPARE_EQUAL;
+        } else {
+            cpu->arithmetic_control =
+                (cpu->arithmetic_control & ~UINT32_C(7)) | UINT32_C(4);
+            cpu->compare_result = VF2_I960_COMPARE_LESS;
+        }
         status = vf2_i960_cpu_enter_procedure(cpu, VF2_NATIVE_POST_BOOT_INIT_EXIT,
                                               UINT32_C(0x000097e4));
     }
@@ -1803,6 +1811,19 @@ execute_post_boot_texture_wait_poll(vf2_model2a *machine, vf2_i960_cpu *cpu,
         ++cpu->executed_instructions;
 
         ++cpu->executed_instructions;
+        if ((int32_t)cpu->registers[3] < (int32_t)cpu->registers[4]) {
+            cpu->arithmetic_control =
+                (cpu->arithmetic_control & ~UINT32_C(7)) | UINT32_C(4);
+            cpu->compare_result = VF2_I960_COMPARE_LESS;
+        } else if ((int32_t)cpu->registers[3] > (int32_t)cpu->registers[4]) {
+            cpu->arithmetic_control =
+                (cpu->arithmetic_control & ~UINT32_C(7)) | UINT32_C(1);
+            cpu->compare_result = VF2_I960_COMPARE_GREATER;
+        } else {
+            cpu->arithmetic_control =
+                (cpu->arithmetic_control & ~UINT32_C(7)) | UINT32_C(2);
+            cpu->compare_result = VF2_I960_COMPARE_EQUAL;
+        }
         if (cpu->registers[3] != cpu->registers[4]) {
             const uint16_t result = UINT16_C(1);
             cpu->registers[15] = 1u;
@@ -1851,6 +1872,12 @@ execute_post_boot_texture_wait_poll(vf2_model2a *machine, vf2_i960_cpu *cpu,
         }
 
         cpu->ip = VF2_NATIVE_POST_BOOT_TEXTURE_WAIT_POLL;
+        /* cmpobne frame-byte and wait-flag both fall through on equality
+         * before the ROM spins at 0x4afe4. Preserve that EQUAL condition
+         * into a subsequently injected interrupt frame. */
+        cpu->arithmetic_control =
+            (cpu->arithmetic_control & ~UINT32_C(7)) | UINT32_C(2);
+        cpu->compare_result = VF2_I960_COMPARE_EQUAL;
         {
             vf2_hybrid_frame_wait_report wait_report;
             memset(&wait_report, 0, sizeof(wait_report));

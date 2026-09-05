@@ -1887,9 +1887,9 @@ static void test_frame_interrupt_support_batch(void)
     CHECK(cpu.procedure_returns == UINT64_C(2));
     CHECK(cpu.maximum_local_frame_depth == 2u);
     CHECK(vf2_model2a_read_u32(&machine, UINT32_C(0x00500700), &value) == VF2_OK);
-    CHECK(value == UINT32_C(0x0ff7f700));
+    CHECK(value == UINT32_C(0x0f000000));
     CHECK(vf2_model2a_read_u32(&machine, UINT32_C(0x00500704), &value) == VF2_OK);
-    CHECK(value == UINT32_C(0x0ff7f700));
+    CHECK(value == UINT32_C(0x0f000000));
     CHECK(vf2_model2a_read_u32(&machine, UINT32_C(0x00500708), &value) == VF2_OK);
     CHECK(value == 0u);
     CHECK(vf2_model2a_read_u32(&machine, UINT32_C(0x00500710), &value) == VF2_OK);

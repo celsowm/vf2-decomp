@@ -1473,8 +1473,8 @@ vf2_status execute_timer_wait_update(
     if (status != VF2_OK) {
         return status;
     }
-    /* The observed caller-facing post-state leaves CC equal on return. */
-    set_equal_condition(cpu);
+    /* The compare against the timer delta is the final condition-producing
+     * instruction on this path; preserve it across the ordinary return. */
     status = finish_recovered_procedure(machine, cpu, instructions);
     if (status != VF2_OK) {
         return status;

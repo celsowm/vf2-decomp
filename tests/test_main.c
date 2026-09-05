@@ -237,11 +237,11 @@ static void test_model2a_host_input(void)
     EXPECT_TRUE(vf2_model2a_read(
         &machine, VF2_IO_CONTROL_BASE + 0x12u, &value, sizeof(value)
     ) == VF2_OK);
-    EXPECT_TRUE(value == UINT8_C(0x27));
+    EXPECT_TRUE(value == UINT8_C(0xd8));
     EXPECT_TRUE(vf2_model2a_read(
         &machine, VF2_IO_CONTROL_BASE + 0x14u, &value, sizeof(value)
     ) == VF2_OK);
-    EXPECT_TRUE(value == UINT8_C(0x00));
+    EXPECT_TRUE(value == UINT8_C(0xff));
     EXPECT_TRUE(vf2_model2a_read(
         &machine, VF2_IO_CONTROL_BASE + 6u, &value, sizeof(value)
     ) == VF2_OK);
@@ -259,7 +259,7 @@ static void test_model2a_host_input(void)
     EXPECT_TRUE(vf2_model2a_read(
         &machine, VF2_IO_CONTROL_BASE + 0x14u, &value, sizeof(value)
     ) == VF2_OK);
-    EXPECT_TRUE(value == UINT8_C(0xa7));
+    EXPECT_TRUE(value == UINT8_C(0x58));
 
     value = UINT8_C(0xfb);
     EXPECT_TRUE(vf2_model2a_write(

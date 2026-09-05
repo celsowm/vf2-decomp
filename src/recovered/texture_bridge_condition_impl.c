@@ -100,7 +100,7 @@ static vf2_status set_main_final_cluster_condition(
 )
 {
     uint8_t selector = 0u;
-    const vf2_status status = vf2_model2a_read(
+    vf2_status status = vf2_model2a_read(
         machine, VF2_FRAME_SELECTOR, &selector, sizeof(selector)
     );
 
@@ -110,7 +110,33 @@ static vf2_status set_main_final_cluster_condition(
     if (selector == UINT8_C(1)) {
         set_compare_result(cpu, VF2_I960_COMPARE_LESS);
     } else if (selector == UINT8_C(17)) {
-        set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
+        uint8_t phase_index = 0u;
+        uint8_t phase_state = 0u;
+        uint32_t countdown = 0u;
+
+        status = vf2_model2a_read(
+            machine, UINT32_C(0x005000a4), &phase_index, sizeof(phase_index)
+        );
+        if (status == VF2_OK) {
+            status = vf2_model2a_read(
+                machine, UINT32_C(0x005000a5), &phase_state, sizeof(phase_state)
+            );
+        }
+        if (status == VF2_OK) {
+            status = vf2_model2a_read_u32(
+                machine, UINT32_C(0x00500024), &countdown
+            );
+        }
+        if (status != VF2_OK) {
+            return status;
+        }
+        if (phase_index == UINT8_C(0x8b) &&
+            phase_state == UINT8_C(0xff) &&
+            (int32_t)countdown > 0) {
+            set_compare_result(cpu, VF2_I960_COMPARE_LESS);
+        } else {
+            set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
+        }
     }
     return VF2_OK;
 }

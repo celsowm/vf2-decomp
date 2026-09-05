@@ -8145,6 +8145,7 @@ static vf2_status execute_frame_phase17_bit7_index11(
     uint8_t system_flags = 0u;
     int first_visit = 0;
     int terminal_reset = 0;
+    int positive_countdown = 0;
     uint64_t expected_instructions = 0u;
     uint64_t expected_calls = 0u;
     uint64_t expected_returns = 0u;
@@ -8416,6 +8417,7 @@ static vf2_status execute_frame_phase17_bit7_index11(
             );
         }
         cpu->registers[3] = countdown;
+        positive_countdown = (int32_t)countdown > 0;
         if (status != VF2_OK) {
             return status;
         }
@@ -8583,7 +8585,6 @@ static vf2_status execute_frame_phase17_bit7_index11(
 
     if (!terminal_reset) {
         /* ret from 0x5ef60/58fe0, wrapper restore, then ret from a6c0. */
-        set_equal_condition(cpu);
         status = vf2_i960_cpu_return_procedure(cpu, machine);
         if (status != VF2_OK || cpu->ip != UINT32_C(0x00010b78)) {
             return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
@@ -8604,6 +8605,14 @@ static vf2_status execute_frame_phase17_bit7_index11(
         }
         if (status != VF2_OK || cpu->ip != frame_dispatch_return) {
             return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
+        }
+        /* The local-frame unwinds above restore condition state. Apply the
+         * condition produced by the final observed compare only after the
+         * outermost return, matching the state visible at frame_dispatch_return. */
+        if (positive_countdown) {
+            set_signed_condition(cpu, INT32_C(0), INT32_C(1));
+        } else {
+            set_equal_condition(cpu);
         }
     }
 
@@ -19089,6 +19098,8 @@ vf2_status execute_interrupt_save_prefix(
          * player/video calls and continues at 0x0c80, where the matching
          * runtime-flag test selects the common interrupt restore. */
         cpu->registers[15] = runtime_flags;
+        cpu->arithmetic_control &= ~UINT32_C(7);
+        cpu->compare_result = VF2_I960_COMPARE_NONE;
         finish_recovered_control_block(cpu, UINT32_C(0x00000c80), UINT64_C(13));
         report->kind = VF2_HYBRID_BRIDGE_INTERRUPT_SAVE_PREFIX;
         report->entry_address = VF2_INTERRUPT_SAVE_PREFIX_ENTRY;
@@ -19501,7 +19512,7 @@ vf2_status execute_main_final_cluster(
     if(status!=VF2_OK)return status;
     if(cpu->ip!=UINT32_C(0x000000b0) &&
        cpu->ip!=UINT32_C(0x0000a010))return VF2_ERROR_UNSUPPORTED;
-    if (start_depth == 0u) {
+    if (start_depth == 0u && cpu->ip == UINT32_C(0x0000a010)) {
         cpu->registers[13] = (start_depth << 8u) | cpu->local_frame_depth;
     }
     cpu->executed_instructions+=UINT64_C(7);
@@ -19606,6 +19617,92 @@ vf2_status execute_main_frame_timer_call(
     return VF2_OK;
 }
 
+static vf2_status execute_interrupt_fighter_compare_prefix(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    vf2_status status = VF2_OK;
+    uint8_t value = 0u;
+
+    if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x00000c0c)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    status = vf2_model2a_read_u32(
+        machine, UINT32_C(0x00500804), &cpu->registers[3]
+    );
+    if (status == VF2_OK) {
+        status = vf2_model2a_read(
+            machine, cpu->registers[3] + UINT32_C(0x069c),
+            &value, sizeof(value)
+        );
+    }
+    if (status == VF2_OK) {
+        cpu->registers[13] = (uint32_t)value;
+        status = vf2_model2a_read(
+            machine, cpu->registers[3] + UINT32_C(0x069d),
+            &value, sizeof(value)
+        );
+    }
+    if (status != VF2_OK) {
+        return status;
+    }
+    cpu->registers[14] = (uint32_t)value;
+    cpu->executed_instructions += UINT64_C(3);
+
+    ++cpu->executed_instructions;
+    if (cpu->registers[13] != cpu->registers[14]) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    cpu->compare_result = VF2_I960_COMPARE_EQUAL;
+    cpu->arithmetic_control =
+        (cpu->arithmetic_control & ~UINT32_C(7)) | UINT32_C(2);
+
+    status = vf2_model2a_read_u32(
+        machine, UINT32_C(0x00500808), &cpu->registers[3]
+    );
+    if (status == VF2_OK) {
+        status = vf2_model2a_read(
+            machine, cpu->registers[3] + UINT32_C(0x069c),
+            &value, sizeof(value)
+        );
+    }
+    if (status == VF2_OK) {
+        cpu->registers[13] = (uint32_t)value;
+        status = vf2_model2a_read(
+            machine, cpu->registers[3] + UINT32_C(0x069d),
+            &value, sizeof(value)
+        );
+    }
+    if (status != VF2_OK) {
+        return status;
+    }
+    cpu->registers[14] = (uint32_t)value;
+    cpu->executed_instructions += UINT64_C(4);
+    if (cpu->registers[13] != cpu->registers[14]) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    cpu->compare_result = VF2_I960_COMPARE_EQUAL;
+    cpu->arithmetic_control =
+        (cpu->arithmetic_control & ~UINT32_C(7)) | UINT32_C(2);
+
+    status = vf2_model2a_read_u32(
+        machine, UINT32_C(0x00508000), &cpu->registers[15]
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+    cpu->executed_instructions += UINT64_C(2);
+    if ((cpu->registers[15] & (UINT32_C(1) << 13u)) != 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    cpu->compare_result = VF2_I960_COMPARE_NONE;
+    cpu->arithmetic_control &= ~UINT32_C(7);
+    cpu->ip = UINT32_C(0x00000c78);
+    return VF2_OK;
+}
+
 vf2_status execute_interrupt_initial_cluster(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu,
@@ -19663,7 +19760,16 @@ vf2_status execute_interrupt_initial_cluster(
     }
     if (cpu->ip == UINT32_C(0x00000c0c) ||
         cpu->ip == UINT32_C(0x0004bb14)) {
-        cpu->executed_instructions += UINT64_C(3);
+        if (cpu->ip == UINT32_C(0x0004bb14)) {
+            status = vf2_i960_cpu_return_procedure(cpu, machine);
+            if (status != VF2_OK || cpu->ip != UINT32_C(0x00000c0c)) {
+                return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
+            }
+        }
+        status = execute_interrupt_fighter_compare_prefix(machine, cpu);
+        if (status != VF2_OK) {
+            return status;
+        }
         report->kind = VF2_HYBRID_BRIDGE_INTERRUPT_INITIAL_CLUSTER;
         report->entry_address = VF2_INTERRUPT_INITIAL_CLUSTER_ENTRY;
         report->exit_address = cpu->ip;
@@ -19687,8 +19793,19 @@ vf2_status execute_interrupt_initial_cluster(
     if (status != VF2_OK || cpu->ip != UINT32_C(0x0004bab4)) {
         return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
     }
-    cpu->executed_instructions += UINT64_C(4);
 
+    /* 0x4bab4 returns from the texture-upload dispatcher to the interrupt
+     * caller.  The following three instructions load the active fighter
+     * record and the two bytes compared by the next branch at 0x0c1c. */
+    status = vf2_i960_cpu_return_procedure(cpu, machine);
+    if (status != VF2_OK || cpu->ip != UINT32_C(0x00000c0c)) {
+        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
+    }
+    cpu->executed_instructions += UINT64_C(1);
+    status = execute_interrupt_fighter_compare_prefix(machine, cpu);
+    if (status != VF2_OK) {
+        return status;
+    }
     report->kind = VF2_HYBRID_BRIDGE_INTERRUPT_INITIAL_CLUSTER;
     report->entry_address = VF2_INTERRUPT_INITIAL_CLUSTER_ENTRY;
     report->exit_address = cpu->ip;
