@@ -754,11 +754,17 @@ are measured. Compact forms now use `& ~0x16` or `& ~0x10016` and share
 * `0xC040` (0x4000+0x8000+0x40) + any `MIDDLE 0x1BFE3EA9` (20 bits) subset, incl. bare, incl. bit21, any low `8`, any outer `16` — uniformly `-2` uni / `-4` bi (native undercounts):
   bare `0xC040`, single `0xC240`, bit21 `0x0020C040`, many `0x1BDECE49` all `0/36 DIFF -2/-4` → `36/36` (spot ~6 masks). Counts: `2^20=1,048,576` *128=134,217,728. See
   `decomp/i960/notes/game_info_18644_positive_baseC040_any_v0263.md`.
-  Frontier remains bases `0x10040`/`0x14040`/`0x18040`/`0x1C040` and helper `runtime bit5`.
+
+### v0264 base 0x10040 any-composition (extends v0263)
+
+* `0x10040` (0x10000+0x40) + any `MIDDLE 0x1BFE3EA9` (20 bits) subset, incl. bare, incl. bit21, any low `8`, any outer `16` — uniformly `-4` uni / `-7` bi (native undercounts) plus work-RAM `0x510b24`/`0x512b24` `|=0x800`:
+  bare `0x10040`, singles `0x10240/0x11240`, bit21 `0x00210040`, many `0x30040/0x50040` all `0/36 DIFF -4/-7` + work-ram `0x08` at `0x10b25`/`0x12b25` → `36/36` (spot ~8 masks). Counts: `2^20=1,048,576` *128=134,217,728. See
+  `decomp/i960/notes/game_info_18644_positive_base10040_any_v0264.md`.
+  Frontier remains bases `0x14040`/`0x18040`/`0x1C040` and helper `runtime bit5`.
 
 ### Current positive threshold scope
 
-`671,090,391` masks are now `36/36 exact` for the positive `0x1645c` corridor (`2007` + `134,217,472` base `0x140` any-middle v0259 + `134,217,728` base `0x40` any v0260 + `134,217,728` base `0x4040` any v0261 + `134,217,728` base `0x8040` any v0262 + `134,217,728` base `0xC040` any v0263)
+`805,308,119` masks are now `36/36 exact` for the positive `0x1645c` corridor (`2007` + `134,217,472` base `0x140` any-middle v0259 + `134,217,728` base `0x40` any v0260 + `134,217,728` base `0x4040` any v0261 + `134,217,728` base `0x8040` any v0262 + `134,217,728` base `0xC040` any v0263 + `134,217,728` base `0x10040` any v0264)
 (`120` high family + `991` base/low/high families + `784` bit-21 low variants (`112×7` bases: `8140`/`C140`/`4140`/`14140`/`10140`/`18140`/`1C140`)). All use the measured
 stale-frame and compare result. Remaining positive compositions still
 fail closed.

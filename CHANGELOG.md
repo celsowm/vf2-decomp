@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- game_info positive: admit base `0x10040` any-composition `2^20*128=134,217,728` masks `-4/-7` plus work-RAM `0x510b24/0x512b24|=0x800` (bare `0x10040`, singles `0x10240/0x11240`, bit21 `0x00210040`, many `0x30040/0x50040` all `36/36`) total `671,090,391→805,308,119` (v0264, `decomp/i960/notes/game_info_18644_positive_base10040_any_v0264.md`);
 - game_info positive: admit base `0xC040` any-composition `2^20*128=134,217,728` masks `-2/-4` (bare `0xC040`, single `0xC240`, bit21 `0x0020C040`, many `0x1BDECE49` all `36/36`) total `536,872,663→671,090,391` (v0263, `decomp/i960/notes/game_info_18644_positive_baseC040_any_v0263.md`);
 - game_info positive: admit base `0x8040` any-composition `2^20*128=134,217,728` masks `+3/+6` (bare `0x8040`, singles `0x8240/0x8440`, bit21 `0x00208040`, many `0x1BDE8E49` all `36/36`) total `402,654,935→536,872,663` (v0262, `decomp/i960/notes/game_info_18644_positive_base8040_any_v0262.md`);
 - game_info positive: admit base `0x4040` any-composition `2^20*128=134,217,728` masks `-2/-3` (bare `0x4040`, single `0x4240`, high `0x44040`, bit21 `0x00204040`, many `0x1BDE6E49` all `36/36`) total `268,437,207→402,654,935` (v0261, `decomp/i960/notes/game_info_18644_positive_base4040_any_v0261.md`);
