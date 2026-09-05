@@ -1,0 +1,152 @@
+2_model2a_read(
+         &machine, VF2_IO_CONTROL_BASE + 0x14u, &value, sizeof(value)
+     ) == VF2_OK);
+-    EXPECT_TRUE(value == UINT8_C(0xa7));
++    EXPECT_TRUE(value == UINT8_C(0x58));
+ 
+     value = UINT8_C(0xfb);
+     EXPECT_TRUE(vf2_model2a_write(
+diff --git a/tools/vf2cycles/main.c b/tools/vf2cycles/main.c
+index ae05ed9..a2e62b6 100644
+--- a/tools/vf2cycles/main.c
++++ b/tools/vf2cycles/main.c
+@@ -21,6 +21,8 @@ typedef struct vf2_cycles_options {
+     size_t minimum_blocks;
+     size_t maximum_blocks;
+     int boundary_probe;
++    int has_input;
++    uint32_t input;
+ } vf2_cycles_options;
+ 
+ static void print_usage(const char *program)
+@@ -32,7 +34,7 @@ static void print_usage(const char *program)
+         "[--state <file>] [--failure-prefix <path>] "
+         "[--output-snapshot <file>] [--boundary-probe] "
+         "[--cycles <count>] [--min-blocks <count>] "
+-        "[--max-blocks <count>]\n",
++        "[--max-blocks <count>] [--input <mask>]\n",
+         VF2_VERSION_STRING,
+         program
+     );
+@@ -58,6 +60,16 @@ static int parse_size(const char *text, size_t *value)
+     return 1;
+ }
+ 
++static int parse_u32(const char *text, uint32_t *value)
++{
++    size_t parsed = 0u;
++    if (!parse_size(text, &parsed) || parsed > UINT32_MAX) {
++        return 0;
++    }
++    *value = (uint32_t)parsed;
++    return 1;
++}
++
+ static int parse_options(
+     int argc,
+     char **argv,
+@@ -109,6 +121,12 @@ static int parse_options(
+             if (!parse_size(argv[++index], &options->maximum_blocks)) {
+                 return 0;
+             }
++        } else if (strcmp(argument, "--input") == 0 &&
++                   index + 1 < argc) {
++            if (!parse_u32(argv[++index], &options->input)) {
++                return 0;
++            }
++            options->has_input = 1;
+         } else {
+             return 0;
+         }
+@@ -659,6 +677,12 @@ int main(int argc, char **argv)
+             &native_machine
+         );
+     }
++    if (status == VF2_OK && options.has_input) {
++        status = vf2_model2a_set_input(&reference_machine, options.input);
++        if (status == VF2_OK) {
++            status = vf2_model2a_set_input(&native_machine, options.input);
++        }
++    }
+     if (status == VF2_OK) {
+         if (options.boundary_probe) {
+             printf("Differential mode:                  cycle-boundary probe\n");
+diff --git a/tools/vf2i960/commands.c b/tools/vf2i960/commands.c
+index b840ebb..c443475 100644
+--- a/tools/vf2i960/commands.c
++++ b/tools/vf2i960/commands.c
+@@ -5366,14 +5366,14 @@ static int command_native_dispatch_ex(
+             status = VF2_ERROR_UNSUPPORTED;
+         }
+         if (status == VF2_OK &&
+-            (bridge_steps != UINT64_C(1270824) ||
+-             bridge_recovered_instructions != UINT64_C(1270824) ||
++            (bridge_steps != UINT64_C(1270820) ||
++             bridge_recovered_instructions != UINT64_C(1270820) ||
+              bridge_interpreted_instructions != UINT64_C(0) ||
+-             bridge_validated_blocks != 192u ||
+-             bridge_memory_checkpoints != 190u ||
++             bridge_validated_blocks != 190u ||
++             bridge_memory_checkpoints != 189u ||
+              bridge_recovered_calls != UINT64_C(342) ||
+              bridge_recovered_returns != UINT64_C(340) ||
+-             bridge_block_counts[VF2_HYBRID_BRIDGE_RETURN_STUB] != 2u ||
++             bridge_block_counts[VF2_HYBRID_BRIDGE_RETURN_STUB] != 1u ||
+              bridge_block_counts[VF2_HYBRID_BRIDGE_INLINE_TEXT_THUNK] != 0u ||
+              bridge_block_counts[VF2_HYBRID_BRIDGE_TEXTURE_STATUS_LINE] != 4u ||
+              bridge_block_counts[VF2_HYBRID_BRIDGE_GAME_STATE_CLASSIFY] != 0u ||
+@@ -5385,7 +5385,7 @@ static int command_native_dispatch_ex(
+              bridge_block_counts[VF2_HYBRID_BRIDGE_TILE_CONTROLLER_UPDATE] != 0u ||
+              bridge_block_counts[VF2_HYBRID_BRIDGE_FRAME_TIMER_PREFIX] != 0u ||
+              bridge_block_counts[VF2_HYBRID_BRIDGE_INTERRUPT_SAVE_PREFIX] != 1u ||
+-             bridge_block_counts[VF2_HYBRID_BRIDGE_INTERRUPT_BUFFER_GATE] != 1u ||
++             bridge_block_counts[VF2_HYBRID_BRIDGE_INTERRUPT_BUFFER_GATE] != 0u ||
+              bridge_block_counts[VF2_HYBRID_BRIDGE_INTERRUPT_INPUT_RING] != 1u ||
+              bridge_block_counts[VF2_HYBRID_BRIDGE_INTERRUPT_RESTORE_PREFIX] != 1u ||
+              bridge_block_counts[VF2_HYBRID_BRIDGE_FRAME_TIMER_SUFFIX] != 1u ||
+@@ -5724,17 +5724,17 @@ static int command_native_dispatch_ex(
+                 ? 83u
+                 : (native_fourth_dispatch ? 45u : 1u));
+         const size_t expected_blocks = native_sixth_dispatch
+-            ? 874u
++            ? 866u
+             : (native_fifth_dispatch
+-                ? 836u
+-                : (native_fourth_dispatch ? 82u : 44u));
++                ? 830u
++                : (native_fourth_dispatch ? 78u : 42u));
+         const uint64_t expected_instructions = native_sixth_dispatch
+-            ? UINT64_C(7404917)
++            ? UINT64_C(7404901)
+             : (native_fifth_dispatch
+-                ? UINT64_C(7402744)
++                ? UINT64_C(7402732)
+                 : (native_fourth_dispatch
+-                    ? UINT64_C(58871)
+-                    : UINT64_C(55240)));
++                    ? UINT64_C(58863)
++                    : UINT64_C(55236)));
+         const char *dispatch_label = native_sixth_dispatch
+             ? "sixth"
+             : (native_fifth_dispatch
+diff --git a/tools/vf2probe/main.c b/tools/vf2probe/main.c
+index 99d7622..7022256 100644
+--- a/tools/vf2probe/main.c
++++ b/tools/vf2probe/main.c
+@@ -42,6 +42,8 @@ typedef struct vf2_probe_options {
+     uint32_t raise_irq_mask;
+     uint32_t enter_interrupt_vector;
+     uint32_t enter_interrupt_level;
++    int has_input;
++    uint32_t input;
+     vf2_probe_mutation mutations[VF2_PROBE_MAX_MUTATIONS];
+     size_t mutation_count;
+     uint32_t reads_u32[VF2_PROBE_MAX_READS];
+@@ -69,8 +71,9 @@ static void print_usage(FILE *stream, const char *program)
+         "  --set-u32 <addr=value>     mutate little-endian 32-bit value\n"
+         "  --read-u32 <address>       include final 32-bit memory value\n"
+         "  --output-snapshot <file>   save the resulting CPU/machine state\n"
+-  "  --raise-irq <bits>         raise interrupt lines once after restore\n"
+-  "  --enter-interrupt <v=l>    enter interrupt vector v at level l once\n"
++        "  --raise-irq <bits>         raise interrupt lines once after restore\n"
++        "  --enter-interrupt <v=l>    enter
