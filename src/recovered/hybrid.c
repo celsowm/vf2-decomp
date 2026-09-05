@@ -16381,6 +16381,22 @@ static vf2_status hybrid_execute_game_info_bit31_native(
                 hybrid_set_stale_low(cpu, f0, bl);
             }
         }
+        /* ROM-backed v0260: base 0x40 any-composition — 16 outer x8 low x 2^20 middle (incl. bare) =134,217,728 masks, +3/+7.
+         * Bare 0x40, single 0x240/0x840, double 0x1840, bit21 0x00200040, bit21+Mp 0x00200240/0x00201840, low 0x42,
+         * many 0x1BDE3EE9/0x1BFE3EE9 all measured DIFF +3 uni / +7 bi → 36/36. */
+        {
+            if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & ~UINT32_C(0xFFFE3EBF)) == UINT32_C(0x00000040)) {
+                const bool f0 = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == 0u;
+                const bool bl = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == combined_positive_bit6_flags;
+                const uint64_t ex = bl ? UINT64_C(7) : UINT64_C(3);
+                if (native_instructions < ex) {
+                    return VF2_ERROR_UNSUPPORTED;
+                }
+                native_instructions -= ex;
+                hybrid_set_compare_result(cpu, countdown_was_nonzero ? VF2_I960_COMPARE_LESS : VF2_I960_COMPARE_EQUAL);
+                hybrid_set_stale_low(cpu, f0, bl);
+            }
+        }
         /* ROM-backed v0175: remaining positive bit-6 cross-family high extensions. */
         if (fighter0_state == 8u && fighter1_state == 8u &&
             measured_matrix_distribution &&
