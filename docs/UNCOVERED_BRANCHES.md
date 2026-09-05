@@ -788,4 +788,12 @@ indirect `callx` service loop (count `3` at `0x6cad0`, control blocks
 `[0x500878, 0x50087c, 0x500880]`, called from `0x1dd70`) and the
 `fa_coli` recurring body at `0x221e8` with callees `0x22298` (31
 blocks), `0x22404` (24 blocks), `0x225cc` (174 blocks) and `0x23524`
-(6 blocks). See `decomp/i960/notes/object_handlers_v0268.md`.
+(6 blocks). Reachability scouting from regenerated fifth (`out-fifth.vf2snap`,
+MATCH, 836 blocks) and sixth snapshots is negative: forcing the coli
+slot runnable at either `0x221cc` or `0x221e8` over ~15.3M guest
+instructions never dispatches index 10 (identical call/return counters,
+`10255/10254` from fifth) — the accepted corridor dispatches only a
+fixed few tasks per frame, so flag/entry mutation inside these windows
+is exhausted. Next attempt needs a snapshot parked in a window that
+sweeps index 10 (`snapshot` + `native-resume` into the second-dispatch
+initializer corridor). See `decomp/i960/notes/object_handlers_v0268.md`.
