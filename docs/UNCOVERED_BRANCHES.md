@@ -794,6 +794,27 @@ slot runnable at either `0x221cc` or `0x221e8` over ~15.3M guest
 instructions never dispatches index 10 (identical call/return counters,
 `10255/10254` from fifth) — the accepted corridor dispatches only a
 fixed few tasks per frame, so flag/entry mutation inside these windows
-is exhausted. Next attempt needs a snapshot parked in a window that
-sweeps index 10 (`snapshot` + `native-resume` into the second-dispatch
-initializer corridor). See `decomp/i960/notes/object_handlers_v0268.md`.
+is exhausted. That parked-window attempt was executed in v0269 (boot
+prefix chain + observe-parked boundary) with the same negative outcome;
+see below.
+
+### v0269 fa_coli recurring hunt (negative with mechanism)
+
+The scheduler at `0x10d54` full-scans 29 tasks only when `0x500068`
+bit 16 is clear at sweep entry; otherwise the single-slot fast path at
+`0x10e68` (`0x10ea0`, rewritten to `0x500834` each frame) dispatches one
+rotating task. Sweeps are single-pass (`0xa010` front-end, no loop), so
+a sweep never revisits an index. The selector2 re-arm writes coli
+`flags=1 + entry=0x221cc` coupled and unconditionally, but only in boot
+frames. Measured over 61M+ guest instructions across five snapshot
+windows (boot prefix chain, post-second observe-parked boundary, fifth,
+sixth) with flag/entry forcing and a fast-path slot hijack: index 10
+never executes outside the validated second sweep, flags stay 0, and a
+forced `entry=0x221e8 + flags=1` state survives 8.87M insns untouched.
+The recurring body needs that conjunction at a scanning sweep, which
+the attract trajectory never produces — reachable, if at all, only in
+gameplay (demo/match) frames via driven inputs. Tooling added (all
+passive/default-off): `vf2probe --raise-irq/--enter-interrupt`,
+`resume-trace` trailing injection args, `VF2_PARK_SNAPSHOT` boundary
+parking in `observe-third-sweep`. See
+`decomp/i960/notes/coli_recurring_hunt_v0269.md`.
