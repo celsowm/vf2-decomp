@@ -1,0 +1,30 @@
+name: Apply SERVICE v0271
+
+on:
+  push:
+    branches: [chatgpt/service-v0271-apply]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout transport branch
+        uses: actions/checkout@v4
+        with:
+          ref: chatgpt/service-v0271-apply
+          fetch-depth: 0
+      - name: Apply to master and push
+        run: |
+          git fetch origin master
+          git checkout -B master origin/master
+          git apply --check service-v0271.patch
+          git apply service-v0271.patch
+          rm -f service-v0271.patch
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/recovered/texture_bridge_video.c
+          git commit -m "input: recover SERVICE callback timing (v0271)"
+          git push origin master
