@@ -1,0 +1,138 @@
+ &= ~UINT32_C(7);
++    cpu->ip = UINT32_C(0x00000c78);
++    return VF2_OK;
++}
++
+ vf2_status execute_interrupt_initial_cluster(
+     vf2_model2a *machine,
+     vf2_i960_cpu *cpu,
+@@ -19663,7 +19760,16 @@ vf2_status execute_interrupt_initial_cluster(
+     }
+     if (cpu->ip == UINT32_C(0x00000c0c) ||
+         cpu->ip == UINT32_C(0x0004bb14)) {
+-        cpu->executed_instructions += UINT64_C(3);
++        if (cpu->ip == UINT32_C(0x0004bb14)) {
++            status = vf2_i960_cpu_return_procedure(cpu, machine);
++            if (status != VF2_OK || cpu->ip != UINT32_C(0x00000c0c)) {
++                return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++            }
++        }
++        status = execute_interrupt_fighter_compare_prefix(machine, cpu);
++        if (status != VF2_OK) {
++            return status;
++        }
+         report->kind = VF2_HYBRID_BRIDGE_INTERRUPT_INITIAL_CLUSTER;
+         report->entry_address = VF2_INTERRUPT_INITIAL_CLUSTER_ENTRY;
+         report->exit_address = cpu->ip;
+@@ -19687,8 +19793,19 @@ vf2_status execute_interrupt_initial_cluster(
+     if (status != VF2_OK || cpu->ip != UINT32_C(0x0004bab4)) {
+         return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
+     }
+-    cpu->executed_instructions += UINT64_C(4);
+ 
++    /* 0x4bab4 returns from the texture-upload dispatcher to the interrupt
++     * caller.  The following three instructions load the active fighter
++     * record and the two bytes compared by the next branch at 0x0c1c. */
++    status = vf2_i960_cpu_return_procedure(cpu, machine);
++    if (status != VF2_OK || cpu->ip != UINT32_C(0x00000c0c)) {
++        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    }
++    cpu->executed_instructions += UINT64_C(1);
++    status = execute_interrupt_fighter_compare_prefix(machine, cpu);
++    if (status != VF2_OK) {
++        return status;
++    }
+     report->kind = VF2_HYBRID_BRIDGE_INTERRUPT_INITIAL_CLUSTER;
+     report->entry_address = VF2_INTERRUPT_INITIAL_CLUSTER_ENTRY;
+     report->exit_address = cpu->ip;
+diff --git a/src/recovered/texture_bridge_texture.c b/src/recovered/texture_bridge_texture.c
+index 5306c3d..310e61c 100644
+--- a/src/recovered/texture_bridge_texture.c
++++ b/src/recovered/texture_bridge_texture.c
+@@ -1473,8 +1473,8 @@ vf2_status execute_timer_wait_update(
+     if (status != VF2_OK) {
+         return status;
+     }
+-    /* The observed caller-facing post-state leaves CC equal on return. */
+-    set_equal_condition(cpu);
++    /* The compare against the timer delta is the final condition-producing
++     * instruction on this path; preserve it across the ordinary return. */
+     status = finish_recovered_procedure(machine, cpu, instructions);
+     if (status != VF2_OK) {
+         return status;
+diff --git a/src/recovered/texture_bridge_video.c b/src/recovered/texture_bridge_video.c
+index cc55183..2abd290 100644
+--- a/src/recovered/texture_bridge_video.c
++++ b/src/recovered/texture_bridge_video.c
+@@ -117,15 +117,26 @@ vf2_status execute_video_register_compose(
+          * two more instructions than the initial installation path. */
+         instructions += UINT64_C(2);
+     } else if (callback == UINT32_C(0x00001284) &&
+-               (newly_enabled & UINT32_C(0x00f7f700)) > UINT32_C(0x000001fe)) {
+-        /* Measured active-input path through 0x00001200: r9 is the masked
+-         * newly-enabled control word and the installed table contributes only
+-         * one byte shifted left by one. A value above 0x1fe therefore cannot
+-         * match; the ROM takes cmpobne and reinstalls the 0x1284 fallback.
+-         * Keep smaller values and other callback tables explicit unsupported
+-         * until they are measured. */
+-        callback = UINT32_C(0x00001284);
+-        instructions += UINT64_C(6);
++               (newly_enabled & UINT32_C(0x00f7f700)) != 0u) {
++        uint8_t callback_bit = 0u;
++        const uint32_t relevant = newly_enabled & UINT32_C(0x00f7f700);
++
++        status = vf2_model2a_read(machine, callback, &callback_bit, 1u);
++        if (status != VF2_OK || callback_bit >= UINT8_C(32)) {
++            return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++        }
++        if ((UINT32_C(1) << callback_bit) != relevant) {
++            callback = UINT32_C(0x00001284);
++            instructions += UINT64_C(6);
++        } else {
++            uint8_t callback_limit = 0u;
++            ++callback;
++            status = vf2_model2a_read(machine, callback, &callback_limit, 1u);
++            if (status != VF2_OK || callback_limit > UINT8_C(31)) {
++                return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++            }
++            instructions += UINT64_C(8);
++        }
+     } else {
+         return VF2_ERROR_UNSUPPORTED;
+     }
+diff --git a/tests/analysis/test_orchestrator_bridge.c b/tests/analysis/test_orchestrator_bridge.c
+index a4d0220..2094829 100644
+--- a/tests/analysis/test_orchestrator_bridge.c
++++ b/tests/analysis/test_orchestrator_bridge.c
+@@ -1887,9 +1887,9 @@ static void test_frame_interrupt_support_batch(void)
+     CHECK(cpu.procedure_returns == UINT64_C(2));
+     CHECK(cpu.maximum_local_frame_depth == 2u);
+     CHECK(vf2_model2a_read_u32(&machine, UINT32_C(0x00500700), &value) == VF2_OK);
+-    CHECK(value == UINT32_C(0x0ff7f700));
++    CHECK(value == UINT32_C(0x0f000000));
+     CHECK(vf2_model2a_read_u32(&machine, UINT32_C(0x00500704), &value) == VF2_OK);
+-    CHECK(value == UINT32_C(0x0ff7f700));
++    CHECK(value == UINT32_C(0x0f000000));
+     CHECK(vf2_model2a_read_u32(&machine, UINT32_C(0x00500708), &value) == VF2_OK);
+     CHECK(value == 0u);
+     CHECK(vf2_model2a_read_u32(&machine, UINT32_C(0x00500710), &value) == VF2_OK);
+diff --git a/tests/test_main.c b/tests/test_main.c
+index c654cbc..24e8814 100644
+--- a/tests/test_main.c
++++ b/tests/test_main.c
+@@ -237,11 +237,11 @@ static void test_model2a_host_input(void)
+     EXPECT_TRUE(vf2_model2a_read(
+         &machine, VF2_IO_CONTROL_BASE + 0x12u, &value, sizeof(value)
+     ) == VF2_OK);
+-    EXPECT_TRUE(value == UINT8_C(0x27));
++    EXPECT_TRUE(value == UINT8_C(0xd8));
+     EXPECT_TRUE(vf2_model2a_read(
+         &machine, VF2_IO_CONTROL_BASE + 0x14u, &value, sizeof(value)
+     ) == VF2_OK);
+-    EXPECT_TRUE(value == UINT8_C(0x00));
++    EXPECT_TRUE(value == UINT8_C(0xff));
+     EXPECT_TRUE(vf2_model2a_read(
+         &machine, VF2_IO_CONTROL_BASE + 6u, &value, sizeof(value)
+     ) == VF2_OK);
+@@ -259,7 +259,7 @@ static void test_model2a_host_input(void)
+     EXPECT_TRUE(vf
