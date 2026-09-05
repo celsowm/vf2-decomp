@@ -16356,16 +16356,15 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             hybrid_set_compare_result(cpu, countdown_was_nonzero ? VF2_I960_COMPARE_LESS : VF2_I960_COMPARE_EQUAL);
             hybrid_set_stale_low(cpu, f0, bl);
         }
-        /* ROM-backed v0258: base 0x140 single-middle — 16 outer x8 low x19 single middle (excl. pure bit21) =2432 masks, +3/+6.
-         * Bare 0x140 is 0/0, pure bit21 0x00200140 is 0/0, multi-middle gives +3/+7 (kept fail-closed).
-         * Single middle 0x200/0x400/0x800/0x1000/0x2000 etc (any one bit from 0x1BFE3EA9 except 0x00200000)
-         * with base 0x140: measured 0x340/0x940/0x1140/0x2140 etc all +3 unilateral / +6 bilateral,
-         * 0x342/0x40000340 etc same, 0x200342 (bit21+0x200+low) also +3/+6 when extra middle present.
-         * Power-of-two check ensures exactly one middle bit. */
+        /* ROM-backed v0258+v0259: base 0x140 any-middle (Mp!=0) — 16 outer x8 low x (2^19-1)*2 with/without bit21 = ~134M masks, +3/+6.
+         * Bare 0x140 is 0/0, pure bit21 0x00200140 is 0/0, any Mp (=0x1BDE3EA9) !=0 gives +3/+6.
+         * Single 0x340/0x940/0x1140/0x2140, double 0xB40/0x1940/0x1340, quad 0x3D40, high 0x60140/0x8000340,
+         * bit21+Mp 0x00200340/0x00200940/0x00260140 all measured +3 uni / +6 bi, 36/36.
+         * Mp = M & ~0x00200000 = 0x1BDE3EA9. */
         {
-            const uint32_t middle_0140 = combined_positive_bit6_flags & UINT32_C(0x1BFE3EA9);
-            const bool is_single_middle_0140 = middle_0140 != 0u && middle_0140 != UINT32_C(0x00200000) && (middle_0140 & (middle_0140 - 1u)) == 0u;
-            if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && is_single_middle_0140 && (combined_positive_bit6_flags & ~UINT32_C(0xFFFE3EBF)) == UINT32_C(0x00000140)) {
+            const uint32_t middle_prime_0140 = combined_positive_bit6_flags & UINT32_C(0x1BDE3EA9);
+            const bool is_any_middle_0140 = middle_prime_0140 != 0u;
+            if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && is_any_middle_0140 && (combined_positive_bit6_flags & ~UINT32_C(0xFFFE3EBF)) == UINT32_C(0x00000140)) {
                 const bool f0 = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == 0u;
                 const bool bl = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == combined_positive_bit6_flags;
                 // native undercounts by 3 unilateral / 6 bilateral vs reference (reference has 3/6 fewer)

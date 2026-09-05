@@ -725,11 +725,19 @@ are measured. Compact forms now use `& ~0x16` or `& ~0x10016` and share
   not needed for `0x140`. Representative `12` masks `36/36`, multi-middle
   `0x1840` (`+3/+7`) and `0x200342` etc stay fail-closed. See
   `decomp/i960/notes/game_info_18644_positive_base0140_single_middle_v0258.md`.
-  Frontier remains `0x140` multi-middle `+3/+7` and helper `runtime bit5`.
+
+### v0259 base 0x140 any-middle (generalizes v0258)
+
+* `0x140` + any `Mp = 0x1BDE3EA9 !=0` (19 bits: `0x1,0x8,0x20,0x80,0x200,0x400,0x800,0x1000,0x2000,0x20000,0x40000,0x80000,0x100000,0x400000,0x800000,0x1000000,0x2000000,0x8000000,0x10000000`)
+  with or without `bit21 0x00200000`, any outer `16` and any low `8` — single 0x340, double 0xB40/0x1940/0x1340, quad 0x3D40, high 0x60140/0x8000340,
+  bit21+Mp 0x00200340/0x00200940/0x00260140/0x08200340 etc all measured `+3` uni / `+6` bi → `36/36` (spot ~15 masks). Bare `0x140` and pure `0x00200140` remain `0/0` 36/36.
+  Counts: `2^19-1=524287` *128=67,108,736 without bit21 plus same with bit21 = `134,217,472` masks (replaces v0258 `2432`). See
+  `decomp/i960/notes/game_info_18644_positive_base0140_any_middle_v0259.md`.
+  Frontier remains other bases (0x40 etc) and helper `runtime bit5`.
 
 ### Current positive threshold scope
 
-`4439` masks are now `36/36 exact` for the positive `0x1645c` corridor (`2007` + `2432` base `0x140` single-middle v0258)
+`134,219,479` masks are now `36/36 exact` for the positive `0x1645c` corridor (`2007` + `134,217,472` base `0x140` any-middle v0259)
 (`120` high family + `991` base/low/high families + `784` bit-21 low variants (`112×7` bases: `8140`/`C140`/`4140`/`14140`/`10140`/`18140`/`1C140`)). All use the measured
 stale-frame and compare result. Remaining positive compositions still
 fail closed.
