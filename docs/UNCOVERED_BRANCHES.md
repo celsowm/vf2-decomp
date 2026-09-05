@@ -710,6 +710,20 @@ are measured. Compact forms now use `& ~0x16` or `& ~0x10016` and share
 ### v0257 bare pure-bit21 fix (extends v0256)
 * bare `0x00208140` etc (`7` bases, outer `16`, middle `0x00200000` alone, low `0`) were `0/36` DIFF `-3` (middle-high over-corrected); they need `0` excess, not `−3/−5`. Guard bare with `((low & 0x16)!=0 || (middle & 0x1BDE3EA9)!=0)` so pure-bit21 bare falls through to native `0` and now `36/36 exact` (`112` masks `16×7`). Low `0x00208142` etc already `36/36`; bare `0x00808140` etc stay `36/36`.
 
+### v0258 frontier: base 0x140 + middle (fail-closed, not yet admitted)
+
+* `0x140` + single middle `0x200`/`0x400`/`0x800`/`0x1000`/`0x2000` etc
+  (`0x340`/`0x940`/`0x1140`/`0x2140`) are `0/36 DIFF +3 unilateral / +6
+  bilateral` (`0x1840` multi-bit `+3/+7`), `0x200140` (bit21) stays
+  `0/0` (`36/36`), `0x8140` (`0x140+0x8000`) already `-3/-5` (v0254).
+  Need per-middle clustering (`+6` vs `+7` vs `0` vs `-3`) before a
+  compact `0x140` middle predicate
+  `((combined & 0x1BFE3EA9)!=0 && (combined & ~0xFFFE3EBF)==0x140)` can
+  be admitted. Helper `0x17b68` `runtime 0x00508000 bit5` early-exit
+  (`bit7=1` + `bit5=1` → `6` fewer to `0x10dcc`, `3450` fewer to
+  `0x18544`) also measured and left fail-closed. See
+  `decomp/i960/notes/game_info_18644_positive_base0140_middle_frontier_v0258.md`.
+
 ### Current positive threshold scope
 
 `2007` masks are now `36/36 exact` for the positive `0x1645c` corridor (`1895` + `112` bare pure-bit21 v0257)
