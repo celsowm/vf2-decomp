@@ -1,0 +1,40 @@
+name: Apply v0270
+
+on:
+  push:
+    branches:
+      - chatgpt/v0270-apply
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout transport branch
+        uses: actions/checkout@v4
+        with:
+          ref: chatgpt/v0270-apply
+          fetch-depth: 0
+
+      - name: Reassemble and verify patch
+        shell: bash
+        run: |
+          cat .v0270/part-* > /tmp/v0270.patch
+          echo 'eaf5a6e99878b9b841da1ca51977e2d8baa6faa481a36f5c482c1a2539385bf9  /tmp/v0270.patch' | sha256sum -c -
+
+      - name: Apply to master and push
+        shell: bash
+        run: |
+          git fetch origin master
+          git checkout --detach origin/master
+          git apply --check /tmp/v0270.patch
+          git apply /tmp/v0270.patch
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add CHANGELOG.md decomp/i960/notes/input_polarity_phase11_v0270.md src/hardware/model2a.c src/recovered/hybrid.c src/recovered/native_runtime.c src/recovered/texture_bridge_condition_impl.c src/recovered/texture_bridge_match.c src/recovered/texture_bridge_texture.c src/recovered/texture_bridge_video.c tests/analysis/test_orchestrator_bridge.c tests/test_main.c tools/vf2cycles/main.c tools/vf2i960/commands.c tools/vf2probe/main.c
+          git diff --cached --check
+          git commit -m 'input: fix Model 2A polarity and close phase11 driven path (v0270)'
+          git push origin HEAD:master
