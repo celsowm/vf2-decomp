@@ -1,0 +1,17 @@
+name: Source Export
+
+on:
+  push:
+    branches:
+      - chatgpt/source-export-20260905
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vf2-source-tree
+          path: .
+          include-hidden-files: true
