@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+- recovered **301 original Sega i960 symbol names** for Virtua Fighter 2 from
+  the symbol table shipped inside a later Model 2 port DLL, and committed them
+  as `decomp/i960/original_symbols.csv`. `tools/python/extract_original_symbols.py`
+  regenerates the file from a DLL (`--out`) and verifies the committed copy
+  against one (`--check`); the DLL is not redistributable and is not in the
+  tree. `vf2_i960_apply_symbol_overlays` loads the new overlay after the three
+  provisional ones, so `vf2i960 analyze` output now carries the shipped names.
+  The table independently corroborates prior work — 12 of the 76 function `end`
+  addresses derived by differential execution land exactly on a shipped symbol
+  start, and 11 of the 29 ROM-read task entry points match a shipped name
+  exactly — and contradicts no recovered boundary. It does contradict the
+  *meaning* of 34 provisional names, including `frame_geometry_gate` =
+  `test_sw_chk`, `frame_counter_advance` = `variable_diff_calc`,
+  `camera_project_fighter_ranges` = `calc_rob_light`,
+  `game_state_classify` = `chute_setting_check` and `texture_header_decode` =
+  `unpack_lod_data`. It also names 118 addresses the repository already refers
+  to but had never named — most importantly `0x00018644` = `get_en_info`
+  (enemy fighter state, the target of the whole `game_info_18644` series),
+  `0x00018144` = `get_my_info` and `0x0001645c` = `get_game_info`. The C
+  identifiers still carry the provisional names; that rename needs the full
+  build and test gate and is deliberately left to its own change
+  (`docs/ORIGINAL_SYMBOLS.md`);
 - compacted the positive state-8 `0x8140`/`0x10140`/`0x18140` low-bit cubes from
   twelve explicit `pair ==` blocks to three `& ~0x16 == base` predicates
   (each covering its 8 low variations over bits 1,2,4). The generic
