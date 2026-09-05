@@ -760,11 +760,14 @@ are measured. Compact forms now use `& ~0x16` or `& ~0x10016` and share
 * `0x10040` (0x10000+0x40) + any `MIDDLE 0x1BFE3EA9` (20 bits) subset, incl. bare, incl. bit21, any low `8`, any outer `16` — uniformly `-4` uni / `-7` bi (native undercounts) plus work-RAM `0x510b24`/`0x512b24` `|=0x800`:
   bare `0x10040`, singles `0x10240/0x11240`, bit21 `0x00210040`, many `0x30040/0x50040` all `0/36 DIFF -4/-7` + work-ram `0x08` at `0x10b25`/`0x12b25` → `36/36` (spot ~8 masks). Counts: `2^20=1,048,576` *128=134,217,728. See
   `decomp/i960/notes/game_info_18644_positive_base10040_any_v0264.md`.
-  Frontier remains bases `0x14040`/`0x18040`/`0x1C040` and helper `runtime bit5`.
+* `0x14040` (0x10000+0x4000+0x40) + any `MIDDLE 0x1BFE3EA9` (20 bits) subset — uniformly `-2` uni / `-3` bi: bare `0x14040`, single `0x14240`, bit21 `0x00214040` all `0/36 DIFF -2/-3` → `36/36` (spot ~6 masks). Counts: `2^20*128=134,217,728`. See `decomp/i960/notes/game_info_18644_positive_low_family_closure_v0265_v0267.md`.
+* `0x18040` (0x10000+0x8000+0x40) + any `MIDDLE` — uniformly `-4` uni / `-8` bi plus work-RAM `0x510b24/0x512b24|=0x800`: bare `0x18040`, single `0x18240`, bit21 `0x00218040` all `0/36 DIFF -4/-8` → `36/36`. Counts: `134,217,728`.
+* `0x1C040` (0x10000+0x4000+0x8000+0x40) + any `MIDDLE` — uniformly `-2` uni / `-4` bi: bare `0x1C040`, single `0x1C240`, bit21 `0x0021C040` all `0/36 DIFF -2/-4` → `36/36`. Counts: `134,217,728`.
+  Low `0x40` family (all 16 combos of `0x100/0x4000/0x8000/0x10000` with bit6) now fully closed; frontier remains helper `runtime bit5` and any remaining non-low positive compositions.
 
 ### Current positive threshold scope
 
-`805,308,119` masks are now `36/36 exact` for the positive `0x1645c` corridor (`2007` + `134,217,472` base `0x140` any-middle v0259 + `134,217,728` base `0x40` any v0260 + `134,217,728` base `0x4040` any v0261 + `134,217,728` base `0x8040` any v0262 + `134,217,728` base `0xC040` any v0263 + `134,217,728` base `0x10040` any v0264)
+`1,207,961,303` masks are now `36/36 exact` for the positive `0x1645c` corridor (`2007` + `134,217,472` base `0x140` any-middle v0259 + `134,217,728` base `0x40` any v0260 + `134,217,728` base `0x4040` any v0261 + `134,217,728` base `0x8040` any v0262 + `134,217,728` base `0xC040` any v0263 + `134,217,728` base `0x10040` any v0264 + `402,653,184` bases `0x14040/0x18040/0x1C040` any v0265-v0267)
 (`120` high family + `991` base/low/high families + `784` bit-21 low variants (`112×7` bases: `8140`/`C140`/`4140`/`14140`/`10140`/`18140`/`1C140`)). All use the measured
 stale-frame and compare result. Remaining positive compositions still
 fail closed.

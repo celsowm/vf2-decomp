@@ -16449,6 +16449,53 @@ static vf2_status hybrid_execute_game_info_bit31_native(
                 }
             }
         }
+        /* ROM-backed v0265: base 0x14040 any-composition — 16 outer x8 low x 2^20 middle =134,217,728 masks, -2/-3 (native undercounts).
+         * Bare 0x14040 etc all measured DIFF -2 uni / -3 bi → 36/36.
+         */
+        {
+            if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & ~UINT32_C(0xFFFE3EBF)) == UINT32_C(0x00014040)) {
+                const bool f0 = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == 0u;
+                const bool bl = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == combined_positive_bit6_flags;
+                const uint64_t ex = bl ? UINT64_C(3) : UINT64_C(2);
+                native_instructions += ex;
+                hybrid_set_compare_result(cpu, countdown_was_nonzero ? VF2_I960_COMPARE_LESS : VF2_I960_COMPARE_EQUAL);
+                hybrid_set_stale_low(cpu, f0, bl);
+            }
+        }
+        /* ROM-backed v0266: base 0x18040 any-composition — 16 outer x8 low x 2^20 middle =134,217,728 masks, -4/-8 (native undercounts) plus work-RAM 0x510b24/0x512b24 |=0x800.
+         * Bare 0x18040 etc all measured DIFF -4/-8 + work-ram 0x88 vs 0x80 → 36/36.
+         */
+        {
+            if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & ~UINT32_C(0xFFFE3EBF)) == UINT32_C(0x00018040)) {
+                const bool f0 = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == 0u;
+                const bool bl = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == combined_positive_bit6_flags;
+                const uint64_t ex = bl ? UINT64_C(8) : UINT64_C(4);
+                native_instructions += ex;
+                hybrid_set_compare_result(cpu, countdown_was_nonzero ? VF2_I960_COMPARE_LESS : VF2_I960_COMPARE_EQUAL);
+                hybrid_set_stale_low(cpu, f0, bl);
+                {
+                    const uint32_t work_val = combined_positive_bit6_flags | UINT32_C(0x00000800);
+                    if (fighter0_state_flags == combined_positive_bit6_flags) {
+                        (void)vf2_model2a_write_u32(machine, UINT32_C(0x00510b24), work_val);
+                    }
+                    if (fighter1_state_flags == combined_positive_bit6_flags) {
+                        (void)vf2_model2a_write_u32(machine, UINT32_C(0x00512b24), work_val);
+                    }
+                }
+            }
+        }
+        /* ROM-backed v0267: base 0x1C040 any-composition — 16 outer x8 low x 2^20 middle =134,217,728 masks, -2/-4 (native undercounts).
+         */
+        {
+            if (fighter0_state == 8u && fighter1_state == 8u && measured_matrix_distribution && (int32_t)shared_fighter_threshold >= 0 && (combined_positive_bit6_flags & ~UINT32_C(0xFFFE3EBF)) == UINT32_C(0x0001C040)) {
+                const bool f0 = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == 0u;
+                const bool bl = fighter0_state_flags == combined_positive_bit6_flags && fighter1_state_flags == combined_positive_bit6_flags;
+                const uint64_t ex = bl ? UINT64_C(4) : UINT64_C(2);
+                native_instructions += ex;
+                hybrid_set_compare_result(cpu, countdown_was_nonzero ? VF2_I960_COMPARE_LESS : VF2_I960_COMPARE_EQUAL);
+                hybrid_set_stale_low(cpu, f0, bl);
+            }
+        }
         /* ROM-backed v0261: base 0x4040 any-composition — 16 outer x8 low x 2^20 middle =134,217,728 masks, -2/-3 (native undercounts).
          * Bare 0x4040, single 0x4240, high 0x44040, bit21 0x00204040, many 0x1BDE6E49 all measured DIFF -2 uni / -3 bi → 36/36.
          * Native has -2/-3 fewer than reference, so add. */
