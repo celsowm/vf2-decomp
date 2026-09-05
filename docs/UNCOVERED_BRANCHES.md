@@ -712,7 +712,7 @@ are measured. Compact forms now use `& ~0x16` or `& ~0x10016` and share
 
 ### Current positive threshold scope
 
-`1895` masks are now `36/36 exact` for the positive `0x1645c` corridor
+`2007` masks are now `36/36 exact` for the positive `0x1645c` corridor (`1895` + `112` bare pure-bit21 v0257)
 (`120` high family + `991` base/low/high families + `784` bit-21 low variants (`112×7` bases: `8140`/`C140`/`4140`/`14140`/`10140`/`18140`/`1C140`)). All use the measured
 stale-frame and compare result. Remaining positive compositions still
 fail closed.
