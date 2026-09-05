@@ -165,6 +165,7 @@ Start here:
 - [`docs/NATIVE_DIFFERENTIAL.md`](docs/NATIVE_DIFFERENTIAL.md) — differential-validation contract.
 - [`docs/FIRST_DISPATCH_TASKS.md`](docs/FIRST_DISPATCH_TASKS.md) — task/scheduler recovery notes.
 - [`docs/UNCOVERED_BRANCHES.md`](docs/UNCOVERED_BRANCHES.md) — known remaining recovery boundaries.
+- [`docs/ORIGINAL_SYMBOLS.md`](docs/ORIGINAL_SYMBOLS.md) — the 301 original Sega i960 symbol names and the provisional names they replace.
 - [`CHANGELOG.md`](CHANGELOG.md) — chronological project progress.
 
 Fine-grained address-level evidence lives under `decomp/i960/notes/` and in focused recovery documents under `docs/`.

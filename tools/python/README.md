@@ -133,6 +133,23 @@ Unit tests:
 python tools/python/test_frontier.py
 ```
 
+## `extract_original_symbols.py`
+
+Recover the original Sega i960 symbol table from a Model 2 port DLL. The table is located by shape rather than by address, so the script is not keyed to one build; a DLL with no such run is reported instead of guessed at. The DLL is not part of this repository.
+
+```sh
+# report every candidate run and emit nothing
+python tools/python/extract_original_symbols.py --dll <port.dll> --tables
+
+# write the analyzer overlay
+python tools/python/extract_original_symbols.py --dll <port.dll>   --out decomp/i960/original_symbols.csv
+
+# verify the committed overlay against a DLL
+python tools/python/extract_original_symbols.py --dll <port.dll>   --check decomp/i960/original_symbols.csv
+```
+
+`--check` exits non-zero on any disagreement and is how the committed file stays honest without the DLL being in the tree. This script has no dependencies. See `docs/ORIGINAL_SYMBOLS.md`.
+
 ## Next layer
 
 The next high-value steps beyond the shipped frontier ranker are targeted dynamic taint and Z3 bit-vector constraints for branches whose measured inputs still resist a compact semantic rule.
