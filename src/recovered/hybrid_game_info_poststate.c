@@ -36,6 +36,16 @@
 #define VF2_GAME_INFO_STATE4_MASK_6_15_16 UINT32_C(0x00018040)
 #define VF2_GAME_INFO_STATE4_MASK_14_15_16 UINT32_C(0x0001c000)
 #define VF2_GAME_INFO_STATE4_MASK_6_14_15_16 UINT32_C(0x0001c040)
+#define VF2_GAME_DISP_INIT_ENTRY UINT32_C(0x0002b1bc)
+#define VF2_GAME_DISP_INIT_CONTINUATION UINT32_C(0x0002b1f8)
+#define VF2_GAME_DISP_INIT_LAST_CALL_RETURN UINT32_C(0x0002b1f4)
+#define VF2_GAME_DISP_HELPER_RETURN UINT32_C(0x0000271c)
+#define VF2_GAME_DISP_REGISTRY UINT32_C(0x00515b00)
+#define VF2_GAME_DISP_MODE_FLAGS_OFFSET UINT32_C(0x00003320)
+#define VF2_GAME_DISP_MODE_BYTES_OFFSET UINT32_C(0x00003324)
+#define VF2_GAME_DISP_OUTPUT_OFFSET UINT32_C(0x00000059)
+#define VF2_GAME_DISP_OUTPUT_SIZE 23u
+#define VF2_GAME_DISP_SCHEDULER_RETURN UINT32_C(0x00010dcc)
 
 static const uint32_t vf2_game_info_measured_masks[] = {
     UINT32_C(0x00204000), UINT32_C(0x00208000), UINT32_C(0x00210000),
@@ -329,6 +339,178 @@ static vf2_status read_mode_bit6(vf2_model2a *machine, bool *mode_bit6)
         *mode_bit6 = (mode & UINT8_C(0x40)) != 0u;
     }
     return status;
+}
+
+static bool measured_game_disp_init_case(
+    vf2_model2a *machine,
+    const vf2_i960_cpu *cpu,
+    uint32_t registry_address
+)
+{
+    uint32_t continuation = 0u;
+    uint32_t mode_base = 0u;
+    uint32_t mode_flags = 0u;
+    uint8_t mode_bytes[5] = {0u};
+    uint8_t output_bytes[VF2_GAME_DISP_OUTPUT_SIZE] = {0u};
+    size_t index = 0u;
+    vf2_status status = VF2_OK;
+
+    if (machine == NULL || cpu == NULL ||
+        cpu->ip != VF2_GAME_DISP_INIT_ENTRY ||
+        registry_address != VF2_GAME_DISP_REGISTRY ||
+        cpu->registers[VF2_I960_G0_REGISTER + 13u] != registry_address ||
+        cpu->local_frame_depth != UINT32_C(2) ||
+        cpu->registers[VF2_I960_FP_REGISTER] != cpu->registers[0] + UINT32_C(0x40) ||
+        cpu->registers[1] != cpu->registers[VF2_I960_FP_REGISTER] + UINT32_C(0x40)) {
+        return false;
+    }
+    for (index = 2u; index < VF2_I960_LOCAL_REGISTER_COUNT; ++index) {
+        if (cpu->registers[index] != 0u) {
+            return false;
+        }
+    }
+
+    status = vf2_model2a_read_u32(machine, registry_address + UINT32_C(0x0c), &continuation);
+    if (status == VF2_OK) {
+        status = vf2_model2a_read_u32(machine, VF2_GAME_INFO_MODE_BASE_SLOT, &mode_base);
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_read_u32(
+            machine, mode_base + VF2_GAME_DISP_MODE_FLAGS_OFFSET, &mode_flags
+        );
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_read(
+            machine,
+            mode_base + VF2_GAME_DISP_MODE_BYTES_OFFSET,
+            mode_bytes,
+            sizeof(mode_bytes)
+        );
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_read(
+            machine,
+            registry_address + VF2_GAME_DISP_OUTPUT_OFFSET,
+            output_bytes,
+            sizeof(output_bytes)
+        );
+    }
+    if (status != VF2_OK || continuation != VF2_GAME_DISP_INIT_ENTRY || mode_flags != 0u) {
+        return false;
+    }
+    for (index = 0u; index < sizeof(mode_bytes); ++index) {
+        if (mode_bytes[index] != 0u) {
+            return false;
+        }
+    }
+    for (index = 0u; index < sizeof(output_bytes); ++index) {
+        if (output_bytes[index] != 0u) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static vf2_status execute_measured_game_disp_init(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu,
+    uint32_t registry_address,
+    vf2_hybrid_task_report *report
+)
+{
+    vf2_hybrid_task_report local_report = {0};
+    const uint32_t previous_frame_pointer = cpu->registers[0];
+    const uint32_t task_stack_pointer = cpu->registers[1];
+    const uint32_t task_frame_pointer = cpu->registers[VF2_I960_FP_REGISTER];
+    const uint32_t saved_g9 = cpu->registers[VF2_I960_G0_REGISTER + 9u];
+    uint32_t index = 0u;
+    vf2_status status = VF2_OK;
+
+    status = vf2_model2a_write_u32(
+        machine, registry_address + UINT32_C(0x0c), VF2_GAME_DISP_INIT_CONTINUATION
+    );
+    if (status == VF2_OK) {
+        const uint8_t one = UINT8_C(1);
+        status = vf2_model2a_write(
+            machine, registry_address + UINT32_C(0x59), &one, sizeof(one)
+        );
+    }
+    if (status == VF2_OK) {
+        const uint8_t one = UINT8_C(1);
+        status = vf2_model2a_write(
+            machine, registry_address + UINT32_C(0x5a), &one, sizeof(one)
+        );
+    }
+    if (status == VF2_OK) {
+        const uint8_t zero = UINT8_C(0);
+        status = vf2_model2a_write(
+            machine, registry_address + UINT32_C(0x5b), &zero, sizeof(zero)
+        );
+    }
+    for (index = 0u; status == VF2_OK && index < 4u; ++index) {
+        status = vf2_model2a_write_u32(
+            machine,
+            registry_address + UINT32_C(0x5c) + index * UINT32_C(4),
+            UINT32_MAX
+        );
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_write_u32(
+            machine, registry_address + UINT32_C(0x6c), UINT32_C(0)
+        );
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_write_u32(
+            machine, task_stack_pointer + UINT32_C(0x40), saved_g9
+        );
+    }
+    if (status != VF2_OK) {
+        return status;
+    }
+
+    for (index = 0u; index < VF2_I960_LOCAL_REGISTER_COUNT; ++index) {
+        cpu->local_frames[3].registers[index] = 0u;
+    }
+    cpu->local_frames[3].registers[0] = task_frame_pointer;
+    cpu->local_frames[3].registers[1] = task_stack_pointer + UINT32_C(0x44);
+    cpu->local_frames[3].registers[2] = VF2_GAME_DISP_HELPER_RETURN;
+    cpu->local_frames[3].registers[6] = UINT32_C(1);
+
+    cpu->registers[0] = previous_frame_pointer;
+    cpu->registers[1] = task_stack_pointer;
+    cpu->registers[2] = VF2_GAME_DISP_INIT_LAST_CALL_RETURN;
+    for (index = 3u; index < 15u; ++index) {
+        cpu->registers[index] = 0u;
+    }
+    cpu->registers[15] = VF2_GAME_DISP_INIT_CONTINUATION;
+    cpu->registers[VF2_I960_G0_REGISTER] = UINT32_C(1);
+    if (cpu->maximum_local_frame_depth < UINT32_C(4)) {
+        cpu->maximum_local_frame_depth = UINT32_C(4);
+    }
+
+    cpu->executed_instructions += UINT64_C(92);
+    cpu->procedure_calls += UINT64_C(5);
+    cpu->procedure_returns += UINT64_C(5);
+    status = vf2_i960_cpu_return_procedure(cpu, machine);
+    if (status != VF2_OK || cpu->ip != VF2_GAME_DISP_SCHEDULER_RETURN) {
+        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
+    }
+    set_compare_result(cpu, VF2_I960_COMPARE_LESS);
+
+    local_report.kind = VF2_HYBRID_TASK_GAME_DISP;
+    local_report.entry_address = VF2_GAME_DISP_INIT_ENTRY;
+    local_report.exit_address = VF2_GAME_DISP_SCHEDULER_RETURN;
+    local_report.registry_address = registry_address;
+    local_report.task_bytes_written = 27u;
+    local_report.global_bytes_written = sizeof(uint32_t);
+    local_report.recovered_instruction_count = UINT64_C(92);
+    local_report.recovered_procedure_calls = UINT64_C(5);
+    local_report.recovered_procedure_returns = UINT64_C(6);
+    local_report.cpu_poststate_applied = 1;
+    if (report != NULL) {
+        *report = local_report;
+    }
+    return VF2_OK;
 }
 
 static bool measured_case(
@@ -659,7 +841,14 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
     bool fighter0_only = false;
     bool bilateral = false;
     bool mode_bit6 = false;
-    const bool apply_measured_poststate = measured_case(
+    bool apply_measured_poststate = false;
+    vf2_status status = VF2_OK;
+
+    if (measured_game_disp_init_case(machine, cpu, registry_address)) {
+        return execute_measured_game_disp_init(machine, cpu, registry_address, report);
+    }
+
+    apply_measured_poststate = measured_case(
         machine,
         cpu,
         &fighter_state,
@@ -670,7 +859,6 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
         &fighter0_only,
         &bilateral
     );
-    vf2_status status = VF2_OK;
 
     if (apply_measured_poststate &&
         ((fighter_state == UINT8_C(8) && mask == VF2_GAME_INFO_MASK_14_16_21) ||
