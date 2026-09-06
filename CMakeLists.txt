@@ -59,6 +59,7 @@ add_library(vf2_core STATIC
     src/recovered/boot_entry.c
     src/recovered/camera_viewport.c
     src/recovered/hybrid.c
+    src/recovered/hybrid_game_info_poststate.c
     src/recovered/player_i960_bridge.c
     src/recovered/player_i960_bridge_tail.c
     src/recovered/frame_wait.c
@@ -108,7 +109,7 @@ set_source_files_properties(
 
 set_source_files_properties(
     src/recovered/hybrid.c
-    PROPERTIES COMPILE_DEFINITIONS "vf2_i960_run=vf2_hybrid_i960_run_tail"
+    PROPERTIES COMPILE_DEFINITIONS "vf2_i960_run=vf2_hybrid_i960_run_tail;vf2_hybrid_first_dispatch_task_execute=vf2_hybrid_first_dispatch_task_execute_base"
 )
 
 target_include_directories(vf2_core
