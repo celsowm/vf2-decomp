@@ -48,6 +48,26 @@ static int boot_quad_copy_context_observed(const vf2_i960_cpu *cpu)
            return_address == VF2_BOOT_QUAD_COPY_SECOND_RETURN;
 }
 
+static int boot_quad_copy_compare(vf2_i960_cpu *cpu)
+{
+    const int32_t limit = (int32_t)cpu->registers[16];
+    const int32_t offset = (int32_t)cpu->registers[20];
+    vf2_i960_compare_result result = VF2_I960_COMPARE_EQUAL;
+    uint32_t bits = UINT32_C(2);
+
+    if (limit < offset) {
+        result = VF2_I960_COMPARE_LESS;
+        bits = UINT32_C(4);
+    } else if (limit > offset) {
+        result = VF2_I960_COMPARE_GREATER;
+        bits = UINT32_C(1);
+    }
+    cpu->compare_result = result;
+    cpu->arithmetic_control =
+        (cpu->arithmetic_control & ~UINT32_C(7)) | bits;
+    return result == VF2_I960_COMPARE_GREATER;
+}
+
 vf2_status vf2_recovered_iac_reinitialize_copy_execute(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu
@@ -88,7 +108,7 @@ vf2_status vf2_recovered_iac_reinitialize_copy_execute(
 
         cpu->registers[20] += UINT32_C(16);
         cpu->executed_instructions += UINT64_C(4);
-        if ((int32_t)cpu->registers[16] <= (int32_t)cpu->registers[20]) {
+        if (!boot_quad_copy_compare(cpu)) {
             break;
         }
     }
