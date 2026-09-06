@@ -7,6 +7,8 @@
 #define VF2_GAME_INFO_STATE_OFFSET UINT32_C(0x000001a4)
 #define VF2_GAME_INFO_STATE_BYTE_OFFSET UINT32_C(0x00000a00)
 #define VF2_GAME_INFO_STATE_CHILD_BIT UINT32_C(0x00000800)
+#define VF2_GAME_INFO_LEGACY_FIELD_OFFSET UINT32_C(0x00000b24)
+#define VF2_GAME_INFO_LEGACY_FIELD_BIT UINT32_C(0x00008000)
 #define VF2_GAME_INFO_FIGHTER0_SLOT UINT32_C(0x00500804)
 #define VF2_GAME_INFO_FIGHTER1_SLOT UINT32_C(0x00500808)
 #define VF2_GAME_INFO_COUNTDOWN UINT32_C(0x0050a0b6)
@@ -57,6 +59,38 @@ static vf2_status set_state_child_bit(
         status = vf2_model2a_write_u32(
             machine, fighter + VF2_GAME_INFO_STATE_OFFSET, value
         );
+    }
+    return status;
+}
+
+static vf2_status clear_legacy_field_bit(
+    vf2_model2a *machine,
+    uint32_t fighter
+)
+{
+    uint32_t value = 0u;
+    vf2_status status = vf2_model2a_read_u32(
+        machine, fighter + VF2_GAME_INFO_LEGACY_FIELD_OFFSET, &value
+    );
+
+    if (status == VF2_OK) {
+        value &= ~VF2_GAME_INFO_LEGACY_FIELD_BIT;
+        status = vf2_model2a_write_u32(
+            machine, fighter + VF2_GAME_INFO_LEGACY_FIELD_OFFSET, value
+        );
+    }
+    return status;
+}
+
+static vf2_status correct_bit16_fighter_poststate(
+    vf2_model2a *machine,
+    uint32_t fighter
+)
+{
+    vf2_status status = set_state_child_bit(machine, fighter);
+
+    if (status == VF2_OK) {
+        status = clear_legacy_field_bit(machine, fighter);
     }
     return status;
 }
@@ -212,10 +246,10 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
     if (mask == VF2_GAME_INFO_MASK_16_21 ||
         mask == VF2_GAME_INFO_MASK_15_16_21) {
         if (fighter0_only || bilateral) {
-            status = set_state_child_bit(machine, fighter0);
+            status = correct_bit16_fighter_poststate(machine, fighter0);
         }
         if (status == VF2_OK && !fighter0_only) {
-            status = set_state_child_bit(machine, fighter1);
+            status = correct_bit16_fighter_poststate(machine, fighter1);
         }
         if (status != VF2_OK) {
             return status;
