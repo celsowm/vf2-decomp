@@ -13,7 +13,7 @@ jobs:
           ref: master
           fetch-depth: 1
       - name: Pack source
-        run: tar --exclude=.git -czf vf2-master-source.tar.gz .
+        run: tar --exclude=.git --exclude=vf2-master-source.tar.gz -czf vf2-master-source.tar.gz .
       - uses: actions/upload-artifact@v4
         with:
           name: vf2-master-source
