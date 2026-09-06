@@ -16,7 +16,7 @@ counters. No ROM, snapshot, or trace artifact is committed.
 
 ## Exact admitted masks
 
-The recovered runtime is exact for all 684 measured cases across 19 explicitly
+The recovered runtime is exact for all 900 measured cases across 25 explicitly
 admitted masks:
 
 | Combined state-8 mask | Result |
@@ -39,9 +39,15 @@ admitted masks:
 | `0x18214000` | 36/36 exact |
 | `0x1c214000` | 36/36 exact |
 | `0x24214000` | 36/36 exact |
+| `0x26214000` | 36/36 exact |
+| `0x28214000` | 36/36 exact |
+| `0x2c214000` | 36/36 exact |
+| `0x30214000` | 36/36 exact |
+| `0x34214000` | 36/36 exact |
+| `0x48214000` | 36/36 exact |
 | `0x84214000` | 36/36 exact |
 
-The confirming build is commit `80345fd572b295b82fb3133fdb200c3353541971`.
+The confirming build is commit `53cc3b903d65fde32fe91a57a0f4a592c50795d6`.
 Its CI gate completed successfully under GCC, Clang, ASan/UBSan, and Python
 tooling checks. The ROM-backed matrix was run against the `vf2i960-linux`
 artifact produced by that exact commit.
@@ -116,7 +122,13 @@ These masks have exact RAM and share the same measured instruction deficit:
 - `0x14214000`;
 - `0x16214000`;
 - `0x18214000`;
-- `0x1c214000`.
+- `0x1c214000`;
+- `0x26214000`;
+- `0x28214000`;
+- `0x2c214000`;
+- `0x30214000`;
+- `0x34214000`;
+- `0x48214000`.
 
 Unilateral cases require `+2` native instructions and bilateral cases require
 `+3`. Condition state follows the same measured `EQUAL` / `LESS` pattern. The
@@ -135,7 +147,7 @@ recovered path. Confirmed examples include:
 
 ## Next frontier
 
-Continue the same controlled high-bit sweep from the `0x00214000` family,
-prioritizing masks not yet admitted and classifying them into full-state exact,
-condition-only, measured accounting, or genuine RAM-semantic divergences before
-changing recovery code.
+Continue the controlled high-bit sweep from the `0x00214000` family. Keep
+classifying each exact mask as base-exact, condition-only, measured accounting,
+or genuine RAM-semantic divergence before changing recovery code. The current
+900-case gate is the regression baseline for further admissions.
