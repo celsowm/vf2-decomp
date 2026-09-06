@@ -13,6 +13,15 @@
 #define REGISTRY_BASE UINT32_C(0x00513000)
 #define REGISTRY_STRIDE UINT32_C(0x200)
 #define STACK_POINTER (VF2_WORK_RAM_BASE + UINT32_C(0x3000))
+#define OBJECT_SERVICE_ENTRY UINT32_C(0x0006ca84)
+#define OBJECT_SLOT0 UINT32_C(0x00500878)
+#define OBJECT_SLOT1 UINT32_C(0x0050087c)
+#define OBJECT_SLOT2 UINT32_C(0x00500880)
+
+vf2_status vf2_recovered_object_service_loop_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
 
 static int failures = 0;
 
@@ -224,6 +233,131 @@ static void run_case(
     vf2_model2a_shutdown(&native_machine);
 }
 
+static void setup_service_state(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu,
+    int active
+)
+{
+    static const uint32_t slots[3] = {
+        OBJECT_SLOT0, OBJECT_SLOT1, OBJECT_SLOT2
+    };
+    static const uint32_t registries[3] = {
+        REGISTRY_BASE,
+        REGISTRY_BASE + REGISTRY_STRIDE,
+        REGISTRY_BASE + REGISTRY_STRIDE * UINT32_C(2)
+    };
+    static const uint32_t handlers[3] = {
+        UINT32_C(0x0006cae0),
+        UINT32_C(0x0006caf4),
+        UINT32_C(0x0006cb08)
+    };
+    size_t index = 0u;
+
+    memset(cpu, 0, sizeof(*cpu));
+    vf2_i960_cpu_reset(cpu, 0u, 0u, UINT32_C(0x00000000));
+    cpu->registers[1] = STACK_POINTER;
+    CHECK(
+        vf2_i960_cpu_enter_procedure(
+            cpu, OBJECT_SERVICE_ENTRY, HANDLER_RETURN
+        ) == VF2_OK
+    );
+    cpu->registers[29] = UINT32_C(0x0051f000);
+    cpu->arithmetic_control |= UINT32_C(5);
+    cpu->compare_result = VF2_I960_COMPARE_OVERFLOW;
+
+    for (index = 0u; index < 3u; ++index) {
+        CHECK(
+            vf2_model2a_write_u32(machine, slots[index], registries[index]) ==
+            VF2_OK
+        );
+        CHECK(
+            vf2_model2a_write_u32(
+                machine, registries[index],
+                active ? UINT32_C(0x80000000) : 0u
+            ) == VF2_OK
+        );
+        CHECK(
+            vf2_model2a_write_u32(
+                machine, registries[index] + UINT32_C(0x0c), handlers[index]
+            ) == VF2_OK
+        );
+    }
+}
+
+static void run_service_case(
+    const uint8_t *main_rom,
+    size_t main_rom_size,
+    int active
+)
+{
+    vf2_model2a reference_machine;
+    vf2_model2a native_machine;
+    vf2_i960_cpu reference_cpu;
+    vf2_i960_cpu native_cpu;
+    vf2_status status = VF2_OK;
+    uint32_t steps = 0u;
+    const uint32_t expected_steps = active ? 40u : 27u;
+
+    memset(&reference_machine, 0, sizeof(reference_machine));
+    memset(&native_machine, 0, sizeof(native_machine));
+    CHECK(vf2_model2a_initialize(&reference_machine) != 0);
+    CHECK(vf2_model2a_initialize(&native_machine) != 0);
+    if (reference_machine.work_ram == NULL ||
+        native_machine.work_ram == NULL) {
+        vf2_model2a_shutdown(&reference_machine);
+        vf2_model2a_shutdown(&native_machine);
+        return;
+    }
+    CHECK(
+        vf2_model2a_attach_main_rom(
+            &reference_machine, main_rom, main_rom_size
+        ) == VF2_OK
+    );
+    CHECK(
+        vf2_model2a_attach_main_rom(
+            &native_machine, main_rom, main_rom_size
+        ) == VF2_OK
+    );
+    setup_service_state(&reference_machine, &reference_cpu, active);
+    setup_service_state(&native_machine, &native_cpu, active);
+
+    while (reference_cpu.ip != HANDLER_RETURN && steps < 64u) {
+        status = vf2_i960_step(&reference_cpu, &reference_machine, NULL);
+        CHECK(status == VF2_OK);
+        ++steps;
+        if (status != VF2_OK) {
+            break;
+        }
+    }
+    CHECK(reference_cpu.ip == HANDLER_RETURN);
+    CHECK(steps == expected_steps);
+    CHECK(reference_cpu.compare_result == VF2_I960_COMPARE_EQUAL);
+    CHECK((reference_cpu.arithmetic_control & UINT32_C(7)) == UINT32_C(2));
+
+    status = vf2_recovered_object_service_loop_execute(
+        &native_machine, &native_cpu
+    );
+    CHECK(status == VF2_OK);
+    check_cpu_equal(
+        &reference_cpu, &native_cpu,
+        active ? "service-active" : "service-inactive"
+    );
+    CHECK(
+        memcmp(
+            reference_machine.work_ram, native_machine.work_ram,
+            reference_machine.work_ram_size
+        ) == 0
+    );
+
+    printf(
+        "object-service %-8s exact: %u ins\n",
+        active ? "active" : "inactive", (unsigned)expected_steps
+    );
+    vf2_model2a_shutdown(&reference_machine);
+    vf2_model2a_shutdown(&native_machine);
+}
+
 static void test_invalid_arguments(void)
 {
     vf2_model2a machine;
@@ -266,6 +400,14 @@ static void test_invalid_arguments(void)
             &machine, &cpu, registry, NULL
         ) == VF2_OK
     );
+    CHECK(
+        vf2_recovered_object_service_loop_execute(NULL, &cpu) ==
+        VF2_ERROR_INVALID_ARGUMENT
+    );
+    CHECK(
+        vf2_recovered_object_service_loop_execute(&machine, NULL) ==
+        VF2_ERROR_INVALID_ARGUMENT
+    );
 
     vf2_model2a_shutdown(&machine);
 }
@@ -303,6 +445,8 @@ int main(int argc, char **argv)
             REGISTRY_BASE + (uint32_t)index * REGISTRY_STRIDE
         );
     }
+    run_service_case(main_rom, main_rom_size, 0);
+    run_service_case(main_rom, main_rom_size, 1);
     free(main_rom);
 
     if (failures != 0) {
