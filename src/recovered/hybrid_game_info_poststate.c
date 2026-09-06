@@ -144,11 +144,17 @@ static void correct_measured_compare_state(
     }
 }
 
-static void correct_measured_frame3(vf2_i960_cpu *cpu)
+static void correct_measured_frame3(
+    vf2_i960_cpu *cpu,
+    bool fighter0_only
+)
 {
     cpu->local_frames[3].registers[3] = UINT32_C(0x41000000);
     cpu->local_frames[3].registers[4] = UINT32_C(0x07800f0f);
     cpu->local_frames[3].registers[7] = UINT32_C(0x41000000);
+    if (!fighter0_only) {
+        cpu->local_frames[3].registers[15] = UINT32_C(1);
+    }
 }
 
 static vf2_status set_state_child_bit(
@@ -416,7 +422,7 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
             report->recovered_instruction_count += correction;
         }
         correct_measured_compare_state(cpu, fighter0_only, countdown);
-        correct_measured_frame3(cpu);
+        correct_measured_frame3(cpu, fighter0_only);
         return VF2_OK;
     }
 
@@ -437,7 +443,7 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
             report->recovered_instruction_count += correction;
         }
         correct_measured_compare_state(cpu, fighter0_only, countdown);
-        correct_measured_frame3(cpu);
+        correct_measured_frame3(cpu, fighter0_only);
         return VF2_OK;
     }
 
