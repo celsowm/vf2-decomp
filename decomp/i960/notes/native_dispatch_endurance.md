@@ -13,10 +13,12 @@ vf2i960 native-nth-dispatch /path/to/vf2 <dispatch>
 ## Confirmed corridor
 
 The recovered runtime and the reference i960 executor match complete final CPU
-and modeled memory state through **dispatch 60**. Every sampled target returned
-success and reported `Final CPU and memory state: MATCH`.
+and modeled memory state through every completed dispatch in an endurance run
+that reached **dispatch 3749**. The attempt to continue through dispatch 5000
+was stopped by the host-side execution time limit; it did not report a native
+mismatch or unsupported boundary before stopping.
 
-Measured targets include:
+Measured anchors include:
 
 | Dispatch | Repeated-cycle blocks | Repeated-cycle instructions | Result |
 | ---: | ---: | ---: | --- |
@@ -46,6 +48,14 @@ Measured targets include:
 | 39 | 37 | 1563 | MATCH |
 | 40 | 37 | 1566 | MATCH |
 | 60 | 37 | 1566 | MATCH |
+| 100 | 37 | 1566 | MATCH |
+| 150 | 37 | 1566 | MATCH |
+| 300 | 37 | 1566 | MATCH |
+| 500 | 37 | 1566 | MATCH |
+| 1000 | 37 | 1566 | MATCH |
+| 3747 | 37 | 1563 | MATCH |
+| 3748 | 37 | 1566 | MATCH |
+| 3749 | 37 | 1561 | MATCH |
 
 All listed dispatches enter `fa_game_info` at `0x0001645c` with registry
 `0x00515200`.
@@ -105,13 +115,15 @@ logical dispatch = scheduler_entries / 2 + 6
 for the validated continuation checkpoint family, with odd or structurally
 invalid scheduler-entry counts rejected fail-closed. After the fix, a
 ROM-backed dispatch-34 snapshot restores as dispatch 34 and continues to dispatch
-35 with a complete CPU/memory `MATCH` and 1563 recovered instructions.
+35 with a complete CPU/memory `MATCH` and 1563 recovered instructions. The same
+resume path was then used successfully for the 300 -> 500 -> 1000 endurance
+checkpoints.
 
 ## Implication
 
 The older handoff statement that the accepted repeated corridor only reaches the
-seventh dispatch understates current measured coverage. The strict native
-runtime survives substantially farther without interpreter fallback in this
-observed scenario. This does not imply general gameplay completeness: alternate
-inputs, task schedules, fighter states, camera modes, and other unmeasured
-branches remain explicit boundaries.
+seventh dispatch is no longer representative of measured coverage. In the
+baseline observed scenario, simply running more frames has not exposed the next
+native boundary even after thousands of dispatches. Future frontier work should
+therefore prioritize controlled alternate inputs, fighter/task states, camera
+modes and other branch-inducing mutations rather than longer baseline endurance.
