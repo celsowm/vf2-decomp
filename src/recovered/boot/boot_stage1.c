@@ -17,9 +17,86 @@ enum {
     VF2_BOOT_INTERRUPT_TABLE_COPY_BYTES = 0x00000410u,
     VF2_BOOT_INTERRUPT_STACK = 0x005ff000u,
     VF2_BOOT_IAC_PACKET = 0x00003860u,
-    VF2_BOOT_NEXT_INSTRUCTION = 0x000001b0u
+    VF2_BOOT_NEXT_INSTRUCTION = 0x000001b0u,
+    VF2_BOOT_QUAD_COPY_ENTRY = 0x00000b58u,
+    VF2_BOOT_QUAD_COPY_FIRST_LIMIT = 0x00000404u,
+    VF2_BOOT_QUAD_COPY_FIRST_RETURN = 0x00000170u,
+    VF2_BOOT_QUAD_COPY_SECOND_LIMIT = 0x000000b0u,
+    VF2_BOOT_QUAD_COPY_SECOND_RETURN = 0x0000018cu
 };
 
+static int boot_quad_copy_context_observed(const vf2_i960_cpu *cpu)
+{
+    const uint32_t limit = cpu->registers[16];
+    const uint32_t source = cpu->registers[17];
+    const uint32_t destination = cpu->registers[18];
+    const uint32_t offset = cpu->registers[20];
+    const uint32_t return_address = cpu->registers[30];
+
+    if (offset != 0u) {
+        return 0;
+    }
+    if (limit == VF2_BOOT_QUAD_COPY_FIRST_LIMIT &&
+        source == VF2_BOOT_INTERRUPT_TABLE_SOURCE &&
+        destination == VF2_BOOT_INTERRUPT_STACK &&
+        return_address == VF2_BOOT_QUAD_COPY_FIRST_RETURN) {
+        return 1;
+    }
+    return limit == VF2_BOOT_QUAD_COPY_SECOND_LIMIT &&
+           source == VF2_BOOT_INTERRUPT_SOURCE &&
+           destination == VF2_BOOT_INTERRUPT_DESTINATION &&
+           return_address == VF2_BOOT_QUAD_COPY_SECOND_RETURN;
+}
+
+vf2_status vf2_recovered_iac_reinitialize_copy_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    uint32_t offset = 0u;
+    size_t index = 0u;
+
+    if (machine == NULL || cpu == NULL) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    if (cpu->ip != VF2_BOOT_QUAD_COPY_ENTRY ||
+        !boot_quad_copy_context_observed(cpu)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    for (;;) {
+        offset = cpu->registers[20];
+        for (index = 0u; index < 4u; ++index) {
+            const uint32_t word_offset = offset + (uint32_t)(index * 4u);
+            vf2_status status = vf2_model2a_read_u32(
+                machine,
+                cpu->registers[17] + word_offset,
+                &cpu->registers[24u + index]
+            );
+            if (status != VF2_OK) {
+                return status;
+            }
+            status = vf2_model2a_write_u32(
+                machine,
+                cpu->registers[18] + word_offset,
+                cpu->registers[24u + index]
+            );
+            if (status != VF2_OK) {
+                return status;
+            }
+        }
+
+        cpu->registers[20] += UINT32_C(16);
+        cpu->executed_instructions += UINT64_C(4);
+        if ((int32_t)cpu->registers[16] <= (int32_t)cpu->registers[20]) {
+            break;
+        }
+    }
+
+    cpu->ip = cpu->registers[30];
+    ++cpu->executed_instructions;
+    return VF2_OK;
+}
 
 static vf2_status copy_cpu_control_table(
     vf2_model2a *machine,
