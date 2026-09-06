@@ -21,8 +21,15 @@
 #define VF2_GAME_INFO_MASK_16_21 UINT32_C(0x00210000)
 #define VF2_GAME_INFO_MASK_14_16_21 UINT32_C(0x00214000)
 #define VF2_GAME_INFO_MASK_15_16_21 UINT32_C(0x00218000)
+#define VF2_GAME_INFO_STATE4_MASK_6 UINT32_C(0x00000040)
+#define VF2_GAME_INFO_STATE4_MASK_15 UINT32_C(0x00008000)
+#define VF2_GAME_INFO_STATE4_MASK_6_15 UINT32_C(0x00008040)
+#define VF2_GAME_INFO_STATE4_MASK_16 UINT32_C(0x00010000)
+#define VF2_GAME_INFO_STATE4_MASK_6_16 UINT32_C(0x00010040)
+#define VF2_GAME_INFO_STATE4_MASK_14_16 UINT32_C(0x00014000)
 #define VF2_GAME_INFO_STATE4_MASK_15_16 UINT32_C(0x00018000)
 #define VF2_GAME_INFO_STATE4_MASK_6_15_16 UINT32_C(0x00018040)
+#define VF2_GAME_INFO_STATE4_MASK_14_15_16 UINT32_C(0x0001c000)
 
 static const uint32_t vf2_game_info_measured_masks[] = {
     UINT32_C(0x00204000), UINT32_C(0x00208000), UINT32_C(0x00210000),
@@ -77,6 +84,18 @@ static const uint32_t vf2_game_info_condition_only_masks[] = {
     UINT32_C(0xc4214000), UINT32_C(0xe0214000), UINT32_C(0xe4214000)
 };
 
+static const uint32_t vf2_game_info_state4_simple_masks[] = {
+    VF2_GAME_INFO_STATE4_MASK_6,
+    VF2_GAME_INFO_STATE4_MASK_15,
+    VF2_GAME_INFO_STATE4_MASK_6_15,
+    VF2_GAME_INFO_STATE4_MASK_16,
+    VF2_GAME_INFO_STATE4_MASK_6_16,
+    VF2_GAME_INFO_STATE4_MASK_14_16,
+    VF2_GAME_INFO_STATE4_MASK_15_16,
+    VF2_GAME_INFO_STATE4_MASK_6_15_16,
+    VF2_GAME_INFO_STATE4_MASK_14_15_16
+};
+
 vf2_status vf2_hybrid_first_dispatch_task_execute_base(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu,
@@ -84,11 +103,7 @@ vf2_status vf2_hybrid_first_dispatch_task_execute_base(
     vf2_hybrid_task_report *report
 );
 
-static bool contains_mask(
-    const uint32_t *masks,
-    size_t count,
-    uint32_t mask
-)
+static bool contains_mask(const uint32_t *masks, size_t count, uint32_t mask)
 {
     size_t index = 0u;
 
@@ -104,8 +119,7 @@ static bool measured_mask(uint32_t mask)
 {
     return contains_mask(
         vf2_game_info_measured_masks,
-        sizeof(vf2_game_info_measured_masks) /
-            sizeof(vf2_game_info_measured_masks[0]),
+        sizeof(vf2_game_info_measured_masks) / sizeof(vf2_game_info_measured_masks[0]),
         mask
     );
 }
@@ -130,10 +144,17 @@ static bool measured_condition_only_family(uint32_t mask)
     );
 }
 
-static void set_compare_result(
-    vf2_i960_cpu *cpu,
-    vf2_i960_compare_result result
-)
+static bool measured_state4_simple_mask(uint32_t mask)
+{
+    return contains_mask(
+        vf2_game_info_state4_simple_masks,
+        sizeof(vf2_game_info_state4_simple_masks) /
+            sizeof(vf2_game_info_state4_simple_masks[0]),
+        mask
+    );
+}
+
+static void set_compare_result(vf2_i960_cpu *cpu, vf2_i960_compare_result result)
 {
     uint32_t bits = 0u;
 
@@ -145,8 +166,7 @@ static void set_compare_result(
         bits = UINT32_C(1);
     }
     cpu->compare_result = result;
-    cpu->arithmetic_control =
-        (cpu->arithmetic_control & ~UINT32_C(7)) | bits;
+    cpu->arithmetic_control = (cpu->arithmetic_control & ~UINT32_C(7)) | bits;
 }
 
 static void correct_measured_compare_state(
@@ -162,10 +182,15 @@ static void correct_measured_compare_state(
     }
 }
 
-static void correct_measured_frame3(
-    vf2_i960_cpu *cpu,
-    bool fighter0_only
-)
+static void correct_countdown_compare_state(vf2_i960_cpu *cpu, uint8_t countdown)
+{
+    set_compare_result(
+        cpu,
+        countdown == 0u ? VF2_I960_COMPARE_EQUAL : VF2_I960_COMPARE_LESS
+    );
+}
+
+static void correct_measured_frame3(vf2_i960_cpu *cpu, bool fighter0_only)
 {
     cpu->local_frames[3].registers[3] = UINT32_C(0x41000000);
     cpu->local_frames[3].registers[4] = UINT32_C(0x07800f0f);
@@ -175,10 +200,17 @@ static void correct_measured_frame3(
     }
 }
 
-static vf2_status set_state_child_bit(
-    vf2_model2a *machine,
-    uint32_t fighter
-)
+static void correct_state4_bit15_frame3(vf2_i960_cpu *cpu, bool fighter0_only)
+{
+    cpu->local_frames[3].registers[3] = UINT32_C(0x41000000);
+    cpu->local_frames[3].registers[4] = UINT32_C(0x07800f0f);
+    cpu->local_frames[3].registers[7] = UINT32_C(0x41000000);
+    if (!fighter0_only) {
+        cpu->local_frames[3].registers[15] = UINT32_C(0x80004400);
+    }
+}
+
+static vf2_status set_state_child_bit(vf2_model2a *machine, uint32_t fighter)
 {
     uint32_t value = 0u;
     vf2_status status = vf2_model2a_read_u32(
@@ -194,10 +226,7 @@ static vf2_status set_state_child_bit(
     return status;
 }
 
-static vf2_status clear_legacy_field_bit(
-    vf2_model2a *machine,
-    uint32_t fighter
-)
+static vf2_status clear_legacy_field_bit(vf2_model2a *machine, uint32_t fighter)
 {
     uint32_t value = 0u;
     vf2_status status = vf2_model2a_read_u32(
@@ -226,10 +255,7 @@ static vf2_status correct_bit16_fighter_poststate(
     return status;
 }
 
-static vf2_status read_mode_bit6(
-    vf2_model2a *machine,
-    bool *mode_bit6
-)
+static vf2_status read_mode_bit6(vf2_model2a *machine, bool *mode_bit6)
 {
     uint32_t mode_base = 0u;
     uint8_t mode = 0u;
@@ -238,9 +264,7 @@ static vf2_status read_mode_bit6(
     if (machine == NULL || mode_bit6 == NULL) {
         return VF2_ERROR_INVALID_ARGUMENT;
     }
-    status = vf2_model2a_read_u32(
-        machine, VF2_GAME_INFO_MODE_BASE_SLOT, &mode_base
-    );
+    status = vf2_model2a_read_u32(machine, VF2_GAME_INFO_MODE_BASE_SLOT, &mode_base);
     if (status == VF2_OK) {
         status = vf2_model2a_read(
             machine,
@@ -290,23 +314,15 @@ static bool measured_case(
     *fighter1 = 0u;
     *fighter0_only = false;
     *bilateral = false;
-    status = vf2_model2a_read_u32(
-        machine, VF2_GAME_INFO_FIGHTER0_SLOT, fighter0
-    );
+    status = vf2_model2a_read_u32(machine, VF2_GAME_INFO_FIGHTER0_SLOT, fighter0);
     if (status == VF2_OK) {
-        status = vf2_model2a_read_u32(
-            machine, VF2_GAME_INFO_FIGHTER1_SLOT, fighter1
-        );
+        status = vf2_model2a_read_u32(machine, VF2_GAME_INFO_FIGHTER1_SLOT, fighter1);
     }
     if (status == VF2_OK) {
-        status = vf2_model2a_read_u32(
-            machine, *fighter0, &fighter0_base_flags
-        );
+        status = vf2_model2a_read_u32(machine, *fighter0, &fighter0_base_flags);
     }
     if (status == VF2_OK) {
-        status = vf2_model2a_read_u32(
-            machine, *fighter1, &fighter1_base_flags
-        );
+        status = vf2_model2a_read_u32(machine, *fighter1, &fighter1_base_flags);
     }
     if (status == VF2_OK) {
         status = vf2_model2a_read_u32(
@@ -347,9 +363,7 @@ static bool measured_case(
         );
     }
     if (status == VF2_OK) {
-        status = vf2_model2a_read_u32(
-            machine, VF2_GAME_INFO_THRESHOLD, &threshold
-        );
+        status = vf2_model2a_read_u32(machine, VF2_GAME_INFO_THRESHOLD, &threshold);
     }
     combined = fighter0_state_flags | fighter1_state_flags;
     if (status != VF2_OK || fighter0_state != fighter1_state ||
@@ -366,8 +380,7 @@ static bool measured_case(
             return false;
         }
     } else if (fighter0_state == UINT8_C(4)) {
-        if (combined != VF2_GAME_INFO_STATE4_MASK_15_16 &&
-            combined != VF2_GAME_INFO_STATE4_MASK_6_15_16) {
+        if (!measured_state4_simple_mask(combined)) {
             return false;
         }
     } else {
@@ -408,6 +421,99 @@ static uint64_t bit14_bit16_high21_correction(
     return mode_bit6 ? UINT64_C(8) : UINT64_C(3);
 }
 
+static vf2_status apply_state4_simple_poststate(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu,
+    vf2_hybrid_task_report *report,
+    uint32_t mask,
+    uint32_t fighter0,
+    uint32_t fighter1,
+    bool fighter0_only,
+    bool bilateral,
+    uint8_t countdown,
+    bool mode_bit6
+)
+{
+    const uint64_t active_count = bilateral ? UINT64_C(2) : UINT64_C(1);
+    vf2_status status = VF2_OK;
+
+    if (mask == VF2_GAME_INFO_STATE4_MASK_15_16 ||
+        mask == VF2_GAME_INFO_STATE4_MASK_6_15_16) {
+        const uint64_t correction = UINT64_C(4) * active_count;
+        if (fighter0_only || bilateral) {
+            status = set_state_child_bit(machine, fighter0);
+        }
+        if (status == VF2_OK && !fighter0_only) {
+            status = set_state_child_bit(machine, fighter1);
+        }
+        if (status != VF2_OK) {
+            return status;
+        }
+        cpu->executed_instructions += correction;
+        if (report != NULL) {
+            report->recovered_instruction_count += correction;
+        }
+        set_compare_result(cpu, VF2_I960_COMPARE_LESS);
+        correct_measured_frame3(cpu, fighter0_only);
+        return VF2_OK;
+    }
+
+    if (mask == VF2_GAME_INFO_STATE4_MASK_6 ||
+        mask == VF2_GAME_INFO_STATE4_MASK_16 ||
+        mask == VF2_GAME_INFO_STATE4_MASK_6_16) {
+        correct_countdown_compare_state(cpu, countdown);
+        correct_measured_frame3(cpu, fighter0_only);
+        return VF2_OK;
+    }
+
+    if (mask == VF2_GAME_INFO_STATE4_MASK_15) {
+        set_compare_result(cpu, VF2_I960_COMPARE_LESS);
+        correct_state4_bit15_frame3(cpu, fighter0_only);
+        return VF2_OK;
+    }
+
+    if (mask == VF2_GAME_INFO_STATE4_MASK_6_15) {
+        const uint64_t correction = UINT64_C(3) * active_count;
+        if (cpu->executed_instructions < correction ||
+            (report != NULL && report->recovered_instruction_count < correction)) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        cpu->executed_instructions -= correction;
+        if (report != NULL) {
+            report->recovered_instruction_count -= correction;
+        }
+        set_compare_result(cpu, VF2_I960_COMPARE_LESS);
+        correct_measured_frame3(cpu, fighter0_only);
+        return VF2_OK;
+    }
+
+    if (mask == VF2_GAME_INFO_STATE4_MASK_14_16) {
+        if (mode_bit6) {
+            cpu->executed_instructions += active_count;
+            if (report != NULL) {
+                report->recovered_instruction_count += active_count;
+            }
+        }
+        correct_countdown_compare_state(cpu, countdown);
+        correct_measured_frame3(cpu, fighter0_only);
+        return VF2_OK;
+    }
+
+    if (mask == VF2_GAME_INFO_STATE4_MASK_14_15_16) {
+        const uint64_t correction =
+            (mode_bit6 ? UINT64_C(4) : UINT64_C(3)) * active_count;
+        cpu->executed_instructions += correction;
+        if (report != NULL) {
+            report->recovered_instruction_count += correction;
+        }
+        set_compare_result(cpu, VF2_I960_COMPARE_LESS);
+        correct_measured_frame3(cpu, fighter0_only);
+        return VF2_OK;
+    }
+
+    return VF2_ERROR_UNSUPPORTED;
+}
+
 vf2_status vf2_hybrid_first_dispatch_task_execute(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu,
@@ -436,8 +542,11 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
     );
     vf2_status status = VF2_OK;
 
-    if (apply_measured_poststate && fighter_state == UINT8_C(8) &&
-        mask == VF2_GAME_INFO_MASK_14_16_21) {
+    if (apply_measured_poststate &&
+        ((fighter_state == UINT8_C(8) && mask == VF2_GAME_INFO_MASK_14_16_21) ||
+         (fighter_state == UINT8_C(4) &&
+          (mask == VF2_GAME_INFO_STATE4_MASK_14_16 ||
+           mask == VF2_GAME_INFO_STATE4_MASK_14_15_16)))) {
         status = read_mode_bit6(machine, &mode_bit6);
         if (status != VF2_OK) {
             return status;
@@ -452,23 +561,18 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
     }
 
     if (fighter_state == UINT8_C(4)) {
-        const uint64_t correction = bilateral ? UINT64_C(8) : UINT64_C(4);
-        if (fighter0_only || bilateral) {
-            status = set_state_child_bit(machine, fighter0);
-        }
-        if (status == VF2_OK && !fighter0_only) {
-            status = set_state_child_bit(machine, fighter1);
-        }
-        if (status != VF2_OK) {
-            return status;
-        }
-        cpu->executed_instructions += correction;
-        if (report != NULL) {
-            report->recovered_instruction_count += correction;
-        }
-        set_compare_result(cpu, VF2_I960_COMPARE_LESS);
-        correct_measured_frame3(cpu, fighter0_only);
-        return VF2_OK;
+        return apply_state4_simple_poststate(
+            machine,
+            cpu,
+            report,
+            mask,
+            fighter0,
+            fighter1,
+            fighter0_only,
+            bilateral,
+            countdown,
+            mode_bit6
+        );
     }
 
     if (measured_plus2_plus3_family(mask)) {
