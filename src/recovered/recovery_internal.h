@@ -54,6 +54,30 @@ static inline vf2_status vf2_native_runtime_scheduler_enter(
     if (machine == NULL || cpu == NULL) {
         return VF2_ERROR_INVALID_ARGUMENT;
     }
+
+    if (cpu->ip == VF2_RUNTIME_SCHEDULER_BODY) {
+        const uint64_t start_instructions = cpu->executed_instructions;
+        const uint64_t start_calls = cpu->procedure_calls;
+        const uint64_t start_returns = cpu->procedure_returns;
+
+        status = vf2_native_second_scheduler_enter(machine, cpu, report);
+        if (status != VF2_OK) {
+            return status;
+        }
+        if (cpu->executed_instructions <= start_instructions) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        --cpu->executed_instructions;
+        if (report != NULL) {
+            report->recovered_instruction_count =
+                cpu->executed_instructions - start_instructions;
+            report->recovered_procedure_calls = cpu->procedure_calls - start_calls;
+            report->recovered_procedure_returns =
+                cpu->procedure_returns - start_returns;
+        }
+        return VF2_OK;
+    }
+
     if (cpu->ip != VF2_RUNTIME_SCHEDULER_CALL_SITE) {
         return vf2_native_second_scheduler_enter(machine, cpu, report);
     }
