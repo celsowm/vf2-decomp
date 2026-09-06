@@ -6730,22 +6730,6 @@ vf2_status vf2_native_runtime_step_impl(vf2_model2a *machine, vf2_i960_cpu *cpu,
             status = vf2_hybrid_frame_wait_execute(machine, cpu, &state->frame_wait,
                                                    &bridge_report);
         }
-        if (status == VF2_OK && frame_wait_entry == VF2_NATIVE_FRAME_WAIT_POLL_ENTRY) {
-            uint32_t runtime_flags = 0u;
-            uint32_t task_count = 0u;
-            status = vf2_model2a_read_u32(machine, VF2_NATIVE_RUNTIME_FLAGS,
-                                          &runtime_flags);
-            if (status == VF2_OK) {
-                status = vf2_model2a_read_u32(machine, VF2_NATIVE_TASK_COUNT_ADDRESS,
-                                              &task_count);
-            }
-            if (status == VF2_OK && task_count == UINT32_C(29) &&
-                (runtime_flags & (UINT32_C(1) << 9u)) == 0u &&
-                bridge_report.recovered_instruction_count != 0u) {
-                --cpu->executed_instructions;
-                --bridge_report.recovered_instruction_count;
-            }
-        }
         if (status == VF2_OK) {
             local_report.kind = VF2_NATIVE_RUNTIME_STEP_FRAME_WAIT;
             local_report.bridge_kind = bridge_report.kind;
@@ -6818,24 +6802,6 @@ vf2_status vf2_native_runtime_step_impl(vf2_model2a *machine, vf2_i960_cpu *cpu,
         vf2_hybrid_bridge_report bridge_report;
         memset(&bridge_report, 0, sizeof(bridge_report));
         status = execute_texture_default_limits(machine, cpu, &bridge_report);
-        if (status == VF2_ERROR_UNSUPPORTED) {
-            status = vf2_model2a_write_u32(
-                machine, VF2_ORCHESTRATOR_LIMIT_LOW, UINT32_C(0x00003e80)
-            );
-            if (status == VF2_OK) {
-                status = vf2_model2a_write_u32(
-                    machine, VF2_ORCHESTRATOR_LIMIT_HIGH, UINT32_C(0x00004e20)
-                );
-            }
-            if (status == VF2_OK) {
-                cpu->ip = VF2_TEXTURE_DEFAULT_LIMITS_RETURN;
-                local_report.kind = VF2_NATIVE_RUNTIME_STEP_BRIDGE;
-                local_report.bridge_kind = VF2_HYBRID_BRIDGE_TEXTURE_DEFAULT_LIMITS;
-                local_report.exit_address = cpu->ip;
-                local_report.recovered_instruction_count = UINT64_C(22);
-                local_report.recovered_procedure_returns = UINT64_C(1);
-            }
-        }
         if (status == VF2_OK) {
             local_report.kind = VF2_NATIVE_RUNTIME_STEP_BRIDGE;
             local_report.bridge_kind = bridge_report.kind;

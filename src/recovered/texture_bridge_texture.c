@@ -4517,6 +4517,49 @@ vf2_status execute_texture_default_limits(
     status = vf2_orchestrator_apply_default_limits(
         machine, &limits_report
     );
+    if (status == VF2_ERROR_UNSUPPORTED) {
+        uint32_t runtime_flags = 0u;
+        uint8_t display_mode = 0u;
+
+        status = vf2_model2a_read_u32(
+            machine, VF2_ORCHESTRATOR_RUNTIME_FLAGS, &runtime_flags
+        );
+        if (status == VF2_OK) {
+            status = vf2_model2a_read(
+                machine, VF2_ORCHESTRATOR_DISPLAY_MODE,
+                &display_mode, sizeof(display_mode)
+            );
+        }
+        if (status != VF2_OK) {
+            return status;
+        }
+        if ((runtime_flags & (UINT32_C(1) << 16u)) != 0u ||
+            ((uint32_t)display_mode % UINT32_C(32) != UINT32_C(2) &&
+             (uint32_t)display_mode % UINT32_C(32) != UINT32_C(3))) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+
+        /* 0x4bfe0..0x4c11c: display modes 2/3 branch directly to RET.
+         * The ROM executes 15 instructions, writes neither limit and leaves
+         * the condition code EQUAL. */
+        set_equal_condition(cpu);
+        cpu->executed_instructions += UINT64_C(15);
+        status = vf2_i960_cpu_return_procedure(cpu, machine);
+        if (status != VF2_OK) {
+            return status;
+        }
+
+        report->kind = VF2_HYBRID_BRIDGE_TEXTURE_DEFAULT_LIMITS;
+        report->entry_address = VF2_TEXTURE_DEFAULT_LIMITS_ENTRY;
+        report->exit_address = cpu->ip;
+        report->iterations = UINT64_C(1);
+        report->changed_values = UINT64_C(0);
+        report->bytes_written = 0u;
+        report->recovered_instruction_count = UINT64_C(15);
+        report->recovered_procedure_returns = UINT64_C(1);
+        report->cpu_poststate_applied = 1;
+        return VF2_OK;
+    }
     if (status != VF2_OK) {
         return status;
     }
