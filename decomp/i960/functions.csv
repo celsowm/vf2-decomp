@@ -1,7 +1,7 @@
 address,end,name,status,source,notes
 0x000000b0,0x000001b0,boot_entry,recovered,reset-vector+differential,Initial CPU and RAM setup
 0x000001b0,0x0000052c,boot_stage_2,recovered,manual-entry+differential,Post-IAC hardware initialization
-0x00000b58,,iac_reinitialize_candidate,candidate,direct-call,Called twice by boot entry
+0x00000b58,0x00000b6c,iac_reinitialize_copy,recovered,dynamic-differential+boot,Observed boot quad-copy leaf at both call sites; exact CPU condition state registers instruction counts and RAM
 0x00010cbc,0x00010d54,task_registry_initialize,recovered,manual+differential,29-entry scheduler registry initializer
 0x00010d54,,scheduler_dispatch,recovered-prefix,dynamic+semantic,Runnable registry scan and indirect dispatch
 0x0001645c,0x00016504,task_game_info,recovered-first-dispatch,dynamic-differential,Direct no-call first-dispatch branch
