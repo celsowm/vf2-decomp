@@ -57,6 +57,13 @@ jobs:
           name: vf2i960-linux
           path: build/vf2i960
           if-no-files-found: error
+      - name: Publish object differential test binary
+        if: matrix.compiler == 'gcc'
+        uses: actions/upload-artifact@v4
+        with:
+          name: vf2-object-tests-linux
+          path: build/vf2_object_handler_tests
+          if-no-files-found: error
 
   sanitizers:
     name: clang ASan and UBSan
