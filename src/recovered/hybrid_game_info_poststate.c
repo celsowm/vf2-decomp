@@ -22,6 +22,7 @@
 #define VF2_GAME_INFO_MASK_14_16_21 UINT32_C(0x00214000)
 #define VF2_GAME_INFO_MASK_15_16_21 UINT32_C(0x00218000)
 #define VF2_GAME_INFO_STATE4_MASK_15_16 UINT32_C(0x00018000)
+#define VF2_GAME_INFO_STATE4_MASK_6_15_16 UINT32_C(0x00018040)
 
 static const uint32_t vf2_game_info_measured_masks[] = {
     UINT32_C(0x00204000), UINT32_C(0x00208000), UINT32_C(0x00210000),
@@ -365,7 +366,8 @@ static bool measured_case(
             return false;
         }
     } else if (fighter0_state == UINT8_C(4)) {
-        if (combined != VF2_GAME_INFO_STATE4_MASK_15_16) {
+        if (combined != VF2_GAME_INFO_STATE4_MASK_15_16 &&
+            combined != VF2_GAME_INFO_STATE4_MASK_6_15_16) {
             return false;
         }
     } else {
