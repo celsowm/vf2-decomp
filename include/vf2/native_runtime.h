@@ -167,6 +167,9 @@ vf2_status vf2_native_runtime_state_write_file(const vf2_native_runtime_state *s
 vf2_status vf2_native_runtime_state_read_file(vf2_native_runtime_state *state,
                                               const char *path);
 
+#ifdef vf2_native_runtime_step_impl
+#define vf2_native_runtime_step_kind_name vf2_native_runtime_step_kind_name_base
+#endif
 const char *vf2_native_runtime_step_kind_name(vf2_native_runtime_step_kind kind);
 
 #endif
