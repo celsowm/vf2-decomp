@@ -76,7 +76,11 @@ def test_memory_rw_and_call():
         assert stats["call_edges"] == 1
         assert stats["memory_reads"] == 1
         assert stats["memory_writes"] == 1
-        assert frontier.call_targets[0x164ac] == 1
+        assert frontier.call_targets[0x18644] == 1
+        assert frontier.call_targets.get(0x164ac, 0) == 0
+        assert frontier.top_call_targets(1) == [
+            {"address": hex32(0x18644), "count": 1}
+        ]
         assert frontier.address_reads[0x18648] == 1
         assert frontier.address_writes[0x1864c] == 1
         edge_call = frontier.edges[(0x164ac, 0x18644)]
@@ -85,7 +89,7 @@ def test_memory_rw_and_call():
         assert edge_ld.mem_reads == 1
         edge_st = frontier.edges[(0x1864c, 0x18650)]
         assert edge_st.mem_writes == 1
-    print("ok: memory R/W separation and call attribution")
+    print("ok: memory R/W separation and call-target attribution")
 
 
 def test_unsupported_final_attribution():
@@ -169,6 +173,19 @@ def test_classify_input():
         corpus = Path(tmp) / "m.jsonl"
         corpus.write_text(json.dumps({"case": 0, "inputs": {}, "new_edges": []}) + "\n")
         assert classify_input(corpus) == "corpus"
+        sweep = Path(tmp) / "sweep.jsonl"
+        sweep.write_text(json.dumps({
+            "field": "fighter0_flags",
+            "value": 0x40,
+            "outcome": {"status": "unsupported operation", "ip": 0x18700},
+        }) + "\n")
+        assert classify_input(sweep) == "sweep"
+        frontier = Frontier()
+        stats = frontier.ingest_sweep(sweep, "sweep.jsonl")
+        assert stats == {"cases": 1, "unsupported": 1}
+        assert frontier.top_unsupported(1) == [
+            {"address": hex32(0x18700), "count": 1}
+        ]
     print("ok: input classification")
 
 
