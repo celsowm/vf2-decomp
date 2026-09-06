@@ -22,6 +22,8 @@ jobs:
           decomp/i960/enumerate_game_info_18644.py
           decomp/i960/tools/*.py
           tools/python/*.py
+      - name: Test frontier analysis
+        run: python3 tools/python/test_frontier.py
 
   build:
     name: ${{ matrix.compiler }} release
