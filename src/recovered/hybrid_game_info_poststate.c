@@ -23,6 +23,10 @@
 #define VF2_GAME_INFO_MASK_14_15_16_21 UINT32_C(0x0021c000)
 #define VF2_GAME_INFO_MASK_14_16_21_26 UINT32_C(0x04214000)
 #define VF2_GAME_INFO_MASK_14_16_21_25_26 UINT32_C(0x06214000)
+#define VF2_GAME_INFO_MASK_14_16_21_27 UINT32_C(0x08214000)
+#define VF2_GAME_INFO_MASK_14_16_21_28 UINT32_C(0x10214000)
+#define VF2_GAME_INFO_MASK_14_16_21_26_27 UINT32_C(0x0c214000)
+#define VF2_GAME_INFO_MASK_14_16_21_25_28 UINT32_C(0x12214000)
 
 vf2_status vf2_hybrid_first_dispatch_task_execute_base(
     vf2_model2a *machine,
@@ -233,7 +237,11 @@ static bool measured_case(
          combined != VF2_GAME_INFO_MASK_15_16_21 &&
          combined != VF2_GAME_INFO_MASK_14_15_16_21 &&
          combined != VF2_GAME_INFO_MASK_14_16_21_26 &&
-         combined != VF2_GAME_INFO_MASK_14_16_21_25_26) ||
+         combined != VF2_GAME_INFO_MASK_14_16_21_25_26 &&
+         combined != VF2_GAME_INFO_MASK_14_16_21_27 &&
+         combined != VF2_GAME_INFO_MASK_14_16_21_28 &&
+         combined != VF2_GAME_INFO_MASK_14_16_21_26_27 &&
+         combined != VF2_GAME_INFO_MASK_14_16_21_25_28) ||
         threshold > UINT32_C(2) ||
         (*countdown != UINT8_C(0) && *countdown != UINT8_C(1)) ||
         (fighter0_base_flags & UINT32_C(0x80000000)) == 0u ||
@@ -276,6 +284,15 @@ static uint64_t bit14_bit16_high21_correction(
     return mode_bit6 ? UINT64_C(8) : UINT64_C(3);
 }
 
+static bool measured_plus2_plus3_family(uint32_t mask)
+{
+    return mask == VF2_GAME_INFO_MASK_14_16_21_25_26 ||
+           mask == VF2_GAME_INFO_MASK_14_16_21_27 ||
+           mask == VF2_GAME_INFO_MASK_14_16_21_28 ||
+           mask == VF2_GAME_INFO_MASK_14_16_21_26_27 ||
+           mask == VF2_GAME_INFO_MASK_14_16_21_25_28;
+}
+
 vf2_status vf2_hybrid_first_dispatch_task_execute(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu,
@@ -316,7 +333,7 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
         return status;
     }
 
-    if (mask == VF2_GAME_INFO_MASK_14_16_21_25_26) {
+    if (measured_plus2_plus3_family(mask)) {
         const uint64_t correction = bilateral ? UINT64_C(3) : UINT64_C(2);
         cpu->executed_instructions += correction;
         if (report != NULL) {
