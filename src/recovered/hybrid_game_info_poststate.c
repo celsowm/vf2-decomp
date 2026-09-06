@@ -341,10 +341,64 @@ static vf2_status read_mode_bit6(vf2_model2a *machine, bool *mode_bit6)
     return status;
 }
 
+static const uint8_t vf2_game_disp_pair_codes[26][2] = {
+    {0u, 0u}, {0u, 1u}, {0u, 2u}, {0u, 3u}, {0u, 4u},
+    {1u, 1u}, {1u, 4u}, {2u, 2u}, {3u, 3u}, {4u, 4u},
+    {5u, 5u}, {6u, 6u}, {6u, 0u}, {6u, 1u}, {7u, 7u},
+    {7u, 2u}, {8u, 8u}, {9u, 9u}, {10u, 10u}, {10u, 4u},
+    {11u, 1u}, {12u, 12u}, {12u, 2u}, {13u, 13u}, {13u, 5u},
+    {14u, 14u}
+};
+
+static const uint32_t vf2_game_disp_table_values[14] = {
+    UINT32_C(0x00000000), UINT32_C(0x00000001),
+    UINT32_C(0x00000002), UINT32_C(0x00000003),
+    UINT32_C(0x00000004), UINT32_C(0x00000005),
+    UINT32_C(0x00010000), UINT32_C(0x00000100),
+    UINT32_C(0x00020000), UINT32_C(0x00030000),
+    UINT32_C(0x00000300), UINT32_C(0x00020400),
+    UINT32_C(0x00010400), UINT32_C(0x00000400)
+};
+
+static uint8_t game_disp_direct_output(
+    const uint8_t mode_bytes[5],
+    bool second_selector
+)
+{
+    const uint32_t low = mode_bytes[second_selector ? 4u : 3u];
+    const uint32_t packed =
+        ((uint32_t)mode_bytes[1] << 16u) |
+        ((uint32_t)mode_bytes[2] << 8u) |
+        low;
+
+    return (uint8_t)(((packed + UINT32_C(0x00010101)) >> 8u) & UINT32_C(0xff));
+}
+
+static uint8_t game_disp_table_output(
+    uint32_t mode_flags,
+    uint8_t mode_id,
+    bool second_selector
+)
+{
+    uint8_t code = 0u;
+    uint32_t value = 0u;
+
+    if (mode_id == UINT8_C(25)) {
+        return UINT8_C(0);
+    }
+    code = vf2_game_disp_pair_codes[mode_id][
+        (mode_flags & UINT32_C(1)) != 0u ? 0u : (second_selector ? 1u : 0u)
+    ];
+    value = vf2_game_disp_table_values[code] + UINT32_C(0x00010101);
+    return (uint8_t)((value >> 8u) & UINT32_C(0xff));
+}
+
 static bool measured_game_disp_init_case(
     vf2_model2a *machine,
     const vf2_i960_cpu *cpu,
-    uint32_t registry_address
+    uint32_t registry_address,
+    uint32_t *mode_flags_out,
+    uint8_t mode_bytes_out[5]
 )
 {
     uint32_t continuation = 0u;
@@ -355,8 +409,8 @@ static bool measured_game_disp_init_case(
     size_t index = 0u;
     vf2_status status = VF2_OK;
 
-    if (machine == NULL || cpu == NULL ||
-        cpu->ip != VF2_GAME_DISP_INIT_ENTRY ||
+    if (machine == NULL || cpu == NULL || mode_flags_out == NULL ||
+        mode_bytes_out == NULL || cpu->ip != VF2_GAME_DISP_INIT_ENTRY ||
         registry_address != VF2_GAME_DISP_REGISTRY ||
         cpu->registers[VF2_I960_G0_REGISTER + 13u] != registry_address ||
         cpu->local_frame_depth != UINT32_C(2) ||
@@ -370,9 +424,13 @@ static bool measured_game_disp_init_case(
         }
     }
 
-    status = vf2_model2a_read_u32(machine, registry_address + UINT32_C(0x0c), &continuation);
+    status = vf2_model2a_read_u32(
+        machine, registry_address + UINT32_C(0x0c), &continuation
+    );
     if (status == VF2_OK) {
-        status = vf2_model2a_read_u32(machine, VF2_GAME_INFO_MODE_BASE_SLOT, &mode_base);
+        status = vf2_model2a_read_u32(
+            machine, VF2_GAME_INFO_MODE_BASE_SLOT, &mode_base
+        );
     }
     if (status == VF2_OK) {
         status = vf2_model2a_read_u32(
@@ -395,18 +453,29 @@ static bool measured_game_disp_init_case(
             sizeof(output_bytes)
         );
     }
-    if (status != VF2_OK || continuation != VF2_GAME_DISP_INIT_ENTRY || mode_flags != 0u) {
+    if (status != VF2_OK || continuation != VF2_GAME_DISP_INIT_ENTRY ||
+        (mode_flags & ~UINT32_C(3)) != 0u) {
         return false;
     }
-    for (index = 0u; index < sizeof(mode_bytes); ++index) {
-        if (mode_bytes[index] != 0u) {
+    if ((mode_flags & UINT32_C(2)) == 0u) {
+        if (mode_bytes[0] > UINT8_C(25)) {
             return false;
+        }
+        for (index = 1u; index < sizeof(mode_bytes); ++index) {
+            if (mode_bytes[index] != 0u) {
+                return false;
+            }
         }
     }
     for (index = 0u; index < sizeof(output_bytes); ++index) {
         if (output_bytes[index] != 0u) {
             return false;
         }
+    }
+
+    *mode_flags_out = mode_flags;
+    for (index = 0u; index < sizeof(mode_bytes); ++index) {
+        mode_bytes_out[index] = mode_bytes[index];
     }
     return true;
 }
@@ -415,6 +484,8 @@ static vf2_status execute_measured_game_disp_init(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu,
     uint32_t registry_address,
+    uint32_t mode_flags,
+    const uint8_t mode_bytes[5],
     vf2_hybrid_task_report *report
 )
 {
@@ -423,22 +494,45 @@ static vf2_status execute_measured_game_disp_init(
     const uint32_t task_stack_pointer = cpu->registers[1];
     const uint32_t task_frame_pointer = cpu->registers[VF2_I960_FP_REGISTER];
     const uint32_t saved_g9 = cpu->registers[VF2_I960_G0_REGISTER + 9u];
+    const bool direct_mode = (mode_flags & UINT32_C(2)) != 0u;
+    const uint8_t output0 = direct_mode
+        ? game_disp_direct_output(mode_bytes, false)
+        : game_disp_table_output(mode_flags, mode_bytes[0], false);
+    const uint8_t output1 = direct_mode
+        ? game_disp_direct_output(mode_bytes, true)
+        : game_disp_table_output(mode_flags, mode_bytes[0], true);
+    uint64_t instructions = UINT64_C(92);
+    uint64_t calls = UINT64_C(5);
+    uint64_t returns = UINT64_C(6);
+    vf2_i960_compare_result compare_result = VF2_I960_COMPARE_LESS;
+    uint32_t required_frame_depth = UINT32_C(4);
     uint32_t index = 0u;
     vf2_status status = VF2_OK;
+
+    if (direct_mode) {
+        instructions = UINT64_C(62);
+        calls = UINT64_C(3);
+        returns = UINT64_C(4);
+        required_frame_depth = UINT32_C(3);
+    } else if (mode_bytes[0] == UINT8_C(25)) {
+        instructions = UINT64_C(67);
+        compare_result = VF2_I960_COMPARE_EQUAL;
+    } else if ((mode_flags & UINT32_C(1)) != 0u) {
+        instructions = UINT64_C(81);
+        compare_result = VF2_I960_COMPARE_EQUAL;
+    }
 
     status = vf2_model2a_write_u32(
         machine, registry_address + UINT32_C(0x0c), VF2_GAME_DISP_INIT_CONTINUATION
     );
     if (status == VF2_OK) {
-        const uint8_t one = UINT8_C(1);
         status = vf2_model2a_write(
-            machine, registry_address + UINT32_C(0x59), &one, sizeof(one)
+            machine, registry_address + UINT32_C(0x59), &output0, sizeof(output0)
         );
     }
     if (status == VF2_OK) {
-        const uint8_t one = UINT8_C(1);
         status = vf2_model2a_write(
-            machine, registry_address + UINT32_C(0x5a), &one, sizeof(one)
+            machine, registry_address + UINT32_C(0x5a), &output1, sizeof(output1)
         );
     }
     if (status == VF2_OK) {
@@ -468,13 +562,17 @@ static vf2_status execute_measured_game_disp_init(
         return status;
     }
 
-    for (index = 0u; index < VF2_I960_LOCAL_REGISTER_COUNT; ++index) {
-        cpu->local_frames[3].registers[index] = 0u;
+    if (!direct_mode) {
+        for (index = 0u; index < VF2_I960_LOCAL_REGISTER_COUNT; ++index) {
+            cpu->local_frames[3].registers[index] = 0u;
+        }
+        cpu->local_frames[3].registers[0] = task_frame_pointer;
+        cpu->local_frames[3].registers[1] = task_stack_pointer + UINT32_C(0x44);
+        cpu->local_frames[3].registers[2] = VF2_GAME_DISP_HELPER_RETURN;
+        cpu->local_frames[3].registers[6] = UINT32_C(1);
+        cpu->local_frames[3].registers[11] = mode_bytes[0];
+        cpu->local_frames[3].registers[12] = mode_flags;
     }
-    cpu->local_frames[3].registers[0] = task_frame_pointer;
-    cpu->local_frames[3].registers[1] = task_stack_pointer + UINT32_C(0x44);
-    cpu->local_frames[3].registers[2] = VF2_GAME_DISP_HELPER_RETURN;
-    cpu->local_frames[3].registers[6] = UINT32_C(1);
 
     cpu->registers[0] = previous_frame_pointer;
     cpu->registers[1] = task_stack_pointer;
@@ -483,19 +581,19 @@ static vf2_status execute_measured_game_disp_init(
         cpu->registers[index] = 0u;
     }
     cpu->registers[15] = VF2_GAME_DISP_INIT_CONTINUATION;
-    cpu->registers[VF2_I960_G0_REGISTER] = UINT32_C(1);
-    if (cpu->maximum_local_frame_depth < UINT32_C(4)) {
-        cpu->maximum_local_frame_depth = UINT32_C(4);
+    cpu->registers[VF2_I960_G0_REGISTER] = output1;
+    if (cpu->maximum_local_frame_depth < required_frame_depth) {
+        cpu->maximum_local_frame_depth = required_frame_depth;
     }
 
-    cpu->executed_instructions += UINT64_C(92);
-    cpu->procedure_calls += UINT64_C(5);
-    cpu->procedure_returns += UINT64_C(5);
+    cpu->executed_instructions += instructions;
+    cpu->procedure_calls += calls;
+    cpu->procedure_returns += returns - UINT64_C(1);
     status = vf2_i960_cpu_return_procedure(cpu, machine);
     if (status != VF2_OK || cpu->ip != VF2_GAME_DISP_SCHEDULER_RETURN) {
         return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
     }
-    set_compare_result(cpu, VF2_I960_COMPARE_LESS);
+    set_compare_result(cpu, compare_result);
 
     local_report.kind = VF2_HYBRID_TASK_GAME_DISP;
     local_report.entry_address = VF2_GAME_DISP_INIT_ENTRY;
@@ -503,9 +601,9 @@ static vf2_status execute_measured_game_disp_init(
     local_report.registry_address = registry_address;
     local_report.task_bytes_written = 27u;
     local_report.global_bytes_written = sizeof(uint32_t);
-    local_report.recovered_instruction_count = UINT64_C(92);
-    local_report.recovered_procedure_calls = UINT64_C(5);
-    local_report.recovered_procedure_returns = UINT64_C(6);
+    local_report.recovered_instruction_count = instructions;
+    local_report.recovered_procedure_calls = calls;
+    local_report.recovered_procedure_returns = returns;
     local_report.cpu_poststate_applied = 1;
     if (report != NULL) {
         *report = local_report;
@@ -842,10 +940,25 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
     bool bilateral = false;
     bool mode_bit6 = false;
     bool apply_measured_poststate = false;
+    uint32_t game_disp_mode_flags = 0u;
+    uint8_t game_disp_mode_bytes[5] = {0u};
     vf2_status status = VF2_OK;
 
-    if (measured_game_disp_init_case(machine, cpu, registry_address)) {
-        return execute_measured_game_disp_init(machine, cpu, registry_address, report);
+    if (measured_game_disp_init_case(
+            machine,
+            cpu,
+            registry_address,
+            &game_disp_mode_flags,
+            game_disp_mode_bytes
+        )) {
+        return execute_measured_game_disp_init(
+            machine,
+            cpu,
+            registry_address,
+            game_disp_mode_flags,
+            game_disp_mode_bytes,
+            report
+        );
     }
 
     apply_measured_poststate = measured_case(
