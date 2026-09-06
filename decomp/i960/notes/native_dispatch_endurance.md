@@ -1,7 +1,7 @@
 # Native dispatch endurance observations
 
-ROM-backed measurements on 2026-09-06 using the GCC `vf2i960` artifact built
-from `d429290041b33531f70d6e803f47c07cc497a979`.
+ROM-backed measurements on 2026-09-06 using GCC `vf2i960` artifacts from the
+current `master` recovery corridor.
 
 No ROM, snapshot, trace, or other proprietary artifact is stored here. The
 measurements are reproduced with a locally supplied supported ROM set:
@@ -64,9 +64,48 @@ Later measured cycles vary among 1561, 1563, and 1566 instructions while still
 matching the reference exactly. This is evidence of a real state-dependent path
 change inside the already recovered corridor, not an unsupported boundary.
 
-The transition should be treated as a useful future exploration anchor: compare
-state and edge coverage at dispatch 34 versus 35 before assigning semantics to
-the changed path.
+ROM-backed checkpoints on both sides of the transition reduce the full snapshot
+delta to only 28 bytes. The relevant work-RAM phase state changes from:
+
+```text
+dispatch 34:
+  [0x00501004] = 0x00910000
+  [0x0050100c] = 2
+
+dispatch 35:
+  [0x00501004] = 0x00918000
+  [0x0050100c] = 3
+```
+
+The word at `0x00501004` has only three static xrefs in the ROM-backed image:
+writers at `0x00000f4c` and `0x00002f48`, and a reader at `0x00002edc`. The
+`0x00002edc..0x00002f58` helper advances the byte index at `0x0050100c`, loads
+the next word from the table at `0x00007a00`, stores it to `0x00501004`, and
+mirrors it into the geometry-facing state rooted at `g10`.
+
+The geometry snapshot changes at the same boundary. Therefore the roughly
+600-instruction drop is currently best treated as a **geometry buffer/phase
+rotation**, not evidence of a new gameplay branch. Future analysis should trace
+that rotation before assigning stronger semantics.
+
+## Continuation checkpoint accounting
+
+The endurance investigation exposed and fixed a tooling bug in
+`native-continue-dispatch`. Repeated native cycles add two scheduler entries per
+logical dispatch, but the old checkpoint restore path reconstructed the dispatch
+number as `scheduler_entries + 2`. A snapshot written at logical dispatch 34 was
+therefore incorrectly reported as dispatch 58.
+
+The corrected mapping is:
+
+```text
+logical dispatch = scheduler_entries / 2 + 6
+```
+
+for the validated continuation checkpoint family, with odd or structurally
+invalid scheduler-entry counts rejected fail-closed. After the fix, a
+ROM-backed dispatch-34 snapshot restores as dispatch 34 and continues to dispatch
+35 with a complete CPU/memory `MATCH` and 1563 recovered instructions.
 
 ## Implication
 
