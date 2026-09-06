@@ -48,7 +48,7 @@ jobs:
         run: cmake --build build --parallel
       - name: Test
         run: ctest --test-dir build --output-on-failure
-      - name: Publish analysis binaries
+      - name: Publish analysis binaries and source
         if: matrix.compiler == 'gcc'
         uses: actions/upload-artifact@v4
         with:
@@ -56,6 +56,11 @@ jobs:
           path: |
             build/vf2i960
             build/vf2probe
+            CMakeLists.txt
+            include
+            src
+            tests
+            tools
           if-no-files-found: error
 
   sanitizers:
