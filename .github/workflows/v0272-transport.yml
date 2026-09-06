@@ -9,17 +9,37 @@ permissions:
   contents: write
 
 jobs:
-  inspect:
+  apply:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: chatgpt/warm-v0272-apply
           fetch-depth: 0
-      - name: Inspect uploaded chunks
+      - name: Reconstruct and apply v0272
         run: |
-          base64 -d v0272.part00 > /tmp/p0
-          base64 -d v0272.part01 > /tmp/p1
-          cat /tmp/p0 /tmp/p1 > /tmp/prefix
-          wc -c /tmp/p0 /tmp/p1 /tmp/prefix
-          sha256sum /tmp/p0 /tmp/p1 /tmp/prefix
+          echo "f2583d9c2322ec3f144d296cd846fe17643e6b5075d4e51b61e55f0a6896b4a3  v0272.patch.gz.b64" | sha256sum -c -
+          base64 -d v0272.patch.gz.b64 > /tmp/v0272.patch.gz
+          echo "4c6d064d313a079b138f6cc3eb6b63f0181af403744b6750c4fb6b7a931f3d43  /tmp/v0272.patch.gz" | sha256sum -c -
+          gzip -dc /tmp/v0272.patch.gz > /tmp/v0272.patch
+          echo "32c8247ce36673ffa12c6b6ddeab529bb8592872a7d23bc538ce7b73be85f62a  /tmp/v0272.patch" | sha256sum -c -
+          git fetch origin master
+          git checkout -B master origin/master
+          test "$(git rev-parse HEAD)" = "014159c99e84613774fe3e552cac486c76aa9284"
+          git apply --check /tmp/v0272.patch
+          git apply /tmp/v0272.patch
+          git diff --check
+          git diff --name-only | sort > /tmp/changed
+          printf '%s\n' \
+            src/recovered/frame_wait.c \
+            src/recovered/native_differential_step.c \
+            src/recovered/native_runtime.c \
+            src/recovered/native_runtime_condition_impl.c \
+            tests/recovered/test_native_runtime.c \
+            | sort > /tmp/expected
+          diff -u /tmp/expected /tmp/changed
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/recovered/frame_wait.c src/recovered/native_differential_step.c src/recovered/native_runtime.c src/recovered/native_runtime_condition_impl.c tests/recovered/test_native_runtime.c
+          git commit -m "runtime: close warm reboot path in strict differential (v0272)"
+          git push origin master
