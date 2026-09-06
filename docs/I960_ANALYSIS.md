@@ -73,6 +73,13 @@ These are written to `function-splits.csv` for human review.
 human-assigned names. Names are sanitized as C identifiers and applied only to
 matching discovered addresses. Set `VF2_SYMBOL_DIR` to use another overlay.
 
+`decomp/i960/original_symbols.csv` provides 301 *original* Sega symbol names
+recovered from the symbol table shipped inside a later Model 2 port DLL. It is
+applied last and therefore wins over the three provisional overlays, because a
+shipped name is evidence and a repository name is a hypothesis. See
+`docs/ORIGINAL_SYMBOLS.md` for provenance, the regeneration command and the list
+of provisional names it contradicts.
+
 ## Task-derived roots
 
 The analyzer structurally locates the 29-record `fa_*` descriptor table and adds
@@ -98,6 +105,10 @@ individual entries retain evidence-backed names such as `task_camera` and
 - `pseudo-c/*.c`: generated non-matching C-like output;
 - `tasks.csv`, `tasks.json`, `tasks.dot`: recovered scheduler descriptors;
 - `report.json`: measured totals.
+
+Names in the above come from the overlays, so `i960.asm`, `callgraph.dot`,
+`cfg/*.dot` and `pseudo-c/*.c` now carry the shipped symbol names wherever the
+table has one.
 
 ## Known limitations
 
