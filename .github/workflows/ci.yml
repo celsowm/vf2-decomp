@@ -8,9 +8,31 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
+  apply-recovery-patch:
+    name: Apply staged recovery patch
+    if: github.event_name == 'pull_request' && github.head_ref == 'fix/coin-scheduler-call-boundary'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+      - name: Apply and commit recovery patch
+        shell: bash
+        run: |
+          if git apply --check .github/recovery.patch; then
+            git apply .github/recovery.patch
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add src/recovered/native_runtime.c src/recovered/texture_bridge_texture.c src/recovered/texture_bridge_match.c tools/vf2i960/commands.c
+            git commit -m "runtime: recover COIN transition boundaries"
+            git push origin HEAD:${{ github.head_ref }}
+          else
+            echo "Recovery patch already applied or no longer clean; leaving branch unchanged."
+          fi
+
   python-tools:
     name: Python tooling syntax
     runs-on: ubuntu-latest
@@ -57,6 +79,7 @@ jobs:
             build/vf2i960
             build/vf2probe
             CMakeLists.txt
+            cmake
             include
             src
             tests
