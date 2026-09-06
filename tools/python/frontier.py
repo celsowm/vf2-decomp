@@ -114,6 +114,7 @@ class FunctionTable:
 
 CALL_MNEMONICS = {"call", "callx", "bal", "balx"}
 
+
 class EdgeRecord:
     __slots__ = (
         "witnesses",
@@ -173,7 +174,7 @@ class Frontier:
                     self.address_executions[ip_before] += 1
                     if mnemonic in CALL_MNEMONICS:
                         record_edge.call_hits += 1
-                        self.call_targets[ip_before] += 1
+                        self.call_targets[ip_after] += 1
                         stats["call_edges"] += 1
                     stats["steps"] += 1
                     hits = pending_memory.pop(parse_int(record["step"]), None)
@@ -404,6 +405,8 @@ def classify_input(path: Path) -> Optional[str]:
             return "trace"
         if "new_edges" in record or "inputs" in record:
             return "corpus"
+        if "outcome" in record:
+            return "sweep"
         return None
     return None
 
@@ -618,7 +621,7 @@ def main() -> int:
                     output.write(f"  {item['address']}  R:{item['reads']} W:{item['writes']} total:{item['total']}\n")
             call_top = frontier.top_call_targets(8)
             if call_top:
-                output.write("\ncall-source IPs:\n")
+                output.write("\ncall-target IPs:\n")
                 for item in call_top:
                     output.write(f"  {item['address']}  x{item['count']}\n")
     finally:
