@@ -6,12 +6,16 @@
 #define VF2_GAME_INFO_ENTRY UINT32_C(0x0001645c)
 #define VF2_GAME_INFO_STATE_OFFSET UINT32_C(0x000001a4)
 #define VF2_GAME_INFO_STATE_BYTE_OFFSET UINT32_C(0x00000a00)
+#define VF2_GAME_INFO_CHILD_FIELD_OFFSET UINT32_C(0x00000b24)
+#define VF2_GAME_INFO_CHILD_FIELD_BIT UINT32_C(0x00000800)
 #define VF2_GAME_INFO_FIGHTER0_SLOT UINT32_C(0x00500804)
 #define VF2_GAME_INFO_FIGHTER1_SLOT UINT32_C(0x00500808)
 #define VF2_GAME_INFO_COUNTDOWN UINT32_C(0x0050a0b6)
 #define VF2_GAME_INFO_THRESHOLD UINT32_C(0x0050a028)
 #define VF2_GAME_INFO_MASK_14_21 UINT32_C(0x00204000)
 #define VF2_GAME_INFO_MASK_15_21 UINT32_C(0x00208000)
+#define VF2_GAME_INFO_MASK_16_21 UINT32_C(0x00210000)
+#define VF2_GAME_INFO_MASK_15_16_21 UINT32_C(0x00218000)
 
 vf2_status vf2_hybrid_first_dispatch_task_execute_base(
     vf2_model2a *machine,
@@ -39,17 +43,36 @@ static void set_compare_result(
         (cpu->arithmetic_control & ~UINT32_C(7)) | bits;
 }
 
+static vf2_status set_child_field_bit(
+    vf2_model2a *machine,
+    uint32_t fighter
+)
+{
+    uint32_t value = 0u;
+    vf2_status status = vf2_model2a_read_u32(
+        machine, fighter + VF2_GAME_INFO_CHILD_FIELD_OFFSET, &value
+    );
+
+    if (status == VF2_OK) {
+        value |= VF2_GAME_INFO_CHILD_FIELD_BIT;
+        status = vf2_model2a_write_u32(
+            machine, fighter + VF2_GAME_INFO_CHILD_FIELD_OFFSET, value
+        );
+    }
+    return status;
+}
+
 static bool measured_case(
     vf2_model2a *machine,
     const vf2_i960_cpu *cpu,
     uint8_t *countdown,
     uint32_t *mask,
+    uint32_t *fighter0,
+    uint32_t *fighter1,
     bool *fighter0_only,
     bool *bilateral
 )
 {
-    uint32_t fighter0 = 0u;
-    uint32_t fighter1 = 0u;
     uint32_t fighter0_base_flags = 0u;
     uint32_t fighter1_base_flags = 0u;
     uint32_t fighter0_state_flags = 0u;
@@ -61,46 +84,52 @@ static bool measured_case(
     vf2_status status = VF2_OK;
 
     if (machine == NULL || cpu == NULL || countdown == NULL || mask == NULL ||
-        fighter0_only == NULL || bilateral == NULL ||
-        cpu->ip != VF2_GAME_INFO_ENTRY) {
+        fighter0 == NULL || fighter1 == NULL || fighter0_only == NULL ||
+        bilateral == NULL || cpu->ip != VF2_GAME_INFO_ENTRY) {
         return false;
     }
 
     *mask = 0u;
+    *fighter0 = 0u;
+    *fighter1 = 0u;
     *fighter0_only = false;
     *bilateral = false;
     status = vf2_model2a_read_u32(
-        machine, VF2_GAME_INFO_FIGHTER0_SLOT, &fighter0
+        machine, VF2_GAME_INFO_FIGHTER0_SLOT, fighter0
     );
     if (status == VF2_OK) {
         status = vf2_model2a_read_u32(
-            machine, VF2_GAME_INFO_FIGHTER1_SLOT, &fighter1
+            machine, VF2_GAME_INFO_FIGHTER1_SLOT, fighter1
         );
     }
     if (status == VF2_OK) {
-        status = vf2_model2a_read_u32(machine, fighter0, &fighter0_base_flags);
+        status = vf2_model2a_read_u32(
+            machine, *fighter0, &fighter0_base_flags
+        );
     }
     if (status == VF2_OK) {
-        status = vf2_model2a_read_u32(machine, fighter1, &fighter1_base_flags);
+        status = vf2_model2a_read_u32(
+            machine, *fighter1, &fighter1_base_flags
+        );
     }
     if (status == VF2_OK) {
         status = vf2_model2a_read_u32(
             machine,
-            fighter0 + VF2_GAME_INFO_STATE_OFFSET,
+            *fighter0 + VF2_GAME_INFO_STATE_OFFSET,
             &fighter0_state_flags
         );
     }
     if (status == VF2_OK) {
         status = vf2_model2a_read_u32(
             machine,
-            fighter1 + VF2_GAME_INFO_STATE_OFFSET,
+            *fighter1 + VF2_GAME_INFO_STATE_OFFSET,
             &fighter1_state_flags
         );
     }
     if (status == VF2_OK) {
         status = vf2_model2a_read(
             machine,
-            fighter0 + VF2_GAME_INFO_STATE_BYTE_OFFSET,
+            *fighter0 + VF2_GAME_INFO_STATE_BYTE_OFFSET,
             &fighter0_state,
             sizeof(fighter0_state)
         );
@@ -108,7 +137,7 @@ static bool measured_case(
     if (status == VF2_OK) {
         status = vf2_model2a_read(
             machine,
-            fighter1 + VF2_GAME_INFO_STATE_BYTE_OFFSET,
+            *fighter1 + VF2_GAME_INFO_STATE_BYTE_OFFSET,
             &fighter1_state,
             sizeof(fighter1_state)
         );
@@ -130,7 +159,9 @@ static bool measured_case(
     if (status != VF2_OK ||
         fighter0_state != UINT8_C(8) || fighter1_state != UINT8_C(8) ||
         (combined != VF2_GAME_INFO_MASK_14_21 &&
-         combined != VF2_GAME_INFO_MASK_15_21) ||
+         combined != VF2_GAME_INFO_MASK_15_21 &&
+         combined != VF2_GAME_INFO_MASK_16_21 &&
+         combined != VF2_GAME_INFO_MASK_15_16_21) ||
         threshold > UINT32_C(2) ||
         (*countdown != UINT8_C(0) && *countdown != UINT8_C(1)) ||
         (fighter0_base_flags & UINT32_C(0x80000000)) == 0u ||
@@ -157,10 +188,19 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
 {
     uint8_t countdown = 0u;
     uint32_t mask = 0u;
+    uint32_t fighter0 = 0u;
+    uint32_t fighter1 = 0u;
     bool fighter0_only = false;
     bool bilateral = false;
     const bool apply_measured_poststate = measured_case(
-        machine, cpu, &countdown, &mask, &fighter0_only, &bilateral
+        machine,
+        cpu,
+        &countdown,
+        &mask,
+        &fighter0,
+        &fighter1,
+        &fighter0_only,
+        &bilateral
     );
     vf2_status status = vf2_hybrid_first_dispatch_task_execute_base(
         machine, cpu, registry_address, report
@@ -168,6 +208,27 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
 
     if (status != VF2_OK || !apply_measured_poststate) {
         return status;
+    }
+
+    if (mask == VF2_GAME_INFO_MASK_16_21 ||
+        mask == VF2_GAME_INFO_MASK_15_16_21) {
+        if (!fighter0_only) {
+            if (bilateral) {
+                status = set_child_field_bit(machine, fighter0);
+            }
+            if (status == VF2_OK) {
+                status = set_child_field_bit(machine, fighter1);
+            }
+            if (status != VF2_OK) {
+                return status;
+            }
+        }
+        if (fighter0_only && countdown == 0u) {
+            set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
+        } else if (countdown != 0u) {
+            set_compare_result(cpu, VF2_I960_COMPARE_LESS);
+        }
+        return VF2_OK;
     }
 
     if (mask == VF2_GAME_INFO_MASK_14_21) {
