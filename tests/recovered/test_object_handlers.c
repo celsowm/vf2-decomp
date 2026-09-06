@@ -85,9 +85,6 @@ static void setup_state(
         ) == VF2_OK
     );
     cpu->registers[29] = registry;
-    /* Sentinels prove condition state survives. Local r15 is the callee
-     * scratch register: lda targets it and ret discards the callee frame,
-     * so the reference leaves the caller-frame value (zero) behind. */
     cpu->arithmetic_control |= UINT32_C(5);
     cpu->compare_result = VF2_I960_COMPARE_OVERFLOW;
 
@@ -374,15 +371,21 @@ static void run_service_case(
         &runtime_machine, &runtime_cpu, &runtime_state, &runtime_report
     );
     CHECK(status == VF2_OK);
-    CHECK(runtime_report.kind == VF2_NATIVE_RUNTIME_STEP_TASK);
-    CHECK(runtime_report.task_kind == VF2_HYBRID_TASK_OBJECT);
+    CHECK(runtime_report.kind == VF2_NATIVE_RUNTIME_STEP_OBJECT_SERVICE);
+    CHECK(runtime_report.task_kind == VF2_HYBRID_TASK_NONE);
+    CHECK(
+        strcmp(
+            vf2_native_runtime_step_kind_name(runtime_report.kind),
+            "object-service"
+        ) == 0
+    );
     CHECK(runtime_report.entry_address == OBJECT_SERVICE_ENTRY);
     CHECK(runtime_report.exit_address == HANDLER_RETURN);
     CHECK(runtime_report.recovered_instruction_count == expected_steps);
     CHECK(runtime_report.recovered_procedure_calls == expected_calls);
     CHECK(runtime_report.recovered_procedure_returns == expected_returns);
     CHECK(runtime_state.blocks_executed == 1u);
-    CHECK(runtime_state.task_bodies_executed == 1u);
+    CHECK(runtime_state.task_bodies_executed == 0u);
     CHECK(runtime_state.recovered_instruction_count == expected_steps);
     CHECK(runtime_state.recovered_procedure_calls == expected_calls);
     CHECK(runtime_state.recovered_procedure_returns == expected_returns);
