@@ -15,7 +15,108 @@ vf2_status vf2_native_second_scheduler_enter(
     vf2_i960_cpu *cpu,
     vf2_hybrid_second_scheduler_report *report
 );
-#define vf2_hybrid_second_scheduler_enter vf2_native_second_scheduler_enter
+
+/* The main loop's 0x0000a010 instruction is a single direct i960 CALL to
+ * 0x00010d54. Keep that architectural call as its own recovered boundary for
+ * ordinary scheduler sweeps so the strict differential can compare the call
+ * frame before the recovered scheduler body scans descriptors. The warm-reboot
+ * initializer corridor remains intentionally composed by scheduler.c because
+ * it needs its special index-10 task semantics. */
+static inline vf2_status vf2_native_runtime_scheduler_enter(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu,
+    vf2_hybrid_second_scheduler_report *report
+)
+{
+    enum {
+        VF2_RUNTIME_SCHEDULER_CALL_SITE = 0x0000a010u,
+        VF2_RUNTIME_SCHEDULER_BODY = 0x00010d54u,
+        VF2_RUNTIME_TASK_COUNT = 0x00011d94u,
+        VF2_RUNTIME_TASK_REGISTRY = 0x00510000u,
+        VF2_RUNTIME_INITIALIZER_INDEX = 10u,
+        VF2_RUNTIME_INITIALIZER_REGISTRY = 0x00514980u,
+        VF2_RUNTIME_INITIALIZER_ENTRY = 0x000221ccu
+    };
+    const uint32_t runnable_mask = UINT32_C(0x80000000);
+    uint32_t task_count = 0u;
+    uint32_t registry = VF2_RUNTIME_TASK_REGISTRY;
+    uint32_t selected_entry = 0u;
+    size_t selected_index = 0u;
+    vf2_status status = VF2_OK;
+
+    if (machine == NULL || cpu == NULL) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    if (cpu->ip != VF2_RUNTIME_SCHEDULER_CALL_SITE) {
+        return vf2_native_second_scheduler_enter(machine, cpu, report);
+    }
+
+    status = vf2_model2a_read_u32(machine, VF2_RUNTIME_TASK_COUNT, &task_count);
+    if (status != VF2_OK) {
+        return status;
+    }
+    for (selected_index = 0u; selected_index < task_count; ++selected_index) {
+        uint32_t flags = 0u;
+        uint32_t stride = 0u;
+
+        status = vf2_model2a_read_u32(machine, registry, &flags);
+        if (status == VF2_OK) {
+            status = vf2_model2a_read_u32(
+                machine, registry + UINT32_C(8), &stride
+            );
+        }
+        if (status != VF2_OK) {
+            return status;
+        }
+        if (stride == 0u || (stride & UINT32_C(0x1f)) != 0u) {
+            return VF2_ERROR_BAD_SIZE;
+        }
+        if ((flags & runnable_mask) != 0u) {
+            status = vf2_model2a_read_u32(
+                machine, registry + UINT32_C(0x0c), &selected_entry
+            );
+            if (status != VF2_OK) {
+                return status;
+            }
+            break;
+        }
+        registry += stride;
+    }
+
+    if (task_count == UINT32_C(29) &&
+        selected_index == VF2_RUNTIME_INITIALIZER_INDEX &&
+        registry == VF2_RUNTIME_INITIALIZER_REGISTRY &&
+        selected_entry == VF2_RUNTIME_INITIALIZER_ENTRY) {
+        return vf2_native_second_scheduler_enter(machine, cpu, report);
+    }
+
+    {
+        vf2_hybrid_second_scheduler_report local_report = {0};
+        const uint64_t start_calls = cpu->procedure_calls;
+
+        status = vf2_i960_cpu_enter_procedure(
+            cpu,
+            VF2_RUNTIME_SCHEDULER_BODY,
+            VF2_RUNTIME_SCHEDULER_CALL_SITE + UINT32_C(4)
+        );
+        if (status != VF2_OK) {
+            return status;
+        }
+        ++cpu->executed_instructions;
+
+        local_report.registry_start = VF2_RUNTIME_TASK_REGISTRY;
+        local_report.scheduler_entry_address = VF2_RUNTIME_SCHEDULER_BODY;
+        local_report.recovered_instruction_count = UINT64_C(1);
+        local_report.recovered_procedure_calls =
+            cpu->procedure_calls - start_calls;
+        local_report.cpu_poststate_applied = 1;
+        if (report != NULL) {
+            *report = local_report;
+        }
+    }
+    return VF2_OK;
+}
+#define vf2_hybrid_second_scheduler_enter vf2_native_runtime_scheduler_enter
 
 /* Native runtime must also pass post-frame bridges through the public recovery
  * wrapper.  The low-level implementation intentionally omits condition and
