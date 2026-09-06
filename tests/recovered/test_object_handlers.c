@@ -6,6 +6,7 @@
 #include "vf2/hybrid.h"
 #include "vf2/i960/executor.h"
 #include "vf2/model2a.h"
+#include "vf2/native_runtime.h"
 #include "vf2/rom.h"
 #include "vf2/status.h"
 
@@ -293,20 +294,30 @@ static void run_service_case(
 {
     vf2_model2a reference_machine;
     vf2_model2a native_machine;
+    vf2_model2a runtime_machine;
     vf2_i960_cpu reference_cpu;
     vf2_i960_cpu native_cpu;
+    vf2_i960_cpu runtime_cpu;
+    vf2_native_runtime_state runtime_state;
+    vf2_native_runtime_step_report runtime_report;
     vf2_status status = VF2_OK;
     uint32_t steps = 0u;
     const uint32_t expected_steps = active ? 40u : 27u;
+    const uint64_t expected_calls = active ? UINT64_C(3) : UINT64_C(0);
+    const uint64_t expected_returns = active ? UINT64_C(4) : UINT64_C(1);
 
     memset(&reference_machine, 0, sizeof(reference_machine));
     memset(&native_machine, 0, sizeof(native_machine));
+    memset(&runtime_machine, 0, sizeof(runtime_machine));
     CHECK(vf2_model2a_initialize(&reference_machine) != 0);
     CHECK(vf2_model2a_initialize(&native_machine) != 0);
+    CHECK(vf2_model2a_initialize(&runtime_machine) != 0);
     if (reference_machine.work_ram == NULL ||
-        native_machine.work_ram == NULL) {
+        native_machine.work_ram == NULL ||
+        runtime_machine.work_ram == NULL) {
         vf2_model2a_shutdown(&reference_machine);
         vf2_model2a_shutdown(&native_machine);
+        vf2_model2a_shutdown(&runtime_machine);
         return;
     }
     CHECK(
@@ -319,8 +330,14 @@ static void run_service_case(
             &native_machine, main_rom, main_rom_size
         ) == VF2_OK
     );
+    CHECK(
+        vf2_model2a_attach_main_rom(
+            &runtime_machine, main_rom, main_rom_size
+        ) == VF2_OK
+    );
     setup_service_state(&reference_machine, &reference_cpu, active);
     setup_service_state(&native_machine, &native_cpu, active);
+    setup_service_state(&runtime_machine, &runtime_cpu, active);
 
     while (reference_cpu.ip != HANDLER_RETURN && steps < 64u) {
         status = vf2_i960_step(&reference_cpu, &reference_machine, NULL);
@@ -350,12 +367,43 @@ static void run_service_case(
         ) == 0
     );
 
+    memset(&runtime_state, 0, sizeof(runtime_state));
+    memset(&runtime_report, 0, sizeof(runtime_report));
+    CHECK(vf2_native_runtime_initialize(&runtime_state, 4u) == VF2_OK);
+    status = vf2_native_runtime_step(
+        &runtime_machine, &runtime_cpu, &runtime_state, &runtime_report
+    );
+    CHECK(status == VF2_OK);
+    CHECK(runtime_report.kind == VF2_NATIVE_RUNTIME_STEP_TASK);
+    CHECK(runtime_report.task_kind == VF2_HYBRID_TASK_OBJECT);
+    CHECK(runtime_report.entry_address == OBJECT_SERVICE_ENTRY);
+    CHECK(runtime_report.exit_address == HANDLER_RETURN);
+    CHECK(runtime_report.recovered_instruction_count == expected_steps);
+    CHECK(runtime_report.recovered_procedure_calls == expected_calls);
+    CHECK(runtime_report.recovered_procedure_returns == expected_returns);
+    CHECK(runtime_state.blocks_executed == 1u);
+    CHECK(runtime_state.task_bodies_executed == 1u);
+    CHECK(runtime_state.recovered_instruction_count == expected_steps);
+    CHECK(runtime_state.recovered_procedure_calls == expected_calls);
+    CHECK(runtime_state.recovered_procedure_returns == expected_returns);
+    check_cpu_equal(
+        &reference_cpu, &runtime_cpu,
+        active ? "runtime-active" : "runtime-inactive"
+    );
+    CHECK(
+        memcmp(
+            reference_machine.work_ram, runtime_machine.work_ram,
+            reference_machine.work_ram_size
+        ) == 0
+    );
+
     printf(
-        "object-service %-8s exact: %u ins\n",
+        "object-service %-8s exact: %u ins; runtime exact\n",
         active ? "active" : "inactive", (unsigned)expected_steps
     );
     vf2_model2a_shutdown(&reference_machine);
     vf2_model2a_shutdown(&native_machine);
+    vf2_model2a_shutdown(&runtime_machine);
 }
 
 static void test_invalid_arguments(void)
