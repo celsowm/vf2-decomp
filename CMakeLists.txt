@@ -63,6 +63,7 @@ add_library(vf2_core STATIC
     src/recovered/player_i960_bridge_tail.c
     src/recovered/frame_wait.c
     src/recovered/native_runtime.c
+    src/recovered/native_runtime_object_step.c
     src/recovered/native_runtime_condition.c
     src/recovered/native_runtime_state.c
     src/recovered/object_service.c
@@ -93,6 +94,11 @@ set_source_files_properties(
 set_source_files_properties(
     src/i960/executor.c
     PROPERTIES COMPILE_DEFINITIONS "vf2_i960_step=vf2_i960_step_legacy"
+)
+
+set_source_files_properties(
+    src/recovered/native_runtime.c
+    PROPERTIES COMPILE_DEFINITIONS "vf2_native_runtime_step_impl=vf2_native_runtime_step_base_impl"
 )
 
 set_source_files_properties(
