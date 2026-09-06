@@ -48,12 +48,14 @@ jobs:
         run: cmake --build build --parallel
       - name: Test
         run: ctest --test-dir build --output-on-failure
-      - name: Publish vf2i960 analysis binary
+      - name: Publish analysis binaries
         if: matrix.compiler == 'gcc'
         uses: actions/upload-artifact@v4
         with:
-          name: vf2i960-linux
-          path: build/vf2i960
+          name: vf2-analysis-linux
+          path: |
+            build/vf2i960
+            build/vf2probe
           if-no-files-found: error
 
   sanitizers:
