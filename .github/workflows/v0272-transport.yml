@@ -1,0 +1,25 @@
+name: v0272 transport
+
+on:
+  push:
+    branches: [chatgpt/warm-v0272-apply]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt/warm-v0272-apply
+          fetch-depth: 0
+      - name: Inspect uploaded chunks
+        run: |
+          base64 -d v0272.part00 > /tmp/p0
+          base64 -d v0272.part01 > /tmp/p1
+          cat /tmp/p0 /tmp/p1 > /tmp/prefix
+          wc -c /tmp/p0 /tmp/p1 /tmp/prefix
+          sha256sum /tmp/p0 /tmp/p1 /tmp/prefix
