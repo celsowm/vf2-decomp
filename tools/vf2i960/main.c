@@ -208,11 +208,15 @@ static int command_native_continue_dispatch(
         goto cleanup;
     }
 
-    if (runtime_state.scheduler_entries > UINT32_MAX - UINT32_C(2)) {
+    if (runtime_state.scheduler_entries < 8u ||
+        (runtime_state.scheduler_entries & 1u) != 0u ||
+        runtime_state.scheduler_entries / 2u >
+            (size_t)(UINT32_MAX - UINT32_C(6))) {
         status = VF2_ERROR_UNSUPPORTED;
         goto cleanup;
     }
-    current_dispatch = (uint32_t)runtime_state.scheduler_entries + UINT32_C(2);
+    current_dispatch =
+        (uint32_t)(runtime_state.scheduler_entries / 2u) + UINT32_C(6);
     if (current_dispatch < UINT32_C(6) || target_dispatch < current_dispatch) {
         fprintf(
             stderr,
