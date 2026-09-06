@@ -12,6 +12,10 @@ vf2_status vf2_native_runtime_step_base_impl(
     vf2_native_runtime_step_report *report
 );
 
+const char *vf2_native_runtime_step_kind_name_base(
+    vf2_native_runtime_step_kind kind
+);
+
 vf2_status vf2_recovered_object_service_loop_execute(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu
@@ -49,8 +53,7 @@ vf2_status vf2_native_runtime_step_impl(
         return status;
     }
 
-    effective_report->kind = VF2_NATIVE_RUNTIME_STEP_TASK;
-    effective_report->task_kind = VF2_HYBRID_TASK_OBJECT;
+    effective_report->kind = VF2_NATIVE_RUNTIME_STEP_OBJECT_SERVICE;
     effective_report->entry_address = VF2_OBJECT_SERVICE_ENTRY;
     effective_report->exit_address = cpu->ip;
     effective_report->recovered_instruction_count =
@@ -61,7 +64,6 @@ vf2_status vf2_native_runtime_step_impl(
         cpu->procedure_returns - start_returns;
 
     ++state->blocks_executed;
-    ++state->task_bodies_executed;
     state->recovered_instruction_count +=
         effective_report->recovered_instruction_count;
     state->recovered_procedure_calls +=
@@ -69,4 +71,14 @@ vf2_status vf2_native_runtime_step_impl(
     state->recovered_procedure_returns +=
         effective_report->recovered_procedure_returns;
     return VF2_OK;
+}
+
+const char *vf2_native_runtime_step_kind_name(
+    vf2_native_runtime_step_kind kind
+)
+{
+    if (kind == VF2_NATIVE_RUNTIME_STEP_OBJECT_SERVICE) {
+        return "object-service";
+    }
+    return vf2_native_runtime_step_kind_name_base(kind);
 }
