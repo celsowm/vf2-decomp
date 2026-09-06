@@ -8,31 +8,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  apply-recovery-patch:
-    name: Apply staged recovery patch
-    if: github.event_name == 'pull_request' && github.head_ref == 'fix/coin-scheduler-call-boundary'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-      - name: Apply and commit recovery patch
-        shell: bash
-        run: |
-          if git apply --check .github/recovery.patch; then
-            git apply .github/recovery.patch
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add src/recovered/native_runtime.c src/recovered/texture_bridge_texture.c src/recovered/texture_bridge_match.c tools/vf2i960/commands.c
-            git commit -m "runtime: recover COIN transition boundaries"
-            git push origin HEAD:${{ github.head_ref }}
-          else
-            echo "Recovery patch already applied or no longer clean; leaving branch unchanged."
-          fi
-
   python-tools:
     name: Python tooling syntax
     runs-on: ubuntu-latest
@@ -70,20 +48,12 @@ jobs:
         run: cmake --build build --parallel
       - name: Test
         run: ctest --test-dir build --output-on-failure
-      - name: Publish analysis binaries and source
+      - name: Publish vf2i960 analysis binary
         if: matrix.compiler == 'gcc'
         uses: actions/upload-artifact@v4
         with:
-          name: vf2-analysis-linux
-          path: |
-            build/vf2i960
-            build/vf2probe
-            CMakeLists.txt
-            cmake
-            include
-            src
-            tests
-            tools
+          name: vf2i960-linux
+          path: build/vf2i960
           if-no-files-found: error
 
   sanitizers:
