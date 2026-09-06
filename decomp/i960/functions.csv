@@ -97,4 +97,4 @@ address,end,name,status,source,notes
 0x0006caf4,0x0006cb04,task_object_init1,recovered-observed-branch,dynamic-differential,fa_object1 init stub: rewrites registry+0x0c to 0x6cb04 then returns
 0x0006cb04,0x0006cb08,task_object_init1_ret,recovered-observed-branch,dynamic-differential,Bare ret continuation for fa_object1
 0x0006cb08,0x0006cb0c,task_object_init2,recovered-observed-branch,dynamic-differential,fa_object2 handler: bare ret
-0x0006ca84,0x0006cad0,object_service_loop,candidate,direct-call,Iterates 3 control blocks from table at 0x6cad4 via callx checking bit 31; called once from 0x1dd70; unrecovered
+0x0006ca84,0x0006cad0,object_service_loop,recovered,dynamic-differential+runtime,Iterates the three object control blocks in reverse table order; bit-31-active entries call registry+0x0c; helper and public native runtime match ROM CPU and RAM exactly
