@@ -5724,10 +5724,10 @@ static int command_native_dispatch_ex(
                 ? 83u
                 : (native_fourth_dispatch ? 45u : 1u));
         const size_t expected_blocks = native_sixth_dispatch
-            ? 866u
+            ? 870u
             : (native_fifth_dispatch
-                ? 830u
-                : (native_fourth_dispatch ? 78u : 42u));
+                ? 833u
+                : (native_fourth_dispatch ? 80u : 43u));
         const uint64_t expected_instructions = native_sixth_dispatch
             ? UINT64_C(7404901)
             : (native_fifth_dispatch

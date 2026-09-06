@@ -1474,8 +1474,11 @@ static vf2_status execute_frame_phase16(
         }
     }
 
+    /* selector16 calls 0x58e90 through one additional local-register
+     * window. At 0x58e90 the ROM executes addo 4,sp / st g4,-4(sp), so
+     * the spill lands two 64-byte windows past the frame-dispatch SP. */
     status = vf2_model2a_write_u32(
-        machine, UINT32_C(0x005ff640), saved_g4
+        machine, cpu->registers[1] + UINT32_C(0x80), saved_g4
     );
     if (status != VF2_OK) {
         return status;
