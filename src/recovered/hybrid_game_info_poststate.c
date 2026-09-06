@@ -6,8 +6,7 @@
 #define VF2_GAME_INFO_ENTRY UINT32_C(0x0001645c)
 #define VF2_GAME_INFO_STATE_OFFSET UINT32_C(0x000001a4)
 #define VF2_GAME_INFO_STATE_BYTE_OFFSET UINT32_C(0x00000a00)
-#define VF2_GAME_INFO_CHILD_FIELD_OFFSET UINT32_C(0x00000b24)
-#define VF2_GAME_INFO_CHILD_FIELD_BIT UINT32_C(0x00000800)
+#define VF2_GAME_INFO_STATE_CHILD_BIT UINT32_C(0x00000800)
 #define VF2_GAME_INFO_FIGHTER0_SLOT UINT32_C(0x00500804)
 #define VF2_GAME_INFO_FIGHTER1_SLOT UINT32_C(0x00500808)
 #define VF2_GAME_INFO_COUNTDOWN UINT32_C(0x0050a0b6)
@@ -43,20 +42,20 @@ static void set_compare_result(
         (cpu->arithmetic_control & ~UINT32_C(7)) | bits;
 }
 
-static vf2_status set_child_field_bit(
+static vf2_status set_state_child_bit(
     vf2_model2a *machine,
     uint32_t fighter
 )
 {
     uint32_t value = 0u;
     vf2_status status = vf2_model2a_read_u32(
-        machine, fighter + VF2_GAME_INFO_CHILD_FIELD_OFFSET, &value
+        machine, fighter + VF2_GAME_INFO_STATE_OFFSET, &value
     );
 
     if (status == VF2_OK) {
-        value |= VF2_GAME_INFO_CHILD_FIELD_BIT;
+        value |= VF2_GAME_INFO_STATE_CHILD_BIT;
         status = vf2_model2a_write_u32(
-            machine, fighter + VF2_GAME_INFO_CHILD_FIELD_OFFSET, value
+            machine, fighter + VF2_GAME_INFO_STATE_OFFSET, value
         );
     }
     return status;
@@ -212,16 +211,14 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
 
     if (mask == VF2_GAME_INFO_MASK_16_21 ||
         mask == VF2_GAME_INFO_MASK_15_16_21) {
-        if (!fighter0_only) {
-            if (bilateral) {
-                status = set_child_field_bit(machine, fighter0);
-            }
-            if (status == VF2_OK) {
-                status = set_child_field_bit(machine, fighter1);
-            }
-            if (status != VF2_OK) {
-                return status;
-            }
+        if (fighter0_only || bilateral) {
+            status = set_state_child_bit(machine, fighter0);
+        }
+        if (status == VF2_OK && !fighter0_only) {
+            status = set_state_child_bit(machine, fighter1);
+        }
+        if (status != VF2_OK) {
+            return status;
         }
         if (fighter0_only && countdown == 0u) {
             set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
