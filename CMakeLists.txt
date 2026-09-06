@@ -65,6 +65,7 @@ add_library(vf2_core STATIC
     src/recovered/native_runtime.c
     src/recovered/native_runtime_condition.c
     src/recovered/native_runtime_state.c
+    src/recovered/object_service.c
     src/recovered/native_differential.c
     src/recovered/native_differential_step.c
     src/recovered/texture_bridge.c
@@ -177,103 +178,60 @@ if(VF2_BUILD_TESTS)
     )
     target_link_libraries(vf2_orchestrator_limits_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_orchestrator_limits_tests)
+    add_test(NAME vf2_orchestrator_limits COMMAND vf2_orchestrator_limits_tests)
 
-    add_test(
-        NAME vf2_orchestrator_limits
-        COMMAND vf2_orchestrator_limits_tests
-    )
-
-    add_executable(vf2_tgp_tests
-        tests/hardware/test_tgp.c
-    )
+    add_executable(vf2_tgp_tests tests/hardware/test_tgp.c)
     target_link_libraries(vf2_tgp_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_tgp_tests)
-
     add_test(NAME vf2_tgp COMMAND vf2_tgp_tests)
 
-    add_executable(vf2_scsp_tests
-        tests/hardware/test_scsp.c
-    )
+    add_executable(vf2_scsp_tests tests/hardware/test_scsp.c)
     target_link_libraries(vf2_scsp_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_scsp_tests)
-
     add_test(NAME vf2_scsp COMMAND vf2_scsp_tests)
 
-    add_executable(vf2_sound_board_tests
-        tests/hardware/test_sound_board.c
-    )
+    add_executable(vf2_sound_board_tests tests/hardware/test_sound_board.c)
     target_link_libraries(vf2_sound_board_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_sound_board_tests)
     add_test(NAME vf2_sound_board COMMAND vf2_sound_board_tests)
 
-    add_executable(vf2_geometry_tests
-        tests/hardware/test_geometry.c
-    )
+    add_executable(vf2_geometry_tests tests/hardware/test_geometry.c)
     target_link_libraries(vf2_geometry_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_geometry_tests)
-
     add_test(NAME vf2_geometry COMMAND vf2_geometry_tests)
 
-    add_executable(vf2_model2a_observer_tests
-        tests/hardware/test_model2a_observer.c
-    )
+    add_executable(vf2_model2a_observer_tests tests/hardware/test_model2a_observer.c)
     target_link_libraries(vf2_model2a_observer_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_model2a_observer_tests)
-
     add_test(NAME vf2_model2a_observer COMMAND vf2_model2a_observer_tests)
 
-    add_executable(vf2_platform_tests
-        tests/platform/test_platform.c
-    )
+    add_executable(vf2_platform_tests tests/platform/test_platform.c)
     target_link_libraries(vf2_platform_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_platform_tests)
-
     add_test(NAME vf2_platform COMMAND vf2_platform_tests)
 
-    add_executable(vf2_game_tests
-        tests/game/test_game.c
-    )
+    add_executable(vf2_game_tests tests/game/test_game.c)
     target_link_libraries(vf2_game_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_game_tests)
-
     add_test(NAME vf2_game COMMAND vf2_game_tests)
 
-    add_executable(vf2_m68k_tests
-        tests/m68k/test_decoder.c
-    )
+    add_executable(vf2_m68k_tests tests/m68k/test_decoder.c)
     target_link_libraries(vf2_m68k_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_m68k_tests)
-
     add_test(NAME vf2_m68k COMMAND vf2_m68k_tests)
 
-    add_executable(vf2_orchestrator_scan_tests
-        tests/analysis/test_orchestrator_scan.c
-    )
+    add_executable(vf2_orchestrator_scan_tests tests/analysis/test_orchestrator_scan.c)
     target_link_libraries(vf2_orchestrator_scan_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_orchestrator_scan_tests)
+    add_test(NAME vf2_orchestrator_scan COMMAND vf2_orchestrator_scan_tests)
 
-    add_test(
-        NAME vf2_orchestrator_scan
-        COMMAND vf2_orchestrator_scan_tests
-    )
-
-    add_executable(vf2_orchestrator_gates_tests
-        tests/analysis/test_orchestrator_gates.c
-    )
+    add_executable(vf2_orchestrator_gates_tests tests/analysis/test_orchestrator_gates.c)
     target_link_libraries(vf2_orchestrator_gates_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_orchestrator_gates_tests)
+    add_test(NAME vf2_orchestrator_gates COMMAND vf2_orchestrator_gates_tests)
 
-    add_test(
-        NAME vf2_orchestrator_gates
-        COMMAND vf2_orchestrator_gates_tests
-    )
-
-    add_library(vf2_test_owned_main_rom OBJECT
-        tests/support/owned_main_rom.c
-    )
-    target_include_directories(vf2_test_owned_main_rom PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}/include"
-    )
+    add_library(vf2_test_owned_main_rom OBJECT tests/support/owned_main_rom.c)
+    target_include_directories(vf2_test_owned_main_rom PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
     vf2_set_project_warnings(vf2_test_owned_main_rom)
 
     add_executable(vf2_orchestrator_bridge_tests
@@ -281,283 +239,112 @@ if(VF2_BUILD_TESTS)
         $<TARGET_OBJECTS:vf2_test_owned_main_rom>
     )
     if(MSVC)
-        target_compile_options(vf2_orchestrator_bridge_tests PRIVATE
-            "/FI${CMAKE_CURRENT_SOURCE_DIR}/tests/support/owned_main_rom.h"
-        )
+        target_compile_options(vf2_orchestrator_bridge_tests PRIVATE "/FI${CMAKE_CURRENT_SOURCE_DIR}/tests/support/owned_main_rom.h")
     else()
-        target_compile_options(vf2_orchestrator_bridge_tests PRIVATE
-            -include
-            "${CMAKE_CURRENT_SOURCE_DIR}/tests/support/owned_main_rom.h"
-        )
+        target_compile_options(vf2_orchestrator_bridge_tests PRIVATE -include "${CMAKE_CURRENT_SOURCE_DIR}/tests/support/owned_main_rom.h")
     endif()
     target_link_libraries(vf2_orchestrator_bridge_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_orchestrator_bridge_tests)
+    add_test(NAME vf2_orchestrator_bridge COMMAND vf2_orchestrator_bridge_tests)
 
-    add_test(
-        NAME vf2_orchestrator_bridge
-        COMMAND vf2_orchestrator_bridge_tests
-    )
-
-    add_executable(vf2_native_runtime_tests
-        tests/recovered/test_native_runtime.c
-    )
+    add_executable(vf2_native_runtime_tests tests/recovered/test_native_runtime.c)
     target_link_libraries(vf2_native_runtime_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_native_runtime_tests)
+    add_test(NAME vf2_native_runtime COMMAND vf2_native_runtime_tests)
 
-    add_test(
-        NAME vf2_native_runtime
-        COMMAND vf2_native_runtime_tests
-    )
-
-    add_executable(vf2_native_runtime_state_tests
-        tests/recovered/test_native_runtime_state.c
-    )
+    add_executable(vf2_native_runtime_state_tests tests/recovered/test_native_runtime_state.c)
     target_link_libraries(vf2_native_runtime_state_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_native_runtime_state_tests)
+    add_test(NAME vf2_native_runtime_state COMMAND vf2_native_runtime_state_tests)
 
-    add_test(
-        NAME vf2_native_runtime_state
-        COMMAND vf2_native_runtime_state_tests
-    )
-
-    add_executable(vf2_endurance_regression_tests
-        tests/recovered/test_endurance_regressions.c
-    )
+    add_executable(vf2_endurance_regression_tests tests/recovered/test_endurance_regressions.c)
     target_link_libraries(vf2_endurance_regression_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_endurance_regression_tests)
+    add_test(NAME vf2_endurance_regressions COMMAND vf2_endurance_regression_tests)
 
-    add_test(
-        NAME vf2_endurance_regressions
-        COMMAND vf2_endurance_regression_tests
-    )
-
-    add_executable(vf2_native_differential_tests
-        tests/recovered/test_native_differential.c
-    )
+    add_executable(vf2_native_differential_tests tests/recovered/test_native_differential.c)
     target_link_libraries(vf2_native_differential_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_native_differential_tests)
+    add_test(NAME vf2_native_differential COMMAND vf2_native_differential_tests)
 
-    add_test(
-        NAME vf2_native_differential
-        COMMAND vf2_native_differential_tests
-    )
-
-    add_executable(vf2_player_28178_stream_tests
-        tests/recovered/test_player_28178_stream.c
-    )
+    add_executable(vf2_player_28178_stream_tests tests/recovered/test_player_28178_stream.c)
     target_link_libraries(vf2_player_28178_stream_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_player_28178_stream_tests)
+    add_test(NAME vf2_player_28178_stream COMMAND vf2_player_28178_stream_tests)
 
-    add_test(
-        NAME vf2_player_28178_stream
-        COMMAND vf2_player_28178_stream_tests
-    )
-
-    add_executable(vf2_player_planar_rotation_tests
-        tests/recovered/test_player_planar_rotation.c
-    )
+    add_executable(vf2_player_planar_rotation_tests tests/recovered/test_player_planar_rotation.c)
     target_link_libraries(vf2_player_planar_rotation_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_player_planar_rotation_tests)
+    add_test(NAME vf2_player_planar_rotation COMMAND vf2_player_planar_rotation_tests)
 
-    add_test(
-        NAME vf2_player_planar_rotation
-        COMMAND vf2_player_planar_rotation_tests
-    )
-
-    add_executable(vf2_post_boot_input_profile_tests
-        tests/recovered/test_post_boot_input_profiles.c
-    )
+    add_executable(vf2_post_boot_input_profile_tests tests/recovered/test_post_boot_input_profiles.c)
     target_link_libraries(vf2_post_boot_input_profile_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_post_boot_input_profile_tests)
 
-    add_executable(vf2_phase17_zero_tests
-        tests/recovered/test_phase17_zero.c
-    )
+    add_executable(vf2_phase17_zero_tests tests/recovered/test_phase17_zero.c)
     target_link_libraries(vf2_phase17_zero_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_phase17_zero_tests)
 
-    add_executable(vf2_native_scheduler_tests
-        tests/recovered/test_native_scheduler.c
-    )
+    add_executable(vf2_native_scheduler_tests tests/recovered/test_native_scheduler.c)
     target_link_libraries(vf2_native_scheduler_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_native_scheduler_tests)
+    add_test(NAME vf2_native_scheduler COMMAND vf2_native_scheduler_tests)
 
-    add_test(
-        NAME vf2_native_scheduler
-        COMMAND vf2_native_scheduler_tests
-    )
-
-    add_executable(vf2_texture_status_tail_tests
-        tests/recovered/test_texture_status_tail.c
-    )
+    add_executable(vf2_texture_status_tail_tests tests/recovered/test_texture_status_tail.c)
     target_link_libraries(vf2_texture_status_tail_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_texture_status_tail_tests)
+    add_test(NAME vf2_texture_status_tail COMMAND vf2_texture_status_tail_tests)
 
-    add_test(
-        NAME vf2_texture_status_tail
-        COMMAND vf2_texture_status_tail_tests
-    )
-
-    add_executable(vf2_texture_counter_update_tests
-        tests/recovered/test_texture_counter_update.c
-    )
+    add_executable(vf2_texture_counter_update_tests tests/recovered/test_texture_counter_update.c)
     target_link_libraries(vf2_texture_counter_update_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_texture_counter_update_tests)
+    add_test(NAME vf2_texture_counter_update COMMAND vf2_texture_counter_update_tests)
 
-    add_test(
-        NAME vf2_texture_counter_update
-        COMMAND vf2_texture_counter_update_tests
-    )
-
-    add_executable(vf2_texture_upload_dispatch_tests
-        tests/recovered/test_texture_upload_dispatch.c
-    )
+    add_executable(vf2_texture_upload_dispatch_tests tests/recovered/test_texture_upload_dispatch.c)
     target_link_libraries(vf2_texture_upload_dispatch_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_texture_upload_dispatch_tests)
+    add_test(NAME vf2_texture_upload_dispatch COMMAND vf2_texture_upload_dispatch_tests)
 
-    add_test(
-        NAME vf2_texture_upload_dispatch
-        COMMAND vf2_texture_upload_dispatch_tests
-    )
-
-    add_executable(vf2_fighter_candidate_tests
-        tests/recovered/test_fighter_candidate.c
-    )
+    add_executable(vf2_fighter_candidate_tests tests/recovered/test_fighter_candidate.c)
     target_link_libraries(vf2_fighter_candidate_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_fighter_candidate_tests)
+    add_test(NAME vf2_fighter_candidate COMMAND vf2_fighter_candidate_tests)
 
-    add_test(
-        NAME vf2_fighter_candidate
-        COMMAND vf2_fighter_candidate_tests
-    )
-
-    add_executable(vf2_object_handler_tests
-        tests/recovered/test_object_handlers.c
-    )
+    add_executable(vf2_object_handler_tests tests/recovered/test_object_handlers.c)
     target_link_libraries(vf2_object_handler_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_object_handler_tests)
 
     if(EXISTS "${VF2_ROM_DIR}")
-        add_test(
-            NAME vf2_phase17_zero_differential
-            COMMAND vf2_phase17_zero_tests "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_post_boot_input_profiles_differential
-            COMMAND vf2_post_boot_input_profile_tests "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_object_handlers_differential
-            COMMAND vf2_object_handler_tests "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_boot_differential
-            COMMAND vf2i960 compare-boot "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_initialization_differential
-            COMMAND vf2i960 compare-init "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_task_registry_differential
-            COMMAND vf2i960 compare-task-registry "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_task_catalog
-            COMMAND vf2i960 tasks "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_runtime_checkpoint
-            COMMAND vf2i960 runtime-checkpoint "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_runtime_events
-            COMMAND vf2i960 scheduler-pass "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_timer_irq_differential
-            COMMAND vf2i960 compare-timer-irq "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_scheduler_dispatch
-            COMMAND vf2i960 scheduler-dispatch "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_task_recoveries_differential
-            COMMAND vf2i960 compare-task-recoveries "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_task_profile
-            COMMAND vf2i960 task-profile "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_first_dispatch_recoveries
-            COMMAND vf2i960 compare-first-dispatch "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_camera_classifier_differential
-            COMMAND vf2i960 compare-camera-classifier "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_camera_viewport_differential
-            COMMAND vf2i960 compare-camera-viewport "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_hybrid_first_dispatch
-            COMMAND vf2i960 hybrid-first-dispatch "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_native_first_dispatch
-            COMMAND vf2i960 native-first-dispatch "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_native_second_dispatch
-            COMMAND vf2i960 native-second-dispatch "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_native_third_dispatch
-            COMMAND vf2i960 native-third-dispatch "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_native_fourth_dispatch
-            COMMAND vf2i960 native-fourth-dispatch "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_native_fifth_dispatch
-            COMMAND vf2i960 native-fifth-dispatch "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_native_sixth_dispatch
-            COMMAND vf2i960 native-sixth-dispatch "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_native_seventh_dispatch
-            COMMAND vf2i960 native-nth-dispatch "${VF2_ROM_DIR}" 7
-        )
-        add_test(
-            NAME vf2_texture_bridge_differential
-            COMMAND vf2i960 compare-texture-bridge "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_post_frame_bridge_differential
-            COMMAND vf2i960 compare-post-frame-bridge "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_geometry_boundary_differential
-            COMMAND vf2i960 compare-geometry-boundary "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_second_scheduler_entry_differential
-            COMMAND vf2i960 compare-second-scheduler-entry "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_game_geometry_helpers_differential
-            COMMAND vf2i960 compare-game-geometry-helpers "${VF2_ROM_DIR}"
-        )
-        add_test(
-            NAME vf2_third_sweep_observation
-            COMMAND vf2i960 observe-third-sweep "${VF2_ROM_DIR}"
-        )
+        add_test(NAME vf2_phase17_zero_differential COMMAND vf2_phase17_zero_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_post_boot_input_profiles_differential COMMAND vf2_post_boot_input_profile_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_object_handlers_differential COMMAND vf2_object_handler_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_boot_differential COMMAND vf2i960 compare-boot "${VF2_ROM_DIR}")
+        add_test(NAME vf2_initialization_differential COMMAND vf2i960 compare-init "${VF2_ROM_DIR}")
+        add_test(NAME vf2_task_registry_differential COMMAND vf2i960 compare-task-registry "${VF2_ROM_DIR}")
+        add_test(NAME vf2_task_catalog COMMAND vf2i960 tasks "${VF2_ROM_DIR}")
+        add_test(NAME vf2_runtime_checkpoint COMMAND vf2i960 runtime-checkpoint "${VF2_ROM_DIR}")
+        add_test(NAME vf2_runtime_events COMMAND vf2i960 scheduler-pass "${VF2_ROM_DIR}")
+        add_test(NAME vf2_timer_irq_differential COMMAND vf2i960 compare-timer-irq "${VF2_ROM_DIR}")
+        add_test(NAME vf2_scheduler_dispatch COMMAND vf2i960 scheduler-dispatch "${VF2_ROM_DIR}")
+        add_test(NAME vf2_task_recoveries_differential COMMAND vf2i960 compare-task-recoveries "${VF2_ROM_DIR}")
+        add_test(NAME vf2_task_profile COMMAND vf2i960 task-profile "${VF2_ROM_DIR}")
+        add_test(NAME vf2_first_dispatch_recoveries COMMAND vf2i960 compare-first-dispatch "${VF2_ROM_DIR}")
+        add_test(NAME vf2_camera_classifier_differential COMMAND vf2i960 compare-camera-classifier "${VF2_ROM_DIR}")
+        add_test(NAME vf2_camera_viewport_differential COMMAND vf2i960 compare-camera-viewport "${VF2_ROM_DIR}")
+        add_test(NAME vf2_hybrid_first_dispatch COMMAND vf2i960 hybrid-first-dispatch "${VF2_ROM_DIR}")
+        add_test(NAME vf2_native_first_dispatch COMMAND vf2i960 native-first-dispatch "${VF2_ROM_DIR}")
+        add_test(NAME vf2_native_second_dispatch COMMAND vf2i960 native-second-dispatch "${VF2_ROM_DIR}")
+        add_test(NAME vf2_native_third_dispatch COMMAND vf2i960 native-third-dispatch "${VF2_ROM_DIR}")
+        add_test(NAME vf2_native_fourth_dispatch COMMAND vf2i960 native-fourth-dispatch "${VF2_ROM_DIR}")
+        add_test(NAME vf2_native_fifth_dispatch COMMAND vf2i960 native-fifth-dispatch "${VF2_ROM_DIR}")
+        add_test(NAME vf2_native_sixth_dispatch COMMAND vf2i960 native-sixth-dispatch "${VF2_ROM_DIR}")
+        add_test(NAME vf2_native_seventh_dispatch COMMAND vf2i960 native-nth-dispatch "${VF2_ROM_DIR}" 7)
+        add_test(NAME vf2_texture_bridge_differential COMMAND vf2i960 compare-texture-bridge "${VF2_ROM_DIR}")
+        add_test(NAME vf2_post_frame_bridge_differential COMMAND vf2i960 compare-post-frame-bridge "${VF2_ROM_DIR}")
+        add_test(NAME vf2_geometry_boundary_differential COMMAND vf2i960 compare-geometry-boundary "${VF2_ROM_DIR}")
+        add_test(NAME vf2_second_scheduler_entry_differential COMMAND vf2i960 compare-second-scheduler-entry "${VF2_ROM_DIR}")
+        add_test(NAME vf2_game_geometry_helpers_differential COMMAND vf2i960 compare-game-geometry-helpers "${VF2_ROM_DIR}")
+        add_test(NAME vf2_third_sweep_observation COMMAND vf2i960 observe-third-sweep "${VF2_ROM_DIR}")
         set_tests_properties(
             vf2_runtime_checkpoint vf2_runtime_events vf2_timer_irq_differential
             vf2_scheduler_dispatch vf2_task_recoveries_differential vf2_task_profile
@@ -567,12 +354,9 @@ if(VF2_BUILD_TESTS)
             vf2_native_third_dispatch vf2_native_fourth_dispatch
             vf2_native_fifth_dispatch vf2_native_sixth_dispatch
             vf2_native_seventh_dispatch
-            vf2_texture_bridge_differential
-            vf2_post_frame_bridge_differential
-            vf2_geometry_boundary_differential
-            vf2_second_scheduler_entry_differential
-            vf2_game_geometry_helpers_differential
-            vf2_third_sweep_observation
+            vf2_texture_bridge_differential vf2_post_frame_bridge_differential
+            vf2_geometry_boundary_differential vf2_second_scheduler_entry_differential
+            vf2_game_geometry_helpers_differential vf2_third_sweep_observation
             PROPERTIES TIMEOUT 180
         )
     endif()
