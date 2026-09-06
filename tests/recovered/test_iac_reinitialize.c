@@ -43,6 +43,8 @@ typedef struct iac_copy_case {
     uint32_t destination;
     uint32_t return_address;
     uint32_t expected_final_offset;
+    uint32_t expected_condition_bits;
+    vf2_i960_compare_result expected_compare;
     uint64_t expected_instructions;
 } iac_copy_case;
 
@@ -54,6 +56,8 @@ static const iac_copy_case cases[] = {
         IAC_FIRST_DESTINATION,
         IAC_FIRST_RETURN,
         UINT32_C(0x00000410),
+        UINT32_C(4),
+        VF2_I960_COMPARE_LESS,
         UINT64_C(261)
     },
     {
@@ -63,6 +67,8 @@ static const iac_copy_case cases[] = {
         IAC_SECOND_DESTINATION,
         IAC_SECOND_RETURN,
         UINT32_C(0x000000b0),
+        UINT32_C(2),
+        VF2_I960_COMPARE_EQUAL,
         UINT64_C(45)
     }
 };
@@ -162,8 +168,15 @@ static void run_case(
     );
     CHECK((uint64_t)steps == test_case->expected_instructions);
     CHECK(reference_cpu.registers[20] == test_case->expected_final_offset);
-    CHECK(reference_cpu.arithmetic_control == UINT32_C(0xa5a50005));
-    CHECK(reference_cpu.compare_result == VF2_I960_COMPARE_OVERFLOW);
+    CHECK(
+        (reference_cpu.arithmetic_control & UINT32_C(7)) ==
+        test_case->expected_condition_bits
+    );
+    CHECK(
+        (reference_cpu.arithmetic_control & ~UINT32_C(7)) ==
+        (UINT32_C(0xa5a50005) & ~UINT32_C(7))
+    );
+    CHECK(reference_cpu.compare_result == test_case->expected_compare);
     CHECK(reference_cpu.procedure_calls == UINT64_C(3));
     CHECK(reference_cpu.procedure_returns == UINT64_C(2));
 
@@ -181,10 +194,11 @@ static void run_case(
     );
 
     printf(
-        "%-16s exact: %llu ins, final g4=0x%08x\n",
+        "%-16s exact: %llu ins, final g4=0x%08x, cc=%u\n",
         test_case->name,
         (unsigned long long)test_case->expected_instructions,
-        (unsigned)test_case->expected_final_offset
+        (unsigned)test_case->expected_final_offset,
+        (unsigned)test_case->expected_condition_bits
     );
 
     vf2_model2a_shutdown(&reference_machine);
