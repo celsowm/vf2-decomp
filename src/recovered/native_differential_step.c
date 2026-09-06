@@ -219,9 +219,33 @@ vf2_status vf2_native_differential_step(
     }
     if (status == VF2_OK &&
         local_report.native_step.recovered_instruction_count == 0u) {
-        status = VF2_ERROR_UNSUPPORTED;
-    }
-    if (status == VF2_OK) {
+        if (local_report.native_step.kind ==
+                VF2_NATIVE_RUNTIME_STEP_FRAME_WAIT) {
+            vf2_hybrid_frame_wait_report wait_report;
+
+            reference_frame_wait = frame_wait_before;
+            if (reference_frame_wait.visits_before_interrupt == 0u) {
+                status = VF2_ERROR_UNSUPPORTED;
+            } else {
+                memset(&wait_report, 0, sizeof(wait_report));
+                reference_frame_wait.visits =
+                    reference_frame_wait.visits_before_interrupt - 1u;
+                status = vf2_hybrid_frame_wait_observe(
+                    reference_machine,
+                    reference_cpu,
+                    &reference_frame_wait,
+                    &wait_report
+                );
+                if (status == VF2_OK && !wait_report.interrupt_injected) {
+                    status = VF2_ERROR_UNSUPPORTED;
+                }
+            }
+            local_report.reference_instructions_executed = 0u;
+            local_report.native_recovered_instructions = 0u;
+        } else {
+            status = VF2_ERROR_UNSUPPORTED;
+        }
+    } else if (status == VF2_OK) {
         status = advance_reference(
             reference_machine,
             reference_cpu,

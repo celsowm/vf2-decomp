@@ -158,6 +158,7 @@ static void test_initialize_and_names(void) {
 
 
 static void test_post_boot_delay(void) {
+    uint8_t *rom = (uint8_t *)calloc(1u, VF2_MAIN_ROM_SIZE);
     vf2_model2a machine;
     vf2_i960_cpu cpu;
     vf2_native_runtime_state state;
@@ -168,7 +169,15 @@ static void test_post_boot_delay(void) {
     memset(&cpu, 0, sizeof(cpu));
     memset(&state, 0, sizeof(state));
     memset(&report, 0, sizeof(report));
+    CHECK(rom != NULL);
     CHECK(vf2_model2a_initialize(&machine) != 0);
+    if (rom == NULL || machine.work_ram == NULL) {
+        free(rom);
+        vf2_model2a_shutdown(&machine);
+        return;
+    }
+    memcpy(rom + 0x00009f84u, "01234567890123456789", 20u);
+    CHECK(vf2_model2a_attach_main_rom(&machine, rom, VF2_MAIN_ROM_SIZE) == VF2_OK);
     CHECK(vf2_native_runtime_initialize(&state, 4u) == VF2_OK);
 
     vf2_i960_cpu_reset(&cpu, 0u, 0u, UINT32_C(0x00001000));
@@ -196,9 +205,10 @@ static void test_post_boot_delay(void) {
     CHECK(cpu.executed_instructions == start_instructions + UINT64_C(2100198));
     CHECK(cpu.procedure_calls == UINT64_C(41));
     CHECK(cpu.procedure_returns == UINT64_C(21));
-    CHECK(cpu.compare_result == VF2_I960_COMPARE_GREATER);
+    CHECK(cpu.compare_result == VF2_I960_COMPARE_EQUAL);
 
     vf2_model2a_shutdown(&machine);
+    free(rom);
 }
 
 static void test_post_boot_texture_init_prefix(void) {
@@ -360,7 +370,7 @@ static void test_post_boot_texture_wait_poll(void) {
     CHECK(report.kind == VF2_NATIVE_RUNTIME_STEP_FRAME_WAIT);
     CHECK(report.entry_address == UINT32_C(0x00000f7c));
     CHECK(report.exit_address == UINT32_C(0x00000d20));
-    CHECK(report.recovered_instruction_count == UINT64_C(6));
+    CHECK(report.recovered_instruction_count == UINT64_C(4));
 
     frame_byte = 2u;
     CHECK(vf2_model2a_write(&machine, UINT32_C(0x00500000), &frame_byte,
@@ -432,6 +442,7 @@ static void test_post_boot_graphics_verify(void) {
     vf2_native_runtime_state state;
     vf2_native_runtime_step_report report;
     size_t index = 0u;
+    const uint8_t frame_ready = UINT8_C(2);
 
     CHECK(rom != NULL);
     CHECK(main_data != NULL);
@@ -539,8 +550,8 @@ static void test_post_boot_graphics_verify(void) {
     CHECK(cpu.local_frames[1].registers[5] == UINT32_C(0x005502a8));
     CHECK(cpu.local_frames[1].registers[6] == UINT32_C(0x005502a8));
     CHECK(cpu.local_frames[1].registers[7] == 0u);
-    CHECK(cpu.arithmetic_control == UINT32_C(0x3f001004));
-    CHECK(cpu.compare_result == VF2_I960_COMPARE_LESS);
+    CHECK(cpu.arithmetic_control == UINT32_C(0x3f001002));
+    CHECK(cpu.compare_result == VF2_I960_COMPARE_EQUAL);
 
     memset(&report, 0, sizeof(report));
     CHECK(vf2_native_runtime_step(&machine, &cpu, &state, &report) == VF2_OK);
@@ -585,8 +596,8 @@ static void test_post_boot_graphics_verify(void) {
     CHECK(report.recovered_procedure_returns == UINT64_C(3));
     CHECK(cpu.local_frame_depth == 0u);
     CHECK(cpu.registers[VF2_I960_G0_REGISTER] == 0u);
-    CHECK(cpu.arithmetic_control == UINT32_C(0x3f001004));
-    CHECK(cpu.compare_result == VF2_I960_COMPARE_LESS);
+    CHECK(cpu.arithmetic_control == UINT32_C(0x3f001001));
+    CHECK(cpu.compare_result == VF2_I960_COMPARE_GREATER);
     for (index = 0u; index < sizeof(records) / sizeof(records[0]); ++index) {
         uint8_t values[4] = {0u, 0u, 0u, 0u};
         uint16_t tail = UINT16_MAX;
@@ -638,6 +649,8 @@ static void test_post_boot_graphics_verify(void) {
     CHECK(report.recovered_procedure_calls == UINT64_C(1));
     CHECK(cpu.local_frame_depth == 1u);
 
+    CHECK(vf2_model2a_write(&machine, UINT32_C(0x00500000), &frame_ready,
+                            sizeof(frame_ready)) == VF2_OK);
     memset(&report, 0, sizeof(report));
     CHECK(vf2_native_runtime_step(&machine, &cpu, &state, &report) == VF2_OK);
     CHECK(report.kind == VF2_NATIVE_RUNTIME_STEP_FRAME_WAIT);
@@ -713,6 +726,8 @@ static void test_post_boot_graphics_verify(void) {
     CHECK(report.recovered_procedure_calls == UINT64_C(1));
     CHECK(cpu.local_frame_depth == 2u);
 
+    CHECK(vf2_model2a_write(&machine, UINT32_C(0x00500000), &frame_ready,
+                            sizeof(frame_ready)) == VF2_OK);
     memset(&report, 0, sizeof(report));
     CHECK(vf2_native_runtime_step(&machine, &cpu, &state, &report) == VF2_OK);
     CHECK(report.kind == VF2_NATIVE_RUNTIME_STEP_FRAME_WAIT);
@@ -775,6 +790,8 @@ static void test_post_boot_graphics_verify(void) {
     CHECK(report.kind == VF2_NATIVE_RUNTIME_STEP_POST_BOOT_EARLY_WAIT_ENTRY);
     CHECK(report.exit_address == UINT32_C(0x00000f7c));
 
+    CHECK(vf2_model2a_write(&machine, UINT32_C(0x00500000), &frame_ready,
+                            sizeof(frame_ready)) == VF2_OK);
     memset(&report, 0, sizeof(report));
     CHECK(vf2_native_runtime_step(&machine, &cpu, &state, &report) == VF2_OK);
     CHECK(report.kind == VF2_NATIVE_RUNTIME_STEP_FRAME_WAIT);
@@ -832,6 +849,8 @@ static void test_post_boot_graphics_verify(void) {
     CHECK(report.kind == VF2_NATIVE_RUNTIME_STEP_POST_BOOT_EARLY_WAIT_ENTRY);
     CHECK(report.exit_address == UINT32_C(0x00000f7c));
 
+    CHECK(vf2_model2a_write(&machine, UINT32_C(0x00500000), &frame_ready,
+                            sizeof(frame_ready)) == VF2_OK);
     memset(&report, 0, sizeof(report));
     CHECK(vf2_native_runtime_step(&machine, &cpu, &state, &report) == VF2_OK);
     CHECK(report.kind == VF2_NATIVE_RUNTIME_STEP_FRAME_WAIT);
@@ -888,6 +907,8 @@ static void test_post_boot_graphics_verify(void) {
     CHECK(report.kind == VF2_NATIVE_RUNTIME_STEP_POST_BOOT_EARLY_WAIT_ENTRY);
     CHECK(report.exit_address == UINT32_C(0x00000f7c));
 
+    CHECK(vf2_model2a_write(&machine, UINT32_C(0x00500000), &frame_ready,
+                            sizeof(frame_ready)) == VF2_OK);
     memset(&report, 0, sizeof(report));
     CHECK(vf2_native_runtime_step(&machine, &cpu, &state, &report) == VF2_OK);
     CHECK(report.kind == VF2_NATIVE_RUNTIME_STEP_FRAME_WAIT);
@@ -923,6 +944,8 @@ static void test_post_boot_graphics_verify(void) {
     CHECK(report.exit_address == UINT32_C(0x00000f7c));
     CHECK(report.recovered_instruction_count == UINT64_C(1));
 
+    CHECK(vf2_model2a_write(&machine, UINT32_C(0x00500000), &frame_ready,
+                            sizeof(frame_ready)) == VF2_OK);
     memset(&report, 0, sizeof(report));
     CHECK(vf2_native_runtime_step(&machine, &cpu, &state, &report) == VF2_OK);
     CHECK(report.kind == VF2_NATIVE_RUNTIME_STEP_FRAME_WAIT);
@@ -982,6 +1005,8 @@ static void test_post_boot_graphics_verify(void) {
     CHECK(report.entry_address == UINT32_C(0x00011860));
     CHECK(report.exit_address == UINT32_C(0x00000f7c));
 
+    CHECK(vf2_model2a_write(&machine, UINT32_C(0x00500000), &frame_ready,
+                            sizeof(frame_ready)) == VF2_OK);
     memset(&report, 0, sizeof(report));
     CHECK(vf2_native_runtime_step(&machine, &cpu, &state, &report) == VF2_OK);
     CHECK(report.kind == VF2_NATIVE_RUNTIME_STEP_FRAME_WAIT);
@@ -1193,7 +1218,7 @@ static void test_post_boot_graphics_verify(void) {
     CHECK(report.kind == VF2_NATIVE_RUNTIME_STEP_POST_BOOT_OBJECT_TABLE_INIT);
     CHECK(report.entry_address == UINT32_C(0x000098e4));
     CHECK(report.exit_address == UINT32_C(0x000098e8));
-    CHECK(report.recovered_instruction_count == UINT64_C(11285));
+    CHECK(report.recovered_instruction_count == UINT64_C(11283));
     CHECK(report.recovered_procedure_calls == UINT64_C(1));
     CHECK(report.recovered_procedure_returns == UINT64_C(1));
     CHECK(cpu.local_frame_depth == 0u);
@@ -1249,7 +1274,7 @@ static void test_post_boot_graphics_verify(void) {
     CHECK(report.kind == VF2_NATIVE_RUNTIME_STEP_POST_BOOT_IO_INIT);
     CHECK(report.entry_address == UINT32_C(0x000098f0));
     CHECK(report.exit_address == UINT32_C(0x000098f4));
-    CHECK(report.recovered_instruction_count == UINT64_C(272));
+    CHECK(report.recovered_instruction_count == UINT64_C(268));
     CHECK(report.recovered_procedure_calls == UINT64_C(4));
     CHECK(report.recovered_procedure_returns == UINT64_C(4));
     CHECK(cpu.local_frame_depth == 0u);
@@ -1517,7 +1542,7 @@ static void test_post_boot_graphics_verify(void) {
     CHECK(report.kind == VF2_NATIVE_RUNTIME_STEP_POST_BOOT_RESUMED_HELPER_INIT);
     CHECK(report.entry_address == UINT32_C(0x0002eab8));
     CHECK(report.exit_address == UINT32_C(0x0001fedc));
-    CHECK(report.recovered_instruction_count == UINT64_C(101));
+    CHECK(report.recovered_instruction_count == UINT64_C(84));
     CHECK(report.recovered_procedure_calls == UINT64_C(1));
     CHECK(report.recovered_procedure_returns == UINT64_C(2));
     CHECK(cpu.local_frame_depth == 1u);

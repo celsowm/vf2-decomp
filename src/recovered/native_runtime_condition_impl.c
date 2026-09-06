@@ -711,7 +711,14 @@ vf2_status vf2_native_runtime_step(
 
     if (effective_report->kind == VF2_NATIVE_RUNTIME_STEP_BRIDGE) {
         if (selector0_custom) {
-            set_runtime_equal_condition(cpu);
+            if (entry == VF2_MAIN_FINAL_CLUSTER_ENTRY &&
+                cpu->registers[VF2_I960_G0_REGISTER] != 0u) {
+                /* 0xa81c cmpobne 0,g0 is the last condition-setting
+                 * instruction on the observed selector-0 non-zero path. */
+                set_runtime_less_condition(cpu);
+            } else {
+                set_runtime_equal_condition(cpu);
+            }
         } else {
             status = vf2_hybrid_bridge_apply_condition_poststate(
                 machine, cpu, entry, entry_r3, entry_r7
