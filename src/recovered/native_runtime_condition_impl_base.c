@@ -5,6 +5,7 @@
 #define VF2_FRAME_SELECTOR UINT32_C(0x0050002a)
 #define VF2_FRAME_SELECTOR_COPY UINT32_C(0x0050002b)
 #define VF2_FRAME_SELECTOR_MASK UINT32_C(0x0050002c)
+#define VF2_START_STATE UINT32_C(0x005000a4)
 #define VF2_SELECTOR0_SIGNATURE UINT32_C(0x0059cfe0)
 #define VF2_SELECTOR0_RECT_BASE UINT32_C(0x01000000)
 #define VF2_SELECTOR0_COMMAND_BASE UINT32_C(0x01004000)
@@ -672,6 +673,7 @@ vf2_status vf2_native_runtime_step(
     const uint32_t entry_r3 = cpu != NULL ? cpu->registers[3] : 0u;
     const uint32_t entry_r7 = cpu != NULL ? cpu->registers[7] : 0u;
     uint8_t entry_frame_selector = UINT8_MAX;
+    uint8_t entry_start_state = UINT8_MAX;
     int selector0_custom = 0;
     vf2_status status = VF2_OK;
 
@@ -679,6 +681,17 @@ vf2_status vf2_native_runtime_step(
         (entry == VF2_FRAME_DISPATCH_TICK_ENTRY ||
          entry == VF2_MAIN_FINAL_CLUSTER_ENTRY)) {
         status = read_frame_selector(machine, &entry_frame_selector);
+        if (status != VF2_OK) {
+            return status;
+        }
+    }
+    if (machine != NULL && entry == VF2_MAIN_FINAL_CLUSTER_ENTRY) {
+        status = vf2_model2a_read(
+            machine,
+            VF2_START_STATE,
+            &entry_start_state,
+            sizeof(entry_start_state)
+        );
         if (status != VF2_OK) {
             return status;
         }
@@ -712,7 +725,13 @@ vf2_status vf2_native_runtime_step(
     if (effective_report->kind == VF2_NATIVE_RUNTIME_STEP_BRIDGE) {
         if (selector0_custom) {
             if (entry == VF2_MAIN_FINAL_CLUSTER_ENTRY &&
-                cpu->registers[VF2_I960_G0_REGISTER] != 0u) {
+                entry_start_state == UINT8_C(0x8b)) {
+                /* The Start transition's measured selector-0 cluster leaves
+                 * the architectural condition code at EQUAL. Capture the
+                 * entry state because the bridge may mutate this byte. */
+                set_runtime_equal_condition(cpu);
+            } else if (entry == VF2_MAIN_FINAL_CLUSTER_ENTRY &&
+                       cpu->registers[VF2_I960_G0_REGISTER] != 0u) {
                 /* 0xa81c cmpobne 0,g0 is the last condition-setting
                  * instruction on the observed selector-0 non-zero path. */
                 set_runtime_less_condition(cpu);
