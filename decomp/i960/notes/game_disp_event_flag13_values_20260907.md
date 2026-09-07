@@ -111,11 +111,11 @@ This recovery intentionally does not admit:
 - auxiliary mode values above 1;
 - bit 13 combined with non-zero timers, a non-empty initial queue, or another
   registry event flag;
-- neighboring dynamic branches driven by bits 11 and 12;
 - registry bits 8, 9, or 18 without their own ROM oracle;
-- alternate event selector/state bytes;
+- alternate event selector/state bytes outside their independently recovered
+  state-8/9 family;
 - alternate final dispatch-table indices or targets.
 
-The next useful target is the coupled bit-12/bit-11 path immediately following
-bit 13. Unlike a fixed event flag, it is driven by live per-fighter values and
-feeds timer bytes back into the same event queue state machine.
+Registry bits 12/11 and their coupled state-8/9 timer/queue lifecycle are now
+recovered separately in `game_disp_event_state89_lifecycle_20260907.md`.
+The next useful event-handler targets are bit 18 and the remaining bits 8/9.
