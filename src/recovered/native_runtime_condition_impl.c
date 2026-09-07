@@ -20,8 +20,12 @@
 #include "game_disp_event_queue_gate.inc.c"
 
 #undef vf2_native_runtime_step
-#define vf2_native_runtime_step vf2_native_runtime_step_resource_base
+#define vf2_native_runtime_step vf2_native_runtime_step_flag13_base
 #include "game_disp_event_flag13.inc.c"
+
+#undef vf2_native_runtime_step
+#define vf2_native_runtime_step vf2_native_runtime_step_resource_base
+#include "game_disp_event_state89.inc.c"
 
 #undef vf2_native_runtime_step
 #define vf2_native_runtime_step vf2_native_runtime_step_hud_body_base
@@ -48,5 +52,9 @@
 #include "game_disp_continuation.inc.c"
 
 #undef vf2_native_runtime_step
-#define vf2_native_runtime_step vf2_native_runtime_step_condition_impl
+#define vf2_native_runtime_step vf2_native_runtime_step_condition_state89_base
 #include "game_disp_continuation_flag13.inc.c"
+
+#undef vf2_native_runtime_step
+#define vf2_native_runtime_step vf2_native_runtime_step_condition_impl
+#include "game_disp_continuation_state89.inc.c"
