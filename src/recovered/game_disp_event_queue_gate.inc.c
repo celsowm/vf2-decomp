@@ -128,6 +128,27 @@ static bool measured_game_disp_event_gate_case(
     return true;
 }
 
+static void set_game_disp_event_queue_condition(
+    vf2_i960_cpu *cpu,
+    uint8_t queue_head,
+    uint8_t queue_tail
+)
+{
+    vf2_i960_compare_result result = VF2_I960_COMPARE_EQUAL;
+    uint32_t bits = UINT32_C(2);
+
+    if (queue_head < queue_tail) {
+        result = VF2_I960_COMPARE_LESS;
+        bits = UINT32_C(4);
+    } else if (queue_head > queue_tail) {
+        result = VF2_I960_COMPARE_GREATER;
+        bits = UINT32_C(1);
+    }
+    cpu->compare_result = result;
+    cpu->arithmetic_control =
+        (cpu->arithmetic_control & ~UINT32_C(7)) | bits;
+}
+
 static vf2_status execute_measured_game_disp_event_gate_state(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu,
@@ -145,6 +166,7 @@ static vf2_status execute_measured_game_disp_event_gate_state(
     const uint64_t start_instructions = cpu->executed_instructions;
     const uint64_t start_calls = cpu->procedure_calls;
     const uint64_t start_returns = cpu->procedure_returns;
+    const uint8_t compared_queue_tail = queue_tail;
     uint64_t instruction_count = VF2_GAME_DISP_EVENT_BASE_INSTRUCTIONS;
     vf2_status status = VF2_OK;
 
@@ -227,7 +249,7 @@ static vf2_status execute_measured_game_disp_event_gate_state(
         cpu->procedure_returns != start_returns + UINT64_C(1)) {
         return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
     }
-    set_runtime_equal_condition(cpu);
+    set_game_disp_event_queue_condition(cpu, queue_head, compared_queue_tail);
 
     memset(effective_report, 0, sizeof(*effective_report));
     effective_report->kind = VF2_NATIVE_RUNTIME_STEP_TASK;
