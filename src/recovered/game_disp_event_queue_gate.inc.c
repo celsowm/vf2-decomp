@@ -16,9 +16,29 @@
 #define VF2_GAME_DISP_EVENT_QUEUE_MASK UINT8_C(15)
 #define VF2_GAME_DISP_EVENT_BASE_INSTRUCTIONS UINT64_C(38)
 #define VF2_GAME_DISP_EVENT_QUEUE_INSTRUCTIONS UINT64_C(4)
+#define VF2_GAME_DISP_EVENT_FLAG19 UINT32_C(0x00080000)
+#define VF2_GAME_DISP_EVENT_FLAG19_INSTRUCTIONS UINT64_C(62)
+#define VF2_GAME_DISP_EVENT_FLAG19_LINK UINT32_C(0x0002ac04)
+#define VF2_GAME_DISP_EVENT_FLAG17 UINT32_C(0x00020000)
+#define VF2_GAME_DISP_EVENT_FLAG17_INSTRUCTIONS UINT64_C(38)
+#define VF2_GAME_DISP_EVENT_FLAG17_LINK UINT32_C(0x0002ac30)
+#define VF2_GAME_DISP_EVENT_FLAG16 UINT32_C(0x00010000)
+#define VF2_GAME_DISP_EVENT_FLAG16_INSTRUCTIONS UINT64_C(30)
+#define VF2_GAME_DISP_EVENT_FLAG16_LINK UINT32_C(0x0002ac5c)
 #define VF2_GAME_DISP_EVENT_FLAG10 UINT32_C(0x00000400)
 #define VF2_GAME_DISP_EVENT_FLAG10_INSTRUCTIONS UINT64_C(13)
 #define VF2_GAME_DISP_EVENT_FLAG10_LINK UINT32_C(0x0002ac74)
+
+static const uint8_t vf2_game_disp_event_flag19_sequence[] = {
+    UINT8_C(0x1f), UINT8_C(0x3f), UINT8_C(0x5f), UINT8_C(0x7f),
+    UINT8_C(0x97), UINT8_C(0x9f), UINT8_C(0x8f)
+};
+static const uint8_t vf2_game_disp_event_flag17_sequence[] = {
+    UINT8_C(0x1f), UINT8_C(0x3f), UINT8_C(0x5f), UINT8_C(0x7f)
+};
+static const uint8_t vf2_game_disp_event_flag16_sequence[] = {
+    UINT8_C(0x97), UINT8_C(0x9f), UINT8_C(0x8f)
+};
 
 static bool measured_game_disp_event_gate_case(
     vf2_model2a *machine,
@@ -129,6 +149,16 @@ static bool measured_game_disp_event_gate_case(
         if (queue_head != UINT8_C(0) || queue_tail != UINT8_C(0)) {
             return false;
         }
+    } else if (registry_flags ==
+                   (UINT32_C(0x80000000) | VF2_GAME_DISP_EVENT_FLAG16) ||
+               registry_flags ==
+                   (UINT32_C(0x80000000) | VF2_GAME_DISP_EVENT_FLAG17) ||
+               registry_flags ==
+                   (UINT32_C(0x80000000) | VF2_GAME_DISP_EVENT_FLAG19)) {
+        if (queue_head != UINT8_C(0) || queue_tail != UINT8_C(0) ||
+            timer0 != UINT8_C(0) || timer1 != UINT8_C(0)) {
+            return false;
+        }
     } else {
         return false;
     }
@@ -178,6 +208,24 @@ static vf2_status game_disp_event_enqueue_byte(
     if (status == VF2_OK) {
         *queue_head = (uint8_t)((*queue_head + UINT8_C(1)) &
                                 VF2_GAME_DISP_EVENT_QUEUE_MASK);
+    }
+    return status;
+}
+
+static vf2_status game_disp_event_enqueue_sequence(
+    vf2_model2a *machine,
+    uint8_t *queue_head,
+    const uint8_t *sequence,
+    size_t sequence_size
+)
+{
+    size_t index = 0u;
+    vf2_status status = VF2_OK;
+
+    for (index = 0u; index < sequence_size && status == VF2_OK; ++index) {
+        status = game_disp_event_enqueue_byte(
+            machine, queue_head, sequence[index]
+        );
     }
     return status;
 }
@@ -236,6 +284,48 @@ static vf2_status execute_measured_game_disp_event_gate_state(
         return status;
     }
 
+    if ((registry_flags & VF2_GAME_DISP_EVENT_FLAG19) != 0u) {
+        registry_flags &= ~VF2_GAME_DISP_EVENT_FLAG19;
+        status = game_disp_event_enqueue_sequence(
+            machine,
+            &queue_head,
+            vf2_game_disp_event_flag19_sequence,
+            sizeof(vf2_game_disp_event_flag19_sequence)
+        );
+        if (status != VF2_OK) {
+            return status;
+        }
+        cpu->registers[VF2_I960_G14_REGISTER] = VF2_GAME_DISP_EVENT_FLAG19_LINK;
+        instruction_count += VF2_GAME_DISP_EVENT_FLAG19_INSTRUCTIONS;
+    }
+    if ((registry_flags & VF2_GAME_DISP_EVENT_FLAG17) != 0u) {
+        registry_flags &= ~VF2_GAME_DISP_EVENT_FLAG17;
+        status = game_disp_event_enqueue_sequence(
+            machine,
+            &queue_head,
+            vf2_game_disp_event_flag17_sequence,
+            sizeof(vf2_game_disp_event_flag17_sequence)
+        );
+        if (status != VF2_OK) {
+            return status;
+        }
+        cpu->registers[VF2_I960_G14_REGISTER] = VF2_GAME_DISP_EVENT_FLAG17_LINK;
+        instruction_count += VF2_GAME_DISP_EVENT_FLAG17_INSTRUCTIONS;
+    }
+    if ((registry_flags & VF2_GAME_DISP_EVENT_FLAG16) != 0u) {
+        registry_flags &= ~VF2_GAME_DISP_EVENT_FLAG16;
+        status = game_disp_event_enqueue_sequence(
+            machine,
+            &queue_head,
+            vf2_game_disp_event_flag16_sequence,
+            sizeof(vf2_game_disp_event_flag16_sequence)
+        );
+        if (status != VF2_OK) {
+            return status;
+        }
+        cpu->registers[VF2_I960_G14_REGISTER] = VF2_GAME_DISP_EVENT_FLAG16_LINK;
+        instruction_count += VF2_GAME_DISP_EVENT_FLAG16_INSTRUCTIONS;
+    }
     if ((registry_flags & VF2_GAME_DISP_EVENT_FLAG10) != 0u) {
         registry_flags &= ~VF2_GAME_DISP_EVENT_FLAG10;
         status = game_disp_event_enqueue_byte(machine, &queue_head, UINT8_C(0xa0));
