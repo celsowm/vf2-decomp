@@ -207,7 +207,7 @@ static bool game_disp_flag76_measured_case(
         (low_flags != VF2_GAME_DISP_EVENT_FLAG7 &&
          low_flags != VF2_GAME_DISP_EVENT_FLAG6 &&
          low_flags != VF2_GAME_DISP_EVENT_FLAG76_MASK) ||
-        global20 < UINT32_C(7) || global20 > UINT32_C(12) ||
+        global20 < UINT32_C(7) || global20 > UINT32_C(36) ||
         countdown != (uint16_t)(UINT16_C(0xffff) -
                                 (uint16_t)(global20 - UINT32_C(7))) ||
         value != UINT32_C(0x000b0000) ||
@@ -244,7 +244,9 @@ static bool game_disp_flag76_measured_case(
             return false;
         }
     } else {
-        expected_tail = (uint8_t)(global20 - UINT32_C(6));
+        expected_tail = global20 >= UINT32_C(12)
+                            ? UINT8_C(6)
+                            : (uint8_t)(global20 - UINT32_C(6));
         if (queue_head != UINT8_C(6) || queue_tail != expected_tail ||
             queue[0] != UINT8_C(0x92) ||
             queue[1] != UINT8_C(0x26) ||
