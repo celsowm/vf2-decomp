@@ -25,6 +25,17 @@
 #define VF2_GAME_DISP_EVENT_FLAG16 UINT32_C(0x00010000)
 #define VF2_GAME_DISP_EVENT_FLAG16_INSTRUCTIONS UINT64_C(30)
 #define VF2_GAME_DISP_EVENT_FLAG16_LINK UINT32_C(0x0002ac5c)
+#define VF2_GAME_DISP_EVENT_FLAG15 UINT32_C(0x00008000)
+#define VF2_GAME_DISP_EVENT_FLAG15_INSTRUCTIONS UINT64_C(11)
+#define VF2_GAME_DISP_EVENT_FLAG15_LINK UINT32_C(0x0002ae6c)
+#define VF2_GAME_DISP_EVENT_FLAG14 UINT32_C(0x00004000)
+#define VF2_GAME_DISP_EVENT_FLAG14_INSTRUCTIONS UINT64_C(11)
+#define VF2_GAME_DISP_EVENT_FLAG14_LINK UINT32_C(0x0002ae48)
+#define VF2_GAME_DISP_EVENT_FLAG14_MODE UINT32_C(0x00500065)
+#define VF2_GAME_DISP_EVENT_FLAG14_SIDE UINT32_C(0x0050004c)
+#define VF2_GAME_DISP_EVENT_FLAG15_POINTER_SLOT UINT32_C(0x0050083c)
+#define VF2_GAME_DISP_EVENT_FLAG15_POINTER UINT32_C(0x00515c00)
+#define VF2_GAME_DISP_EVENT_FLAG15_POINTER_VALUE UINT32_C(0x00000008)
 #define VF2_GAME_DISP_EVENT_FLAG10 UINT32_C(0x00000400)
 #define VF2_GAME_DISP_EVENT_FLAG10_INSTRUCTIONS UINT64_C(13)
 #define VF2_GAME_DISP_EVENT_FLAG10_LINK UINT32_C(0x0002ac74)
@@ -147,6 +158,34 @@ static bool measured_game_disp_event_gate_case(
     } else if (registry_flags ==
                    (UINT32_C(0x80000000) | VF2_GAME_DISP_EVENT_FLAG10)) {
         if (queue_head != UINT8_C(0) || queue_tail != UINT8_C(0)) {
+            return false;
+        }
+    } else if (registry_flags ==
+                   (UINT32_C(0x80000000) | VF2_GAME_DISP_EVENT_FLAG14)) {
+        uint8_t mode = UINT8_MAX;
+        uint8_t side = UINT8_MAX;
+        if (queue_head != UINT8_C(0) || queue_tail != UINT8_C(0) ||
+            timer0 != UINT8_C(0) || timer1 != UINT8_C(0) ||
+            vf2_model2a_read(
+                machine, VF2_GAME_DISP_EVENT_FLAG14_MODE, &mode, sizeof(mode)
+            ) != VF2_OK ||
+            vf2_model2a_read(
+                machine, VF2_GAME_DISP_EVENT_FLAG14_SIDE, &side, sizeof(side)
+            ) != VF2_OK ||
+            mode != UINT8_C(0) || side != UINT8_C(0)) {
+            return false;
+        }
+    } else if (registry_flags ==
+                   (UINT32_C(0x80000000) | VF2_GAME_DISP_EVENT_FLAG15)) {
+        uint32_t pointer = 0u;
+        uint32_t pointed_value = 0u;
+        if (queue_head != UINT8_C(0) || queue_tail != UINT8_C(0) ||
+            timer0 != UINT8_C(0) || timer1 != UINT8_C(0) ||
+            vf2_model2a_read_u32(
+                machine, VF2_GAME_DISP_EVENT_FLAG15_POINTER_SLOT, &pointer
+            ) != VF2_OK || pointer != VF2_GAME_DISP_EVENT_FLAG15_POINTER ||
+            vf2_model2a_read_u32(machine, pointer, &pointed_value) != VF2_OK ||
+            pointed_value != VF2_GAME_DISP_EVENT_FLAG15_POINTER_VALUE) {
             return false;
         }
     } else if (registry_flags ==
@@ -339,6 +378,24 @@ static vf2_status execute_measured_game_disp_event_gate_state(
         }
         cpu->registers[VF2_I960_G14_REGISTER] = VF2_GAME_DISP_EVENT_FLAG10_LINK;
         instruction_count += VF2_GAME_DISP_EVENT_FLAG10_INSTRUCTIONS;
+    }
+    if ((registry_flags & VF2_GAME_DISP_EVENT_FLAG14) != 0u) {
+        registry_flags &= ~VF2_GAME_DISP_EVENT_FLAG14;
+        status = game_disp_event_enqueue_byte(machine, &queue_head, UINT8_C(0x92));
+        if (status != VF2_OK) {
+            return status;
+        }
+        cpu->registers[VF2_I960_G14_REGISTER] = VF2_GAME_DISP_EVENT_FLAG14_LINK;
+        instruction_count += VF2_GAME_DISP_EVENT_FLAG14_INSTRUCTIONS;
+    }
+    if ((registry_flags & VF2_GAME_DISP_EVENT_FLAG15) != 0u) {
+        registry_flags &= ~VF2_GAME_DISP_EVENT_FLAG15;
+        status = game_disp_event_enqueue_byte(machine, &queue_head, UINT8_C(0x9b));
+        if (status != VF2_OK) {
+            return status;
+        }
+        cpu->registers[VF2_I960_G14_REGISTER] = VF2_GAME_DISP_EVENT_FLAG15_LINK;
+        instruction_count += VF2_GAME_DISP_EVENT_FLAG15_INSTRUCTIONS;
     }
 
     compared_queue_tail = queue_tail;
