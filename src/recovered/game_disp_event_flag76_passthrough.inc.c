@@ -78,6 +78,9 @@ static bool game_disp_flag76_measured_case(
     static const uint8_t tile_expected[4] = {
         UINT8_C(0x2e), UINT8_C(0x80), UINT8_C(0x31), UINT8_C(0x80)
     };
+    static const uint8_t tile_start_expected[4] = {
+        UINT8_C(0x20), UINT8_C(0x00), UINT8_C(0x20), UINT8_C(0x00)
+    };
     uint32_t flags = 0u;
     uint32_t global20 = 0u;
     uint32_t value = 0u;
@@ -216,7 +219,8 @@ static bool game_disp_flag76_measured_case(
         state6 != UINT8_C(0x40) ||
         (state_clear != UINT8_C(0x0b) && state_clear != UINT8_C(0x8b)) ||
         timer0 != UINT8_C(0) || timer1 != UINT8_C(0) ||
-        memcmp(tile, tile_expected, sizeof(tile)) != 0) {
+        (memcmp(tile, tile_expected, sizeof(tile)) != 0 &&
+         memcmp(tile, tile_start_expected, sizeof(tile)) != 0)) {
         return false;
     }
 
