@@ -108,6 +108,7 @@ static vf2_status execute_measured_game_disp_continuation(
     const uint64_t start_instructions = cpu->executed_instructions;
     const uint64_t start_calls = cpu->procedure_calls;
     const uint64_t start_returns = cpu->procedure_returns;
+    uint64_t continuation_instructions = VF2_GAME_DISP_CONT_INSTRUCTIONS;
     uint32_t control = 0u;
     uint32_t registry_flags = 0u;
     uint32_t fighter0 = 0u;
@@ -229,6 +230,13 @@ static vf2_status execute_measured_game_disp_continuation(
     if (status != VF2_OK) {
         return status;
     }
+    if (child_state.recovered_instruction_count ==
+        VF2_GAME_DISP_EVENT_BASE_INSTRUCTIONS + UINT64_C(1)) {
+        ++continuation_instructions;
+    } else if (child_state.recovered_instruction_count !=
+               VF2_GAME_DISP_EVENT_BASE_INSTRUCTIONS) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
     if ((cpu->registers[3] & (UINT32_C(1) << 26u)) != 0u) {
         return VF2_ERROR_UNSUPPORTED;
     }
@@ -262,7 +270,7 @@ static vf2_status execute_measured_game_disp_continuation(
         return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
     }
 
-    cpu->executed_instructions = start_instructions + VF2_GAME_DISP_CONT_INSTRUCTIONS;
+    cpu->executed_instructions = start_instructions + continuation_instructions;
     status = vf2_i960_cpu_return_procedure(cpu, machine);
     if (status != VF2_OK || cpu->ip != VF2_GAME_DISP_CONT_RETURN ||
         cpu->procedure_calls != start_calls + VF2_GAME_DISP_CONT_CALLS ||
@@ -277,11 +285,11 @@ static vf2_status execute_measured_game_disp_continuation(
     effective_report->entry_address = VF2_GAME_DISP_CONT_ENTRY;
     effective_report->exit_address = VF2_GAME_DISP_CONT_RETURN;
     effective_report->current_registry_address = VF2_GAME_DISP_REGISTRY;
-    effective_report->recovered_instruction_count = VF2_GAME_DISP_CONT_INSTRUCTIONS;
+    effective_report->recovered_instruction_count = continuation_instructions;
     effective_report->recovered_procedure_calls = VF2_GAME_DISP_CONT_CALLS;
     effective_report->recovered_procedure_returns = VF2_GAME_DISP_CONT_RETURNS;
     ++state->blocks_executed;
-    state->recovered_instruction_count += VF2_GAME_DISP_CONT_INSTRUCTIONS;
+    state->recovered_instruction_count += continuation_instructions;
     state->recovered_procedure_calls += VF2_GAME_DISP_CONT_CALLS;
     state->recovered_procedure_returns += VF2_GAME_DISP_CONT_RETURNS;
     return VF2_OK;
