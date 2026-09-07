@@ -24,5 +24,9 @@
 #include "game_disp_fighter_resource_pair.inc.c"
 
 #undef vf2_native_runtime_step
-#define vf2_native_runtime_step vf2_native_runtime_step_condition_impl
+#define vf2_native_runtime_step vf2_native_runtime_step_hud_body_stride_base
 #include "game_disp_hud_body.inc.c"
+
+#undef vf2_native_runtime_step
+#define vf2_native_runtime_step vf2_native_runtime_step_condition_impl
+#include "game_disp_hud_body_stride.inc.c"
