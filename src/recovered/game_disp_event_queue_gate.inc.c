@@ -16,6 +16,9 @@
 #define VF2_GAME_DISP_EVENT_QUEUE_MASK UINT8_C(15)
 #define VF2_GAME_DISP_EVENT_BASE_INSTRUCTIONS UINT64_C(38)
 #define VF2_GAME_DISP_EVENT_QUEUE_INSTRUCTIONS UINT64_C(4)
+#define VF2_GAME_DISP_EVENT_FLAG10 UINT32_C(0x00000400)
+#define VF2_GAME_DISP_EVENT_FLAG10_INSTRUCTIONS UINT64_C(13)
+#define VF2_GAME_DISP_EVENT_FLAG10_LINK UINT32_C(0x0002ac74)
 
 static bool measured_game_disp_event_gate_case(
     vf2_model2a *machine,
@@ -114,10 +117,19 @@ static bool measured_game_disp_event_gate_case(
     if (status != VF2_OK ||
         fighter0 != VF2_GAME_DISP_EVENT_FIGHTER0 ||
         fighter1 != VF2_GAME_DISP_EVENT_FIGHTER1 ||
-        registry_flags != UINT32_C(0x80000000) ||
         queue_head >= VF2_GAME_DISP_EVENT_QUEUE_CAPACITY ||
         queue_tail >= VF2_GAME_DISP_EVENT_QUEUE_CAPACITY ||
         selector != UINT8_C(17) || state_byte != UINT8_C(0)) {
+        return false;
+    }
+    if (registry_flags == UINT32_C(0x80000000)) {
+        /* The recovered ring queue admits every valid measured index pair. */
+    } else if (registry_flags ==
+                   (UINT32_C(0x80000000) | VF2_GAME_DISP_EVENT_FLAG10)) {
+        if (queue_head != UINT8_C(0) || queue_tail != UINT8_C(0)) {
+            return false;
+        }
+    } else {
         return false;
     }
 
@@ -149,6 +161,27 @@ static void set_game_disp_event_queue_condition(
         (cpu->arithmetic_control & ~UINT32_C(7)) | bits;
 }
 
+static vf2_status game_disp_event_enqueue_byte(
+    vf2_model2a *machine,
+    uint8_t *queue_head,
+    uint8_t value
+)
+{
+    vf2_status status = vf2_model2a_write(
+        machine,
+        VF2_GAME_DISP_REGISTRY + VF2_GAME_DISP_EVENT_QUEUE_DATA_OFFSET +
+            (uint32_t)*queue_head,
+        &value,
+        sizeof(value)
+    );
+
+    if (status == VF2_OK) {
+        *queue_head = (uint8_t)((*queue_head + UINT8_C(1)) &
+                                VF2_GAME_DISP_EVENT_QUEUE_MASK);
+    }
+    return status;
+}
+
 static vf2_status execute_measured_game_disp_event_gate_state(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu,
@@ -166,10 +199,16 @@ static vf2_status execute_measured_game_disp_event_gate_state(
     const uint64_t start_instructions = cpu->executed_instructions;
     const uint64_t start_calls = cpu->procedure_calls;
     const uint64_t start_returns = cpu->procedure_returns;
-    const uint8_t compared_queue_tail = queue_tail;
+    uint8_t compared_queue_tail = queue_tail;
+    uint32_t registry_flags = 0u;
     uint64_t instruction_count = VF2_GAME_DISP_EVENT_BASE_INSTRUCTIONS;
-    vf2_status status = VF2_OK;
+    vf2_status status = vf2_model2a_read_u32(
+        machine, VF2_GAME_DISP_REGISTRY, &registry_flags
+    );
 
+    if (status != VF2_OK) {
+        return status;
+    }
     if (timer0 != UINT8_C(0)) {
         const uint8_t stored[2] = {
             (uint8_t)(timer0 - UINT8_C(1)), UINT8_C(0)
@@ -197,6 +236,22 @@ static vf2_status execute_measured_game_disp_event_gate_state(
         return status;
     }
 
+    if ((registry_flags & VF2_GAME_DISP_EVENT_FLAG10) != 0u) {
+        registry_flags &= ~VF2_GAME_DISP_EVENT_FLAG10;
+        status = game_disp_event_enqueue_byte(machine, &queue_head, UINT8_C(0xa0));
+        if (status == VF2_OK) {
+            status = game_disp_event_enqueue_byte(
+                machine, &queue_head, UINT8_C(0xa8)
+            );
+        }
+        if (status != VF2_OK) {
+            return status;
+        }
+        cpu->registers[VF2_I960_G14_REGISTER] = VF2_GAME_DISP_EVENT_FLAG10_LINK;
+        instruction_count += VF2_GAME_DISP_EVENT_FLAG10_INSTRUCTIONS;
+    }
+
+    compared_queue_tail = queue_tail;
     if (queue_head != queue_tail) {
         uint8_t queued_event = UINT8_C(0);
         status = vf2_model2a_read(
@@ -234,6 +289,11 @@ static vf2_status execute_measured_game_disp_event_gate_state(
             VF2_GAME_DISP_REGISTRY + VF2_GAME_DISP_EVENT_QUEUE_TAIL_OFFSET,
             &queue_tail,
             sizeof(queue_tail)
+        );
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_write_u32(
+            machine, VF2_GAME_DISP_REGISTRY, registry_flags
         );
     }
     if (status != VF2_OK) {
