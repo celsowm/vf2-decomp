@@ -80,5 +80,9 @@
 #include "game_disp_event_flag98.inc.c"
 
 #undef vf2_native_runtime_step
-#define vf2_native_runtime_step vf2_native_runtime_step_condition_impl
+#define vf2_native_runtime_step vf2_native_runtime_step_flag76_base
 #include "game_disp_flag98_child_contract.inc.c"
+
+#undef vf2_native_runtime_step
+#define vf2_native_runtime_step vf2_native_runtime_step_condition_impl
+#include "game_disp_event_flag76_passthrough.inc.c"
