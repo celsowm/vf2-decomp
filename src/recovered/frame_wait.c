@@ -198,7 +198,7 @@ vf2_status vf2_hybrid_frame_wait_execute(
                 machine, UINT32_C(0x00500020), &phase_global20
             ) == VF2_OK &&
             phase_global20 >= UINT32_C(7) &&
-            phase_global20 <= UINT32_C(36)) {
+            phase_global20 <= UINT32_C(500)) {
             phase_seed = 1u;
             state->visits = phase_seed;
         }
