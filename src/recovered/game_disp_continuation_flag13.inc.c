@@ -89,8 +89,11 @@ static vf2_status execute_measured_game_disp_continuation_flag13(
 )
 {
     uint8_t queue_head = UINT8_C(0);
+    uint8_t measured_main_mode = side;
+    uint8_t base_main_mode = UINT8_C(0);
     uint64_t instruction_delta = UINT64_C(0);
     uint32_t link = 0u;
+    vf2_status restore_status = VF2_OK;
     vf2_status status = game_disp_event_flag13_enqueue(
         machine,
         &queue_head,
@@ -113,6 +116,14 @@ static vf2_status execute_measured_game_disp_continuation_flag13(
             machine, VF2_GAME_DISP_REGISTRY, UINT32_C(0x80000000)
         );
     }
+    if (status == VF2_OK && measured_main_mode == UINT8_C(1)) {
+        status = vf2_model2a_write(
+            machine,
+            VF2_GAME_DISP_MAIN_MODE,
+            &base_main_mode,
+            sizeof(base_main_mode)
+        );
+    }
     if (status != VF2_OK) {
         return status;
     }
@@ -120,6 +131,17 @@ static vf2_status execute_measured_game_disp_continuation_flag13(
     status = execute_measured_game_disp_continuation(
         machine, cpu, state, report
     );
+    if (measured_main_mode == UINT8_C(1)) {
+        restore_status = vf2_model2a_write(
+            machine,
+            VF2_GAME_DISP_MAIN_MODE,
+            &measured_main_mode,
+            sizeof(measured_main_mode)
+        );
+        if (status == VF2_OK && restore_status != VF2_OK) {
+            status = restore_status;
+        }
+    }
     if (status != VF2_OK) {
         return status;
     }
