@@ -11,6 +11,7 @@
 #define VF2_SELECTOR2_MASK UINT32_C(0x00000004)
 #define VF2_SELECTOR2_QUEUE_COUNT UINT32_C(0x00504001)
 #define VF2_SELECTOR2_MODEL_BASE UINT32_C(0x0050016c)
+#define VF2_START_PHASE_INDEX UINT32_C(0x005000a4)
 
 static vf2_status apply_selector2_queue_condition(
     vf2_model2a *machine,
@@ -62,6 +63,37 @@ static vf2_status apply_selector2_queue_condition(
     return VF2_OK;
 }
 
+static vf2_status apply_start_final_cluster_condition(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu,
+    uint32_t entry
+)
+{
+    uint8_t phase_index = 0u;
+    vf2_status status = VF2_OK;
+
+    if (machine == NULL || cpu == NULL ||
+        entry != VF2_MAIN_FINAL_CLUSTER_ENTRY ||
+        cpu->ip != VF2_MAIN_POST_CLUSTER_ENTRY) {
+        return VF2_OK;
+    }
+
+    status = vf2_model2a_read(
+        machine,
+        VF2_START_PHASE_INDEX,
+        &phase_index,
+        sizeof(phase_index)
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+
+    if (phase_index == UINT8_C(0x8b)) {
+        set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
+    }
+    return VF2_OK;
+}
+
 vf2_status vf2_hybrid_bridge_apply_condition_poststate(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu,
@@ -76,6 +108,9 @@ vf2_status vf2_hybrid_bridge_apply_condition_poststate(
 
     if (status == VF2_OK) {
         status = apply_selector2_queue_condition(machine, cpu, entry);
+    }
+    if (status == VF2_OK) {
+        status = apply_start_final_cluster_condition(machine, cpu, entry);
     }
     return status;
 }
@@ -93,6 +128,9 @@ vf2_status vf2_hybrid_post_frame_bridge_execute(
 
     if (status == VF2_OK) {
         status = apply_selector2_queue_condition(machine, cpu, entry);
+    }
+    if (status == VF2_OK) {
+        status = apply_start_final_cluster_condition(machine, cpu, entry);
     }
     return status;
 }
