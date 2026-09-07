@@ -56,5 +56,9 @@
 #include "game_disp_continuation_flag13.inc.c"
 
 #undef vf2_native_runtime_step
-#define vf2_native_runtime_step vf2_native_runtime_step_condition_impl
+#define vf2_native_runtime_step vf2_native_runtime_step_condition_state89_clear_base
 #include "game_disp_continuation_state89.inc.c"
+
+#undef vf2_native_runtime_step
+#define vf2_native_runtime_step vf2_native_runtime_step_condition_impl
+#include "game_disp_state89_clear_contract.inc.c"
