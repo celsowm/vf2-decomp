@@ -177,15 +177,28 @@ vf2_status vf2_hybrid_frame_wait_execute(
         uint8_t frame_byte = 0u;
         vf2_hybrid_frame_wait_report wait_report;
         size_t phase_seed = 0u;
+        uint32_t phase_flags = 0u;
+        uint32_t phase_global20 = 0u;
 
-        /* Native snapshots serialize CPU/machine state but not the host-side
-         * frame scheduler phase.  When a mid-run snapshot is restored, the
-         * balanced nonzero IRQ counters prove that at least one complete
-         * frame interrupt has already occurred.  The measured gameplay
-         * corridor resumes one poll into the four-visit VBlank period. */
+        /* CPU/machine snapshots do not serialize the host frame scheduler
+         * phase.  Reconstruct the measured one-poll offset only for the
+         * proven recurring game-disp resume family.  Balanced IRQ counters
+         * alone also occur during ordinary continuous dispatches and must not
+         * alter their four-visit VBlank phase. */
         if (state->visits == 0u && state->interrupts_injected == 0u &&
             cpu->interrupt_entries != 0u &&
-            cpu->interrupt_entries == cpu->interrupt_returns) {
+            cpu->interrupt_entries == cpu->interrupt_returns &&
+            vf2_model2a_read_u32(
+                machine, UINT32_C(0x00515b00), &phase_flags
+            ) == VF2_OK &&
+            (phase_flags == UINT32_C(0x80000040) ||
+             phase_flags == UINT32_C(0x80000080) ||
+             phase_flags == UINT32_C(0x800000c0)) &&
+            vf2_model2a_read_u32(
+                machine, UINT32_C(0x00500020), &phase_global20
+            ) == VF2_OK &&
+            phase_global20 >= UINT32_C(7) &&
+            phase_global20 <= UINT32_C(36)) {
             phase_seed = 1u;
             state->visits = phase_seed;
         }
