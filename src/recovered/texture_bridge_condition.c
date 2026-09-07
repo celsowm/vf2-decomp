@@ -12,6 +12,7 @@
 #define VF2_SELECTOR2_QUEUE_COUNT UINT32_C(0x00504001)
 #define VF2_SELECTOR2_MODEL_BASE UINT32_C(0x0050016c)
 #define VF2_START_PHASE_INDEX UINT32_C(0x005000a4)
+#define VF2_START_PHASE_STATE UINT32_C(0x005000a5)
 
 static vf2_status apply_selector2_queue_condition(
     vf2_model2a *machine,
@@ -70,6 +71,7 @@ static vf2_status apply_start_final_cluster_condition(
 )
 {
     uint8_t phase_index = 0u;
+    uint8_t phase_state = 0u;
     vf2_status status = VF2_OK;
 
     if (machine == NULL || cpu == NULL ||
@@ -84,11 +86,19 @@ static vf2_status apply_start_final_cluster_condition(
         &phase_index,
         sizeof(phase_index)
     );
+    if (status == VF2_OK) {
+        status = vf2_model2a_read(
+            machine,
+            VF2_START_PHASE_STATE,
+            &phase_state,
+            sizeof(phase_state)
+        );
+    }
     if (status != VF2_OK) {
         return status;
     }
 
-    if (phase_index == UINT8_C(0x8b)) {
+    if (phase_index == UINT8_C(0x8b) && phase_state == UINT8_C(0)) {
         set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
     }
     return VF2_OK;
