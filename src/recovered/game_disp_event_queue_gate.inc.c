@@ -7,14 +7,21 @@
 #define VF2_GAME_DISP_EVENT_SELECTOR UINT32_C(0x0050002b)
 #define VF2_GAME_DISP_EVENT_STATE UINT32_C(0x00500031)
 #define VF2_GAME_DISP_EVENT_QUEUE_HEAD_OFFSET UINT32_C(0x0000005b)
+#define VF2_GAME_DISP_EVENT_QUEUE_DATA_OFFSET UINT32_C(0x0000005c)
 #define VF2_GAME_DISP_EVENT_QUEUE_TAIL_OFFSET UINT32_C(0x0000006c)
 #define VF2_GAME_DISP_EVENT_TIMER0_OFFSET UINT32_C(0x0000006d)
 #define VF2_GAME_DISP_EVENT_TIMER1_OFFSET UINT32_C(0x0000006e)
+#define VF2_GAME_DISP_EVENT_OUTPUT_PORT UINT32_C(0x01c00008)
+#define VF2_GAME_DISP_EVENT_QUEUE_CAPACITY UINT8_C(16)
+#define VF2_GAME_DISP_EVENT_QUEUE_MASK UINT8_C(15)
 #define VF2_GAME_DISP_EVENT_BASE_INSTRUCTIONS UINT64_C(38)
+#define VF2_GAME_DISP_EVENT_QUEUE_INSTRUCTIONS UINT64_C(4)
 
 static bool measured_game_disp_event_gate_case(
     vf2_model2a *machine,
     const vf2_i960_cpu *cpu,
+    uint8_t *queue_head_out,
+    uint8_t *queue_tail_out,
     uint8_t *timer0_out,
     uint8_t *timer1_out
 )
@@ -31,7 +38,8 @@ static bool measured_game_disp_event_gate_case(
     size_t index = 0u;
     vf2_status status = VF2_OK;
 
-    if (machine == NULL || cpu == NULL || timer0_out == NULL || timer1_out == NULL ||
+    if (machine == NULL || cpu == NULL || queue_head_out == NULL ||
+        queue_tail_out == NULL || timer0_out == NULL || timer1_out == NULL ||
         cpu->ip != VF2_GAME_DISP_EVENT_ENTRY ||
         cpu->local_frame_depth != UINT32_C(3) ||
         cpu->registers[VF2_I960_G0_REGISTER + 13u] != VF2_GAME_DISP_REGISTRY ||
@@ -107,21 +115,26 @@ static bool measured_game_disp_event_gate_case(
         fighter0 != VF2_GAME_DISP_EVENT_FIGHTER0 ||
         fighter1 != VF2_GAME_DISP_EVENT_FIGHTER1 ||
         registry_flags != UINT32_C(0x80000000) ||
-        queue_head != UINT8_C(0) || queue_tail != UINT8_C(0) ||
+        queue_head >= VF2_GAME_DISP_EVENT_QUEUE_CAPACITY ||
+        queue_tail >= VF2_GAME_DISP_EVENT_QUEUE_CAPACITY ||
         selector != UINT8_C(17) || state_byte != UINT8_C(0)) {
         return false;
     }
 
+    *queue_head_out = queue_head;
+    *queue_tail_out = queue_tail;
     *timer0_out = timer0;
     *timer1_out = timer1;
     return true;
 }
 
-static vf2_status execute_measured_game_disp_event_gate_timers(
+static vf2_status execute_measured_game_disp_event_gate_state(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu,
     vf2_native_runtime_state *state,
     vf2_native_runtime_step_report *report,
+    uint8_t queue_head,
+    uint8_t queue_tail,
     uint8_t timer0,
     uint8_t timer1
 )
@@ -157,6 +170,49 @@ static vf2_status execute_measured_game_disp_event_gate_timers(
             sizeof(stored)
         );
         ++instruction_count;
+    }
+    if (status != VF2_OK) {
+        return status;
+    }
+
+    if (queue_head != queue_tail) {
+        uint8_t queued_event = UINT8_C(0);
+        status = vf2_model2a_read(
+            machine,
+            VF2_GAME_DISP_REGISTRY + VF2_GAME_DISP_EVENT_QUEUE_DATA_OFFSET +
+                (uint32_t)queue_tail,
+            &queued_event,
+            sizeof(queued_event)
+        );
+        if (status == VF2_OK) {
+            queue_tail = (uint8_t)((queue_tail + UINT8_C(1)) &
+                                   VF2_GAME_DISP_EVENT_QUEUE_MASK);
+            status = vf2_model2a_write(
+                machine,
+                VF2_GAME_DISP_EVENT_OUTPUT_PORT,
+                &queued_event,
+                sizeof(queued_event)
+            );
+        }
+        if (status != VF2_OK) {
+            return status;
+        }
+        instruction_count += VF2_GAME_DISP_EVENT_QUEUE_INSTRUCTIONS;
+    }
+
+    status = vf2_model2a_write(
+        machine,
+        VF2_GAME_DISP_REGISTRY + VF2_GAME_DISP_EVENT_QUEUE_HEAD_OFFSET,
+        &queue_head,
+        sizeof(queue_head)
+    );
+    if (status == VF2_OK) {
+        status = vf2_model2a_write(
+            machine,
+            VF2_GAME_DISP_REGISTRY + VF2_GAME_DISP_EVENT_QUEUE_TAIL_OFFSET,
+            &queue_tail,
+            sizeof(queue_tail)
+        );
     }
     if (status != VF2_OK) {
         return status;
@@ -200,15 +256,19 @@ static vf2_status execute_measured_game_disp_event_gate(
     vf2_native_runtime_step_report *report
 )
 {
+    uint8_t queue_head = UINT8_C(0);
+    uint8_t queue_tail = UINT8_C(0);
     uint8_t timer0 = UINT8_C(0);
     uint8_t timer1 = UINT8_C(0);
 
     if (machine == NULL || cpu == NULL || state == NULL ||
-        !measured_game_disp_event_gate_case(machine, cpu, &timer0, &timer1)) {
+        !measured_game_disp_event_gate_case(
+            machine, cpu, &queue_head, &queue_tail, &timer0, &timer1
+        )) {
         return VF2_ERROR_UNSUPPORTED;
     }
-    return execute_measured_game_disp_event_gate_timers(
-        machine, cpu, state, report, timer0, timer1
+    return execute_measured_game_disp_event_gate_state(
+        machine, cpu, state, report, queue_head, queue_tail, timer0, timer1
     );
 }
 
@@ -219,13 +279,17 @@ vf2_status vf2_native_runtime_step(
     vf2_native_runtime_step_report *report
 )
 {
+    uint8_t queue_head = UINT8_C(0);
+    uint8_t queue_tail = UINT8_C(0);
     uint8_t timer0 = UINT8_C(0);
     uint8_t timer1 = UINT8_C(0);
 
     if (machine != NULL && cpu != NULL && state != NULL &&
-        measured_game_disp_event_gate_case(machine, cpu, &timer0, &timer1)) {
-        return execute_measured_game_disp_event_gate_timers(
-            machine, cpu, state, report, timer0, timer1
+        measured_game_disp_event_gate_case(
+            machine, cpu, &queue_head, &queue_tail, &timer0, &timer1
+        )) {
+        return execute_measured_game_disp_event_gate_state(
+            machine, cpu, state, report, queue_head, queue_tail, timer0, timer1
         );
     }
     return vf2_native_runtime_step_event_base(
