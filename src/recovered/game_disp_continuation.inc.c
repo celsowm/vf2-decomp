@@ -76,6 +76,10 @@ static bool measured_game_disp_continuation_case(
             registry_flags ==
                 (UINT32_C(0x80000000) | VF2_GAME_DISP_EVENT_FLAG10) ||
             registry_flags ==
+                (UINT32_C(0x80000000) | VF2_GAME_DISP_EVENT_FLAG14) ||
+            registry_flags ==
+                (UINT32_C(0x80000000) | VF2_GAME_DISP_EVENT_FLAG15) ||
+            registry_flags ==
                 (UINT32_C(0x80000000) | VF2_GAME_DISP_EVENT_FLAG16) ||
             registry_flags ==
                 (UINT32_C(0x80000000) | VF2_GAME_DISP_EVENT_FLAG17) ||
@@ -249,6 +253,9 @@ static vf2_status execute_measured_game_disp_continuation(
         const uint64_t flag10_queue_delta =
             VF2_GAME_DISP_EVENT_FLAG10_INSTRUCTIONS +
             VF2_GAME_DISP_EVENT_QUEUE_INSTRUCTIONS;
+        const uint64_t flag14_15_queue_delta =
+            VF2_GAME_DISP_EVENT_FLAG14_INSTRUCTIONS +
+            VF2_GAME_DISP_EVENT_QUEUE_INSTRUCTIONS;
         const uint64_t flag16_queue_delta =
             VF2_GAME_DISP_EVENT_FLAG16_INSTRUCTIONS +
             VF2_GAME_DISP_EVENT_QUEUE_INSTRUCTIONS;
@@ -268,6 +275,7 @@ static vf2_status execute_measured_game_disp_continuation(
             event_delta != VF2_GAME_DISP_EVENT_QUEUE_INSTRUCTIONS + UINT64_C(1) &&
             event_delta != flag10_queue_delta &&
             event_delta != flag10_queue_delta + UINT64_C(1) &&
+            event_delta != flag14_15_queue_delta &&
             event_delta != flag16_queue_delta &&
             event_delta != flag17_queue_delta &&
             event_delta != flag19_queue_delta) {
