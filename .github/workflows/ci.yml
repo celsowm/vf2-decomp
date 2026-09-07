@@ -65,6 +65,13 @@ jobs:
           name: vf2i960-linux
           path: build/vf2i960
           if-no-files-found: error
+      - name: Publish vf2cycles differential binary
+        if: matrix.compiler == 'gcc'
+        uses: actions/upload-artifact@v4
+        with:
+          name: vf2cycles-linux
+          path: build/vf2cycles
+          if-no-files-found: error
       - name: Publish object differential test binary
         if: matrix.compiler == 'gcc'
         uses: actions/upload-artifact@v4
