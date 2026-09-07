@@ -71,16 +71,20 @@ Before this recovery the native path rejected all three nonzero timer variants
 at `0x0002ab94`. The recovered child and complete continuation now match the
 interpreter exactly for these measured states.
 
-## Remaining fail-closed frontier
+## Frontier update
 
-This change deliberately does **not** generalize:
+The nearby frontiers identified when this timer slice was first recovered have
+since moved forward:
 
-- non-empty event queue states;
+- the full valid 16-slot event ring, including non-empty queues and wraparound,
+  is recovered and documented in `game_disp_event_queue_20260907.md`;
+- measured registry flag bit 10, including its `0xa0`/`0xa8` event enqueue and
+  composition with the timer path, is recovered and documented in
+  `game_disp_event_flag10_20260907.md`.
+
+The remaining fail-closed frontier is now narrower:
+
+- other guarded `fa_game_disp` registry flags;
 - alternate event selector/state bytes;
-- the guarded `fa_game_disp` registry-flag branches;
-- alternate final dispatch-table indices/targets;
-- downstream score/event branches not exercised by this oracle.
-
-The next useful frontier should be one narrow non-baseline branch with a ROM
-oracle, preferably either the non-empty queue path or a single guarded registry
-flag, rather than relaxing several conditions together.
+- alternate final dispatch-table indices/targets; and
+- downstream score/event branches not exercised by the current oracle corridor.
