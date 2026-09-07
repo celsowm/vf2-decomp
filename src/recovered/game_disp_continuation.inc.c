@@ -235,12 +235,19 @@ static vf2_status execute_measured_game_disp_continuation(
     if (status != VF2_OK) {
         return status;
     }
-    if (child_state.recovered_instruction_count ==
-        VF2_GAME_DISP_EVENT_BASE_INSTRUCTIONS + UINT64_C(1)) {
-        ++continuation_instructions;
-    } else if (child_state.recovered_instruction_count !=
-               VF2_GAME_DISP_EVENT_BASE_INSTRUCTIONS) {
-        return VF2_ERROR_UNSUPPORTED;
+    {
+        const uint64_t child_instructions = child_state.recovered_instruction_count;
+        uint64_t event_delta = 0u;
+        if (child_instructions < VF2_GAME_DISP_EVENT_BASE_INSTRUCTIONS) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        event_delta = child_instructions - VF2_GAME_DISP_EVENT_BASE_INSTRUCTIONS;
+        if (event_delta != UINT64_C(0) && event_delta != UINT64_C(1) &&
+            event_delta != VF2_GAME_DISP_EVENT_QUEUE_INSTRUCTIONS &&
+            event_delta != VF2_GAME_DISP_EVENT_QUEUE_INSTRUCTIONS + UINT64_C(1)) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        continuation_instructions += event_delta;
     }
     if ((cpu->registers[3] & (UINT32_C(1) << 26u)) != 0u) {
         return VF2_ERROR_UNSUPPORTED;
