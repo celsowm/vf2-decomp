@@ -204,8 +204,7 @@ static vf2_status execute_measured_game_disp_event_gate(
     uint8_t timer1 = UINT8_C(0);
 
     if (machine == NULL || cpu == NULL || state == NULL ||
-        !measured_game_disp_event_gate_case(machine, cpu, &timer0, &timer1) ||
-        timer0 != UINT8_C(0) || timer1 != UINT8_C(0)) {
+        !measured_game_disp_event_gate_case(machine, cpu, &timer0, &timer1)) {
         return VF2_ERROR_UNSUPPORTED;
     }
     return execute_measured_game_disp_event_gate_timers(
