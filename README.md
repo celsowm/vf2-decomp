@@ -12,6 +12,24 @@ The project already contains a substantial recovered native runtime, ROM validat
 
 Current work is focused on expanding recovered gameplay/runtime state coverage while preserving exact CPU, procedure-count and mutable-memory behavior for accepted paths. Unsupported or unverified branches remain explicit instead of being approximated.
 
+### Progress toward a playable Virtua Fighter 2 port
+
+These bars are a qualitative view of progress toward running the **complete game natively**, not a percentage of decompiled code or recovered instructions.
+
+```text
+ROM / boot              ██████████  very advanced
+Model 2A hardware       ███████░░░  functional for the current corridor
+scheduler / runtime     █████████░  very advanced
+input                    ████████░░
+camera                   ████████░░
+HUD / game_disp          ███████░░░
+fighter / game logic     ██████░░░░
+geometry / rendering     █████░░░░░
+audio                    ███░░░░░░░
+complete game flow       ███░░░░░░░
+fully playable match     ██░░░░░░░░
+```
+
 For detailed development history, recovered branches and release-by-release progress, see [`CHANGELOG.md`](CHANGELOG.md).
 
 For known remaining boundaries, see [`docs/UNCOVERED_BRANCHES.md`](docs/UNCOVERED_BRANCHES.md).
