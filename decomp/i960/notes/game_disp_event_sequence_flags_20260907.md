@@ -84,16 +84,20 @@ Python tooling syntax before the artifact was used for the differential proof.
 
 ## Remaining fail-closed frontier
 
-This recovery intentionally does not admit:
+Bits 14 and 15 were subsequently recovered with their own measured auxiliary
+state and are documented separately in
+`game_disp_event_conditional_flags_20260907.md`.
 
-- combinations among registry bits 16, 17, 19, or 10;
-- non-zero timers together with bits 16, 17, or 19;
-- the larger neighboring registry-flag branches (including bits 8, 9, 11-15,
-  and 18) without their own ROM oracle;
+The remaining frontier intentionally includes:
+
+- combinations among recovered registry bits 10, 14-17, and 19;
+- non-zero timers together with recovered bits 14-17 or 19;
+- larger neighboring registry-flag branches, including bits 8, 9, 11-13, and
+  18, without their own ROM oracle;
 - alternate event selector/state bytes;
 - alternate final dispatch-table indices or targets;
 - downstream score/event paths not exercised by these measured states.
 
-The next useful candidates are bits 14 and 15: both are smaller conditional
-event branches, but they depend on additional measured state and should be
-recovered independently rather than generalized from the sequence branches.
+Bit 13 is now the nearest substantial event-formatting branch and should be
+recovered from an independent ROM oracle rather than generalized from these
+sequence branches.
