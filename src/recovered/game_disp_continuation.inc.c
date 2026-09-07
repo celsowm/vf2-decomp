@@ -72,8 +72,11 @@ static bool measured_game_disp_continuation_case(
         );
     }
     return status == VF2_OK && control == UINT32_C(0x00008a00) &&
-           registry_flags == UINT32_C(0x80000000) && counter == UINT16_C(0) &&
-           dispatch_index == UINT8_C(0) && target == VF2_GAME_DISP_MAIN_ENTRY;
+           (registry_flags == UINT32_C(0x80000000) ||
+            registry_flags ==
+                (UINT32_C(0x80000000) | VF2_GAME_DISP_EVENT_FLAG10)) &&
+           counter == UINT16_C(0) && dispatch_index == UINT8_C(0) &&
+           target == VF2_GAME_DISP_MAIN_ENTRY;
 }
 
 static vf2_status game_disp_cont_call_leaf(
@@ -237,6 +240,9 @@ static vf2_status execute_measured_game_disp_continuation(
     }
     {
         const uint64_t child_instructions = child_state.recovered_instruction_count;
+        const uint64_t flag10_queue_delta =
+            VF2_GAME_DISP_EVENT_FLAG10_INSTRUCTIONS +
+            VF2_GAME_DISP_EVENT_QUEUE_INSTRUCTIONS;
         uint64_t event_delta = 0u;
         if (child_instructions < VF2_GAME_DISP_EVENT_BASE_INSTRUCTIONS) {
             return VF2_ERROR_UNSUPPORTED;
@@ -244,7 +250,9 @@ static vf2_status execute_measured_game_disp_continuation(
         event_delta = child_instructions - VF2_GAME_DISP_EVENT_BASE_INSTRUCTIONS;
         if (event_delta != UINT64_C(0) && event_delta != UINT64_C(1) &&
             event_delta != VF2_GAME_DISP_EVENT_QUEUE_INSTRUCTIONS &&
-            event_delta != VF2_GAME_DISP_EVENT_QUEUE_INSTRUCTIONS + UINT64_C(1)) {
+            event_delta != VF2_GAME_DISP_EVENT_QUEUE_INSTRUCTIONS + UINT64_C(1) &&
+            event_delta != flag10_queue_delta &&
+            event_delta != flag10_queue_delta + UINT64_C(1)) {
             return VF2_ERROR_UNSUPPORTED;
         }
         continuation_instructions += event_delta;
