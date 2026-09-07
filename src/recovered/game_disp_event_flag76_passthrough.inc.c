@@ -213,7 +213,8 @@ static bool game_disp_flag76_measured_case(
         value != UINT32_C(0x000b0000) ||
         selector != UINT8_C(17) || event_state != UINT8_C(0) ||
         mode != UINT8_C(0) || aux != UINT8_C(0) ||
-        state6 != UINT8_C(0x40) || state_clear != UINT8_C(0x0b) ||
+        state6 != UINT8_C(0x40) ||
+        (state_clear != UINT8_C(0x0b) && state_clear != UINT8_C(0x8b)) ||
         timer0 != UINT8_C(0) || timer1 != UINT8_C(0) ||
         memcmp(tile, tile_expected, sizeof(tile)) != 0) {
         return false;
