@@ -117,7 +117,7 @@ static bool measured_game_disp_event_gate_case(
     return true;
 }
 
-static vf2_status execute_measured_game_disp_event_gate(
+static vf2_status execute_measured_game_disp_event_gate_timers(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu,
     vf2_native_runtime_state *state,
@@ -193,6 +193,26 @@ static vf2_status execute_measured_game_disp_event_gate(
     return VF2_OK;
 }
 
+static vf2_status execute_measured_game_disp_event_gate(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu,
+    vf2_native_runtime_state *state,
+    vf2_native_runtime_step_report *report
+)
+{
+    uint8_t timer0 = UINT8_C(0);
+    uint8_t timer1 = UINT8_C(0);
+
+    if (machine == NULL || cpu == NULL || state == NULL ||
+        !measured_game_disp_event_gate_case(machine, cpu, &timer0, &timer1) ||
+        timer0 != UINT8_C(0) || timer1 != UINT8_C(0)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    return execute_measured_game_disp_event_gate_timers(
+        machine, cpu, state, report, timer0, timer1
+    );
+}
+
 vf2_status vf2_native_runtime_step(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu,
@@ -205,7 +225,7 @@ vf2_status vf2_native_runtime_step(
 
     if (machine != NULL && cpu != NULL && state != NULL &&
         measured_game_disp_event_gate_case(machine, cpu, &timer0, &timer1)) {
-        return execute_measured_game_disp_event_gate(
+        return execute_measured_game_disp_event_gate_timers(
             machine, cpu, state, report, timer0, timer1
         );
     }
