@@ -10,11 +10,13 @@
 #define VF2_GAME_DISP_EVENT_QUEUE_TAIL_OFFSET UINT32_C(0x0000006c)
 #define VF2_GAME_DISP_EVENT_TIMER0_OFFSET UINT32_C(0x0000006d)
 #define VF2_GAME_DISP_EVENT_TIMER1_OFFSET UINT32_C(0x0000006e)
-#define VF2_GAME_DISP_EVENT_INSTRUCTIONS UINT64_C(38)
+#define VF2_GAME_DISP_EVENT_BASE_INSTRUCTIONS UINT64_C(38)
 
 static bool measured_game_disp_event_gate_case(
     vf2_model2a *machine,
-    const vf2_i960_cpu *cpu
+    const vf2_i960_cpu *cpu,
+    uint8_t *timer0_out,
+    uint8_t *timer1_out
 )
 {
     uint32_t fighter0 = 0u;
@@ -29,7 +31,7 @@ static bool measured_game_disp_event_gate_case(
     size_t index = 0u;
     vf2_status status = VF2_OK;
 
-    if (machine == NULL || cpu == NULL ||
+    if (machine == NULL || cpu == NULL || timer0_out == NULL || timer1_out == NULL ||
         cpu->ip != VF2_GAME_DISP_EVENT_ENTRY ||
         cpu->local_frame_depth != UINT32_C(3) ||
         cpu->registers[VF2_I960_G0_REGISTER + 13u] != VF2_GAME_DISP_REGISTRY ||
@@ -101,20 +103,27 @@ static bool measured_game_disp_event_gate_case(
         );
     }
 
-    return status == VF2_OK &&
-           fighter0 == VF2_GAME_DISP_EVENT_FIGHTER0 &&
-           fighter1 == VF2_GAME_DISP_EVENT_FIGHTER1 &&
-           registry_flags == UINT32_C(0x80000000) &&
-           queue_head == UINT8_C(0) && queue_tail == UINT8_C(0) &&
-           timer0 == UINT8_C(0) && timer1 == UINT8_C(0) &&
-           selector == UINT8_C(17) && state_byte == UINT8_C(0);
+    if (status != VF2_OK ||
+        fighter0 != VF2_GAME_DISP_EVENT_FIGHTER0 ||
+        fighter1 != VF2_GAME_DISP_EVENT_FIGHTER1 ||
+        registry_flags != UINT32_C(0x80000000) ||
+        queue_head != UINT8_C(0) || queue_tail != UINT8_C(0) ||
+        selector != UINT8_C(17) || state_byte != UINT8_C(0)) {
+        return false;
+    }
+
+    *timer0_out = timer0;
+    *timer1_out = timer1;
+    return true;
 }
 
 static vf2_status execute_measured_game_disp_event_gate(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu,
     vf2_native_runtime_state *state,
-    vf2_native_runtime_step_report *report
+    vf2_native_runtime_step_report *report,
+    uint8_t timer0,
+    uint8_t timer1
 )
 {
     vf2_native_runtime_step_report local_report = {0};
@@ -123,11 +132,39 @@ static vf2_status execute_measured_game_disp_event_gate(
     const uint64_t start_instructions = cpu->executed_instructions;
     const uint64_t start_calls = cpu->procedure_calls;
     const uint64_t start_returns = cpu->procedure_returns;
+    uint64_t instruction_count = VF2_GAME_DISP_EVENT_BASE_INSTRUCTIONS;
     vf2_status status = VF2_OK;
+
+    if (timer0 != UINT8_C(0)) {
+        const uint8_t stored[2] = {
+            (uint8_t)(timer0 - UINT8_C(1)), UINT8_C(0)
+        };
+        status = vf2_model2a_write(
+            machine,
+            VF2_GAME_DISP_REGISTRY + VF2_GAME_DISP_EVENT_TIMER0_OFFSET,
+            stored,
+            sizeof(stored)
+        );
+        ++instruction_count;
+    } else if (timer1 != UINT8_C(0)) {
+        const uint8_t stored[2] = {
+            (uint8_t)(timer1 - UINT8_C(1)), UINT8_C(0)
+        };
+        status = vf2_model2a_write(
+            machine,
+            VF2_GAME_DISP_REGISTRY + VF2_GAME_DISP_EVENT_TIMER1_OFFSET,
+            stored,
+            sizeof(stored)
+        );
+        ++instruction_count;
+    }
+    if (status != VF2_OK) {
+        return status;
+    }
 
     cpu->registers[VF2_I960_G0_REGISTER + 7u] = VF2_GAME_DISP_EVENT_FIGHTER0;
     cpu->registers[VF2_I960_G0_REGISTER + 8u] = VF2_GAME_DISP_EVENT_FIGHTER1;
-    cpu->executed_instructions += VF2_GAME_DISP_EVENT_INSTRUCTIONS;
+    cpu->executed_instructions += instruction_count;
     status = vf2_i960_cpu_return_procedure(cpu, machine);
     if (status != VF2_OK || cpu->ip != VF2_GAME_DISP_EVENT_RETURN ||
         cpu->procedure_calls != start_calls ||
@@ -163,10 +200,13 @@ vf2_status vf2_native_runtime_step(
     vf2_native_runtime_step_report *report
 )
 {
+    uint8_t timer0 = UINT8_C(0);
+    uint8_t timer1 = UINT8_C(0);
+
     if (machine != NULL && cpu != NULL && state != NULL &&
-        measured_game_disp_event_gate_case(machine, cpu)) {
+        measured_game_disp_event_gate_case(machine, cpu, &timer0, &timer1)) {
         return execute_measured_game_disp_event_gate(
-            machine, cpu, state, report
+            machine, cpu, state, report, timer0, timer1
         );
     }
     return vf2_native_runtime_step_event_base(
