@@ -176,6 +176,19 @@ vf2_status vf2_hybrid_frame_wait_execute(
     } else if (entry == UINT32_C(0x00010f90)) {
         uint8_t frame_byte = 0u;
         vf2_hybrid_frame_wait_report wait_report;
+        size_t phase_seed = 0u;
+
+        /* Native snapshots serialize CPU/machine state but not the host-side
+         * frame scheduler phase.  When a mid-run snapshot is restored, the
+         * balanced nonzero IRQ counters prove that at least one complete
+         * frame interrupt has already occurred.  The measured gameplay
+         * corridor resumes one poll into the four-visit VBlank period. */
+        if (state->visits == 0u && state->interrupts_injected == 0u &&
+            cpu->interrupt_entries != 0u &&
+            cpu->interrupt_entries == cpu->interrupt_returns) {
+            phase_seed = 1u;
+            state->visits = phase_seed;
+        }
 
         status = vf2_model2a_read(
             machine, UINT32_C(0x00500000), &frame_byte, sizeof(frame_byte)
@@ -221,7 +234,8 @@ vf2_status vf2_hybrid_frame_wait_execute(
         }
 
         local_report.kind = VF2_HYBRID_BRIDGE_FRAME_WAIT_POLL;
-        local_report.iterations = state->visits_before_interrupt;
+        local_report.iterations =
+            state->visits_before_interrupt - phase_seed;
     } else if (entry == UINT32_C(0x00000d20)) {
         uint8_t frame_byte = 0u;
         vf2_hybrid_frame_wait_report wait_report;
