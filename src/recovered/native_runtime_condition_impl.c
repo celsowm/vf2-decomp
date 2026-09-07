@@ -12,5 +12,9 @@
 #include "game_disp_hud_gate.inc.c"
 
 #undef vf2_native_runtime_step
-#define vf2_native_runtime_step vf2_native_runtime_step_condition_impl
+#define vf2_native_runtime_step vf2_native_runtime_step_event_base
 #include "game_disp_clear_branch.inc.c"
+
+#undef vf2_native_runtime_step
+#define vf2_native_runtime_step vf2_native_runtime_step_condition_impl
+#include "game_disp_event_queue_gate.inc.c"
