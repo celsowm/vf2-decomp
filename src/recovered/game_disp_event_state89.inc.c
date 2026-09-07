@@ -43,6 +43,7 @@ typedef struct game_disp_state89_image {
     uint8_t state_byte;
     uint8_t mode;
     uint8_t aux;
+    uint8_t state_clear;
     uint8_t output;
 } game_disp_state89_image;
 
@@ -141,6 +142,12 @@ static vf2_status game_disp_state89_read_image(
     }
     if (status == VF2_OK) {
         status = vf2_model2a_read(
+            machine, UINT32_C(0x005000a4), &image->state_clear,
+            sizeof(image->state_clear)
+        );
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_read(
             machine, VF2_GAME_DISP_EVENT_OUTPUT_PORT, &image->output,
             sizeof(image->output)
         );
@@ -222,6 +229,12 @@ static vf2_status game_disp_state89_write_image(
         status = vf2_model2a_write(
             machine, VF2_GAME_DISP_EVENT_STATE89_AUX, &image->aux,
             sizeof(image->aux)
+        );
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_write(
+            machine, UINT32_C(0x005000a4), &image->state_clear,
+            sizeof(image->state_clear)
         );
     }
     if (status == VF2_OK) {
@@ -612,6 +625,13 @@ static vf2_status game_disp_state89_apply_transition(
 
     if (machine == NULL || match == NULL) {
         return VF2_ERROR_INVALID_ARGUMENT;
+    }
+
+    status = game_disp_state89_write_u8(
+        machine, UINT32_C(0x005000a4), UINT8_C(0)
+    );
+    if (status != VF2_OK) {
+        return status;
     }
 
     if (match->kind == GAME_DISP_STATE89_INITIAL) {
