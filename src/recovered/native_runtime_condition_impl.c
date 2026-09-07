@@ -72,5 +72,9 @@
 #include "game_disp_continuation_flag18_contract.inc.c"
 
 #undef vf2_native_runtime_step
-#define vf2_native_runtime_step vf2_native_runtime_step_condition_impl
+#define vf2_native_runtime_step vf2_native_runtime_step_flag98_base
 #include "game_disp_event_flag18_state6.inc.c"
+
+#undef vf2_native_runtime_step
+#define vf2_native_runtime_step vf2_native_runtime_step_condition_impl
+#include "game_disp_event_flag98.inc.c"
