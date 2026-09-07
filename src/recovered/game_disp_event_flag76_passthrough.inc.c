@@ -290,6 +290,9 @@ vf2_status vf2_native_runtime_step(
     vf2_native_runtime_step_report *report
 )
 {
+    static const uint8_t recurring_tile[4] = {
+        UINT8_C(0x2e), UINT8_C(0x80), UINT8_C(0x31), UINT8_C(0x80)
+    };
     const uint8_t zero = UINT8_C(0);
     const uint8_t state6 = UINT8_C(0x40);
     const bool full = cpu != NULL && cpu->ip == VF2_GAME_DISP_CONT_ENTRY;
@@ -386,6 +389,12 @@ vf2_status vf2_native_runtime_step(
         status = vf2_model2a_write(
             machine, VF2_GAME_DISP_EVENT_FLAG76_STATE_ADDR,
             &state6, sizeof(state6)
+        );
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_write(
+            machine, VF2_GAME_DISP_EVENT_FLAG18_STATE6_TILE,
+            recurring_tile, sizeof(recurring_tile)
         );
     }
     if (status != VF2_OK) {
