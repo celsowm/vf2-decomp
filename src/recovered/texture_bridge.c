@@ -377,9 +377,23 @@ vf2_status vf2_hybrid_post_frame_bridge_execute(
     case VF2_MAIN_CLEAR_PREFIX_ENTRY:
         status = execute_main_clear_prefix(machine, cpu, &local_report);
         break;
-    case VF2_MAIN_FINAL_CLUSTER_ENTRY:
-        status = execute_main_final_cluster(machine, cpu, &local_report);
+    case VF2_MAIN_FINAL_CLUSTER_ENTRY: {
+        uint8_t start_state = 0u;
+
+        status = vf2_model2a_read(
+            machine,
+            UINT32_C(0x005000a4),
+            &start_state,
+            sizeof(start_state)
+        );
+        if (status == VF2_OK) {
+            status = execute_main_final_cluster(machine, cpu, &local_report);
+        }
+        if (status == VF2_OK && start_state == UINT8_C(0x8b)) {
+            set_equal_condition(cpu);
+        }
         break;
+    }
     case VF2_MAIN_GEOMETRY_PREFIX_ENTRY:
         status = execute_main_geometry_prefix(machine, cpu, &local_report);
         break;
