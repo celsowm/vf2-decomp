@@ -40,6 +40,12 @@ static bool game_disp_flag76_recurring_cpu_case(
         }
     }
     for (index = 0u; index < 14u; ++index) {
+        /* g9 is incoming scratch on this continuation.  The measured ROM
+         * path overwrites it at 0x0002b300/0x0002b334 before the relevant
+         * use, and Start-state snapshots legitimately carry other values. */
+        if (index == 9u) {
+            continue;
+        }
         if (cpu->registers[VF2_I960_G0_REGISTER + index] !=
             recurring_globals[index]) {
             return false;
@@ -83,7 +89,7 @@ static bool game_disp_flag76_measured_case(
     };
     uint32_t flags = 0u;
     uint32_t global20 = 0u;
-    uint32_t value = 0u;
+    uint16_t event_value = 0u;
     uint16_t countdown = 0u;
     uint8_t selector = UINT8_MAX;
     uint8_t event_state = UINT8_MAX;
@@ -115,8 +121,11 @@ static bool game_disp_flag76_measured_case(
         );
     }
     if (status == VF2_OK) {
-        status = vf2_model2a_read_u32(
-            machine, VF2_GAME_DISP_EVENT_FLAG18_VALUE, &value
+        /* The ROM uses ldos at 0x0002b2f4/0x0002b368.  Bytes a4/a5 are
+         * adjacent state bytes and may change after Start without changing
+         * this branch's 16-bit value. */
+        status = game_disp_leaf_read_u16(
+            machine, VF2_GAME_DISP_EVENT_FLAG18_VALUE, &event_value
         );
     }
     if (status == VF2_OK) {
@@ -213,7 +222,7 @@ static bool game_disp_flag76_measured_case(
         global20 < UINT32_C(7) || global20 > UINT32_C(1000) ||
         countdown != (uint16_t)(UINT16_C(0xffff) -
                                 (uint16_t)(global20 - UINT32_C(7))) ||
-        value != UINT32_C(0x000b0000) ||
+        event_value != UINT16_C(0) ||
         selector != UINT8_C(17) || event_state != UINT8_C(0) ||
         mode != UINT8_C(0) || aux != UINT8_C(0) ||
         state6 != UINT8_C(0x40) ||
