@@ -2,7 +2,7 @@
 
 This document catalogs major unobserved execution paths and unrecovered
 subsystems in Virtua Fighter 2 Version 2.1. The accepted clean-room corridor now
-runs through the seventh-dispatch validation corridor, but it remains one evidence-backed
+runs through the eleventh-dispatch validation corridor, but it remains one evidence-backed
 sequence rather than a complete game implementation. Unsupported paths return
 `VF2_ERROR_UNSUPPORTED` instead of falling back to i960 interpretation.
 
@@ -11,7 +11,11 @@ handoffs in `native-second-dispatch`: the `ret` stubs at `0x0004bab4` and
 `0x000020ec` are now recovered bridges. The strict post-scheduler corridor is
 therefore 1,270,824 recovered instructions with zero interpreted instructions,
 and the modular return boundaries remain exact through the repeated third to
-seventh dispatch validations.
+sixth dispatch validations plus the eleventh-dispatch continuation (the strict
+sixth-dispatch base now ends at the tenth `fa_game_info` entry with `8`
+repeated scheduler entries, so dispatches 7-10 are covered per-block inside
+the sixth command and `native-nth-dispatch 11` proves one further 37-block /
+2,166-instruction cycle exact).
 
 ## 1. Scheduler and task execution
 

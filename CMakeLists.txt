@@ -345,7 +345,7 @@ if(VF2_BUILD_TESTS)
         add_test(NAME vf2_native_fourth_dispatch COMMAND vf2i960 native-fourth-dispatch "${VF2_ROM_DIR}")
         add_test(NAME vf2_native_fifth_dispatch COMMAND vf2i960 native-fifth-dispatch "${VF2_ROM_DIR}")
         add_test(NAME vf2_native_sixth_dispatch COMMAND vf2i960 native-sixth-dispatch "${VF2_ROM_DIR}")
-        add_test(NAME vf2_native_seventh_dispatch COMMAND vf2i960 native-nth-dispatch "${VF2_ROM_DIR}" 7)
+        add_test(NAME vf2_native_eleventh_dispatch COMMAND vf2i960 native-nth-dispatch "${VF2_ROM_DIR}" 11)
         add_test(NAME vf2_texture_bridge_differential COMMAND vf2i960 compare-texture-bridge "${VF2_ROM_DIR}")
         add_test(NAME vf2_post_frame_bridge_differential COMMAND vf2i960 compare-post-frame-bridge "${VF2_ROM_DIR}")
         add_test(NAME vf2_geometry_boundary_differential COMMAND vf2i960 compare-geometry-boundary "${VF2_ROM_DIR}")
@@ -360,7 +360,7 @@ if(VF2_BUILD_TESTS)
             vf2_native_first_dispatch vf2_native_second_dispatch
             vf2_native_third_dispatch vf2_native_fourth_dispatch
             vf2_native_fifth_dispatch vf2_native_sixth_dispatch
-            vf2_native_seventh_dispatch
+            vf2_native_eleventh_dispatch
             vf2_texture_bridge_differential vf2_post_frame_bridge_differential
             vf2_geometry_boundary_differential vf2_second_scheduler_entry_differential
             vf2_game_geometry_helpers_differential vf2_third_sweep_observation
