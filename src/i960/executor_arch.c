@@ -173,6 +173,49 @@ static vf2_status arch_fix_direct_compare(
     return VF2_OK;
 }
 
+static vf2_status arch_execute_literal_multi_move(
+    vf2_i960_cpu *cpu,
+    vf2_i960_trace_event *event,
+    const vf2_i960_instruction *instruction,
+    uint32_t ip_before
+)
+{
+    const char *mnemonic = instruction->mnemonic;
+    const size_t count = strcmp(mnemonic, "movl") == 0 ? 2u :
+                         (strcmp(mnemonic, "movt") == 0 ? 3u : 4u);
+    const size_t alignment = count == 2u ? 2u : 4u;
+    uint8_t destination = 0u;
+    size_t index = 0u;
+
+    if (instruction->operands[0].kind != VF2_I960_OPERAND_LITERAL ||
+        instruction->operands[1].kind != VF2_I960_OPERAND_REGISTER) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    destination = instruction->operands[1].value.reg;
+    if ((size_t)destination + count > VF2_I960_REGISTER_COUNT) {
+        return VF2_ERROR_OUT_OF_BOUNDS;
+    }
+    if (((size_t)destination % alignment) != 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    cpu->registers[destination] =
+        (uint32_t)instruction->operands[0].value.literal;
+    for (index = 1u; index < count; ++index) {
+        cpu->registers[destination + index] = 0u;
+    }
+    cpu->ip = ip_before + (uint32_t)instruction->size;
+    ++cpu->executed_instructions;
+    if (event != NULL) {
+        memset(event, 0, sizeof(*event));
+        event->step = cpu->executed_instructions;
+        event->ip_before = ip_before;
+        event->ip_after = cpu->ip;
+        event->instruction = *instruction;
+    }
+    return VF2_OK;
+}
+
 vf2_status vf2_i960_step(
     vf2_i960_cpu *cpu,
     vf2_model2a *machine,
@@ -184,6 +227,7 @@ vf2_status vf2_i960_step(
     uint32_t first = 0u;
     uint32_t second = 0u;
     int direct_compare = 0;
+    int literal_multi_move = 0;
     vf2_status decode_status = VF2_OK;
     vf2_status status = VF2_OK;
 
@@ -200,6 +244,11 @@ vf2_status vf2_i960_step(
             strcmp(mnemonic, "bbs") == 0 || strcmp(mnemonic, "bbc") == 0 ||
             strncmp(mnemonic, "cmpob", 5u) == 0 ||
             strncmp(mnemonic, "cmpib", 5u) == 0;
+        literal_multi_move =
+            (strcmp(mnemonic, "movl") == 0 ||
+             strcmp(mnemonic, "movt") == 0 ||
+             strcmp(mnemonic, "movq") == 0) &&
+            instruction.operands[0].kind == VF2_I960_OPERAND_LITERAL;
         if (direct_compare != 0) {
             decode_status = arch_operand_value(
                 cpu, &instruction.operands[0], &first
@@ -212,8 +261,17 @@ vf2_status vf2_i960_step(
         }
     }
 
+    if (decode_status != VF2_OK) {
+        return decode_status;
+    }
+    if (literal_multi_move != 0) {
+        return arch_execute_literal_multi_move(
+            cpu, event, &instruction, ip_before
+        );
+    }
+
     status = vf2_i960_step_legacy(cpu, machine, event);
-    if (status != VF2_OK || decode_status != VF2_OK) {
+    if (status != VF2_OK) {
         return status;
     }
     if (direct_compare != 0) {
