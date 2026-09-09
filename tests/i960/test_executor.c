@@ -417,5 +417,31 @@ int vf2_test_i960_executor(void)
         return 46;
     }
     vf2_model2a_shutdown(&machine);
+
+    /* movt with a literal source zeroes the two following registers
+     * (fa_coli 0x236b8: movt 0, r8). */
+    memset(image, 0xff, sizeof(image));
+    write_le32(image + 0u, UINT32_C(0x5e401e00)); /* movt 0, r8 */
+    if (!vf2_model2a_initialize(&machine)) {
+        return 47;
+    }
+    if (vf2_model2a_attach_main_rom(&machine, image, sizeof(image)) != VF2_OK) {
+        vf2_model2a_shutdown(&machine);
+        return 48;
+    }
+    vf2_i960_cpu_reset(&cpu, 0u, 0u, 0u);
+    cpu.registers[0] = UINT32_C(0x11111111);
+    cpu.registers[1] = UINT32_C(0x22222222);
+    cpu.registers[2] = UINT32_C(0x33333333);
+    cpu.registers[8] = UINT32_C(0xdeadbeef);
+    cpu.registers[9] = UINT32_C(0xdeadbeef);
+    cpu.registers[10] = UINT32_C(0xdeadbeef);
+    status = vf2_i960_step(&cpu, &machine, NULL);
+    if (status != VF2_OK || cpu.ip != 4u || cpu.registers[8] != 0u ||
+        cpu.registers[9] != 0u || cpu.registers[10] != 0u) {
+        vf2_model2a_shutdown(&machine);
+        return 49;
+    }
+    vf2_model2a_shutdown(&machine);
     return 0;
 }

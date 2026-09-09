@@ -1291,7 +1291,7 @@ vf2_status vf2_i960_cpu_reset_from_machine(
     return VF2_OK;
 }
 
-vf2_status vf2_i960_step(
+vf2_status vf2_i960_step_legacy(
     vf2_i960_cpu *cpu,
     vf2_model2a *machine,
     vf2_i960_trace_event *event
@@ -1312,6 +1312,40 @@ vf2_status vf2_i960_step(
     );
     if (status != VF2_OK || !instruction.valid) {
         return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
+    }
+    /* Literal-source multi-register moves (movt 0, r8 at fa_coli 0x236b8):
+     * src1 is an inline literal; the destination and following registers
+     * receive that literal then zeros. */
+    if ((strcmp(instruction.mnemonic, "movl") == 0 ||
+         strcmp(instruction.mnemonic, "movt") == 0 ||
+         strcmp(instruction.mnemonic, "movq") == 0) &&
+        instruction.operand_count == 2u &&
+        instruction.operands[0].kind == VF2_I960_OPERAND_LITERAL &&
+        instruction.operands[1].kind == VF2_I960_OPERAND_REGISTER) {
+        const size_t count = strcmp(instruction.mnemonic, "movl") == 0 ? 2u :
+                             (strcmp(instruction.mnemonic, "movt") == 0 ? 3u : 4u);
+        const size_t alignment = count == 2u ? 2u : 4u;
+        const uint8_t destination = instruction.operands[1].value.reg;
+        size_t index = 0u;
+        if ((size_t)destination + count > VF2_I960_REGISTER_COUNT ||
+            ((size_t)destination % alignment) != 0u) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        cpu->registers[destination] =
+            (uint32_t)instruction.operands[0].value.literal;
+        for (index = 1u; index < count; ++index) {
+            cpu->registers[destination + index] = 0u;
+        }
+        cpu->ip = ip_before + instruction.size;
+        ++cpu->executed_instructions;
+        if (event != NULL) {
+            memset(event, 0, sizeof(*event));
+            event->step = cpu->executed_instructions;
+            event->ip_before = ip_before;
+            event->ip_after = cpu->ip;
+            event->instruction = instruction;
+        }
+        return VF2_OK;
     }
     next_ip = cpu->ip + instruction.size;
     cpu->ip = next_ip;

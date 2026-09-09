@@ -2249,8 +2249,10 @@ static void test_scheduler_selects_coli_entry_at_index10(void) {
     CHECK(report.recovered_procedure_returns == UINT64_C(2));
     CHECK(cpu.ip == UINT32_C(0x000221e8));
 
-    /* The fa_coli body itself is still unrecovered: the very next step
-     * must fail closed at the task entry instead of entering it. */
+    /* The fa_coli body is admitted only for the measured PUNCH-driven
+     * warm shape (bit 5 clear, live fighters, 9214/18/19). The synthetic
+     * zeroed registry has no fighter objects, so the next step must still
+     * fail closed instead of entering an unmeasured body. */
     memset(&report, 0, sizeof(report));
     CHECK(vf2_native_runtime_step(&machine, &cpu, &state, &report) ==
           VF2_ERROR_UNSUPPORTED);

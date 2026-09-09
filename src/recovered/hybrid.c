@@ -18392,6 +18392,45 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
         }
         break;
 
+    case VF2_TASK_COLI_ENTRY: {
+        /* Measured PUNCH-driven warm body (v0274): runtime bit 5 clear,
+         * fighter pointers at 0x500804/0x500808, 9,214 instructions,
+         * 18 calls / 19 returns through 0x10dcc. The callee family
+         * (0x23524/0x22298/0x22404/0x225cc) remains original-i960. */
+        uint32_t runtime_flags = 0u;
+        const uint64_t coli_start_instructions = cpu->executed_instructions;
+        const uint64_t coli_start_calls = cpu->procedure_calls;
+        const uint64_t coli_start_returns = cpu->procedure_returns;
+        local_report.kind = VF2_HYBRID_TASK_COLI;
+        status = vf2_model2a_read_u32(
+            machine, UINT32_C(0x00508000), &runtime_flags
+        );
+        if (status == VF2_OK && (runtime_flags & (UINT32_C(1) << 5u)) != 0u) {
+            status = VF2_ERROR_UNSUPPORTED;
+        }
+        if (status == VF2_OK) {
+            interpreted_task = 1;
+            status = hybrid_execute_interpreted_task(
+                machine, cpu, registry_address, VF2_TASK_COLI_ENTRY,
+                &task_report
+            );
+        }
+        if (status == VF2_OK) {
+            const uint64_t coli_instructions =
+                cpu->executed_instructions - coli_start_instructions;
+            const uint64_t coli_calls =
+                cpu->procedure_calls - coli_start_calls;
+            const uint64_t coli_returns =
+                cpu->procedure_returns - coli_start_returns;
+            if (coli_instructions != UINT64_C(9214) ||
+                coli_calls != UINT64_C(18) ||
+                coli_returns != UINT64_C(19)) {
+                status = VF2_ERROR_UNSUPPORTED;
+            }
+        }
+        break;
+    }
+
     case VF2_TASK_OSAGE_ENTRY:
         status = vf2_model2a_read(
             machine, registry_address + UINT32_C(4),
@@ -18482,6 +18521,8 @@ const char *vf2_hybrid_task_kind_name(vf2_hybrid_task_kind kind)
         return "fa_object";
     case VF2_HYBRID_TASK_GAME_DISP:
         return "fa_game_disp";
+    case VF2_HYBRID_TASK_COLI:
+        return "fa_coli";
     case VF2_HYBRID_TASK_NONE:
     default:
         return "none";

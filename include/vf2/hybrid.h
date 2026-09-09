@@ -198,7 +198,8 @@ typedef enum vf2_hybrid_task_kind {
     VF2_HYBRID_TASK_OSAGE1,
     VF2_HYBRID_TASK_PLAYER,
     VF2_HYBRID_TASK_OBJECT,
-    VF2_HYBRID_TASK_GAME_DISP
+    VF2_HYBRID_TASK_GAME_DISP,
+    VF2_HYBRID_TASK_COLI
 } vf2_hybrid_task_kind;
 
 typedef struct vf2_hybrid_task_report {

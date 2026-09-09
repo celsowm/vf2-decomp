@@ -837,3 +837,15 @@ ends with both sides at `0x000221e8`; the `fa_coli` body itself
 (`bbs 5 -> 0x22294` gate, `0x23524`/`0x22298` callees) remains the
 explicit open boundary. See
 `decomp/i960/notes/fa_coli_entry_v0273.md`.
+
+### v0274 fa_coli body via measured interpretation
+
+The PUNCH-driven warm body at `0x221e8` is now admitted as an explicit
+original-i960 bridge: runtime bit 5 clear, `9,214` instructions,
+`18` calls / `19` returns through `0x10dcc`, fighters from
+`0x500804`/`0x500808`. Literal `movt 0, r8` (`0x236b8`) is handled in
+the executor step used by `vf2probe`/`vf2_i960_run`. The PUNCH corridor
+now completes `320/320` cycles (`14,962,620` instructions) MATCH back
+to `0x1645c`. Native C for the gate and the `0x23524`/`0x22298`/
+`0x22404`/`0x225cc` callees remains open; bit-5-set stays unsupported.
+See `decomp/i960/notes/fa_coli_body_v0274.md`.

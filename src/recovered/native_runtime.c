@@ -163,6 +163,7 @@
 #define VF2_NATIVE_OBJECT_HANDLER1_NEXT UINT32_C(0x0006cb04)
 #define VF2_NATIVE_OBJECT_HANDLER2_ENTRY UINT32_C(0x0006cb08)
 #define VF2_NATIVE_GAME_DISP_TASK_ENTRY UINT32_C(0x0002b1bc)
+#define VF2_NATIVE_COLI_TASK_ENTRY UINT32_C(0x000221e8)
 #define VF2_NATIVE_TASK_COUNT_ADDRESS UINT32_C(0x00011d94)
 #define VF2_NATIVE_RUNTIME_FLAGS UINT32_C(0x00508000)
 #define VF2_NATIVE_CURRENT_INDEX UINT32_C(0x00500038)
@@ -6912,7 +6913,8 @@ vf2_status vf2_native_runtime_step_impl(vf2_model2a *machine, vf2_i960_cpu *cpu,
                 cpu->ip == VF2_NATIVE_OBJECT_HANDLER1_ENTRY ||
                 cpu->ip == VF2_NATIVE_OBJECT_HANDLER1_NEXT ||
                 cpu->ip == VF2_NATIVE_OBJECT_HANDLER2_ENTRY ||
-                cpu->ip == VF2_NATIVE_GAME_DISP_TASK_ENTRY) {
+                cpu->ip == VF2_NATIVE_GAME_DISP_TASK_ENTRY ||
+                cpu->ip == VF2_NATIVE_COLI_TASK_ENTRY) {
         const int recurring_kill = cpu->ip == VF2_NATIVE_KILL_OSAGE_TASK_ENTRY &&
                                    cpu->registers[29] == UINT32_C(0x00515e80);
         uint32_t kill_order_flags = 0u;
