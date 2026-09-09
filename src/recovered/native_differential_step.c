@@ -176,6 +176,7 @@ vf2_status vf2_native_differential_step(
     }
 
     memset(&local_report, 0, sizeof(local_report));
+    memset(&frame_wait_before, 0, sizeof(frame_wait_before));
     local_report.start_address = native_cpu->ip;
     local_report.final_reference_address = reference_cpu->ip;
     local_report.final_native_address = native_cpu->ip;

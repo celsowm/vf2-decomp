@@ -2197,6 +2197,68 @@ static void seed_kill_osage_task(vf2_model2a *machine, vf2_i960_cpu *cpu,
                                        UINT32_C(0x00010dcc)) == VF2_OK);
 }
 
+static void test_scheduler_selects_coli_entry_at_index10(void) {
+    uint8_t *rom = NULL;
+    vf2_model2a machine;
+    vf2_i960_cpu cpu;
+    vf2_native_runtime_state state;
+    vf2_native_runtime_step_report report;
+    const uint32_t registry_base = UINT32_C(0x00510000);
+    const uint32_t coli_registry = registry_base + UINT32_C(10 * 0x80);
+    uint32_t index = 0u;
+
+    CHECK((rom = (uint8_t *)calloc(1u, VF2_MAIN_ROM_SIZE)) != NULL);
+    CHECK(vf2_model2a_initialize(&machine));
+    if (rom == NULL || machine.work_ram == NULL) {
+        free(rom);
+        return;
+    }
+    write_u32_bytes(rom, UINT32_C(0x00011d94), 29u);
+    CHECK(vf2_model2a_attach_main_rom(&machine, rom, VF2_MAIN_ROM_SIZE) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00500068), 0u) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00508000), UINT32_C(1) << 9u) ==
+          VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00f00004), UINT32_C(0x000fffff)) ==
+          VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00f00008), UINT32_C(0x000fffff)) ==
+          VF2_OK);
+    for (index = 0u; index < 10u; ++index) {
+        const uint32_t registry = registry_base + index * UINT32_C(0x80);
+        CHECK(vf2_model2a_write_u32(&machine, registry, 0u) == VF2_OK);
+        CHECK(vf2_model2a_write_u32(&machine, registry + UINT32_C(8),
+                                    UINT32_C(0x80)) == VF2_OK);
+    }
+    CHECK(vf2_model2a_write_u32(&machine, coli_registry,
+                                UINT32_C(0x80000000)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, coli_registry + UINT32_C(8),
+                                UINT32_C(0x80)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, coli_registry + UINT32_C(0x0c),
+                                UINT32_C(0x000221e8)) == VF2_OK);
+
+    vf2_i960_cpu_reset(&cpu, 0u, 0u, UINT32_C(0x0000a010));
+    cpu.registers[VF2_I960_FP_REGISTER] = UINT32_C(0x005ff500);
+    cpu.registers[1] = UINT32_C(0x005ff580);
+    CHECK(vf2_native_runtime_initialize(&state, 4u) == VF2_OK);
+    memset(&report, 0, sizeof(report));
+    CHECK(vf2_native_runtime_step(&machine, &cpu, &state, &report) == VF2_OK);
+    CHECK(report.kind == VF2_NATIVE_RUNTIME_STEP_SECOND_SCHEDULER);
+    CHECK(report.next_task_index == 10u);
+    CHECK(report.next_registry_address == coli_registry);
+    CHECK(report.recovered_instruction_count == UINT64_C(187));
+    CHECK(report.recovered_procedure_calls == UINT64_C(4));
+    CHECK(report.recovered_procedure_returns == UINT64_C(2));
+    CHECK(cpu.ip == UINT32_C(0x000221e8));
+
+    /* The fa_coli body itself is still unrecovered: the very next step
+     * must fail closed at the task entry instead of entering it. */
+    memset(&report, 0, sizeof(report));
+    CHECK(vf2_native_runtime_step(&machine, &cpu, &state, &report) ==
+          VF2_ERROR_UNSUPPORTED);
+
+    vf2_model2a_shutdown(&machine);
+    free(rom);
+}
+
 static void test_recurring_kill_osage_order_accounting(void) {
     vf2_model2a machine;
     vf2_i960_cpu cpu;
@@ -2352,6 +2414,7 @@ int main(void) {
     test_multi_frame_run();
     test_repeated_scheduler_entry_dispatches_recovery();
     test_scheduler_selects_later_player_entry();
+    test_scheduler_selects_coli_entry_at_index10();
     test_recurring_kill_osage_order_accounting();
     test_scheduler_finishes_after_early_last_active_task();
 

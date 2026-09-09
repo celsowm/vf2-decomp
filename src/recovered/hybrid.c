@@ -27,6 +27,7 @@
 #define VF2_TASK_OBJECT_HANDLER1_NEXT UINT32_C(0x0006cb04)
 #define VF2_TASK_OBJECT_HANDLER2_ENTRY UINT32_C(0x0006cb08)
 #define VF2_TASK_GAME_DISP_ENTRY UINT32_C(0x0002b1bc)
+#define VF2_TASK_COLI_ENTRY UINT32_C(0x000221e8)
 #define VF2_PLAYER_TASK_WRAPPER_ENTRY UINT32_C(0x000142f4)
 #define VF2_SCHEDULER_RETURN UINT32_C(0x00010dcc)
 #define VF2_INTERPRETED_TASK_STEP_LIMIT UINT64_C(20000000)
@@ -17483,6 +17484,13 @@ static int hybrid_second_scheduler_task_supported(uint32_t entry_address)
     case VF2_TASK_OBJECT_ENTRY:
     case VF2_TASK_GAME_DISP_ENTRY:
         return 1;
+    case VF2_TASK_COLI_ENTRY:
+        /* Measured warm-boot selection: the PUNCH-driven phase-11 terminal
+         * arms slot 10 (entry 0x221e8, flags bit 31) as the first runnable
+         * descriptor of a 29-task recurring scan. The scan prefix through
+         * the callx dispatch is recovered with per-index accounting below;
+         * the fa_coli body itself remains an explicit boundary. */
+        return 1;
     default:
         return 0;
     }
@@ -17642,6 +17650,7 @@ vf2_status vf2_hybrid_second_scheduler_enter(
     uint32_t scratch = VF2_SCHEDULER_SCRATCH_BASE;
     uint32_t selected_entry = 0u;
     size_t index = 0u;
+    uint64_t scan_instructions = UINT64_C(0);
     vf2_status status = VF2_OK;
 
     if (machine == NULL || cpu == NULL ||
@@ -17810,7 +17819,12 @@ vf2_status vf2_hybrid_second_scheduler_enter(
      * task entry itself receives a fresh local frame, while this state remains
      * cached for the task's later RET to 0x10dcc. */
     memset(&cpu->registers[2], 0, 14u * sizeof(cpu->registers[0]));
-    cpu->registers[0] = UINT32_C(0x005ff500);
+    /* r0 is never written on the measured 0xa010 -> callx path (entry call,
+     * geometry helpers, scan loop and dispatch touch g0/g13/r3/r4/r8-r11
+     * and r13-r15 only), so the caller's value is preserved: 0x005ff500 in
+     * the cold corridor, 0x005ff640 after the PUNCH-driven phase-11
+     * terminal that arms the fa_coli selection. Forcing it broke the warm
+     * selection's frame equality. */
     cpu->registers[2] = UINT32_C(0x00010d64);
     cpu->registers[3] = task_count;
     cpu->registers[4] = selected_entry;
@@ -17838,7 +17852,15 @@ vf2_status vf2_hybrid_second_scheduler_enter(
     if (status != VF2_OK) {
         return status;
     }
-    cpu->executed_instructions += UINT64_C(235);
+    /* Measured scan accounting: 13 entry/prologue instructions (0xa010 call,
+     * two 0x7b18 geometry helpers, ready-flags prologue), 7 selected-tail
+     * instructions (index/timer/flags/entry/callx), and 16 instructions per
+     * scanned descriptor (index store, timer reload, flags load, elapsed
+     * computation, stride advance, count compare). Verified 235 for the
+     * index-13 game_info selection and 187 for the index-10 fa_coli one. */
+    scan_instructions =
+        UINT64_C(27) + (uint64_t)index * UINT64_C(16);
+    cpu->executed_instructions += scan_instructions;
 
     local_report.descriptors_scanned = index + 1u;
     local_report.inactive_descriptors_scanned = index;
@@ -17847,7 +17869,7 @@ vf2_status vf2_hybrid_second_scheduler_enter(
     local_report.selected_registry_address = registry;
     local_report.selected_entry_address = selected_entry;
     local_report.scheduler_entry_address = VF2_SECOND_SCHEDULER_ENTRY;
-    local_report.recovered_instruction_count = UINT64_C(235);
+    local_report.recovered_instruction_count = scan_instructions;
     local_report.recovered_procedure_calls = UINT64_C(4);
     local_report.recovered_procedure_returns = UINT64_C(2);
     local_report.cpu_poststate_applied = 1;

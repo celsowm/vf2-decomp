@@ -251,17 +251,47 @@ vf2_status vf2_native_differential_run_until_after(
             break;
         }
         if (step_report.recovered_instruction_count == 0u) {
-            status = VF2_ERROR_UNSUPPORTED;
-            break;
-        }
+            if (step_report.kind !=
+                VF2_NATIVE_RUNTIME_STEP_FRAME_WAIT) {
+                status = VF2_ERROR_UNSUPPORTED;
+                break;
+            }
+            reference_frame_wait = frame_wait_before;
+            if (reference_frame_wait.visits_before_interrupt == 0u) {
+                status = VF2_ERROR_UNSUPPORTED;
+                break;
+            }
+            {
+                vf2_hybrid_frame_wait_report wait_report;
 
-        status = advance_reference_block(
-            reference_machine,
-            reference_cpu,
-            &step_report,
-            &frame_wait_before,
-            &reference_frame_wait
-        );
+                memset(&wait_report, 0, sizeof(wait_report));
+                reference_frame_wait.visits =
+                    reference_frame_wait.visits_before_interrupt - 1u;
+                status = vf2_hybrid_frame_wait_observe(
+                    reference_machine,
+                    reference_cpu,
+                    &reference_frame_wait,
+                    &wait_report
+                );
+                if (status == VF2_OK && !wait_report.interrupt_injected) {
+                    status = VF2_ERROR_UNSUPPORTED;
+                }
+            }
+            if (status != VF2_OK) {
+                break;
+            }
+        } else {
+            status = advance_reference_block(
+                reference_machine,
+                reference_cpu,
+                &step_report,
+                &frame_wait_before,
+                &reference_frame_wait
+            );
+            if (status != VF2_OK) {
+                break;
+            }
+        }
 
         local_report.reference_instructions_executed +=
             reference_cpu->executed_instructions -
@@ -269,9 +299,6 @@ vf2_status vf2_native_differential_run_until_after(
         local_report.native_recovered_instructions +=
             step_report.recovered_instruction_count;
 
-        if (status != VF2_OK) {
-            break;
-        }
         if (reference_cpu->executed_instructions -
                 reference_instruction_start !=
             step_report.recovered_instruction_count) {
@@ -576,25 +603,53 @@ vf2_status vf2_native_differential_probe_cycles(
                 break;
             }
             if (step_report.recovered_instruction_count == 0u) {
-                cycle_status = VF2_ERROR_UNSUPPORTED;
-                break;
-            }
+                if (step_report.kind !=
+                    VF2_NATIVE_RUNTIME_STEP_FRAME_WAIT) {
+                    cycle_status = VF2_ERROR_UNSUPPORTED;
+                    break;
+                }
+                reference_frame_wait = frame_wait_before;
+                if (reference_frame_wait.visits_before_interrupt == 0u) {
+                    cycle_status = VF2_ERROR_UNSUPPORTED;
+                    break;
+                }
+                {
+                    vf2_hybrid_frame_wait_report wait_report;
 
-            cycle_status = advance_reference_block(
-                reference_machine,
-                reference_cpu,
-                &step_report,
-                &frame_wait_before,
-                &reference_frame_wait
-            );
+                    memset(&wait_report, 0, sizeof(wait_report));
+                    reference_frame_wait.visits =
+                        reference_frame_wait.visits_before_interrupt - 1u;
+                    cycle_status = vf2_hybrid_frame_wait_observe(
+                        reference_machine,
+                        reference_cpu,
+                        &reference_frame_wait,
+                        &wait_report
+                    );
+                    if (cycle_status == VF2_OK &&
+                        !wait_report.interrupt_injected) {
+                        cycle_status = VF2_ERROR_UNSUPPORTED;
+                    }
+                }
+                if (cycle_status != VF2_OK) {
+                    break;
+                }
+            } else {
+                cycle_status = advance_reference_block(
+                    reference_machine,
+                    reference_cpu,
+                    &step_report,
+                    &frame_wait_before,
+                    &reference_frame_wait
+                );
+                if (cycle_status != VF2_OK) {
+                    break;
+                }
+            }
             cycle_report.reference_instructions_executed +=
                 reference_cpu->executed_instructions -
                 reference_instruction_start;
             cycle_report.native_recovered_instructions +=
                 step_report.recovered_instruction_count;
-            if (cycle_status != VF2_OK) {
-                break;
-            }
             if (reference_cpu->executed_instructions -
                     reference_instruction_start !=
                 step_report.recovered_instruction_count) {

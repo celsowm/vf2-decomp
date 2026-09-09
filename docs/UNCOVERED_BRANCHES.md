@@ -817,8 +817,23 @@ never executes outside the validated second sweep, flags stay 0, and a
 forced `entry=0x221e8 + flags=1` state survives 8.87M insns untouched.
 The recurring body needs that conjunction at a scanning sweep, which
 the attract trajectory never produces — reachable, if at all, only in
-gameplay (demo/match) frames via driven inputs. Tooling added (all
+frames via driven inputs. Tooling added (all
 passive/default-off): `vf2probe --raise-irq/--enter-interrupt`,
 `resume-trace` trailing injection args, `VF2_PARK_SNAPSHOT` boundary
 parking in `observe-third-sweep`. See
 `decomp/i960/notes/coli_recurring_hunt_v0269.md`.
+
+### v0273 fa_coli recurring entry (extends v0269/v0270)
+
+The v0269 conjunction is now reproduced without forcing: holding PUNCH
+(`vf2cycles --input 16`) from the sixth-dispatch snapshot runs the
+phase-11 countdown to its terminal, clears the phase flag (`0x8b` to
+`0x0b`) and arms slot 10 with `entry=0x221e8 + flags=0x80000000`, all
+under strict per-block differential. The recurring sweep's scan prefix
+through the `callx` dispatch is native and exact (`27 + 16*index`
+instructions: 235 for index-13 game_info, 187 measured for index-10
+coli; 4 calls / 2 returns; caller-carried r0 preserved). The strict step
+ends with both sides at `0x000221e8`; the `fa_coli` body itself
+(`bbs 5 -> 0x22294` gate, `0x23524`/`0x22298` callees) remains the
+explicit open boundary. See
+`decomp/i960/notes/fa_coli_entry_v0273.md`.
