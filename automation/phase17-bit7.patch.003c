@@ -1,0 +1,45 @@
++                &machine, &cpu, &report
++            ) == VF2_OK
++        );
++        CHECK(report.kind == VF2_HYBRID_BRIDGE_FRAME_DISPATCH_TICK);
++        CHECK(report.recovered_instruction_count == UINT64_C(13286));
++        CHECK(report.recovered_procedure_calls == UINT64_C(27));
++        CHECK(report.recovered_procedure_returns == UINT64_C(28));
++        CHECK(cpu.executed_instructions == UINT64_C(13286));
++        CHECK(cpu.procedure_calls == UINT64_C(28));
++        CHECK(cpu.procedure_returns == UINT64_C(28));
++        CHECK(cpu.maximum_local_frame_depth == 9u);
++        CHECK(cpu.registers[VF2_I960_G0_REGISTER] == UINT32_C(0x00078064));
++        CHECK(cpu.registers[VF2_I960_G0_REGISTER + 1u] == 0u);
++        CHECK(cpu.registers[VF2_I960_G0_REGISTER + 2u] == UINT32_C(15));
++        CHECK(cpu.registers[VF2_I960_G0_REGISTER + 9u] == UINT32_C(0x01000bb2));
++        CHECK(
++            vf2_model2a_read_u32(
++                &machine, UINT32_C(0x00500024), &value
++            ) == VF2_OK
++        );
++        CHECK(value == UINT32_C(320));
++        CHECK(
++            vf2_model2a_read(
++                &machine, UINT32_C(0x005000a5), &resulting_a5, 1u
++            ) == VF2_OK
++        );
++        CHECK(resulting_a5 == UINT8_C(0xff));
++        CHECK(read_test_u16(&machine, UINT32_C(0x01000000)) == UINT16_C(32));
++        CHECK(read_test_u16(&machine, UINT32_C(0x010017fe)) == UINT16_C(32));
++        CHECK(read_test_u16(&machine, UINT32_C(0x01000bb2)) == UINT16_C(0x8045));
++        CHECK(read_test_u16(&machine, UINT32_C(0x01000bb4)) == UINT16_C(0x8058));
++
++        enter_parent(&cpu, UINT32_C(0x0000a6c0));
++        memset(&report, 0, sizeof(report));
++        CHECK(
++            vf2_hybrid_post_frame_bridge_execute(
++                &machine, &cpu, &report
++            ) == VF2_OK
++        );
++        CHECK(report.recovered_instruction_count == UINT64_C(626));
++        CHECK(report.recovered_procedure_calls == UINT64_C(25));
++        CHECK(report.recovered_procedure_returns == UINT64_C(26));
++        CHECK(cpu.executed_instructions == UINT64_C(626));
++        CHECK(cpu.procedure_calls == UINT64_C(26));
++        CHECK(cpu.procedure_returns == UINT64_C(26));

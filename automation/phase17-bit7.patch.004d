@@ -1,0 +1,9 @@
+-clears the 48x64 tile plane through `0x00008ef0`, and centers the phase label via
+-`0x00060410 -> 0x00007fc0`. Strict replay then reaches the next concrete gap:
+-the phase-index bit-7 indirect dispatch at `0x00059154`. Phase state zero also
+-remains unsupported. The separate geometry-reset chain through `0x00008ef0`,
+-`0x0006116c` and `0x000000b0` remains unobserved as a whole.
++`0x04000104` reset/display path sets phase-index bit 7, clears the 48x64 tile
++plane through `0x00008ef0`, and centers the phase label via
++`0x00060410 -> 0x00007fc0`.
++

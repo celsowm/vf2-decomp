@@ -1,0 +1,114 @@
+name: Temporary selector3 phase8 publisher
+
+on:
+  push:
+    branches: [automation/phase17-bit7-publish]
+    paths:
+      - .github/workflows/phase17-bit7-publisher.yml
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout current master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          path: work
+          fetch-depth: 0
+
+      - name: Checkout validated patch transport
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: source
+
+      - name: Verify transport and apply selector3 phase8 patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_master=6b429fb1f812e7c8b6a2253092044e622b6217a9
+          test "$(git -C work rev-parse HEAD)" = "$expected_master"
+
+          echo "2bf8c9fbe190c3495c8722bee8632ae64409b2e038fe2480a873cd59f67e91c4  source/automation/selector3-phase8-v2.patch.b64.000" | sha256sum -c -
+          echo "b2246387058da9092a3b621d9f62be101bc73fdc0eac0ecc56a77080de41b4f5  source/automation/selector3-phase8-v2.patch.b64.001" | sha256sum -c -
+          echo "8a43bc7e2a68ff86189b7c3e8789762ffe216edb6a669e7078ed56a29faf87d6  source/automation/selector3-phase8-v2.patch.b64.002" | sha256sum -c -
+          echo "98b8b4957c41bd2fadab2ef80c5433aa7af0c04febdf304e8266396c47f6aca8  source/automation/selector3-phase8-v2.patch.b64.003" | sha256sum -c -
+
+          cat \
+            source/automation/selector3-phase8-v2.patch.b64.000 \
+            source/automation/selector3-phase8-v2.patch.b64.001 \
+            source/automation/selector3-phase8-v2.patch.b64.002 \
+            source/automation/selector3-phase8-v2.patch.b64.003 \
+            > /tmp/selector3-phase8.patch.b64
+          base64 -d /tmp/selector3-phase8.patch.b64 > /tmp/selector3-phase8.patch
+          echo "8a5fbf944cfec4cca9a1b0f2c65e8ce542a9f1aa074d77540188ca970be70c6f  /tmp/selector3-phase8.patch" | sha256sum -c -
+
+          git -C work apply --check /tmp/selector3-phase8.patch
+          git -C work apply /tmp/selector3-phase8.patch
+          git -C work diff --check
+          actual="$(git -C work diff --name-only | sort)"
+          expected="$(printf '%s\n' src/recovered/texture_bridge_match.c tests/analysis/test_orchestrator_bridge.c | sort)"
+          test "$actual" = "$expected"
+
+      - name: GCC Release warning-as-error build and tests
+        working-directory: work
+        env:
+          CC: gcc
+        run: |
+          cmake -S . -B build-gcc -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DVF2_BUILD_TESTS=ON \
+            -DVF2_WARNINGS_AS_ERRORS=ON \
+            -DVF2_ROM_DIR=/tmp/no-proprietary-roms
+          cmake --build build-gcc --parallel
+          ctest --test-dir build-gcc --output-on-failure
+
+      - name: Clang Release warning-as-error build and tests
+        working-directory: work
+        env:
+          CC: clang
+        run: |
+          cmake -S . -B build-clang -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DVF2_BUILD_TESTS=ON \
+            -DVF2_WARNINGS_AS_ERRORS=ON \
+            -DVF2_ROM_DIR=/tmp/no-proprietary-roms
+          cmake --build build-clang --parallel
+          ctest --test-dir build-clang --output-on-failure
+
+      - name: Clang ASan plus UBSan build and tests
+        working-directory: work
+        env:
+          CC: clang
+          ASAN_OPTIONS: detect_leaks=1
+          UBSAN_OPTIONS: print_stacktrace=1
+        run: |
+          cmake -S . -B build-san -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" \
+            -DVF2_BUILD_TESTS=ON \
+            -DVF2_WARNINGS_AS_ERRORS=ON \
+            -DVF2_ROM_DIR=/tmp/no-proprietary-roms
+          cmake --build build-san --parallel
+          ctest --test-dir build-san --output-on-failure
+
+      - name: Publish atomic recovery to master
+        working-directory: work
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_master=6b429fb1f812e7c8b6a2253092044e622b6217a9
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "$expected_master"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/recovered/texture_bridge_match.c tests/analysis/test_orchestrator_bridge.c
+          actual="$(git diff --cached --name-only | sort)"
+          expected="$(printf '%s\n' src/recovered/texture_bridge_match.c tests/analysis/test_orchestrator_bridge.c | sort)"
+          test "$actual" = "$expected"
+          git commit -m "Recover selector3 phase8 inline-text handoff"
+          git push origin HEAD:master

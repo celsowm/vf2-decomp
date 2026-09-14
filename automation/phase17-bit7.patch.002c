@@ -1,0 +1,53 @@
++    status = vf2_i960_cpu_return_procedure(cpu, machine);
++    if (status != VF2_OK || cpu->ip != UINT32_C(0x00010b78)) {
++        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    }
++    status = vf2_model2a_read_u32(
++        machine, cpu->registers[1] - UINT32_C(4),
++        &cpu->registers[VF2_I960_G0_REGISTER + 4u]
++    );
++    cpu->registers[1] -= UINT32_C(4);
++    if (status == VF2_OK) {
++        status = vf2_i960_cpu_return_procedure(cpu, machine);
++    }
++    if (status != VF2_OK || cpu->ip != UINT32_C(0x0000a6f4)) {
++        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    }
++    if (status == VF2_OK) {
++        status = vf2_i960_cpu_return_procedure(cpu, machine);
++    }
++    if (status != VF2_OK || cpu->ip != frame_dispatch_return) {
++        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
++    }
++
++    accounted = cpu->executed_instructions - start_instructions;
++    if (accounted > expected_instructions) {
++        return VF2_ERROR_UNSUPPORTED;
++    }
++    cpu->executed_instructions += expected_instructions - accounted;
++    if (cpu->procedure_calls - start_calls != expected_calls ||
++        cpu->procedure_returns - start_returns != expected_returns) {
++        return VF2_ERROR_UNSUPPORTED;
++    }
++
++    report->kind = VF2_HYBRID_BRIDGE_FRAME_DISPATCH_TICK;
++    report->entry_address = VF2_FRAME_DISPATCH_TICK_ENTRY;
++    report->exit_address = cpu->ip;
++    report->iterations = UINT64_C(1);
++    report->rows = characters;
++    report->changed_values =
++        UINT64_C(3) + meter_report.changed_values +
++        (first_visit ? characters + UINT64_C(2) : UINT64_C(1));
++    report->bytes_written =
++        5u + sizeof(uint32_t) * 2u + meter_report.bytes_written +
++        sizeof(uint16_t) +
++        (first_visit
++            ? (size_t)UINT32_C(64 * 48 * 2) +
++                (size_t)characters * 2u + sizeof(uint32_t) + sizeof(uint8_t)
++            : sizeof(uint32_t));
++    report->recovered_instruction_count = expected_instructions;
++    report->recovered_procedure_calls = expected_calls;
++    report->recovered_procedure_returns = expected_returns;
+     report->cpu_poststate_applied = 1;
+     return VF2_OK;
+ }
