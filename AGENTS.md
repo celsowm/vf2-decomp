@@ -52,6 +52,8 @@ Start with these, in this order:
 - `docs/NATIVE_RUNTIME.md` — recovered runtime architecture.
 - `docs/DECOMP_GUIDE.md` — recovery lifecycle and evidence conventions.
 - `docs/PROBE_AUTOMATION_PLAN.md` — automated probing/exploration workflow.
+- `docs/ORIGINAL_SYMBOLS.md` — the 301 shipped Sega symbol names, and which
+  provisional names in this repository they contradict.
 - `decomp/i960/notes/` — address-level evidence.
 - `CHANGELOG.md` — useful context for why a boundary exists.
 
@@ -537,6 +539,9 @@ observer test plus sanitizer suite.
   there is a compelling reason to change that boundary.
 - Prefer named constants once an address/offset has stable evidence.
 - Use provisional `field_xxx` names before assigning unsupported semantics.
+- Before naming a function, check `decomp/i960/original_symbols.csv`. If the
+  shipped table names that address, use its name. Do not invent a name over a
+  known one, and do not carry a provisional name that the table contradicts.
 - Keep public APIs small and passive.
 - Avoid giant condition tables when a measured compact rule exists.
 - Avoid broad refactors of the oracle and recovery in the same commit.
@@ -597,6 +602,15 @@ for decomp progress is the original i960 edge/address coverage.
 Repeated `fighter + 0x1a4` is evidence for a shared field. It is not, by itself,
 evidence that the field is health/state/flags. Keep neutral names until behavior
 supports a semantic name.
+
+### Reasoning from a provisional function name
+
+Every function name in `decomp/i960/{symbols,functions}.csv` that predates
+`decomp/i960/original_symbols.csv` was invented, and where the shipped table
+overlaps them it disagrees with all 34. `frame_geometry_gate` is `test_sw_chk`,
+`frame_counter_advance` is `variable_diff_calc`, `texture_header_decode` is
+`unpack_lod_data`. Treat a provisional name as a label, never as an argument
+about what a path does. `docs/ORIGINAL_SYMBOLS.md` lists the contradictions.
 
 ### Instrumentation changing the oracle
 
