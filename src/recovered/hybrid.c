@@ -22683,6 +22683,7 @@ vf2_status vf2_hybrid_coli_225cc_execute(
     uint64_t body = 0u;
     uint64_t nested_calls = 0u;
     uint64_t nested_rets = 0u;
+    vf2_status status = VF2_OK;
 
     if (machine == NULL || cpu == NULL ||
         cpu->ip != VF2_COLI_225CC_ENTRY ||
@@ -22696,8 +22697,23 @@ vf2_status vf2_hybrid_coli_225cc_execute(
             &body, &nested_calls, &nested_rets) != VF2_OK) {
         return VF2_ERROR_UNSUPPORTED;
     }
-    return hybrid_complete_procedure(
+    status = hybrid_complete_procedure(
         machine, cpu, body, nested_calls, nested_rets);
+    if (status != VF2_OK) {
+        return status;
+    }
+    /* Live coli call is `call 0x225cc` at 0x22290. The call return is the
+     * `ret` at 0x22294, which pops to the parent return (scheduler
+     * 0x10dcc). Units that enter with that live return and leave a parent
+     * frame on the stack complete the second pop here; procedure-only
+     * units that enter with a stand-in return keep the single pop. */
+    if (cpu->ip == UINT32_C(0x00022294) && cpu->local_frame_depth > 0u) {
+        status = hybrid_complete_procedure(machine, cpu, 0u, 0u, 0u);
+        if (status != VF2_OK) {
+            return status;
+        }
+    }
+    return VF2_OK;
 }
 
 /* Measured warm-path recovery of the fa_coli mid-body/tail (v0289).

@@ -759,14 +759,21 @@ with a clean class audit. Next: `0x9444`/`0x9450` inline spans +
 site-B prefix wiring. See
 `decomp/i960/notes/fa_coli_7fc0_v0345A.md`.
 
-Status (v0345-B, fa_coli done): the site-A leg runs natively
+Status (v0345-B, fa_coli site-A leg): the site-A leg runs natively
 end-to-end (OK, delta 883, calls/rets 7/8, all stores proven).
 `coli_225cc_sitea_cont` covers `0x22960` → `0x22e24` and joins the
-existing tail unchanged; `long_body` reports calls/rets. Left:
-unmeasured-input variants (fail closed by design) and the
-cross-cutting `0x230b8`/`0x22294` procedure-exit landing shared
-by every shape. See
-`decomp/i960/notes/fa_coli_full_leg_v0345B.md`.
+existing tail unchanged; `long_body` reports calls/rets.
+See `decomp/i960/notes/fa_coli_full_leg_v0345B.md`.
+
+Status (v0346, coli exit landing): live `call 0x225cc` at `0x22290`
+returns to the `ret` at `0x22294`, which pops to scheduler `0x10dcc`.
+`vf2_hybrid_coli_225cc_execute` double-pops that ret when entered with
+return `0x22294` and a parent frame remains. Site-A live-landing unit
+lands `0x10dcc` at exact **884/7/9**. Procedure-only stand-in returns
+(`0x22240`) keep the single pop. Remaining coli items: unmeasured
+input variants, site-B-only entry, and hybrid whole-task shape pins
+for non-warm paths. See
+`decomp/i960/notes/fa_coli_exit_landing_v0346.md`.
 
 Status (v0344-A, executor): `dmovt` reg-reg is implemented
 (exact `0x508d4` word + derived pair-copy unit, flag-neutral)

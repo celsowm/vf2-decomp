@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- coli exit landing (v0346): measured live `call 0x225cc` at `0x22290`
+  returns to the `ret` at `0x22294`, which pops to scheduler `0x10dcc`.
+  `vf2_hybrid_coli_225cc_execute` now double-pops that ret when the
+  entered return is `0x22294` and a parent frame remains. Site-A
+  live-landing unit: parent `enter(0x22210,0x10dcc)` + child
+  `enter(0x225cc,0x22294)` lands `0x10dcc` with exact **884/7/9**.
+  Procedure-only units that enter with stand-in `0x22240` are
+  unchanged. ROM-backed third/fourth/fifth/sixth/eleventh dispatch
+  pass; `vf2cycles --input 16` **8/8 MATCH**
+  (`decomp/i960/notes/fa_coli_exit_landing_v0346.md`);
+
 - Site-A full leg runs natively end-to-end (v0345-B, fa_coli
   done): new `coli_225cc_sitea_cont` models `0x22960` → `0x22e24`
   (three `0x7fc0` calls, `0x9444`, scan tail, `0x2298c` join,

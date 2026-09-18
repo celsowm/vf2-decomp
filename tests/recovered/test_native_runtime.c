@@ -4242,9 +4242,10 @@ static void test_coli_225cc_long(void) {
      * + board-clear runs prefix → cascade → 0x502a4#siteA →
      * continuation (0x7fc0 ×3, 0x9444, join, site-B prefix,
      * 0x502a4#siteB, 0x7fc0#4) → existing 0x22e24 tail → OK.
-     * 7 guest calls + 7 nested rets; the 0x230b8/0x22294 rets stay
-     * unmodeled (pre-existing gap shared by every shape: ip lands
-     * on the entered return, not the live scheduler target).
+     * 7 guest calls + 7 nested rets; this procedure-only unit enters
+     * with stand-in return 0x22240 (single pop). The live-landing
+     * unit below enters return 0x22294 with a parent frame and
+     * double-pops to 0x10dcc.
      * Reference entry→0x2309c-b is 882 steps; +1 completes. */
     {
         static const uint8_t site_b_inline[] = {
@@ -4398,6 +4399,93 @@ static void test_coli_225cc_long(void) {
     CHECK(vf2_model2a_read_u32(&machine, fighter1 + UINT32_C(0x5e8),
                                &stored) == VF2_OK);
     CHECK(stored == UINT32_C(0xc8da740c));
+
+    /* v0346 live exit landing: re-enter site-A with the measured live
+     * call frame. `call 0x225cc` at 0x22290 returns to the `ret` at
+     * 0x22294; a parent frame returning to 0x10dcc makes the wrapper
+     * double-pop through that ret to the scheduler. Reference full
+     * path is 882 + 0x230b8 ret + 0x22294 ret = 884 steps. */
+    CHECK(vf2_model2a_write_u32(
+              &machine, fighter0 + UINT32_C(0x1a4),
+              UINT32_C(0x00010000)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter1 + UINT32_C(0x1a4),
+                                UINT32_C(0x00004000)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x844),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x848),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x821),
+                            (const uint8_t *)"\x01", 1u) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x822),
+                            (const uint8_t *)"\x00", 1u) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x820),
+                            (const uint8_t *)"\x00", 1u) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x823),
+                            (const uint8_t *)"\x00", 1u) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x828),
+                            (const uint8_t *)"\x00\x00", 2u) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x843),
+                            (const uint8_t *)"\x00", 1u) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x1224),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x1234),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x26),
+                            (const uint8_t *)"\x00\x00", 2u) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x82a),
+                            (const uint8_t *)"\x00\x00", 2u) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter1 + UINT32_C(0x19f),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter1 + UINT32_C(0x1ac),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter1 + UINT32_C(0x6d8),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter1 + UINT32_C(0x700),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter1 + UINT32_C(0x5b8),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter1 + UINT32_C(0x5d8),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00503200),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00503204),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00500028),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x804),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter1 + UINT32_C(0x804),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x194),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter1 + UINT32_C(0x198),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, fighter1 + UINT32_C(0x5de),
+                            (const uint8_t *)"\x00\x00", 2u) == VF2_OK);
+    vf2_i960_cpu_reset(&cpu, 0u, 0u, UINT32_C(0x00022210));
+    cpu.registers[VF2_I960_FP_REGISTER] = UINT32_C(0x005ff500);
+    cpu.registers[1] = UINT32_C(0x005ff580);
+    cpu.registers[VF2_I960_G0_REGISTER + 7u] = fighter0;
+    cpu.registers[VF2_I960_G0_REGISTER + 8u] = fighter1;
+    CHECK(vf2_i960_cpu_enter_procedure(&cpu, UINT32_C(0x00022210),
+                                       UINT32_C(0x00010dcc)) == VF2_OK);
+    cpu.registers[VF2_I960_G0_REGISTER + 7u] = fighter0;
+    cpu.registers[VF2_I960_G0_REGISTER + 8u] = fighter1;
+    CHECK(vf2_i960_cpu_enter_procedure(&cpu, UINT32_C(0x000225cc),
+                                       UINT32_C(0x00022294)) == VF2_OK);
+    start_instructions = cpu.executed_instructions;
+    {
+        uint64_t start_calls = cpu.procedure_calls;
+        uint64_t start_rets = cpu.procedure_returns;
+
+        CHECK(vf2_hybrid_coli_225cc_execute(&machine, &cpu) == VF2_OK);
+        CHECK(cpu.ip == UINT32_C(0x00010dcc));
+        CHECK(cpu.executed_instructions - start_instructions ==
+              UINT64_C(884));
+        CHECK(cpu.procedure_calls - start_calls == UINT64_C(7));
+        CHECK(cpu.procedure_returns - start_rets == UINT64_C(9));
+        CHECK(cpu.local_frame_depth == 0u);
+    }
 
     vf2_model2a_shutdown(&machine);
     free(rom);
