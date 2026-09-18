@@ -436,6 +436,103 @@ static uint32_t read_test_u32(const vf2_model2a *machine, uint32_t address) {
            ((uint32_t)bytes[2] << 16u) | ((uint32_t)bytes[3] << 24u);
 }
 
+/* v0349: fail-closed gates for selector 0x4505. Positive reference is
+ * ROM-backed on the punch10 family (1745/4/4 on punch10, -t6, -pf5,
+ * -type6). A full synthetic plant for player_selector setup/scratch
+ * is not reconstructed here; C admission stays gated on the measured
+ * F0/+0x1a4 shape. Parks player-14288-* still reference-fault
+ * 0x2705c — those F0 bits must stay closed. */
+static void test_player_19ef8_selector_4505(void) {
+    uint8_t *rom = NULL;
+    vf2_model2a machine;
+    vf2_i960_cpu cpu;
+    vf2_hybrid_task_report report;
+    const uint32_t player = UINT32_C(0x00510800);
+    const uint32_t registry = UINT32_C(0x00514980);
+
+    CHECK((rom = (uint8_t *)calloc(1u, VF2_MAIN_ROM_SIZE)) != NULL);
+    CHECK(vf2_model2a_initialize(&machine));
+    if (rom == NULL || machine.work_ram == NULL) {
+        free(rom);
+        return;
+    }
+    CHECK(vf2_model2a_attach_main_rom(&machine, rom, VF2_MAIN_ROM_SIZE) ==
+          VF2_OK);
+
+    /* F0 bit 31 set matches the player-14288-* reference fault shape. */
+    CHECK(vf2_model2a_write_u32(&machine, player,
+                                UINT32_C(0x80000002)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, player + UINT32_C(0x1a4), 0u) ==
+          VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x0050016c),
+                                UINT32_C(0x02000000)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00500068), 0u) ==
+          VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00508000), 0u) ==
+          VF2_OK);
+
+    vf2_i960_cpu_reset(&cpu, 0u, 0u, UINT32_C(0x00014288));
+    cpu.registers[VF2_I960_FP_REGISTER] = UINT32_C(0x005ff500);
+    cpu.registers[1] = UINT32_C(0x005ff580);
+    CHECK(vf2_i960_cpu_enter_procedure(&cpu, UINT32_C(0x00014288),
+                                       UINT32_C(0x00010dcc)) == VF2_OK);
+    cpu.registers[29] = registry;
+    cpu.registers[VF2_I960_G0_REGISTER + 7u] = player;
+    cpu.registers[VF2_I960_G0_REGISTER] = UINT32_C(0x00004505);
+    memset(&report, 0, sizeof(report));
+    {
+        vf2_status st = vf2_hybrid_first_dispatch_task_execute(
+            &machine, &cpu, registry, &report);
+        /* Must never admit the measured 1745 corridor for this F0. */
+        CHECK(!(st == VF2_OK &&
+                report.recovered_instruction_count == UINT64_C(1745) &&
+                cpu.ip == UINT32_C(0x0001428c)));
+        CHECK(st != VF2_OK || report.kind == VF2_HYBRID_TASK_PLAYER);
+    }
+
+    /* F0 bit 5 set is also forbidden on the measured 0x4505 shape. */
+    CHECK(vf2_model2a_write_u32(&machine, player,
+                                UINT32_C(0x00000020)) == VF2_OK);
+    vf2_i960_cpu_reset(&cpu, 0u, 0u, UINT32_C(0x00014288));
+    cpu.registers[VF2_I960_FP_REGISTER] = UINT32_C(0x005ff500);
+    cpu.registers[1] = UINT32_C(0x005ff580);
+    CHECK(vf2_i960_cpu_enter_procedure(&cpu, UINT32_C(0x00014288),
+                                       UINT32_C(0x00010dcc)) == VF2_OK);
+    cpu.registers[29] = registry;
+    cpu.registers[VF2_I960_G0_REGISTER + 7u] = player;
+    cpu.registers[VF2_I960_G0_REGISTER] = UINT32_C(0x00004505);
+    memset(&report, 0, sizeof(report));
+    {
+        vf2_status st = vf2_hybrid_first_dispatch_task_execute(
+            &machine, &cpu, registry, &report);
+        CHECK(!(st == VF2_OK &&
+                report.recovered_instruction_count == UINT64_C(1745) &&
+                cpu.ip == UINT32_C(0x0001428c)));
+    }
+
+    /* Unadmitted selector still fails closed. */
+    CHECK(vf2_model2a_write_u32(&machine, player,
+                                UINT32_C(0x04000000)) == VF2_OK);
+    vf2_i960_cpu_reset(&cpu, 0u, 0u, UINT32_C(0x00014288));
+    cpu.registers[VF2_I960_FP_REGISTER] = UINT32_C(0x005ff500);
+    cpu.registers[1] = UINT32_C(0x005ff580);
+    CHECK(vf2_i960_cpu_enter_procedure(&cpu, UINT32_C(0x00014288),
+                                       UINT32_C(0x00010dcc)) == VF2_OK);
+    cpu.registers[29] = registry;
+    cpu.registers[VF2_I960_G0_REGISTER + 7u] = player;
+    cpu.registers[VF2_I960_G0_REGISTER] = UINT32_C(0x00001234);
+    memset(&report, 0, sizeof(report));
+    {
+        vf2_status st = vf2_hybrid_first_dispatch_task_execute(
+            &machine, &cpu, registry, &report);
+        CHECK(!(st == VF2_OK &&
+                report.recovered_instruction_count == UINT64_C(1745)));
+    }
+
+    vf2_model2a_shutdown(&machine);
+    free(rom);
+}
+
 static void test_post_boot_graphics_verify(void) {
     static const uint32_t records[] = {UINT32_C(0x00550168), UINT32_C(0x00550188),
                                        UINT32_C(0x005501a8), UINT32_C(0x005501c8),
@@ -6562,6 +6659,7 @@ int main(void) {
     test_second_game_info_task_run();
     test_game_info_bit31_native_dispatch();
     test_player_task_interpreter_bridge();
+    test_player_19ef8_selector_4505();
     test_budget_and_unsupported_are_explicit();
     test_multi_frame_run();
     test_repeated_scheduler_entry_dispatches_recovery();

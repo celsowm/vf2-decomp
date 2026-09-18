@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Fecho dos abertos (v0349): punch10-t6/pf5/type6 reproduzem
+  referência `0x4505` **1745/4/4**; C fail-closed em F0 bit31/1
+  (parks `player-14288-*`); unit `test_player_19ef8_selector_4505`;
+  coli tail live `g0=1→0x225cc→0x10dcc` **346/6/8** a partir de
+  `coli-22404-e1`; whole-task estática pinada **9393/17/18** (sem
+  `0x225cc`); endurance `native-nth-dispatch` **MATCH até 5000**.
+  See `decomp/i960/notes/close_open_items_v0349.md`.
+
 - Itens 1–4 autônomos (v0348): fa_player selector **`0x4505`**
   admitido nativo na forma punch10 (1745/4/4, tabelas mascaradas
   `& 0x1fff`); site-B-only whole-task documentado inalcançável sem

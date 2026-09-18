@@ -1120,14 +1120,25 @@ static vf2_status hybrid_execute_player_19ef8(
     {
         const uint32_t table_selector = selector & UINT32_C(0x1fff);
         const int selector_4505 = selector == UINT32_C(0x00004505);
-        /* v0348 punch10: 0x4505 completes with +0x1a4 == 0 or bit 5
-         * (0x20). Other +0x1a4 bits stay fail-closed. */
+        /* v0348/0349 punch10 family: 0x4505 completes with +0x1a4 == 0
+         * or bit 5 (0x20) and F0 flags 0x04000000 (bit 26 only among
+         * the measured set). player-14288-* parks with F0 0x80000002
+         * still reference-fault at 0x2705c — those bits stay closed. */
         const int state_ok = selector_4505
             ? (player_state_flags == 0u ||
                player_state_flags == UINT32_C(0x00000020))
             : (player_state_flags == 0u);
+        const uint32_t f0_forbid_4505 =
+            (UINT32_C(1) << 31u) | (UINT32_C(1) << 1u) |
+            (UINT32_C(1) << 6u) | (UINT32_C(1) << 5u) |
+            (UINT32_C(1) << 23u) | (UINT32_C(1) << 21u);
+        const int flags_ok = selector_4505
+            ? ((player_flags & f0_forbid_4505) == 0u)
+            : ((player_flags & (
+                   (UINT32_C(1) << 6u) | (UINT32_C(1) << 5u) |
+                   (UINT32_C(1) << 23u) | (UINT32_C(1) << 21u))) == 0u);
 
-        if (status != VF2_OK || !state_ok ||
+        if (status != VF2_OK || !state_ok || !flags_ok ||
             (runtime_flags & (UINT32_C(1) << 20u)) != 0u ||
             (board_flags & (UINT32_C(1) << 16u)) != 0u ||
             (packed_value != UINT32_C(0x00000200)) ||
@@ -1137,10 +1148,6 @@ static vf2_status hybrid_execute_player_19ef8(
               (selector == UINT32_C(0x00000284) && source_bytes[4] == 0u &&
                source_bytes[5] == 0u && source_bytes[6] == UINT8_C(0x7f) &&
                source_bytes[7] == 0u)) ||
-            (player_flags & (UINT32_C(1) << 6u)) != 0u ||
-            (player_flags & (UINT32_C(1) << 5u)) != 0u ||
-            (player_flags & (UINT32_C(1) << 23u)) != 0u ||
-            (player_flags & (UINT32_C(1) << 21u)) != 0u ||
             (table_selector & (UINT32_C(1) << 13u)) != 0u ||
             (!selector_4505 && (selector & (UINT32_C(1) << 14u)) != 0u) ||
             (branch_byte & (UINT8_C(1) << 6u)) != 0u) {
@@ -25165,11 +25172,17 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
                 coli_returns != UINT64_C(19)) {
                 /* v0348 measured non-warm sibling (scan=1, board bit 9
                  * clear, contact bit 8 set): reference 9528/18/19 to
-                 * 0x10dcc, same call graph as warm (no 0x225cc). Admit
-                 * only that exact shape alongside the warm pin. */
+                 * 0x10dcc, same call graph as warm (no 0x225cc).
+                 * v0349: coli-fail + bit8/index1 mutations from task
+                 * entry: reference 9393/17/18 (0x22404 x2, no 0x225cc).
+                 * Live g0=1→0x225cc remains a midbody-park shape
+                 * (22404-e1 tail 346/6/8), not a whole-task pin here. */
                 if (!(coli_instructions == UINT64_C(9528) &&
                       coli_calls == UINT64_C(18) &&
-                      coli_returns == UINT64_C(19))) {
+                      coli_returns == UINT64_C(19)) &&
+                    !(coli_instructions == UINT64_C(9393) &&
+                      coli_calls == UINT64_C(17) &&
+                      coli_returns == UINT64_C(18))) {
                     status = VF2_ERROR_UNSUPPORTED;
                 }
             }
