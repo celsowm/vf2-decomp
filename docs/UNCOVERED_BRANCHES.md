@@ -68,6 +68,13 @@ already covers that body on the `0x1428c` path. Admitting `0x270d4` remains
 open pending a live five-slot final-state pin.
 See `decomp/i960/notes/attract_player_27cc8_v0356.md`.
 
+### v0357 `0x27b5c` valid vs degenerate (measured + fail-closed)
+
+Zero record/scratch (sixth/punch) is the cvtri-fault shape; C now refuses
+it. Parks `player-1428c-*` with record `0x0201c2fc` run `0x270d4 → 0x2712c`
+in **9,378** instructions filling five scratch slots. Byte-exact slot pin
+against the C expander remains open.
+
 ## 1. Scheduler and task execution
 
 Recovered scanning uses live registry strides, skips inactive descriptors and

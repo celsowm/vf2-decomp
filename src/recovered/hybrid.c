@@ -1397,6 +1397,12 @@ static vf2_status hybrid_execute_player_27b5c(
     if (machine == NULL || cpu == NULL) {
         return VF2_ERROR_INVALID_ARGUMENT;
     }
+    /* v0357: live sixth/punch parks leave +0x1a0/+0xbd8 zero. The ROM
+     * wrapper then loads selectors from address 0 and cvtri at 0x27cc8
+     * faults on non-finite bits. Refuse that degenerate shape. */
+    if (selector > 0x1fffu) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
     status = vf2_model2a_read_u32(
         machine,
         UINT32_C(0x02120004) + selector * UINT32_C(4),
@@ -1590,6 +1596,11 @@ static vf2_status hybrid_execute_player_1428c(
     }
     if (status != VF2_OK) {
         return status;
+    }
+    /* v0357 fail-closed: zero record/scratch is the measured cvtri-fault
+     * shape (sixth/punch parks). Do not expand from address 0. */
+    if (record_pointer == 0u || scratch_base == 0u) {
+        return VF2_ERROR_UNSUPPORTED;
     }
     destinations[0] = scratch_base + 0x1e0u;
     destinations[1] = scratch_base + 0x2d0u;

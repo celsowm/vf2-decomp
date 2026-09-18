@@ -6825,10 +6825,63 @@ static void test_frame_dispatch_selector0_signature_fast_path(void) {
     free(rom);
 }
 
+/* v0357: 0x270d4/0x27b5c fail-closed when record/scratch are zero. */
+static void test_player_27b5c_zero_record_fail_closed(void) {
+    uint8_t *rom = NULL;
+    vf2_model2a machine;
+    vf2_i960_cpu cpu;
+    vf2_hybrid_task_report report;
+    const uint32_t player = UINT32_C(0x00510980);
+    const uint32_t registry = UINT32_C(0x00515200);
+    vf2_status st;
+
+    CHECK((rom = (uint8_t *)calloc(1u, VF2_MAIN_ROM_SIZE)) != NULL);
+    CHECK(vf2_model2a_initialize(&machine));
+    if (rom == NULL || machine.work_ram == NULL) {
+        free(rom);
+        return;
+    }
+    CHECK(vf2_model2a_attach_main_rom(&machine, rom, VF2_MAIN_ROM_SIZE) ==
+          VF2_OK);
+    /* Measured sixth/punch shape: bit26 set, +0x1a4=0x20, record/scratch 0. */
+    CHECK(vf2_model2a_write_u32(&machine, player, UINT32_C(0x04000000)) ==
+          VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, player + UINT32_C(0x1a4),
+                                UINT32_C(0x20)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, player + UINT32_C(0x1a0), 0u) ==
+          VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, player + UINT32_C(0xbd8), 0u) ==
+          VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x0050016c),
+                                UINT32_C(0x00599000)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00500068), 0u) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00508000), 0u) == VF2_OK);
+
+    vf2_i960_cpu_reset(&cpu, 0u, 0u, UINT32_C(0x0001428c));
+    cpu.registers[1] = VF2_WORK_RAM_BASE + UINT32_C(0x3000);
+    cpu.registers[VF2_I960_FP_REGISTER] = UINT32_C(0x005ff500);
+    CHECK(vf2_i960_cpu_enter_procedure(&cpu, UINT32_C(0x0001428c),
+                                       UINT32_C(0x00001004)) == VF2_OK);
+    cpu.registers[29] = registry;
+    cpu.registers[VF2_I960_G0_REGISTER + 7u] = player;
+    cpu.ip = UINT32_C(0x0001428c);
+    memset(&report, 0, sizeof(report));
+    st = vf2_hybrid_first_dispatch_task_execute(&machine, &cpu, registry,
+                                                &report);
+    /* Must not admit the 9726-instruction expander on zero record/scratch. */
+    CHECK(!(st == VF2_OK && report.recovered_instruction_count ==
+                                 UINT64_C(9726)));
+    CHECK(!(st == VF2_OK && report.recovered_instruction_count ==
+                                 UINT64_C(9745)));
+    vf2_model2a_shutdown(&machine);
+    free(rom);
+}
+
 int main(void) {
     test_initialize_and_names();
     test_post_boot_backup_broken_screen();
     test_frame_dispatch_selector0_signature_fast_path();
+    test_player_27b5c_zero_record_fail_closed();
     test_post_boot_delay();
     test_post_boot_texture_init_prefix();
     test_post_boot_texture_wait_poll();

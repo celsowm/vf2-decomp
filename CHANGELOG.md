@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Player `0x27b5c` degenerado vs válido (v0357): sixth/punch têm
+  `+0x1a0/+0xbd8 = 0` → reference `cvtri` falha em `0x27cc8`; C agora
+  **fail-closed** nessa forma (unit `test_player_27b5c_zero_record_fail_closed`).
+  Parks `player-1428c-*` com record `0x0201c2fc` / scratch `0x00520000`
+  executam o wrapper **`0x270d4 → 0x2712c` em 9378 insns** com cinco slots
+  preenchidos e cursors `g3=0x520630`, `g5=0x50ea98`, `g6=0x50e2d0`.
+  Pin diferencial byte a byte dos slots permanece aberto. See
+  `decomp/i960/notes/player_27b5c_valid_degenerate_v0357.md`.
+
 - Attract/game-assign + player `0x27cc8` (v0356): backup factory-like no
   sixth; COIN não sai do TEST MENU (v0355). Drive `0x4505` mede
   **1749** insns até `0x270d4` e **1709** até `cvtri` em **`0x27cc8`**
