@@ -50,6 +50,14 @@ No ASCII `SEGA` tile appears on this trajectory; polygon/TGP attract with a
 different game/config state remains the open Sega-logo frontier.
 Unit pin: `test_frame_dispatch_selector0_signature_fast_path`.
 
+### v0355 input-driven display (measured, negative for Sega tile)
+
+Strict `vf2cycles` from the sixth MATCH park: COIN+START keeps TEST MENU;
+PUNCH naturally enters EXIT TEST MODE, runs the countdown to zero under
+native lockstep (**332 cycles MATCH**), and redraws TEST MENU. Geometry
+FIFO and buffer-ram payloads are identical across those parks (color ramp,
+not a unique logo mesh). No ASCII `SEGA` tile on this input-driven path.
+
 ## 1. Scheduler and task execution
 
 Recovered scanning uses live registry strides, skips inactive descriptors and

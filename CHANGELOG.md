@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Input-driven display path (v0355): sob `vf2cycles` strict, **COIN+START**
+  12 ciclos MATCH permanece **TEST MENU** (26 010 insns); **PUNCH** alcança
+  **EXIT TEST MODE** naturalmente (`a4=0x8b`, countdown 320→310→290) e com
+  **332** ciclos MATCH (14,9 M insns na perna de 300; 12 216 blocos) o
+  countdown expira e o oracle **redesenha TEST MENU** (`a4=0x0b`, cd 0).
+  Geometria FIFO e buffer-ram idênticos entre parks de teste (rampa de
+  cor, não malha logo). Sem tile `SEGA`. See
+  `decomp/i960/notes/input_display_path_v0355.md`.
+
 - EXIT TEST MODE + warm-boot attract (v0354): na fronteira **frame-dispatch**
   `0xa6c0` a partir do sixth MATCH, forçar `a4=0x8b` mede first-visit
   **13286** insns e desenha tile **`EXIT TEST MODE`** (countdown **320**,
