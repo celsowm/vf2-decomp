@@ -24786,6 +24786,13 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
             machine, cpu, registry_address, report
         );
     }
+    /* v0358: 0x270d4 five-slot wrapper is measured but not admitted.
+     * Byte-exact C vs oracle requires executor cmpobl to update
+     * compare_result (hardware COBR flags); that change currently breaks
+     * corridor MATCH on kill_osage/phase17. Keep the boundary fail-closed. */
+    if (cpu->ip == UINT32_C(0x000270d4)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
 
     memset(&local_report, 0, sizeof(local_report));
     memset(&task_report, 0, sizeof(task_report));

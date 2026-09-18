@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Pin `0x270d4` five slots + coli body 77 (v0358): record selectors medidos
+  em main_data `0x0201c2fc` = `{0x0505,0x0039,0x00f1,0x00e7,0x00af}`.
+  COBR `cmpobl`+`be` no despacho de `0x27b5c`: com CC arquitetural
+  (experimental, revertido) o span oracle é **9235** e C iguala os cinco
+  slots; com executor master (COBR sem escrita de `compare_result`) o span
+  stale é **9378**. O fix de CC quebra MATCH (`fa_kill_osage`, phase17,
+  bridges). Master mantém executor legacy e `0x270d4` **fail-closed**.
+  Coli live body 77 documentado sem extensão C. See
+  `decomp/i960/notes/player_270d4_slot_pin_v0358.md` and
+  `decomp/i960/notes/fa_coli_22404_body77_v0358.md`.
+
 - Player `0x27b5c` degenerado vs válido (v0357): sixth/punch têm
   `+0x1a0/+0xbd8 = 0` → reference `cvtri` falha em `0x27cc8`; C agora
   **fail-closed** nessa forma (unit `test_player_27b5c_zero_record_fail_closed`).

@@ -75,6 +75,18 @@ it. Parks `player-1428c-*` with record `0x0201c2fc` run `0x270d4 → 0x2712c`
 in **9,378** instructions filling five scratch slots. Byte-exact slot pin
 against the C expander remains open.
 
+### v0358 five-slot pin blocked on COBR condition codes
+
+Record selectors at main_data `0x0201c2fc` are `{0x0505,0x0039,0x00f1,
+0x00e7,0x00af}`. The `0x27b5c` second loop dispatches with `cmpobl`+`be`.
+Making COBR `cmpo*` update `compare_result` (hardware-faithful) measures
+`0x270d4→0x2712c` at **9,235** instructions and makes recovered C match
+oracle on all five slots — but breaks corridor MATCH on `fa_kill_osage`
+and phase17/bridge differentials that calibrated stale CC. Executor keeps
+legacy COBR (no CC write); `0x270d4` stays `VF2_ERROR_UNSUPPORTED`.
+Reopen after a dedicated CC recalibration campaign.
+See `decomp/i960/notes/player_270d4_slot_pin_v0358.md`.
+
 ## 1. Scheduler and task execution
 
 Recovered scanning uses live registry strides, skips inactive descriptors and
@@ -1620,10 +1632,14 @@ natres bit-31 remains `VF2_ERROR_UNSUPPORTED`. From the armed coli
 park, `native-resume` reaches `0x000221e8`; executing the whole coli
 task with the midbody `g0=1` recipe measures **9398/17/18** without
 reaching `0x000225cc` (the `0x23524` shell does not preserve the
-midbody live contact state). The live first `0x22404` span is **78**
-steps to `ret 0x225b0` and is not C-pinned. Player corridor frontier
-after `0x4505` is measured at unsupported **`0x00027cc8`** via
-`0x270e8→0x27b5c`. Endurance MATCH is observed through dispatch
-**10675** on this MSVC Debug build. See
-`decomp/i960/notes/close_open_v0352.md`.
+midbody live contact state). The live first `0x22404` span is **78** steps to `ret 0x225b0` (body
+**77** + ret) and is not C-pinned; gates remain those in
+`close_open_v0352.md` (`+0x1a4=0x00010000`, `+0x820=1`, slot 0,
+mask `0x2007ace`, FIFO `0x884000`, stores `f1+0x6d4/+0x65c..+0x664`).
+Player corridor frontier after `0x4505` is measured at unsupported
+**`0x00027cc8`** via `0x270e8→0x27b5c`; wrapper `0x270d4` remains
+unsupported pending COBR-CC recalibration (v0358). Endurance MATCH is
+observed through dispatch **10675** on this MSVC Debug build. See
+`decomp/i960/notes/close_open_v0352.md` and
+`decomp/i960/notes/player_270d4_slot_pin_v0358.md`.
 

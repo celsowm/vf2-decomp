@@ -4,7 +4,9 @@
 #include <string.h>
 
 #include "vf2/fighter_candidate.h"
+#include "vf2/i960/executor.h"
 #include "vf2/native_runtime.h"
+#include "vf2/rom.h"
 
 static int failures = 0;
 
@@ -6877,7 +6879,9 @@ static void test_player_27b5c_zero_record_fail_closed(void) {
     free(rom);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc;
+    (void)argv;
     test_initialize_and_names();
     test_post_boot_backup_broken_screen();
     test_frame_dispatch_selector0_signature_fast_path();
