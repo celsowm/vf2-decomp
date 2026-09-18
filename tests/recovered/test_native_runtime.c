@@ -6769,9 +6769,66 @@ static void test_post_boot_backup_broken_screen(void) {
     free(rom);
 }
 
+/* v0354: measured cold/attract signature path — selector 0 -> 2 in 34 insns. */
+static void test_frame_dispatch_selector0_signature_fast_path(void) {
+    vf2_model2a machine;
+    vf2_i960_cpu cpu;
+    vf2_native_runtime_state state;
+    vf2_native_runtime_step_report report;
+    uint8_t *rom = NULL;
+    uint8_t selector = 0u;
+    uint32_t value = 0u;
+    size_t index = 0u;
+    static const uint32_t signature[4] = {
+        UINT32_C(0x52455320), UINT32_C(0x4e4c2053),
+        UINT32_C(0x4e204544), UINT32_C(0x20514555)};
+
+    memset(&machine, 0, sizeof(machine));
+    CHECK(vf2_model2a_initialize(&machine) != 0);
+    if (machine.work_ram == NULL) {
+        return;
+    }
+    rom = (uint8_t *)calloc(1u, VF2_MAIN_ROM_SIZE);
+    CHECK(rom != NULL);
+    if (rom == NULL) {
+        vf2_model2a_shutdown(&machine);
+        return;
+    }
+    write_u32_bytes(rom, UINT32_C(0x0000a6f8), UINT32_C(0x0000a804));
+    CHECK(vf2_model2a_attach_main_rom(&machine, rom, VF2_MAIN_ROM_SIZE) == VF2_OK);
+    for (index = 0u; index < 4u; ++index) {
+        CHECK(vf2_model2a_write_u32(
+                  &machine, UINT32_C(0x0059cfe0) + (uint32_t)index * 4u,
+                  signature[index]) == VF2_OK);
+    }
+    CHECK(vf2_model2a_write(&machine, UINT32_C(0x0050002a), &selector,
+                            sizeof(selector)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00500800), 0u) == VF2_OK);
+    vf2_i960_cpu_reset(&cpu, 0u, 0u, UINT32_C(0x0000a6c0));
+    cpu.registers[1] = VF2_WORK_RAM_BASE + UINT32_C(0x3000);
+    CHECK(vf2_i960_cpu_enter_procedure(&cpu, UINT32_C(0x0000a6c0),
+                                       UINT32_C(0x0000a010)) == VF2_OK);
+    cpu.ip = UINT32_C(0x0000a6c0);
+    CHECK(vf2_native_runtime_initialize(&state, 4u) == VF2_OK);
+    memset(&report, 0, sizeof(report));
+    CHECK(vf2_native_runtime_step(&machine, &cpu, &state, &report) == VF2_OK);
+    CHECK(report.recovered_instruction_count == UINT64_C(34));
+    CHECK(cpu.ip == UINT32_C(0x0000a010));
+    selector = 0xffu;
+    CHECK(vf2_model2a_read(&machine, UINT32_C(0x0050002a), &selector,
+                           sizeof(selector)) == VF2_OK);
+    CHECK(selector == UINT8_C(2));
+    /* Signature words are cleared by the helper after the compare. */
+    CHECK(vf2_model2a_read_u32(&machine, UINT32_C(0x0059cfe0), &value) == VF2_OK);
+    CHECK(value == 0u);
+    vf2_model2a_shutdown(&machine);
+    free(rom);
+}
+
 int main(void) {
     test_initialize_and_names();
     test_post_boot_backup_broken_screen();
+    test_frame_dispatch_selector0_signature_fast_path();
     test_post_boot_delay();
     test_post_boot_texture_init_prefix();
     test_post_boot_texture_wait_poll();

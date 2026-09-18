@@ -36,6 +36,20 @@ main-final-cluster), not a `fa_game_info` IP.
 
 See `decomp/i960/notes/display_landmark_v0353.md`.
 
+### v0354 EXIT TEST MODE → warm-boot attract (measured)
+
+From the sixth-dispatch park at frame-dispatch `0x0000a6c0`, forcing phase
+`0x8b` measures the recovered EXIT TEST MODE first visit at **13,286**
+instructions (tile `EXIT TEST MODE`, countdown 320, `a5=0xff`) and the
+terminal path at **13,194** instructions into boot entry `0x000000b0`.
+Warm boot then takes the **valid-backup** CRC path (not `BACKUP RAM IS
+BROKEN`), advances frame selector **0 → 2 in 34 instructions**, passes
+selector `0x10` (tile clear `0x8ef0` + redraw `0x7fc0`), and **returns to
+TEST MENU** (selector `0x11`) while arming `fa_coli` `0x000221e8`.
+No ASCII `SEGA` tile appears on this trajectory; polygon/TGP attract with a
+different game/config state remains the open Sega-logo frontier.
+Unit pin: `test_frame_dispatch_selector0_signature_fast_path`.
+
 ## 1. Scheduler and task execution
 
 Recovered scanning uses live registry strides, skips inactive descriptors and

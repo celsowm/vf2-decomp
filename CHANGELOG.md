@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- EXIT TEST MODE + warm-boot attract (v0354): na fronteira **frame-dispatch**
+  `0xa6c0` a partir do sixth MATCH, forçar `a4=0x8b` mede first-visit
+  **13286** insns e desenha tile **`EXIT TEST MODE`** (countdown **320**,
+  `a5=0xff`); terminal countdown=1 → **13194** insns em **`0x000000b0`**
+  com `0x500082=0x8000`. Warm-boot pós-exit usa backup **válido** (CRC
+  `0x9480`, não BROKEN), selector **0→2 em 34 insns** (unit pin), depois
+  selector `0x10` limpa/redesenha e o oracle **retorna a TEST MENU**
+  (`0x11`) armando coli `0x221e8`. **Sem tile `SEGA`** nesta trajetória —
+  logo attract permanece fronteira TGP/config. Unit
+  `test_frame_dispatch_selector0_signature_fast_path`. See
+  `decomp/i960/notes/exit_testmode_attract_v0354.md`.
+
 - Entrada em tela (v0353): landmark de display medido no cold-boot.
   Primeira tela visível no oracle: tile-plane **`BACKUP RAM IS BROKEN.` /
   `INITIALIZED.`** em `0x0004aff8` (2 985 244 insns pós-stage1) e
