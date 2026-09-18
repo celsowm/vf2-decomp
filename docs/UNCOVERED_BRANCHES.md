@@ -1529,3 +1529,25 @@ query return `g0 = 1` in **73 instructions**. The caller then reaches
 optional `call 0x18bd4` when `g8+0x19f == 22`).
 See `decomp/i960/notes/fa_coli_225cc_drive_v0282.md`.
 
+### v0351 Combate Vivo (arming + live midbody + 0x22298 sibling)
+
+PUNCH arming from a fresh sixth-dispatch park is reproduced under
+strict per-block differential: 330 `vf2cycles --input 16` frames leave
+slot 10 at `entry=0x000221e8` / `flags=0x80000000` with countdown
+`0x00500024` terminal. The live midbody `g0=1` recipe (`g13=0x00514940`,
+fighter0 `+0x1a4=0x100`, `+0x820=1`, slot `0x5149cc=0xffff`) completes
+from `0x00022210` to `0x00010dcc` in **380** steps with a long
+`0x000225cc` (249 steps to `0x00022294`) and call-instruction graph
+`0x22298`×2, `0x22404`×2, `0x225bc`×2, `0x223bc`, `0x225cc`,
+`0x230d4`, `0x23238`×2, `0x1ab34`. The second `0x00022298` sibling
+(bit 8 set, bit 1 clear, measured gates) is now native C (body 13,
+`stos 0` at `g7+0x6dc`); bit-14-set, `+0x61c!=0` and scan `{2,5,6}`
+remain fail-closed. Whole-task C pin of prefix+380 is **not** claimed:
+probe does not re-enter the coli body from the armed park, and the
+hybrid still fail-closes unmeasured `0x22404` hit-78 / long-body live
+accounting beyond the existing unit shapes. Player sibling shapes
+boot 1743 and natres 1659 remain fail-closed in C. Endurance MATCH is
+observed through dispatch 9626+ on this MSVC Debug build.
+`frontier.py` gained `--fighter-base` offset clustering; see
+`decomp/i960/notes/combat_live_v0351.md`.
+

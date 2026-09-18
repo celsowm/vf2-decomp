@@ -145,6 +145,53 @@ class Frontier:
         self.call_targets: Counter = Counter()
         self.unsupported_addresses: Counter = Counter()
         self.sources: Counter = Counter()
+        self.fighter_bases: List[int] = []
+        self.fighter_window: int = 0x2000
+        # (offset) -> Counter of base hits + r/w + ips
+        self.fighter_offsets: Dict[int, dict] = {}
+
+    def set_fighter_bases(self, bases: List[int], window: int = 0x2000) -> None:
+        self.fighter_bases = list(bases)
+        self.fighter_window = window
+
+    def _note_fighter_access(self, address: int, kind: str, ip: int) -> None:
+        if not self.fighter_bases:
+            return
+        for base in self.fighter_bases:
+            if base <= address < base + self.fighter_window:
+                off = address - base
+                rec = self.fighter_offsets.setdefault(
+                    off,
+                    {
+                        "bases": set(),
+                        "reads": 0,
+                        "writes": 0,
+                        "ips": Counter(),
+                    },
+                )
+                rec["bases"].add(base)
+                if kind == "write":
+                    rec["writes"] += 1
+                else:
+                    rec["reads"] += 1
+                rec["ips"][ip] += 1
+                break
+
+    def top_fighter_offsets(self, limit: int = 40) -> List[dict]:
+        rows = []
+        for off, rec in self.fighter_offsets.items():
+            rows.append(
+                {
+                    "offset": hex32(off),
+                    "base_count": len(rec["bases"]),
+                    "reads": rec["reads"],
+                    "writes": rec["writes"],
+                    "total": rec["reads"] + rec["writes"],
+                    "top_ips": [hex32(ip) for ip, _ in rec["ips"].most_common(4)],
+                }
+            )
+        rows.sort(key=lambda r: (-r["base_count"], -r["total"], r["offset"]))
+        return rows[:limit]
 
     # ------------------------------------------------------------------
     # Ingestion
@@ -198,6 +245,9 @@ class Frontier:
                                 stats["memory_reads"] += 1
                             if acc_addr:
                                 record_edge.mem_addresses[acc_addr] += 1
+                                self._note_fighter_access(
+                                    acc_addr, acc_kind, ip_before
+                                )
                 elif kind == "memory":
                     pending_memory[parse_int(record["step"])].append(
                         {"kind": str(record.get("kind", "read")), "address": record.get("address", 0)}
@@ -573,6 +623,18 @@ def main() -> int:
     parser.add_argument("--output")
     parser.add_argument("--duckdb", help="persist ranked frontier to DuckDB file (e.g. out/frontier.duckdb)")
     parser.add_argument("--parquet", help="export ranked edges to Parquet file (e.g. out/frontier.parquet)")
+    parser.add_argument(
+        "--fighter-base",
+        action="append",
+        default=[],
+        help="fighter object base for offset clustering (repeatable)",
+    )
+    parser.add_argument(
+        "--fighter-window",
+        type=lambda s: int(s, 0),
+        default=0x2000,
+        help="fighter object window for --fighter-base (default 0x2000)",
+    )
     args = parser.parse_args()
 
     if args.limit < 1:
@@ -585,6 +647,11 @@ def main() -> int:
               file=sys.stderr)
 
     frontier = Frontier()
+    fighter_bases = []
+    for raw_base in args.fighter_base:
+        fighter_bases.append(parse_int(raw_base))
+    if fighter_bases:
+        frontier.set_fighter_bases(fighter_bases, args.fighter_window)
     for raw in args.inputs:
         path = Path(raw)
         if not path.exists():
@@ -674,6 +741,22 @@ def main() -> int:
                         f"  {item['from']}->{item['to']}  x{item['call_hits']}  "
                         f"{where} -> {target}({tstatus}){mark}\n"
                     )
+            fighter_rows = frontier.top_fighter_offsets(20)
+            if fighter_rows:
+                output.write("\nfighter-relative offsets:\n")
+                for item in fighter_rows:
+                    ips = ",".join(item["top_ips"])
+                    output.write(
+                        f"  {item['offset']}  bases={item['base_count']} "
+                        f"R:{item['reads']} W:{item['writes']} "
+                        f"ips:{ips}\n"
+                    )
+        if args.as_json and frontier.fighter_offsets:
+            for item in frontier.top_fighter_offsets(40):
+                output.write(
+                    json.dumps({"kind": "fighter_offset", **item}, sort_keys=True)
+                    + "\n"
+                )
     finally:
         if output is not sys.stdout:
             output.close()

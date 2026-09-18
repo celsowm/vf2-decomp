@@ -58,6 +58,14 @@
  *   +0x0c50 4B W  ip  0x00029544 (float result)
  *  Taint: branch 0x0002949c depends on fighter0 + 0x01a4 bit 19
  *
+ * v0351 live coli midbody g0=1 (out/coli-live-midbody-g01, bases
+ * 0x00510980 / 0x00512980, g13=0x00514940) bilateral via
+ * tools/python/fighter_offsets.py --fighter-base:
+ *   +0x0026 2B R, +0x01a4 4B R, +0x01a8 2B R, +0x06dc 2B RW,
+ *   +0x0000 4B R, +0x0004 1B R, +0x0821 1B R.
+ * Unilateral on this drive: +0x0828, +0x1234, +0x06d4/+0x06d8,
+ * +0x0700, +0x082a, +0x019f, +0x01aa, +0x05b4/+0x05b8.
+ *
  * The window 0x2000 covers all above (max offset 0x1200).
  * Field names remain field_XXXX until independent behavioral proof
  * assigns semantic names (health, animation_state, etc. are forbidden
@@ -69,6 +77,7 @@
 /* Stable offsets measured above */
 #define VF2_FIGHTER_OFF_0000 0x0000u
 #define VF2_FIGHTER_OFF_0004 0x0004u
+#define VF2_FIGHTER_OFF_0026 0x0026u
 #define VF2_FIGHTER_OFF_0084 0x0084u
 #define VF2_FIGHTER_OFF_017C 0x017cu
 #define VF2_FIGHTER_OFF_018A 0x018au
@@ -92,6 +101,7 @@
 /* Widths as observed in the measured corridor (state-8, 0x18644 prefix) */
 #define VF2_FIGHTER_WIDTH_0000 4u
 #define VF2_FIGHTER_WIDTH_0004 1u
+#define VF2_FIGHTER_WIDTH_0026 2u
 #define VF2_FIGHTER_WIDTH_0084 4u
 #define VF2_FIGHTER_WIDTH_017C 2u
 #define VF2_FIGHTER_WIDTH_018A 2u

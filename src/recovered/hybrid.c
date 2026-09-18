@@ -18438,7 +18438,8 @@ static vf2_status hybrid_complete_procedure(
 /* Measured recovery of the fa_coli bit-mask helper (v0276 warm,
  * v0290 bit-8+bit-1 sibling). Both take the same stos 0 into g7+0x6dc.
  * Warm (bit 8 clear): 7 instructions. Sibling (bit 8 and bit 1 set):
- * 8 instructions. Other siblings fail closed. */
+ * 8 instructions. Live v0351 (bit 8 set, bit 1 clear, measured gates):
+ * 14 instructions. Other siblings fail closed. */
 vf2_status vf2_hybrid_coli_bitmask_execute(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu
@@ -18491,7 +18492,8 @@ vf2_status vf2_hybrid_coli_contact_query_execute(
 
 /* Body-only recovery of 0x22298: no CPU frame, no ret accounting.
  * Warm (bit 8 clear): body 6. Sibling (bit 8 and bit 1 set): body 7.
- * Both store 0 into g7+0x6dc. Other siblings fail closed. */
+ * Live v0351 (bit 8 set, bit 1 clear + measured gates): body 13.
+ * All three store 0 into g7+0x6dc. Other siblings fail closed. */
 static vf2_status coli_22298_body(
     vf2_model2a *machine,
     uint32_t g7,
@@ -18515,7 +18517,39 @@ static vf2_status coli_22298_body(
         /* Sibling v0290: bbc 8 not taken, bbs 1 taken → stos 0. */
         *body_out = UINT64_C(7);
     } else {
-        return VF2_ERROR_UNSUPPORTED;
+        /* v0351 live midbody sibling: bit 8 set, bit 1 clear.
+         * Measured (coli-live-midbody-g01): bbc14 g7+0x1a4 taken to
+         * 0x22320; g7+0x61c==0; g8+0x821 not in {2,5,6}; cmpibne 2
+         * taken → stos r11(=0) at g7+0x6dc; body 13 before ret.
+         * Bit-14-set (0x222b4 float loop) and r6∈{2,5,6} stay fail-closed. */
+        uint32_t flags_g7 = 0u;
+        uint16_t half_61c = 0u;
+        uint8_t scan_821 = 0u;
+
+        if (vf2_model2a_read_u32(
+                machine, g7 + VF2_COLI_BITMASK_FLAGS_OFFSET, &flags_g7) !=
+            VF2_OK) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        if ((flags_g7 & (UINT32_C(1) << 14u)) != 0u) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        if (hybrid_read_u16(machine, g7 + UINT32_C(0x61c), &half_61c) !=
+            VF2_OK) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        if (half_61c != 0u) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        if (hybrid_read_u8(machine, g8 + UINT32_C(0x821), &scan_821) !=
+            VF2_OK) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        if (scan_821 == UINT8_C(2) || scan_821 == UINT8_C(5) ||
+            scan_821 == UINT8_C(6)) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        *body_out = UINT64_C(13);
     }
     if (hybrid_write_u16(
             machine, g7 + VF2_COLI_BITMASK_RESULT_OFFSET, 0u) != VF2_OK) {
@@ -25175,8 +25209,11 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
                  * 0x10dcc, same call graph as warm (no 0x225cc).
                  * v0349: coli-fail + bit8/index1 mutations from task
                  * entry: reference 9393/17/18 (0x22404 x2, no 0x225cc).
-                 * Live g0=1→0x225cc remains a midbody-park shape
-                 * (22404-e1 tail 346/6/8), not a whole-task pin here. */
+                 * Live g0=1→0x225cc midbody-park shape is measured at
+                 * 380 steps / 12 call-instructions / 10 rets
+                 * (coli-live-midbody-g01): 22298 warm+live-bit8,
+                 * 22404 hit 78 + warm 14, 225cc long 249 to 0x22294.
+                 * Whole-task prefix+380 is not C-pinned. */
                 if (!(coli_instructions == UINT64_C(9528) &&
                       coli_calls == UINT64_C(18) &&
                       coli_returns == UINT64_C(19)) &&

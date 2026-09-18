@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Campanha Combate Vivo (v0351): arming coli por PUNCH a partir de
+  `native-sixth-dispatch` (`sixth-fresh` + 330 ciclos → slot10
+  `entry=0x221e8`, countdown 0); live midbody `g0=1` medido
+  **380** passos / 12 call-instr / 10 rets com `0x225cc` longo
+  249 até `0x22294`; C admite sibling `0x22298` bit8-set/bit1-clear
+  (body **13**, unit 14 + 3 negativos fail-closed); frontier
+  `--fighter-base` + `fighter_offsets.py`; `+0x0026` bilateral no
+  layout candidato; endurance MATCH observada até dispatch **9626+**;
+  CTest **57/57**. See `decomp/i960/notes/combat_live_v0351.md`.
+
 - Fecho dos abertos restantes (v0350): coli live midbody
   `g0=1→0x225cc→0x10dcc` medido **380/9/10** (call `0x22290` em
   129 passos; `g13=0x514940` no park midbody); `0x4505` replicado
