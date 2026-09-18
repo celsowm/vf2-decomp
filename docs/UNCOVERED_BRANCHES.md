@@ -18,6 +18,24 @@ the sixth command and `native-nth-dispatch 11` proves one further 37-block /
 2,166-instruction cycle exact). v0347 measured MATCH through dispatch 40
 and pins dispatch 12 in CTest; see `decomp/i960/notes/tracks_bcd_v0347.md`.
 
+## 0. Display / first screen landmark (v0353)
+
+The natural cold-boot corridor now has measured first display states:
+
+- post-boot diagnostic tile plane at the runtime checkpoint `0x0004aff8`
+  (`BACKUP RAM IS BROKEN.` at tile `0x010008aa`, `I/O Initialize ...` at
+  `0x01000c28`) — recovered C plus unit pins;
+- settled sixth-dispatch park `0x0001645c` with frame selector `0x11`
+  (TEST MENU family) under `native-sixth-dispatch` MATCH.
+
+Still open for a literal Sega attract screen: no ASCII `SEGA` tile appears on
+this trajectory; polygon/TGP attract content and the EXIT TEST MODE →
+warm-boot → attract continuation remain explicit boundaries. Diagnostic
+selector-17 workers require the frame-dispatch boundary (`0x0000a6c0` /
+main-final-cluster), not a `fa_game_info` IP.
+
+See `decomp/i960/notes/display_landmark_v0353.md`.
+
 ## 1. Scheduler and task execution
 
 Recovered scanning uses live registry strides, skips inactive descriptors and

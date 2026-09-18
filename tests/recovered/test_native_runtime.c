@@ -6716,8 +6716,62 @@ static void test_player_180bc_flag_tail(void) {
     free(rom);
 }
 
+/* v0353: cold-boot first display — backup-SRAM diagnostic tile plane. */
+static void test_post_boot_backup_broken_screen(void) {
+    vf2_model2a machine;
+    vf2_i960_cpu cpu;
+    vf2_native_runtime_state state;
+    vf2_native_runtime_step_report report;
+    uint8_t *rom = NULL;
+    size_t index = 0u;
+    static const char text[] = "BACKUP RAM IS BROKEN.";
+
+    memset(&machine, 0, sizeof(machine));
+    CHECK(vf2_model2a_initialize(&machine) != 0);
+    if (machine.work_ram == NULL) {
+        return;
+    }
+    rom = (uint8_t *)calloc(1u, VF2_MAIN_ROM_SIZE);
+    CHECK(rom != NULL);
+    if (rom == NULL) {
+        vf2_model2a_shutdown(&machine);
+        return;
+    }
+    /* Source constant used by execute_post_boot_backup_restore on invalid
+     * backup signature (r14 = 0x0006df10, dest tile = 0x010008aa). */
+    memcpy(rom + 0x0006df10u, text, sizeof(text));
+    CHECK(vf2_model2a_attach_main_rom(&machine, rom, VF2_MAIN_ROM_SIZE) == VF2_OK);
+    enter_parent(&cpu, UINT32_C(0x0006ddd8));
+    cpu.registers[VF2_I960_G0_REGISTER] = 0u;
+    cpu.ip = UINT32_C(0x0006ddd8);
+    CHECK(vf2_native_runtime_initialize(&state, 4u) == VF2_OK);
+    memset(&report, 0, sizeof(report));
+    CHECK(vf2_native_runtime_step(&machine, &cpu, &state, &report) == VF2_OK);
+    CHECK(report.kind == VF2_NATIVE_RUNTIME_STEP_POST_BOOT_BACKUP_RESTORE);
+    CHECK(report.entry_address == UINT32_C(0x0006ddd8));
+    CHECK(cpu.ip == UINT32_C(0x00001004));
+    for (index = 0u; index < sizeof(text) - 1u; ++index) {
+        uint8_t encoded[2] = {0u, 0u};
+        CHECK(vf2_model2a_read(&machine,
+                               UINT32_C(0x010008aa) + (uint32_t)index * 2u, encoded,
+                               sizeof(encoded)) == VF2_OK);
+        CHECK(encoded[0] == (uint8_t)text[index]);
+        CHECK(encoded[1] == UINT8_C(0x80));
+    }
+    /* Invalid signature still falls through to payload init + metadata write. */
+    {
+        uint32_t signature = 0u;
+        CHECK(vf2_model2a_read_u32(&machine, VF2_BACKUP_SRAM_BASE + UINT32_C(0x3308),
+                                   &signature) == VF2_OK);
+        CHECK(signature == UINT32_C(0x54524956));
+    }
+    vf2_model2a_shutdown(&machine);
+    free(rom);
+}
+
 int main(void) {
     test_initialize_and_names();
+    test_post_boot_backup_broken_screen();
     test_post_boot_delay();
     test_post_boot_texture_init_prefix();
     test_post_boot_texture_wait_poll();

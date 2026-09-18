@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Entrada em tela (v0353): landmark de display medido no cold-boot.
+  Primeira tela visível no oracle: tile-plane **`BACKUP RAM IS BROKEN.` /
+  `INITIALIZED.`** em `0x0004aff8` (2 985 244 insns pós-stage1) e
+  continuação **`I/O Initialize ...` / `Sound Initialize ...`**; pin C
+  unitário em `0x010008aa` (`test_post_boot_backup_broken_screen`) além
+  do I/O text existente em `0x01000c28`. Tela estável do corredor MATCH:
+  **TEST MENU** selector `0x11` em `native-sixth-dispatch`
+  (`sixth-fresh`, `0x5000a4=0x0b`), com paleta/texture preenchidas.
+  Logo SEGA **não** é tile ASCII nesta trajetória — attract/TGP e
+  EXIT TEST MODE → warm-boot permanecem fronteira explícita.
+  Ferramenta `tools/python/render_tile_plane.py` (grelha 64×48 + PPM
+  host-side). See `decomp/i960/notes/display_landmark_v0353.md`.
+
 - Fecho dos abertos Combate Vivo (v0352): player `0x4505`
   reproduzido com drive padrão — punch10/sixth-regen/fifth-rt
   **1745/4/4**, boot **1743/4/4**, natres **1659/4/4**; C seleciona
