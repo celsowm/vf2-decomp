@@ -483,10 +483,14 @@ static void test_player_19ef8_selector_4505(void) {
     {
         vf2_status st = vf2_hybrid_first_dispatch_task_execute(
             &machine, &cpu, registry, &report);
-        /* Must never admit the measured 1745 corridor for this F0. */
+        /* Must never admit the punch10-family 1745 corridor for this F0. */
         CHECK(!(st == VF2_OK &&
                 report.recovered_instruction_count == UINT64_C(1745) &&
                 cpu.ip == UINT32_C(0x0001428c)));
+        /* v0352: F0 bit26 clear uses the measured boot/1743 shape if
+         * the rest of the plant admits; never the 1745 pin. */
+        CHECK(!(st == VF2_OK &&
+                report.recovered_instruction_count == UINT64_C(1745)));
         CHECK(st != VF2_OK || report.kind == VF2_HYBRID_TASK_PLAYER);
     }
 

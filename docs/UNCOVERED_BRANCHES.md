@@ -1551,3 +1551,22 @@ observed through dispatch 9626+ on this MSVC Debug build.
 `frontier.py` gained `--fighter-base` offset clustering; see
 `decomp/i960/notes/combat_live_v0351.md`.
 
+### v0352 closeout — player shapes, coli entry drive, player frontier
+
+The standard `0x4505` probe drive (`g0=0x4505`, `g7=0x00510980`,
+`--set-ip 0x00014288`) reproduces punch10/sixth-regen/fifth-rt at
+**1745/4/4**, boot at **1743/4/4** (F0 clear or bit26 clear) and
+natres at **1659/4/4** (F0 `0x84000002`, bit31 retained). Native
+`hybrid_execute_player_19ef8` now accounts **1745** when player F0
+bit 26 is set and **1743** otherwise among admitted F0 shapes;
+natres bit-31 remains `VF2_ERROR_UNSUPPORTED`. From the armed coli
+park, `native-resume` reaches `0x000221e8`; executing the whole coli
+task with the midbody `g0=1` recipe measures **9398/17/18** without
+reaching `0x000225cc` (the `0x23524` shell does not preserve the
+midbody live contact state). The live first `0x22404` span is **78**
+steps to `ret 0x225b0` and is not C-pinned. Player corridor frontier
+after `0x4505` is measured at unsupported **`0x00027cc8`** via
+`0x270e8→0x27b5c`. Endurance MATCH is observed through dispatch
+**10675** on this MSVC Debug build. See
+`decomp/i960/notes/close_open_v0352.md`.
+

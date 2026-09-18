@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Fecho dos abertos Combate Vivo (v0352): player `0x4505`
+  reproduzido com drive padrão — punch10/sixth-regen/fifth-rt
+  **1745/4/4**, boot **1743/4/4**, natres **1659/4/4**; C seleciona
+  1745 vs 1743 por F0 bit26 (natres bit31 fail-closed);
+  `native-resume` alcança coli `0x221e8` a partir do park armado;
+  task inteira com receita live mede **9398/17/18 sem `0x225cc`**
+  (sibling fail-closed); span `0x22404` live **78** passos
+  documentado; frontier player pós-`0x4505` → unsupported
+  **`0x27cc8`**; endurance MATCH até dispatch **10675**; CTest
+  **57/57**. See `decomp/i960/notes/close_open_v0352.md`.
+
 - Campanha Combate Vivo (v0351): arming coli por PUNCH a partir de
   `native-sixth-dispatch` (`sixth-fresh` + 330 ciclos → slot10
   `entry=0x221e8`, countdown 0); live midbody `g0=1` medido

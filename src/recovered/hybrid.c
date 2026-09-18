@@ -1290,8 +1290,14 @@ static vf2_status hybrid_execute_player_19ef8(
         cpu->compare_result = VF2_I960_COMPARE_NONE;
         cpu->executed_instructions += UINT64_C(1805);
     } else if (selector == UINT32_C(0x00004505)) {
-        /* v0348 punch10 reference: 1745 steps 0x14288→0x1428c. */
-        cpu->executed_instructions += UINT64_C(1745);
+        /* v0348/0352 ROM-backed 0x14288→0x1428c on punch10-family
+         * parks: F0 bit26 set → 1745; F0 bit26 clear (boot F0=0 and
+         * F0=0x200 on punch10) → 1743. natres F0 bit31 stays
+         * fail-closed above. */
+        cpu->executed_instructions +=
+            ((player_flags & (UINT32_C(1) << 26u)) != 0u)
+                ? UINT64_C(1745)
+                : UINT64_C(1743);
     } else {
         cpu->executed_instructions += UINT64_C(1652);
     }
