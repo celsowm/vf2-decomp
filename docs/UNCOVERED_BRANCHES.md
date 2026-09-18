@@ -785,6 +785,15 @@ proven `0x502a4`#siteB + `0x7fc0`#4 helpers (probe span 237 steps);
 a live whole-task drive for that composition remains open. See
 `decomp/i960/notes/tracks_bcd_v0347.md`.
 
+Status (v0348, items 1–4): fa_player `0x4505` is native-admitted on
+the measured punch10 shape (1745/4/4, table mask `& 0x1fff`,
+`+0x1a4` 0 or bit 5 only); warm `0x505`/`0x284` still fail closed.
+Site-B-only whole-task is structurally unreachable without a board
+write between cascade and `0x22dd4` (none in ROM). Coli dispatcher
+now pins measured sibling **9528/18/19** alongside warm
+**9214/18/19**. Native dispatch MATCH through **1000**. See
+`decomp/i960/notes/items_1to4_v0348.md`.
+
 Status (v0344-A, executor): `dmovt` reg-reg is implemented
 (exact `0x508d4` word + derived pair-copy unit, flag-neutral)
 and `mulo` sticky-sets `OVERFLOW` on unsigned overflow, which

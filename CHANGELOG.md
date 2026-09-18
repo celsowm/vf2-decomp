@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Itens 1–4 autônomos (v0348): fa_player selector **`0x4505`**
+  admitido nativo na forma punch10 (1745/4/4, tabelas mascaradas
+  `& 0x1fff`); site-B-only whole-task documentado inalcançável sem
+  mutar `0x508000` entre cascade e `0x22dd4`; pin coli não-warm
+  medido **9528/18/19** ao lado de 9214/18/19; endurance
+  `native-nth-dispatch` **MATCH até 1000**. See
+  `decomp/i960/notes/items_1to4_v0348.md`.
+
 - Tracks B–D autonomous slice (v0347): native dispatch **12–40**
   MATCH (CTest pin added for dispatch 12); fa_player `0x4505`
   measured complete on `punch10` (**1745** steps to `0x1428c`)
