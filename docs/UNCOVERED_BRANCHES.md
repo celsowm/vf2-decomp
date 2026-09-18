@@ -15,7 +15,8 @@ sixth dispatch validations plus the eleventh-dispatch continuation (the strict
 sixth-dispatch base now ends at the tenth `fa_game_info` entry with `8`
 repeated scheduler entries, so dispatches 7-10 are covered per-block inside
 the sixth command and `native-nth-dispatch 11` proves one further 37-block /
-2,166-instruction cycle exact).
+2,166-instruction cycle exact). v0347 measured MATCH through dispatch 40
+and pins dispatch 12 in CTest; see `decomp/i960/notes/tracks_bcd_v0347.md`.
 
 ## 1. Scheduler and task execution
 
@@ -774,6 +775,15 @@ lands `0x10dcc` at exact **884/7/9**. Procedure-only stand-in returns
 input variants, site-B-only entry, and hybrid whole-task shape pins
 for non-warm paths. See
 `decomp/i960/notes/fa_coli_exit_landing_v0346.md`.
+
+Status (v0347, tracks B–D): native `native-nth-dispatch` MATCH
+through dispatch **40** (CTest pin added at 12); no hard boundary
+in range. fa_player `0x4505` completes on `punch10` (1745 steps)
+but warm `0x505` still faults — bit-14 sibling recovery deferred.
+Coli site-B-only `0x22dd4` board-clear gate is wired with the
+proven `0x502a4`#siteB + `0x7fc0`#4 helpers (probe span 237 steps);
+a live whole-task drive for that composition remains open. See
+`decomp/i960/notes/tracks_bcd_v0347.md`.
 
 Status (v0344-A, executor): `dmovt` reg-reg is implemented
 (exact `0x508d4` word + derived pair-copy unit, flag-neutral)

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Tracks B–D autonomous slice (v0347): native dispatch **12–40**
+  MATCH (CTest pin added for dispatch 12); fa_player `0x4505`
+  measured complete on `punch10` (**1745** steps to `0x1428c`)
+  but warm `0x505` still faults — recovery stays fail-closed;
+  coli site-B-only `0x22dd4` board-clear gate wired via proven
+  `0x502a4`#siteB + `0x7fc0`#4 helpers (probe span **237**
+  steps). See `decomp/i960/notes/tracks_bcd_v0347.md`.
+
 - coli exit landing (v0346): measured live `call 0x225cc` at `0x22290`
   returns to the `ret` at `0x22294`, which pops to scheduler `0x10dcc`.
   `vf2_hybrid_coli_225cc_execute` now double-pops that ret when the

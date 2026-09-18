@@ -22135,10 +22135,52 @@ bit13_skip:
                 }
                 body += UINT64_C(1);
                 if ((board14 & (UINT32_C(1) << 9u)) == 0u) {
-                    return VF2_ERROR_UNSUPPORTED; /* call 0x502a4 */
+                    /* v0347 site-B-only at 0x22dd4: board bit 9 clear
+                     * runs balx 0x502a4 (link 0x22e0c, g1=0x503200,
+                     * r15=1) then call 0x7fc0#4 (g9=0x0100085e) to
+                     * 0x22e24. Probe span coli-225cc-entry + bit14 +
+                     * board 0x8800: 237 steps 0x22dd4→0x22e24.
+                     * Helpers already proven (v0344-B / v0345-A);
+                     * same instruction sequence as the site-A
+                     * continuation site-B tail. Fail closed if the
+                     * computed bx-out is not 0x22e20. */
+                    uint64_t site_body = 0u;
+                    uint32_t site_g0 = 0u;
+                    uint32_t site_g1 = 0u;
+                    uint32_t site_g2 = 0u;
+                    uint32_t site_ip = 0u;
+                    uint64_t helper_child = 0u;
+
+                    body += UINT64_C(6); /* bbs-nt + lda + lda + st + mov + balx */
+                    if (coli_502a4_body(
+                            machine,
+                            UINT32_C(0x00022e0c),
+                            UINT32_C(1),
+                            UINT32_C(0x00503200),
+                            &site_body, &site_g0, &site_g1, &site_g2,
+                            &site_ip) != VF2_OK ||
+                        site_ip != UINT32_C(0x00022e20)) {
+                        return VF2_ERROR_UNSUPPORTED;
+                    }
+                    body += site_body;
+                    body += UINT64_C(1); /* call 0x7fc0#4 */
+                    if (coli_7fc0_body(
+                            machine, site_g0, UINT32_C(0x0100085e),
+                            &helper_child) != VF2_OK) {
+                        return VF2_ERROR_UNSUPPORTED;
+                    }
+                    body += helper_child + UINT64_C(1);
+                    if (calls_out != NULL) {
+                        *calls_out += UINT64_C(1);
+                    }
+                    if (rets_out != NULL) {
+                        *rets_out += UINT64_C(1);
+                    }
+                    joined_22e24 = 1;
+                } else {
+                    body += UINT64_C(1); /* bbs 9 taken */
+                    joined_22e24 = 1;
                 }
-                body += UINT64_C(1); /* bbs 9 taken */
-                joined_22e24 = 1;
             } else {
                 body += UINT64_C(2); /* ld + bbs 14 not taken */
                 if ((flags_g8 & (UINT32_C(1) << 4u)) != 0u) {
