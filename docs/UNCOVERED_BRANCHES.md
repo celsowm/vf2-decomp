@@ -58,6 +58,16 @@ native lockstep (**332 cycles MATCH**), and redraws TEST MENU. Geometry
 FIFO and buffer-ram payloads are identical across those parks (color ramp,
 not a unique logo mesh). No ASCII `SEGA` tile on this input-driven path.
 
+### v0356 attract + player `0x27cc8` corridor (measured)
+
+Factory-like backup does not unlock attract/Sega tiles. The standard
+`0x4505` player drive from sixth reaches `0x270d4` in 1,749 instructions and
+`cvtri` at `0x00027cc8` in 1,709 more (3,458 total, matching the v0352
+trace). Wrapper `0x270d4` issues five measured `0x27b5c` calls; the C helper
+already covers that body on the `0x1428c` path. Admitting `0x270d4` remains
+open pending a live five-slot final-state pin.
+See `decomp/i960/notes/attract_player_27cc8_v0356.md`.
+
 ## 1. Scheduler and task execution
 
 Recovered scanning uses live registry strides, skips inactive descriptors and

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Attract/game-assign + player `0x27cc8` (v0356): backup factory-like no
+  sixth; COIN não sai do TEST MENU (v0355). Drive `0x4505` mede
+  **1749** insns até `0x270d4` e **1709** até `cvtri` em **`0x27cc8`**
+  (soma **3458** = trace v0352). Wrapper `0x270d4` = 5×`0x27b5c`
+  (g0/g3 tabelados) — helper C já existe no corredor `0x1428c`; admitir
+  `0x270d4` reaproveitando-o continua **fail-closed** sem pin de estado
+  final live dos cinco slots. See
+  `decomp/i960/notes/attract_player_27cc8_v0356.md`.
+
 - Input-driven display path (v0355): sob `vf2cycles` strict, **COIN+START**
   12 ciclos MATCH permanece **TEST MENU** (26 010 insns); **PUNCH** alcança
   **EXIT TEST MODE** naturalmente (`a4=0x8b`, countdown 320→310→290) e com
