@@ -802,6 +802,15 @@ plus negative. Coli live tail `g0=1` from `coli-22404-e1` reaches
 **9393/17/18** without `0x225cc`. Native dispatch MATCH through
 **5000**. See `decomp/i960/notes/close_open_items_v0349.md`.
 
+Status (v0350, remaining-open closeout): coli **live midbody**
+`g0=1` from `coli-midbody-22210` reaches `call 0x22290` / `0x225cc`
+and completes `0x10dcc` in **380/9/10** (`g13=0x514940` recipe).
+`0x4505` ROM-backed **1745/4/4** now also on `sixth-regen` and
+`player-14288-fifth-rt` (not only punch10 files); sibling measured
+counts boot **1743**, natres **1659** stay fail-closed in C. Native
+dispatch MATCH through **8000**. See
+`decomp/i960/notes/close_open_v0350.md`.
+
 Status (v0344-A, executor): `dmovt` reg-reg is implemented
 (exact `0x508d4` word + derived pair-copy unit, flag-neutral)
 and `mulo` sticky-sets `OVERFLOW` on unsigned overflow, which

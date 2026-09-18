@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Fecho dos abertos restantes (v0350): coli live midbody
+  `g0=1→0x225cc→0x10dcc` medido **380/9/10** (call `0x22290` em
+  129 passos; `g13=0x514940` no park midbody); `0x4505` replicado
+  em **`sixth-regen`** e **`player-14288-fifth-rt`** (1745/4/4,
+  estado final punch10) — prova independente do arquivo punch10;
+  shapes irmãos boot **1743** e natres **1659** documentados
+  fail-closed; endurance MATCH até **8000**. See
+  `decomp/i960/notes/close_open_v0350.md`.
+
 - Fecho dos abertos (v0349): punch10-t6/pf5/type6 reproduzem
   referência `0x4505` **1745/4/4**; C fail-closed em F0 bit31/1
   (parks `player-14288-*`); unit `test_player_19ef8_selector_4505`;
