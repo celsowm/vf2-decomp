@@ -1634,6 +1634,7 @@ static void test_frame_dispatch_tick(void)
     CHECK(vf2_model2a_write(&machine, UINT32_C(0x00500030), &(uint8_t){14}, 1u) == VF2_OK);
     CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00520050), UINT32_C(1)) == VF2_OK);
     CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00500068), 0u) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00550000), UINT32_C(1)) == VF2_OK);
     enter_parent(&cpu, UINT32_C(0x0000a6c0));
     memset(&report, 0, sizeof(report));
     CHECK(vf2_hybrid_post_frame_bridge_execute(&machine, &cpu, &report) == VF2_OK);
@@ -1706,6 +1707,52 @@ static void test_frame_dispatch_tick(void)
     CHECK(report.recovered_procedure_returns == UINT64_C(4));
     CHECK(vf2_model2a_read(&machine, UINT32_C(0x00500030), &selector, 1u) == VF2_OK);
     CHECK(selector == UINT8_C(0));
+
+    /* Phase14 not-ready (ctr==0, 0x550000!=1) is the measured 0x9444
+     * thunk boundary; fail closed until that handoff is recovered. */
+    write_rom_u32(
+        rom, UINT32_C(0x0000aac4) + UINT32_C(14 * 4), UINT32_C(0x0000c0a4)
+    );
+    CHECK(vf2_model2a_write(&machine, UINT32_C(0x0050002a), &(uint8_t){3}, 1u) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, UINT32_C(0x00500030), &(uint8_t){14}, 1u) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00520050), UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00550000), UINT32_C(0)) == VF2_OK);
+    enter_parent(&cpu, UINT32_C(0x0000a6c0));
+    memset(&report, 0, sizeof(report));
+    CHECK(vf2_hybrid_post_frame_bridge_execute(&machine, &cpu, &report) == VF2_ERROR_UNSUPPORTED);
+
+    /* Phase15 special mask clusters (0x700/0x540/0x380/0x1c0) blit on the
+     * oracle but are not recovered; fail closed instead of silent decrement. */
+    write_rom_u32(
+        rom, UINT32_C(0x0000aac4) + UINT32_C(15 * 4), UINT32_C(0x0000c268)
+    );
+    CHECK(vf2_model2a_write(&machine, UINT32_C(0x0050002a), &(uint8_t){3}, 1u) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, UINT32_C(0x00500030), &(uint8_t){15}, 1u) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00500804), UINT32_C(0x00530000)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00500808), UINT32_C(0x00531000)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00530000), UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00531000), UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00550000), UINT32_C(0)) == VF2_OK);
+    {
+        const uint16_t special_masks[] = {
+            UINT16_C(0x700), UINT16_C(0x540), UINT16_C(0x380), UINT16_C(0x1c0)
+        };
+        size_t mask_index = 0u;
+
+        for (mask_index = 0u; mask_index < sizeof(special_masks) / sizeof(special_masks[0]);
+             ++mask_index) {
+            CHECK(vf2_model2a_write(&machine, UINT32_C(0x0050002a), &(uint8_t){3}, 1u) == VF2_OK);
+            CHECK(vf2_model2a_write(&machine, UINT32_C(0x00500030), &(uint8_t){15}, 1u) == VF2_OK);
+            CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00530000), UINT32_C(0)) == VF2_OK);
+            CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00531000), UINT32_C(0)) == VF2_OK);
+            write_test_u16(&machine, UINT32_C(0x00500028), special_masks[mask_index]);
+            enter_parent(&cpu, UINT32_C(0x0000a6c0));
+            memset(&report, 0, sizeof(report));
+            CHECK(vf2_hybrid_post_frame_bridge_execute(&machine, &cpu, &report) ==
+                  VF2_ERROR_UNSUPPORTED);
+            CHECK(read_test_u16(&machine, UINT32_C(0x00500028)) == special_masks[mask_index]);
+        }
+    }
 
     vf2_model2a_shutdown(&machine);
     free(main_data);

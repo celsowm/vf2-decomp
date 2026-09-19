@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Cauda sel3 + fail-closed phase14/15 (v0369): oráculo a partir do
+  park phase14/ready=0 mede thunk **0x9444** em **11** passos (phase
+  **não** avança; resume 400k permanece 0x0e em spin `0x4c7xx`).
+  Workers forçados: **15→16** (mask=1, ctr=128), **16→17**, **17→0**.
+  ROM phase15 compara mask com **0x700/0x540/0x380/0x1c0** e blita
+  descriptors main_data (ex. `0x02a69cd2` 7×26 → glyphs **0x88xx** no
+  tile plane `0x01000124`); **não** é string SEGA nomeada. C agora
+  **fail-closed** nesses masks e no not-ready de phase14. Logo 3D
+  continua unwitness. See
+  `decomp/i960/notes/attract_tail_phase15_masks_v0369.md`.
+
 - Pin oracle final-status `0x4bf90` (v0368): com counters 0 e ready=1
   o oráculo executa **12** passos até `0x4bfdc` e grava
   **`0x550000=0`**; ctr0=1 ou ctr2=1 mantêm ready=1 (6/10 passos).

@@ -15067,14 +15067,23 @@ static vf2_status execute_selector3_phase14(
     if (status == VF2_OK) {
         status = vf2_model2a_read_u32(machine, pointer + UINT32_C(0x50), &counter);
     }
-    if (status == VF2_OK) {
-        --counter;
-        status = vf2_model2a_write_u32(machine, pointer + UINT32_C(0x50), counter);
+    if (status != VF2_OK) {
+        return status;
     }
-    if (status == VF2_OK && counter == 0u) {
+    /* ROM cmpdeco compares the live countdown with 0 first: a zero counter
+     * branches to the ready wait without storing; a nonzero counter stores
+     * counter-1 and returns. Only the zero/ready!=1 path is the measured
+     * 0x9444 thunk (11 oracle instructions) and stays fail-closed. */
+    if (counter == 0u) {
         status = vf2_model2a_read_u32(machine, UINT32_C(0x00550000), &flags);
+        if (status == VF2_OK && flags != UINT32_C(1)) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        return status;
     }
-    return status;
+    return vf2_model2a_write_u32(
+        machine, pointer + UINT32_C(0x50), counter - UINT32_C(1)
+    );
 }
 
 static vf2_status execute_selector3_phase8(
@@ -15195,6 +15204,15 @@ static vf2_status execute_selector3_phase15(
         }
         if (status == VF2_OK && (flags & (UINT32_C(1) << 5u)) == 0u) {
             status = read_u16(machine, UINT32_C(0x00500028), &counter);
+            /* ROM 0xc268 special clusters fire when the u16 mask equals
+             * 7<<8 / 21<<6 / 7<<7 / 7<<6; those blit paths are measured
+             * on the oracle but not yet recovered. Fail closed instead of
+             * silently decrementing past them. */
+            if (status == VF2_OK &&
+                (counter == UINT16_C(0x700) || counter == UINT16_C(0x540) ||
+                 counter == UINT16_C(0x380) || counter == UINT16_C(0x1c0))) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
             if (status == VF2_OK) {
                 counter = (uint16_t)(counter - UINT16_C(1));
                 status = write_u16(machine, UINT32_C(0x00500028), counter);

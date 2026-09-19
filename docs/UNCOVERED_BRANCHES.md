@@ -135,6 +135,22 @@ After a measured clear, selector-3 phase14 still does not store
 `phase+1`; named 3D logo remains unwitnessed.
 See `decomp/i960/notes/final_status_pin_v0368.md`.
 
+### v0369 sel3 tail oracle + phase14/15 fail-closed (measured)
+
+From the attract phase-14 park with `0x550000` cleared, the oracle
+measures phase-14 not-ready at **11** instructions to thunk
+`0x00009444` and does **not** store `phase+1` (400k-step resume stays
+phase **0x0e** in the `0x4c7xx` object spin). Forced workers measure
+phase **15→16** (u16 mask 1, task countdown armed **128**), **16→17**,
+and **17→0**. ROM phase-15 special clusters fire when the u16 mask is
+**0x700 / 0x540 / 0x380 / 0x1c0** and blit `0x8f1c` descriptors from
+main_data (e.g. `0x02a69cd2` 7×26 → tile glyphs **0x88xx** at
+`0x01000124`); that payload is sequential glyph indices, **not** a
+named SEGA 3D mesh. Recovered C now returns `VF2_ERROR_UNSUPPORTED`
+for those special masks and for the phase-14 not-ready thunk path.
+Named 3D logo remains unwitnessed. See
+`decomp/i960/notes/attract_tail_phase15_masks_v0369.md`.
+
 ### v0354 EXIT TEST MODE → warm-boot attract (measured)
 
 From the sixth-dispatch park at frame-dispatch `0x0000a6c0`, forcing phase
