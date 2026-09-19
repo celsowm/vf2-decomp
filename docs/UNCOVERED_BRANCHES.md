@@ -197,6 +197,25 @@ polygons.bin. Host-side triangle decode of measured offsets produces
 mesh**. Named 3D logo remains unwitnessed; do not invent a mesh name.
 See `decomp/i960/notes/attract_poly_objects_v0372.md`.
 
+### v0375 host mesh pipeline + TGP transforms absent (measured, fail-closed logo)
+
+Host analysis tools only (no recovered-C semantics change): multi-view
+raster `tools/python/render_mesh_host.py` and object-table rank
+`tools/python/rank_poly_objects.py` over **4096** poly-ROM ids at
+`0x020e0004`. Dense meshes are overwhelmingly **skip3**-coherent
+(`tgp.c` `geometry_mode&3<2`; ex. `0x5c7=515` tris, `0x1cb/0x33e=384`);
+attract family `0x88/0x140–0x157` stays low-density under host float-link
+(best both_agree: `0x148` 10/9). Streaming of attract/boot FIFO+geo
+traces measures **0** accepted TGP class-**0x09/0x0b/0x0c** (focus/matrix/
+translate) commands after protocol false-class filtering — class bits on
+FIFO word0 collide with color immediates (`0x14802929`, …). Measured
+host-usable Work-RAM only: display triple `(6.0f, 4.7f, 18.5f)` at
+`*(u32*)0x50084c+0x54`, camera-scale globals `0x501084/0x501088=600.0f`.
+`vf2probe --max-steps 0` is **not** a park freeze. Named 3D logo mesh
+remains **unwitnessed**. See
+`decomp/i960/notes/render_mesh_host_v0375.md`,
+`object_rank_v0375.md`, `fifo_transforms_v0375.md`.
+
 ### v0354 EXIT TEST MODE → warm-boot attract (measured)
 
 From the sixth-dispatch park at frame-dispatch `0x0000a6c0`, forcing phase

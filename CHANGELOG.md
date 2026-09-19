@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Host mesh pipeline + FIFO transform absence (v0375): **análise visual**
+  das malhas polygon-ROM medidas — não recovery, **logo 3D nomeado
+  fail-closed**. Tools: `render_mesh_host.py` (multi-view PNG, z-buffer,
+  dual-decode skip3/noskip alinhado a `tgp.c`), `rank_poly_objects.py`
+  (4096 ids da tabela `0x020e0004`; skip3 primário — malhas densas
+  **skip3_dominant**, ex. `0x5c7=515`, `0x1cb/0x33e=384`, `0x08f=257`),
+  `extract_fifo_transforms.py` + `apply_tgp_transform.py`. Oracle
+  attract/boot: commands TGP class **0x09/0x0b/0x0c** (focus/matrix/
+  translate) **ausentes** após filtro de protocolo FIFO; bits 23–27
+  colidem com cores (`0x14802929`…). Estado host medido: display triple
+  `*(u32*)0x50084c+0x54..5c = (6.0f, 4.7f, 18.5f)`, escala câmera
+  `0x501084/0x501088=600.0f`. `vf2probe --max-steps 0` **não** congela
+  o park (preferir snap-parser). PNGs em `out/attr-render/` (não git).
+  See `decomp/i960/notes/render_mesh_host_v0375.md`,
+  `object_rank_v0375.md`, `fifo_transforms_v0375.md`.
+
 - Attract object-id attribution (v0374): natural phase5 geo/FIFO writes
   de table w0 atribuídos a **`0x7d08`/`0x7d0c`** (helper `0x7c60`).
   Callers que carregam `g0`: **`0x190f0`** (ponteiro de estado),
