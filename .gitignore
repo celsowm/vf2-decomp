@@ -29,6 +29,10 @@ Thumbs.db
 *.sav
 *.state
 
+# Unlicensed third-party reference snapshot (research-only, all rights
+# reserved): keep local, never commit. See THIRD_PARTY.md.
+/third_party/stfdecomp/
+
 /roms/*
 !/roms/README.md
 !/roms/.gitkeep

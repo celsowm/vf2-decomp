@@ -14,6 +14,22 @@ MAME sugere → nosso executor/oráculo mede → testes diferencial provam
 Igual ao fluxo Ghidra → medida → C. Semântica de jogo continua vindo
 **só** de evidência medida na ROM original.
 
+## `stfdecomp/`
+
+Snapshot de referência (untracked) do disassembly source-available de
+**Sonic The Fighters** (Model 2, i960, mesma família AM2 que VF2).
+**Não é open source**: README próprio diz sem licença / todos os
+direitos reservados, só pesquisa. Vale o mesmo princípio:
+
+```text
+STF sugere → nosso executor/oráculo mede na ROM de VF2 → diferencial prova
+```
+
+- Não copiar assembly/semântica para `src/recovered/` nem linkar no build.
+- Não comitar ROMs (ex.: `schamp.zip`/`sfight.zip`), `.vf2snap` ou traces.
+- Metadados compactos derivados (mapa de símbolos/endereços) vivem em
+  `decomp/i960/notes/stf_homology_map.md`, nunca como código recuperado.
+
 ## `mame-mb86233/`
 
 | Arquivo | Origem MAME mame0289 |
