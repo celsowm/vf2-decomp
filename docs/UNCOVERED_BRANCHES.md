@@ -72,6 +72,16 @@ reference executor then fails closed at **COBR `teste` @ `0x00019024`**
 (fighter/object attract body). Game-title 3D logo remains unwitnessed.
 See `decomp/i960/notes/attract_nav_gate_teste_v0362.md`.
 
+### v0364 COBR `teste` admitted + attract TGP FIFO (measured)
+
+Reference executor now implements architectural COBR `test*` (0x20–0x27)
+as `dest = cc ? 0xffffffff : 0`. Attract with `0x500704` cleared advances
+past `0x19024` (sel 3 / phase 3, countdown 256→253); long park shows
+texture-ram first-64k non-zero (**4360**) versus TEST baseline **0**.
+`--memory-trace` measures **1157** copro FIFO writes at `0x00884000`
+during that attract body (function codes + IEEE-like words). Game-title
+3D logo mesh still unwitnessed. See `decomp/i960/notes/teste_attract_tgp_v0364.md`.
+
 ### v0354 EXIT TEST MODE → warm-boot attract (measured)
 
 From the sixth-dispatch park at frame-dispatch `0x0000a6c0`, forcing phase

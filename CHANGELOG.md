@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Executor COBR `teste` + attract TGP (v0364): `test*` (op 0x20–0x27)
+  grava `0xffffffff/0` no operando a partir de `compare_result`
+  (unit ROM `0x22780000`); `vf2_tests` all passed; focused CTest **7/7**
+  sem regressão sixth-dispatch. Attract nav-clear atravessa `0x19024`
+  (sel3/phase3, cd 256→253, sem TEST); texture first-64k **nz=4360**
+  no park long vs 0 em TEST. Memory-trace: **1157** writes TGP FIFO
+  `0x884000` com function codes e floats no attract fase 3.
+  Logo 3D/malha SEGA **não** pinado. See
+  `decomp/i960/notes/teste_attract_tgp_v0364.md`.
+
 - Referência MAME TGP/Model 2 (v0363): dump limpo em `third_party/`
   (mb86233 + model2.cpp, BSD-3-Clause) + `tools/python/tgp_disasm_mame.py`
   analysis-only. Política: MAME sugere → oráculo mede → C prova; sem

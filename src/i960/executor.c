@@ -342,6 +342,39 @@ static bool condition_matches(
     return false;
 }
 
+/* COBR test* (op 0x20-0x27): write 0xffffffff/0 into src1 from compare CC. */
+static bool test_condition_matches(
+    const char *mnemonic,
+    vf2_i960_compare_result result
+)
+{
+    if (strcmp(mnemonic, "testno") == 0) {
+        return condition_matches("bno", result);
+    }
+    if (strcmp(mnemonic, "testg") == 0) {
+        return condition_matches("bg", result);
+    }
+    if (strcmp(mnemonic, "teste") == 0) {
+        return condition_matches("be", result);
+    }
+    if (strcmp(mnemonic, "testge") == 0) {
+        return condition_matches("bge", result);
+    }
+    if (strcmp(mnemonic, "testl") == 0) {
+        return condition_matches("bl", result);
+    }
+    if (strcmp(mnemonic, "testne") == 0) {
+        return condition_matches("bne", result);
+    }
+    if (strcmp(mnemonic, "testle") == 0) {
+        return condition_matches("ble", result);
+    }
+    if (strcmp(mnemonic, "testo") == 0) {
+        return condition_matches("bo", result);
+    }
+    return false;
+}
+
 static bool direct_compare_condition(
     const char *mnemonic,
     uint32_t left,
@@ -1121,6 +1154,15 @@ static vf2_status execute_instruction(
     if (strcmp(mnemonic, "b") == 0) {
         cpu->ip = instruction->target;
         return VF2_OK;
+    }
+    if (instruction->format == VF2_I960_FORMAT_COBR &&
+        instruction->operand_count == 1u &&
+        strncmp(mnemonic, "test", 4u) == 0) {
+        const uint32_t value =
+            test_condition_matches(mnemonic, cpu->compare_result)
+                ? UINT32_MAX
+                : 0u;
+        return set_register(cpu, &instruction->operands[0], value);
     }
     if (instruction->flow == VF2_I960_FLOW_BRANCH && instruction->conditional &&
         instruction->format == VF2_I960_FORMAT_CTRL) {
