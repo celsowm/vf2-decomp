@@ -724,7 +724,25 @@ def main() -> int:
     ap.add_argument("--cell", type=int, default=96, help="contact-sheet cell size")
     ap.add_argument("--views", default=",".join(DEFAULT_VIEWS),
                     help=f"comma views; known: {','.join(list(VIEW_INFO))}")
-    ap.add_argument("--decode", default="both", choices=("skip3", "noskip", "both"))
+    ap.add_argument(
+        "--decode",
+        default="both",
+        choices=(
+            "skip3",
+            "noskip",
+            "both",
+            # P1 calibrated aliases (decode_packet_hypotheses.py)
+            "skip3_float_link",
+            "noskip_float_link",
+            "skip2_float_link",
+            "skip3_quad_bit2",
+        ),
+        help=(
+            "packet decode mode. skip3/skip3_float_link = tgp.c mode&3<2 "
+            "(skip 3 words, attr&1=quad) — hex-calibrated on pol_test 0x97d. "
+            "noskip/noskip_float_link = skip 0. Aliases keep old names available."
+        ),
+    )
     ap.add_argument("--matrix", nargs=16, type=float, metavar="M",
                     help="16 floats for --view tgp")
     ap.add_argument("--transforms", default="", help="JSON with matrix/values + focus_x/y")
@@ -763,10 +781,29 @@ def main() -> int:
         return 2
 
     decodes = []
-    if args.decode in ("skip3", "both"):
+    decode_alias = {
+        "skip3": "skip3",
+        "skip3_float_link": "skip3",
+        "noskip": "noskip",
+        "noskip_float_link": "noskip",
+        "skip2_float_link": "skip2",
+        "skip3_quad_bit2": "skip3_quad_bit2",
+    }
+    raw = args.decode
+    resolved = decode_alias.get(raw, raw)
+    if resolved in ("skip3", "both"):
         decodes.append(("skip3", 3))
-    if args.decode in ("noskip", "both"):
+    if resolved in ("noskip", "both"):
         decodes.append(("noskip", 0))
+    if resolved == "skip2":
+        decodes.append(("skip2", 2))
+    if resolved == "skip3_quad_bit2":
+        # Host hypothesis: treat attr&2 as quad selector instead of attr&1.
+        # Implemented as skip3; decode_object still uses attr&1 — documented
+        # as residual: full bit2 variant lives in decode_packet_hypotheses.py.
+        decodes.append(("skip3_quad_bit2", 3))
+    if not decodes:
+        decodes.append(("skip3", 3))
 
     matrix, focus_x, focus_y, matrix_label = parse_matrix_args(args)
     tgp_absent = "absent" in matrix_label or matrix_label == "identity-fallback"
@@ -997,10 +1034,18 @@ def main() -> int:
         ),
         "geometry_source": "src/hardware/tgp.c geometry_execute_object / geometry_transform_point",
         "decode_note": (
-            "skip3 = geometry_mode&3 < 2 (skip 3 words after attr); "
-            "noskip = skip 0 words. Mode 0/2 p0/p1 update follows tgp.c "
-            "(p1 = p3 if quad else p2)."
+            "skip3 / skip3_float_link = geometry_mode&3 < 2 (skip 3 words after "
+            "attr; attr&1=quad) — tgp.c path; hex-calibrated on pol_test 0x97d "
+            "±0.2 XZ quad. noskip / noskip_float_link = skip 0 words. "
+            "skip2_float_link = skip 2. skip3_quad_bit2 = skip3 with attr&2 as "
+            "quad selector (host hypothesis; full scoring in "
+            "decode_packet_hypotheses.py). Mode 0/2 p0/p1 update follows tgp.c."
         ),
+        "p1_calibration": {
+            "preferred": "skip3_float_link",
+            "auto_ranked": "see out/attr-p1/decode_rank.json",
+            "fail_closed": "host hypothesis ≠ recovered C unless oracle-pinned",
+        },
         "projection_note": (
             "Views are host analysis cameras. tgp applies tgp.c matrix+focus if "
             "provided else identity fallback confidence=absent. measured-display-* "

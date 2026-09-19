@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+- Packet boundary pol_test + scene phase5 + matrix ports (v0377):
+  **P1** mede `fa_pol_test@0x21a00` + helpers `0x7c60`/`0x7f24`:
+  i960 grava **apenas** tabela w0/w1/w2 + `r11=-1` + protocolo FIFO
+  (`0x800101,0x1800303,0x3000606,0x1a003434,0x1000202`); **vértices
+  de polygons.bin nunca aparecem** no oracle i960 — TGP consome via
+  `w2` fora do guest. Decode vertex-stream **ABSENT/UNPROVEN**;
+  `skip3_float_link` mantido só como hipótese host (gold hex id
+  `0x97d` attr `0xe1001601` → quad). pol_test `w3=((n-1)<<16)|n`.
+  **P2**: 11 portos (aperture `0x90e000`, geo `0x800000/804000`,
+  function `0x880000`, upload `0x980000`, work-RAM, FIFO…) — matrix
+  TGP/focus **ausentes** (`confidence=absent`); aperture só serializa
+  display triple; `0x0b001616` é tag copro classe 0x16. **P3**: cena
+  attract phase5 com **112** ids medidos + tags FIFO
+  `confidence=protocol_tag` (não paleta de jogo); strips temporais
+  + grid em `out/attr-render/v0377/scene/`. Logo 3D nomeado
+  **fail-closed**. Tools Python + notes; sem mudança de semântica
+  recovery C nesta fatia. See
+  `decomp/i960/notes/packet_format_p1_v0377.md`,
+  `matrix_ports_p2_v0377.md`, `scene_phase5_p3_v0377.md`.
+
 - Recovery C do submit polygon `0x7c60` + camera store IPs (v0376):
   **`vf2_recovered_polygon_object_submit`** (`src/recovered/
   polygon_object_submit.c`) recupera o body medido `0x7c60–0x7d10`:

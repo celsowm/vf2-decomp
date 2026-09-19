@@ -249,6 +249,33 @@ non-uniform matrix exists) and optional `--view tgp` JSON hook
 `decomp/i960/notes/tgp_camera_state_v0376.md`,
 `host_render_views_v0376.md`.
 
+### v0377 pol_test packet boundary + matrix ports + phase5 scene
+
+**P1 (packet):** `fa_pol_test@0x21a00` path A gold FIFO measured
+`0x800101,0x1800303,0x3000606` + floats + helper `0x1a003434` +
+close `0x1000202`; helper `0x7f24` palette-like geo words from
+`0x501400`. Per-id submit writes only object-table **w0/w1/w2** and
+`r11=-1` — **polygon-ROM vertex floats never appear on i960 geo/FIFO
+writes**. TGP consumes poly ROM via `w2` address outside the guest
+oracle. Host `skip3_float_link` remains an **unproven** hypothesis
+(hex-calibrated on id `0x97d` attr `0xe1001601`); vertex-stream
+decode **ABSENT/UNPROVEN** — fail-closed for recovered C.
+See `decomp/i960/notes/packet_format_p1_v0377.md`.
+
+**P2 (matrix ports):** Eleven ports checked (aperture `0x0090e000`,
+display object, camera task, work-RAM `0x500000–0x520000`, TGP
+function `0x00880000`, upload `0x00980000`, geo control/program,
+copro FIFO): **no measured TGP 3x4 matrix / focus**. Aperture holds
+display triple only; camera `+0x5c/60` are FIFO arith scratch.
+`out/attr-transform/measured_view.json` stays
+`confidence=absent`. See `matrix_ports_p2_v0377.md`.
+
+**P3 (scene):** Streaming `fifo-phase5.jsonl` yields **336** object
+events / **112** unique ids; host multi-object layout labeled
+`no_scene_matrix`; FIFO `0xAABBCCDD` family treated as
+`protocol_tag` (not game palette). See `scene_phase5_p3_v0377.md`.
+Named 3D logo remains **unwitnessed**.
+
 ### v0354 EXIT TEST MODE → warm-boot attract (measured)
 
 From the sixth-dispatch park at frame-dispatch `0x0000a6c0`, forcing phase
