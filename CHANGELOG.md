@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Pin de condition codes por caminho no `phase17_zero` (v0380):
+  diferencial 202/202 (era 0/189). Trace de 682k steps agrupa todos
+  os casos em 12 tails com cauda comum sem compares
+  (`ret @ 0xa6f4 → 0x1004`); cada saída nativa replica seu último
+  compare medido com AC lockstep (word-scan unsigned vs `0xffffff`,
+  tail `fa_control0` como função do mode byte `*(0x50002b)`,
+  preâmbulo `cmpobe 0, *0x5000a6`, saída do countdown do rect, tail
+  index8 no `player0+0x158` pré-update, tails por next de transição).
+  Estabelecido: no path `vf2_i960_run`, `executor.c` compila com
+  `vf2_i960_step=vf2_i960_step_legacy` (COBR `cmpo/cmpi` escreve CC,
+  `bbs/bbc` nunca — 3312 execuções, zero mudanças). `ctest` 62/62
+  sem regressões. See
+  `decomp/i960/notes/phase17_cc_pins_v0380.md`.
+
 - Recovery C de `fa_pol_test` path A + helper `0x7f24` (v0378):
   `vf2_recovered_pol_test_path_a` cobre gate `mode>=2`, pack de 6
   words, FIFO gold de 15 words, loop/final submits `0x986/0x985` via

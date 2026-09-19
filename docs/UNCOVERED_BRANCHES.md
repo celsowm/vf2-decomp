@@ -355,8 +355,26 @@ bits together. Recovered exits pin measured last-cmpo CC for `fa_kill_osage`,
 `fa_osage0/1`, and first-sweep scheduler finish (GREATER at `0xa014`).
 `native-first-dispatch` and `native-sixth-dispatch` MATCH. Player wrapper
 `0x270d4` is native-admitted: five-slot ROM pin at **9235** insns,
-cursors `g3=0x520630 g5=0x50ea98 g6=0x50e2d0`. `phase17_zero` still fails
-per-path CC (open). Degenerate record/scratch remains fail-closed.
+cursors `g3=0x520630 g5=0x50ea98 g6=0x50e2d0`. Degenerate
+record/scratch remains fail-closed.
+
+### v0380 `phase17_zero` per-path CC pinned (202/202 green)
+
+The `phase17_zero` differential failed on final `compare_result` only
+(native EQUAL/NONE vs oracle LESS/GREATER/EQUAL per path). A 682k-step
+reference trace grouped all cases into 12 tail shapes sharing one
+compare-free common tail (`ret @ 0xa6f4 → 0x1004`); each native exit
+now replicates its measured last compare with AC bits in lockstep:
+word-scan exit (unsigned order vs `0xffffff`), fa_control0 tail as a
+function of live mode byte `*(0x50002b)`, preamble
+(`cmpobe 0, *0x5000a6`), rect countdown exit, index8 tail on the
+pre-update `player0+0x158` field, and per-next transition tails.
+Along the way: in the `vf2_i960_run` path `executor.c` compiles with
+`vf2_i960_step=vf2_i960_step_legacy`, so legacy COBR semantics apply
+(`cmpo/cmpi` incl. branch variants write CC; `bbs/bbc` never do —
+3312 executions, zero CC changes). Full `ctest` 62/62 with no corridor
+regressions. See
+`decomp/i960/notes/phase17_cc_pins_v0380.md`.
 
 ## 1. Scheduler and task execution
 

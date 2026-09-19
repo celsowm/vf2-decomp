@@ -11146,13 +11146,39 @@ static vf2_status execute_frame_phase17_zero_control_menu(
             return status;
         }
         if (next_index == UINT8_C(0)) {
-            set_equal_condition(cpu);
+            /* Measured fa_control0 tail on to-0 transitions
+             * (cmpobe r14=2/3, r15=mode @ 0x1b9f8/0x1ba04): first taken
+             * at mode 2, second at mode 3, otherwise unsigned order of
+             * 2 against the mode byte. Later bbc/bbs leave condition
+             * codes intact and no later compare runs. */
+            uint8_t mode_value = 0u;
+
+            status = vf2_model2a_read(
+                machine, UINT32_C(0x0050002b), &mode_value, sizeof(mode_value)
+            );
+            if (status != VF2_OK) {
+                return status;
+            }
+            if (mode_value == UINT8_C(2) || mode_value == UINT8_C(3)) {
+                set_equal_condition(cpu);
+            } else {
+                set_unsigned_condition(cpu, UINT32_C(2), (uint32_t)mode_value);
+            }
             account_nested_procedure(cpu, UINT64_C(6), UINT64_C(6));
             if (cpu->maximum_local_frame_depth < cpu->local_frame_depth + 4u) {
                 cpu->maximum_local_frame_depth = cpu->local_frame_depth + 4u;
             }
         } else {
-            set_equal_condition(cpu);
+            /* Measured transition tails: to-4 ends at the glyph-loop
+             * terminator (cmpi r6,0 @ 0x7fd4, single EQUAL exit); every
+             * other measured transition ends at the word-scan loop
+             * fall-through (cmpobl @ 0x9478, GREATER on all 20 measured
+             * shapes). Later regions write no compares. */
+            if (next_index == UINT8_C(4)) {
+                set_equal_condition(cpu);
+            } else {
+                set_greater_condition(cpu);
+            }
             account_nested_procedure(
                 cpu, transition_extra_calls, transition_extra_calls
             );
@@ -11230,6 +11256,25 @@ static vf2_status execute_frame_phase17_zero_control_menu(
             cpu->registers[VF2_I960_G0_REGISTER + 7u] = player0;
             cpu->registers[VF2_I960_G0_REGISTER + 8u] = player1;
             cpu->registers[VF2_I960_G14_REGISTER] = UINT32_C(0x000550d4);
+            /* Measured preamble (cmpobe 0, r3=*0x5000a6 @ 0x10b64):
+             * EQUAL on a zero phase byte, otherwise LESS. No later
+             * compare runs on this short latched shape. */
+            {
+                uint8_t phase_byte = 0u;
+
+                status = vf2_model2a_read(
+                    machine, UINT32_C(0x005000a6),
+                    &phase_byte, sizeof(phase_byte)
+                );
+                if (status != VF2_OK) {
+                    return status;
+                }
+                if (phase_byte == 0u) {
+                    set_equal_condition(cpu);
+                } else {
+                    set_unsigned_condition(cpu, UINT32_C(0), (uint32_t)phase_byte);
+                }
+            }
             account_nested_procedure(cpu, UINT64_C(2), UINT64_C(2));
             if (cpu->maximum_local_frame_depth < cpu->local_frame_depth + 2u) {
                 cpu->maximum_local_frame_depth = cpu->local_frame_depth + 2u;
@@ -11267,6 +11312,23 @@ static vf2_status execute_frame_phase17_zero_control_menu(
             cpu->registers[VF2_I960_G0_REGISTER + 7u] = player0;
             cpu->registers[VF2_I960_G0_REGISTER + 8u] = player1;
             cpu->registers[VF2_I960_G14_REGISTER] = 0u;
+            /* Same measured preamble as the 43-step latched exit. */
+            {
+                uint8_t phase_byte = 0u;
+
+                status = vf2_model2a_read(
+                    machine, UINT32_C(0x005000a6),
+                    &phase_byte, sizeof(phase_byte)
+                );
+                if (status != VF2_OK) {
+                    return status;
+                }
+                if (phase_byte == 0u) {
+                    set_equal_condition(cpu);
+                } else {
+                    set_unsigned_condition(cpu, UINT32_C(0), (uint32_t)phase_byte);
+                }
+            }
             account_nested_procedure(cpu, UINT64_C(2), UINT64_C(2));
             if (cpu->maximum_local_frame_depth < cpu->local_frame_depth + 2u) {
                 cpu->maximum_local_frame_depth = cpu->local_frame_depth + 2u;
@@ -11705,7 +11767,19 @@ static vf2_status execute_frame_phase17_zero_control_menu(
         cpu->registers[VF2_I960_G0_REGISTER + 13u] = 0u;
         cpu->registers[VF2_I960_G14_REGISTER] = UINT32_C(0x000550d4);
         cpu->registers[VF2_I960_G0_REGISTER + 15u] = 0u;
-        set_equal_condition(cpu);
+        /* Measured tails at this idle exit: menu-6 blank shapes (nav
+         * bit10 or runtime bit9) end at the rect-helper countdown
+         * (cmpdeco @ 0x8f04, single EQUAL exit); every other measured
+         * idle shape here (144 cases, menus 1,2,3,5,6,7,9,10,12,13)
+         * ends at the word-scan loop fall-through (cmpobl @ 0x9478,
+         * GREATER). No later compare runs on either shape. */
+        if (menu_index == UINT8_C(6) &&
+            (((navigation_flags & (UINT32_C(1) << 10u)) != 0u) ||
+             ((runtime_flags & (UINT32_C(1) << 9u)) != 0u))) {
+            set_equal_condition(cpu);
+        } else {
+            set_greater_condition(cpu);
+        }
         account_nested_procedure(
             cpu, active_nested_calls, active_nested_calls
         );
@@ -11875,6 +11949,40 @@ static vf2_status execute_frame_phase17_zero_control_menu(
                 status = read_u16(
                     machine, player0 + UINT32_C(0x158), &value
                 );
+                if (status == VF2_OK) {
+                    /* Measured index8 tail on the pre-update field
+                     * (ldos 0x158(g7) @ 0x5755c/0x57580): input bit15
+                     * takes the decrement arm (cmpobge r13=0x1a0 @
+                     * 0x57560), bit14 the increment arm (cmpoble
+                     * r13=0xff00 @ 0x57584); without either bit the
+                     * tail never runs and the preamble compare
+                     * (cmpobe 0, *0x5000a6 @ 0x10b64) stands. Later
+                     * bbc/bbs leave condition codes intact. */
+                    if ((effective_input_flags & (UINT32_C(1) << 15u)) != 0u) {
+                        set_unsigned_condition(
+                            cpu, UINT32_C(0x1a0), (uint32_t)value);
+                    } else if ((effective_input_flags &
+                                (UINT32_C(1) << 14u)) != 0u) {
+                        set_unsigned_condition(
+                            cpu, UINT32_C(0xff00), (uint32_t)value);
+                    } else {
+                        uint8_t phase_byte = 0u;
+
+                        status = vf2_model2a_read(
+                            machine, UINT32_C(0x005000a6),
+                            &phase_byte, sizeof(phase_byte)
+                        );
+                        if (status != VF2_OK) {
+                            return status;
+                        }
+                        if (phase_byte == 0u) {
+                            set_equal_condition(cpu);
+                        } else {
+                            set_unsigned_condition(
+                                cpu, UINT32_C(0), (uint32_t)phase_byte);
+                        }
+                    }
+                }
                 if (status == VF2_OK &&
                     (effective_input_flags & (UINT32_C(1) << 15u)) != 0u) {
                     if (value > UINT16_C(0xa000)) {
@@ -11930,6 +12038,27 @@ static vf2_status execute_frame_phase17_zero_control_menu(
         cpu->registers[VF2_I960_G0_REGISTER + 7u] = player0;
         cpu->registers[VF2_I960_G0_REGISTER + 8u] = player1;
         cpu->registers[VF2_I960_G14_REGISTER] = UINT32_C(0x000550d4);
+        if (menu_index == UINT8_C(4) || menu_index == UINT8_C(11)) {
+            /* Measured preamble (cmpobe 0, r3=*0x5000a6 @ 0x10b64):
+             * later regions on these shapes exit EQUAL without change,
+             * so the preamble compare stands. Menu 8 carries its own
+             * tail pin from the branch above. */
+            uint8_t phase_byte = 0u;
+
+            status = vf2_model2a_read(
+                machine, UINT32_C(0x005000a6),
+                &phase_byte, sizeof(phase_byte)
+            );
+            if (status != VF2_OK) {
+                return status;
+            }
+            if (phase_byte == 0u) {
+                set_equal_condition(cpu);
+            } else {
+                set_unsigned_condition(
+                    cpu, UINT32_C(0), (uint32_t)phase_byte);
+            }
+        }
         if (menu_index != UINT8_C(4)) {
             account_nested_procedure(cpu, UINT64_C(2), UINT64_C(2));
             if (cpu->maximum_local_frame_depth < cpu->local_frame_depth + 2u) {
@@ -12100,7 +12229,26 @@ static vf2_status execute_frame_phase17_zero_control_menu(
     cpu->registers[VF2_I960_G0_REGISTER + 8u] = player0;
     cpu->registers[VF2_I960_G0_REGISTER + 13u] = descriptor;
     cpu->registers[VF2_I960_G14_REGISTER] = UINT32_C(0x000550d4);
-    set_equal_condition(cpu);
+    /* Measured fa_control0 tail (cmpobe r14=2/3, r15=mode @
+     * 0x1b9f8/0x1ba04): first taken at mode 2, second at mode 3,
+     * otherwise unsigned order of 2 against the mode byte. Later
+     * bbc/bbs leave condition codes intact and no later compare runs
+     * on this menu-0 idle shape. */
+    {
+        uint8_t mode_value = 0u;
+
+        status = vf2_model2a_read(
+            machine, UINT32_C(0x0050002b), &mode_value, sizeof(mode_value)
+        );
+        if (status != VF2_OK) {
+            return status;
+        }
+        if (mode_value == UINT8_C(2) || mode_value == UINT8_C(3)) {
+            set_equal_condition(cpu);
+        } else {
+            set_unsigned_condition(cpu, UINT32_C(2), (uint32_t)mode_value);
+        }
+    }
     account_nested_procedure(cpu, UINT64_C(5), UINT64_C(5));
     if (cpu->maximum_local_frame_depth < cpu->local_frame_depth + 4u) {
         cpu->maximum_local_frame_depth = cpu->local_frame_depth + 4u;
@@ -18764,7 +18912,11 @@ vf2_status execute_inline_text_thunk(
     cpu->registers[14] = cursor;
     cpu->registers[15] = UINT32_C(0x00ffffff);
     cpu->ip = cursor;
-    set_equal_condition(cpu);
+    /* Measured word-scan exit (cmpobl r15=0xffffff, g0 @ 0x9478):
+     * the loop continues while 0xffffff < word (unsigned) and falls
+     * through with GREATER when word < 0xffffff, EQUAL on exact match.
+     * Replicates the last compare; later regions overwrite as needed. */
+    set_unsigned_condition(cpu, UINT32_C(0x00ffffff), word);
     account_nested_procedure(cpu, UINT64_C(1), UINT64_C(1));
     instructions = characters * UINT64_C(8) + UINT64_C(17) +
                    words * UINT64_C(3);
