@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Attract pós-SEGA medido (v0361): caminho natural
+  **SEGA warning (sel 0→1) → sel 2 → sel 3 → 0x10 → 0x11 TEST MENU**
+  neste backup/config. Tabelas ROM corretas: sel2=`0xab0c`,
+  sel3=`0xacf8` (phases 0–17), sel16=`0x10a0c` (C grava a4=0x0b),
+  sel17=`0x10b5c`. Recovery documenta handoff fases 12–15 → sel 16.
+  Forçar sel=4..15 também termina em TEST MENU. Texture-ram hash muda no
+  handoff sem malha 3D SEGA na FIFO. Logo de jogo permanece fail-closed
+  (falta estado de máquina fora do handoff de teste). See
+  `decomp/i960/notes/attract_sel3_to_testmenu_v0361.md`.
+
 - Tela SEGA alcançada (v0360): o **frame selector 0** desenha a assinatura
   legal Model 2 cujas strings ROM incluem `SEGA ENTERPRISES,LTD.` (`0xaaad`).
   Witness natural: `park-after-irq` (COUNTRY=JAPAN, assinatura `0xa5a5…` não

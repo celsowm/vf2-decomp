@@ -49,6 +49,17 @@ holding the latch take the **34-insn** path to selector 2 and skip SEGA
 Game-attract 3D logo after warm sel 2/3→`0x11` TEST MENU remains open.
 See `decomp/i960/notes/sega_warning_screen_v0360.md`.
 
+### v0361 attract sel2/3 → TEST MENU (measured fail-closed)
+
+Natural chain after the SEGA warning: countdown sel1 → sel2 (`0xab0c`) →
+sel3 (`0xacf8`, phase table 0–17) → handoff phases 12–15 to selector 16
+(`0x10a0c`, recovered `++sel` + `a4=0x0b`) → **TEST MENU 0x11**. Same
+terminal state when forcing selectors 4–15 on that park. Geometry/light
+streams still identical to TEST baseline; texture-ram hash changes without
+a unique SEGA mesh witness. Game-title attract remains closed until a
+machine state is measured that does not take the 0x10/0x11 handoff.
+See `decomp/i960/notes/attract_sel3_to_testmenu_v0361.md`.
+
 ### v0354 EXIT TEST MODE → warm-boot attract (measured)
 
 From the sixth-dispatch park at frame-dispatch `0x0000a6c0`, forcing phase
