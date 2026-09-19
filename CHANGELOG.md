@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Objetos polygon no attract (v0372): oracle phase5 **lê** a tabela
+  `0x020e0004` (ids **0x148/0x88/0x145…**) e **grava** word0 em
+  geo/FIFO (`0xb026a` = id 0x148). Helper `0x7c60` + `fa_pol_test`
+  `0x21a00` medidos no oracle: FIFO `0x1a003434` + protocolo
+  idêntico ao attract. `w2` com bit `0x800000` → polygons.bin em
+  **word index** (`id 0x148` → word `0x40430`, w3=`0x014a0164`).
+  Sem ASCII SEGA/LOGO em ROM. Render host produz triângulos 3D
+  (ex. id 0x1cb 384 tris) **sem** forma nomeada de logo. Logo 3D
+  nomeado continua fail-closed. See
+  `decomp/i960/notes/attract_poly_objects_v0372.md`.
+
 - Status-tail oracle ROM real (v0371): park attract, `0x4d25c→0x4d2bc`
   mede mode **0x03** = **156** passos (só dest `0x010000e2`), mode
   **0x0c** = **305** e **0x0d** = **307** (dests special+common;

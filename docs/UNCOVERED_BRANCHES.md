@@ -181,6 +181,22 @@ Phase-14 not-ready thunk: **11** steps to `0x9444` and **15** to
 logo remains unwitnessed. See
 `decomp/i960/notes/status_tail_oracle_v0371.md`.
 
+### v0372 attract submits polygon-ROM objects (measured, logo name open)
+
+Oracle attract phase-5 memory-trace **reads** the TGP object table at
+`0x020e0004` (ids **0x148**, **0x088**, **0x145**, family `0x144–0x152`)
+and **writes** their word0 values to geo/FIFO `0x800010`/`0x804000`
+(e.g. `0x000b026a` = id **0x148**). Helper **`0x7c60`** and task
+**`fa_pol_test` `0x21a00`** produce the same FIFO words (`0x800101`,
+`0x1800303`, `0x3000606`, `0x1a003434`) on the oracle. Table `w2` with
+bit `0x00800000` addresses **polygons.bin** as a **word index**
+(`vf2_tgp_read_polygon_word`); id 0x148 → word `0x40430`, dimensions
+`w3=0x014a0164`. No `SEGA`/`LOGO`/`TITLE` ASCII in main_data or
+polygons.bin. Host-side triangle decode of measured offsets produces
+3D fragments (e.g. 384 tris at id `0x1cb`) but **no named SEGA logo
+mesh**. Named 3D logo remains unwitnessed; do not invent a mesh name.
+See `decomp/i960/notes/attract_poly_objects_v0372.md`.
+
 ### v0354 EXIT TEST MODE → warm-boot attract (measured)
 
 From the sixth-dispatch park at frame-dispatch `0x0000a6c0`, forcing phase
