@@ -371,4 +371,39 @@ vf2_status vf2_recovered_polygon_object_submit(
     vf2_i960_cpu *cpu
 );
 
+/*
+ * Palette-like geo pack helper 0x00007f24 (measured body).
+ *
+ * st g12, 0x30(g10); six iterations from g0:
+ *   word = (sext(hi) << 16) + (0x17f - sext(lo)) + *(u32*)0x5013f0
+ *   st word, (g10)[g12]; g0 += 4
+ * Live path-A park writes 0x7f, 0x1f001ff, 0xf8013f x4 to geo port g10+g12.
+ * Semantic name of the pack is unproven — words only.
+ */
+vf2_status vf2_recovered_polygon_palette_pack_7f24(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
+/*
+ * fa_pol_test 0x00021a00 path A (measured FIFO protocol).
+ *
+ * Gate: mode byte 0x00530150 >= 2 takes path A (cmpoble 2, r14). Path B
+ * (mode < 2) returns VF2_ERROR_UNSUPPORTED. Count byte 0x0053014c drives
+ * a loop of helper 0x7c60 submits: id 0x985 when mode==3 else 0x986,
+ * g1=0. Final submit is always 0x985. Palette helper 0x7f24 runs first.
+ *
+ * Gold FIFO (count=1, mode=2, geo pointer 0):
+ *   0x800101, 0x1800303, 0x3000606,
+ *   0x3e9eb852, 0x3e428f5c, 0x3f9eb852,
+ *   0x1a003434, 0x0,
+ *   0x3000606, 0x0, 0xbec7ae14, 0x0,
+ *   0x1a003434, 0x0,
+ *   0x1000202
+ */
+vf2_status vf2_recovered_pol_test_path_a(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 #endif

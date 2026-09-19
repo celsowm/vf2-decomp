@@ -276,6 +276,27 @@ events / **112** unique ids; host multi-object layout labeled
 `protocol_tag` (not game palette). See `scene_phase5_p3_v0377.md`.
 Named 3D logo remains **unwitnessed**.
 
+### v0378 `fa_pol_test` path A + helper `0x7f24` recovered in C
+
+`vf2_recovered_pol_test_path_a` (`src/recovered/pol_test_path_a.c`)
+covers the measured path-A body: gate `mode 0x00530150 >= 2`
+(`cmpoble 2, r14`; mode < 2 stays `VF2_ERROR_UNSUPPORTED`), palette
+pack `0x7f24` (six words `(sext(hi)<<16)+(0x17f-sext(lo))+*(u32*)0x5013f0`
+to `(g10)[g12]`), FIFO prelude/interstitial/close immediates, loop
+submits via reused `vf2_recovered_polygon_object_submit`
+(`0x986` unless mode==3, final always `0x985`, `g1=0`), instruction
+pins 163/162/127 for mode=2/3-count=1 and mode=2-count=0. Oracle
+re-measured: task traces stop `0x21b00` at 162/161 steps and the
+15-word gold FIFO appears verbatim on the reference memory-trace.
+Path B (`0x97f/0x97e/0x97d` ids, `0x3f428f5c…` immediates), palette
+semantics, vertex stream and scheduler dispatch of `fa_pol_test`
+remain unsupported. New guest-edge inventory (`explore_geo_edges.py`)
+reclassifies exactly one multi-word geo-stream push outside `0x7c60`:
+`0x19684` (`st`/`stq` w0/w1/w2/`-1` shape); TGP class-`0x07/09/0b/0c`
+writes stay at **0**, and object-table `w2` consumption stays outside
+the guest oracle. See `decomp/i960/notes/pol_test_path_a_v0378.md`,
+`geo_edge_coverage_v0378.md`, `tgp_w2_consumption_v0378.md`.
+
 ### v0354 EXIT TEST MODE → warm-boot attract (measured)
 
 From the sixth-dispatch park at frame-dispatch `0x0000a6c0`, forcing phase

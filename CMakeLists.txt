@@ -69,6 +69,7 @@ add_library(vf2_core STATIC
     src/recovered/native_runtime_state.c
     src/recovered/object_service.c
     src/recovered/polygon_object_submit.c
+    src/recovered/pol_test_path_a.c
     src/recovered/native_differential.c
     src/recovered/native_differential_step.c
     src/recovered/texture_bridge.c
@@ -331,11 +332,17 @@ if(VF2_BUILD_TESTS)
     vf2_set_project_warnings(vf2_polygon_object_submit_tests)
     add_test(NAME vf2_polygon_object_submit COMMAND vf2_polygon_object_submit_tests)
 
+    add_executable(vf2_pol_test_path_a_tests tests/recovered/test_pol_test_path_a.c)
+    target_link_libraries(vf2_pol_test_path_a_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_pol_test_path_a_tests)
+    add_test(NAME vf2_pol_test_path_a COMMAND vf2_pol_test_path_a_tests)
+
     if(EXISTS "${VF2_ROM_DIR}")
         add_test(NAME vf2_phase17_zero_differential COMMAND vf2_phase17_zero_tests "${VF2_ROM_DIR}")
         add_test(NAME vf2_post_boot_input_profiles_differential COMMAND vf2_post_boot_input_profile_tests "${VF2_ROM_DIR}")
         add_test(NAME vf2_object_handlers_differential COMMAND vf2_object_handler_tests "${VF2_ROM_DIR}")
         add_test(NAME vf2_polygon_object_submit_differential COMMAND vf2_polygon_object_submit_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_pol_test_path_a_differential COMMAND vf2_pol_test_path_a_tests "${VF2_ROM_DIR}")
         add_test(NAME vf2_boot_differential COMMAND vf2i960 compare-boot "${VF2_ROM_DIR}")
         add_test(NAME vf2_initialization_differential COMMAND vf2i960 compare-init "${VF2_ROM_DIR}")
         add_test(NAME vf2_task_registry_differential COMMAND vf2i960 compare-task-registry "${VF2_ROM_DIR}")

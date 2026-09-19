@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Recovery C de `fa_pol_test` path A + helper `0x7f24` (v0378):
+  `vf2_recovered_pol_test_path_a` cobre gate `mode>=2`, pack de 6
+  words, FIFO gold de 15 words, loop/final submits `0x986/0x985` via
+  `0x7c60` reutilizado (pins 163/162/127). Oracle re-medido: traces
+  param em `0x21b00` com 162/161 steps e FIFO gold verbatim no
+  memory-trace. Path B, semantica da paleta, vertex stream e dispatch
+  do scheduler seguem unsupported. `explore_geo_edges.py`
+  reclassifica um push geo-stream fora do `0x7c60` (`0x19684`);
+  classes TGP `0x07/09/0b/0c` = 0; consumo de `w2` fora do guest.
+  Unit + diferencial ROM-backed. See
+  `decomp/i960/notes/pol_test_path_a_v0378.md`,
+  `geo_edge_coverage_v0378.md`, `tgp_w2_consumption_v0378.md`.
+
 - Packet boundary pol_test + scene phase5 + matrix ports (v0377):
   **P1** mede `fa_pol_test@0x21a00` + helpers `0x7c60`/`0x7f24`:
   i960 grava **apenas** tabela w0/w1/w2 + `r11=-1` + protocolo FIFO
