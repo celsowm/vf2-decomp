@@ -350,4 +350,25 @@ vf2_status vf2_recovered_boot_stage1(
     vf2_recovered_boot_stage1_report *report
 );
 
+/*
+ * Semantic recovery of attract/display polygon-object submit helper 0x00007c60.
+ *
+ * Measured protocol (ROM disasm + oracle pin, decomp/i960/notes/logo_object_submit_v0372.md):
+ *   gate: if *(u32*)0x50101c > *(u32*)0x501018 -> ret
+ *   FIFO preamble via (g11)[g12]: word 0x1a003434, then *(g10+0x2008)
+ *   object table: 0x020e0004[g0*16], ldq 4 words into r8..r11
+ *   st  r8, 0x10(g10)          ; geo word0 when g10 = 0x800000
+ *   stq r8, (g10)[g12]         ; quad path; r11 forced to -1 before the store
+ *
+ * The CPU must already be entered at 0x00007c60 with the caller-provided
+ * g0/g1/g10/g11/g12 register state. Gate-closed returns VF2_OK with no
+ * submit stores. Table/FIFO memory faults return the model2a status
+ * (fail-closed; no silent success). Nearby helpers at 0x7d14/0x7d6c/0x7e50
+ * are intentionally not covered.
+ */
+vf2_status vf2_recovered_polygon_object_submit(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 #endif

@@ -29,12 +29,37 @@ Projection formulas (ANALYSIS convenience only — not recovered TGP raster):
     then orthographic fit on (x', y') with depth = z'. If matrix/transforms
     are missing, fall back to identity + focus 1.0 and label the view clearly.
 
+  measured-display-scale / measured-display-iso:
+    ANALYSIS composition of measured Work-RAM words — NOT recovered projection,
+    NOT a game camera. TGP class 0x09/0b/0c are ABSENT in FIFO protocol traces
+    (v0375 fail-closed). Confidence: host.
+
+    Formula (analysis only):
+      p' = (p + T) * S
+      T = (6.0, 4.7, 18.5)   # display triple *(u32*)0x50084c +0x54/58/5c
+                             # display-state words; NOT proven TGP 3x4
+      S = 600.0              # camera scale 0x501084/0x501088 (0 on some parks)
+    Then project:
+      measured-display-scale  → fit-ortho basis (right=X, up=Y, depth=Z)
+      measured-display-iso    → iso-xy basis (ax=30, az=45)
+    Filenames/reports label these as analysis_measured_display_*.
+
   persp:
     simple host perspective looking down +Z:
       x' = focus * x / z_safe
       y' = focus * y / z_safe
     with z_safe = z if z > z_min else z_min (default z_min=1e-3, focus=1.0).
     Documented as ANALYSIS, not game recovery.
+
+Raster (analysis host, not game raster):
+  Always z-buffer. Painter's algorithm also sorts by mean projected depth
+  (farthest first) before the z-buffer pass. Backface cull is optional via
+  --cull; default OFF for analysis so meshes are not emptied by winding.
+
+Optional --transforms JSON for --view tgp:
+  If out/attr-transform/measured_view.json exists (parallel agent), load
+  matrix/focus from it for --view tgp. If absent, identity fallback is used
+  and the report records tgp confidence=absent (fail-closed, not a camera).
 
 CLI (PowerShell):
   & $env:MIMO_PYTHON tools\\python\\render_mesh_host.py \\
@@ -75,7 +100,15 @@ DEFAULT_VIEWS = (
     "iso-xz",
     "iso-yz",
 )
-EXTRA_VIEWS = ("tgp", "persp")
+EXTRA_VIEWS = ("tgp", "persp", "measured-display-scale", "measured-display-iso")
+
+# Measured Work-RAM host state (v0375). ANALYSIS composition only.
+# Display triple: *(u32*)0x50084c +0x54/58/5c = (6.0f, 4.7f, 18.5f)
+# Camera scale: 0x501084/0x501088 = 600.0f on some parks (0 on boot-sel03).
+MEASURED_DISPLAY_T = (6.0, 4.7, 18.5)
+MEASURED_DISPLAY_S = 600.0
+MEASURED_DISPLAY_LABEL = "analysis_measured_display"
+MEASURED_VIEW_JSON = Path("out/attr-transform/measured_view.json")
 
 VIEW_INFO = {
     "fit-ortho": {
@@ -161,6 +194,31 @@ VIEW_INFO["persp"] = {
     "depth": (0.0, 0.0, 1.0),
     "label": "persp host x=f*x/z_safe looking +Z",
 }
+VIEW_INFO["measured-display-scale"] = {
+    "right": (1.0, 0.0, 0.0),
+    "up": (0.0, 1.0, 0.0),
+    "depth": (0.0, 0.0, 1.0),
+    "label": f"{MEASURED_DISPLAY_LABEL}_scale (T+S then fit-ortho)",
+    "file_label": f"{MEASURED_DISPLAY_LABEL}_scale",
+    "measured": True,
+}
+VIEW_INFO["measured-display-iso"] = {
+    **VIEW_INFO["iso-xy"],
+    "label": f"{MEASURED_DISPLAY_LABEL}_iso (T+S then iso-xy)",
+    "file_label": f"{MEASURED_DISPLAY_LABEL}_iso",
+    "measured": True,
+}
+
+
+def measured_display_compose(point):
+    """p' = (p + T) * S using measured Work-RAM words. ANALYSIS only."""
+    t = MEASURED_DISPLAY_T
+    s = MEASURED_DISPLAY_S
+    return (
+        (point[0] + t[0]) * s,
+        (point[1] + t[1]) * s,
+        (point[2] + t[2]) * s,
+    )
 
 
 def decode_object(
@@ -320,6 +378,17 @@ def apply_view_to_tris(tris, view: str, matrix, focus_x, focus_y, z_min, focus_p
         )
         return projected, bounds, info["label"]
 
+    if view in ("measured-display-scale", "measured-display-iso"):
+        # ANALYSIS: compose measured Work-RAM host state, then camera basis.
+        # NOT recovered TGP projection (class 09/0b/0c absent).
+        for tri in tris:
+            push_tri(*tuple(measured_display_compose(p) for p in tri))
+        bounds = (
+            (min(xs), min(ys), min(zs)) if xs else (0.0, 0.0, 0.0),
+            (max(xs), max(ys), max(zs)) if xs else (0.0, 0.0, 0.0),
+        )
+        return projected, bounds, info["label"]
+
     # Orthographic family (fit-ortho / front / top / side / iso-*)
     for tri in tris:
         push_tri(*tri)
@@ -342,8 +411,15 @@ def bounds_of_tris(tris):
     }
 
 
-def rasterize(projected_tris, size: int, *, painter: bool = False):
-    """Z-buffer raster + 1px wireframe overlay. Returns (rgb_bytes, coverage_px)."""
+def rasterize(projected_tris, size: int, *, painter: bool = True, cull: str = "off"):
+    """Z-buffer raster + painter mean-depth sort + optional cull.
+
+    Painter's algorithm: sort triangles by mean projected depth, farthest first
+    (larger depth-into-scene drawn first). Z-buffer still decides final pixels.
+    cull='off' (analysis default) rasterizes both windings; cull='on' keeps
+    only screen-space CCW faces when depth axis faces the camera.
+    Returns (rgb_bytes, coverage_px).
+    """
     if not projected_tris or size <= 0:
         buf = bytearray(BG_RGB * size * size) if size > 0 else bytearray()
         return buf, 0
@@ -377,13 +453,17 @@ def rasterize(projected_tris, size: int, *, painter: bool = False):
         screen_tris.append((s0, s1, s2))
 
     order = list(range(len(screen_tris)))
-    if painter:
-        order.sort(key=lambda i: -sum(p[2] for p in screen_tris[i]))
+    # Painter's algorithm: mean depth, farthest first (depth into scene).
+    # Combined with z-buffer; both are always active for analysis legibility.
+    order.sort(key=lambda i: -sum(p[2] for p in screen_tris[i]))
 
     for ti in order:
         (x0, y0, z0), (x1, y1, z1), (x2, y2, z2) = screen_tris[ti]
         area = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0)
         if area == 0.0:
+            continue
+        # Optional backface cull (analysis default off — do not empty meshes).
+        if cull == "on" and area < 0:
             continue
         # Face normal from original world/projected 3D (before screen y-flip).
         p0, p1, p2 = projected_tris[ti]
@@ -412,6 +492,7 @@ def rasterize(projected_tris, size: int, *, painter: bool = False):
                 w0 = (x1 - x0) * (fy - y0) - (y1 - y0) * (fx - x0)
                 w1 = (x2 - x1) * (fy - y1) - (y2 - y1) * (fx - x1)
                 w2 = (x0 - x2) * (fy - y2) - (y0 - y2) * (fx - x2)
+                # Accept both windings when cull is off (analysis default).
                 if area > 0:
                     if w0 < 0 or w1 < 0 or w2 < 0:
                         continue
@@ -486,10 +567,11 @@ def draw_contact_sheet(
     ImageDraw,
     ImageFont,
 ) -> str:
-    """rows: list of list of RGB bytes (or None). One row per object id."""
+    """rows: list of (meta_dict, cells_list). One row per object id."""
     if not rows or Image is None:
         return ""
-    n_cols = max(len(r) for r in rows)
+    # rows entries are (meta, cells); count cells, not the 2-tuple itself.
+    n_cols = max(len(cells) for _meta, cells in rows)
     n_rows = len(rows)
     label_w = 140
     header_h = 36
@@ -531,6 +613,23 @@ def parse_id_list(text: str) -> list[int]:
     return ids
 
 
+def load_measured_view_json(path: Path) -> tuple[list[float], float, float, str] | None:
+    """Load optional measured TGP matrix for --view tgp. Fail-closed if absent."""
+    if not path.is_file():
+        return None
+    data = json.loads(path.read_text(encoding="utf-8"))
+    # Accept several shapes: live_guess, top-level matrix/values, or measured_view.
+    live = data.get("live_guess") or data.get("measured_view") or data
+    mat = live.get("matrix") or live.get("values") or data.get("matrix") or data.get("values")
+    if mat is None or len(mat) != 16:
+        return None
+    fx = float(live.get("focus_x", data.get("focus_x", 1.0)) or 1.0)
+    fy = float(live.get("focus_y", data.get("focus_y", 1.0)) or 1.0)
+    conf = live.get("confidence", data.get("confidence", "measured"))
+    label = f"transforms:{path} confidence={conf}"
+    return [float(x) for x in mat], fx, fy, label
+
+
 def parse_matrix_args(args) -> tuple[list[float], float, float, str]:
     if args.matrix:
         vals = [float(x) for x in args.matrix]
@@ -539,13 +638,19 @@ def parse_matrix_args(args) -> tuple[list[float], float, float, str]:
         return vals, args.focus_x, args.focus_y, "cli-matrix"
     if args.transforms:
         data = json.loads(Path(args.transforms).read_text(encoding="utf-8"))
-        mat = data.get("matrix") or data.get("values")
+        live = data.get("live_guess") or data.get("measured_view") or data
+        mat = live.get("matrix") or live.get("values") or data.get("matrix") or data.get("values")
         if mat is None or len(mat) != 16:
             raise SystemExit("--transforms JSON must contain matrix/values with 16 floats")
-        fx = float(data.get("focus_x", args.focus_x))
-        fy = float(data.get("focus_y", args.focus_y))
-        return [float(x) for x in mat], fx, fy, f"transforms:{args.transforms}"
-    return identity_matrix(), 1.0, 1.0, "identity-fallback"
+        fx = float(live.get("focus_x", data.get("focus_x", args.focus_x)) or args.focus_x)
+        fy = float(live.get("focus_y", data.get("focus_y", args.focus_y)) or args.focus_y)
+        conf = live.get("confidence", data.get("confidence", "present"))
+        return [float(x) for x in mat], fx, fy, f"transforms:{args.transforms} confidence={conf}"
+    # Optional parallel-agent file: out/attr-transform/measured_view.json
+    auto = load_measured_view_json(MEASURED_VIEW_JSON)
+    if auto is not None:
+        return auto
+    return identity_matrix(), 1.0, 1.0, "identity-fallback confidence=absent"
 
 
 def lookup_table(main_img: bytes, obj_id: int):
@@ -595,12 +700,14 @@ def score_view(coverage: int, n_tris: int, label: str, decode: str) -> float:
     mass = math.log2(1.0 + n_tris)
     dec_bonus = 20.0 if decode == "skip3" else 0.0
     bonus = 0.0
-    if "iso" in label:
+    if MEASURED_DISPLAY_LABEL in label:
+        bonus = 0.35
+    elif "iso" in label:
         bonus = 0.3
     if label.startswith("front"):
-        bonus = 0.15
+        bonus = max(bonus, 0.15)
     if label.startswith("top") or label.startswith("side"):
-        bonus = 0.2
+        bonus = max(bonus, 0.2)
     # Prefer denser meshes and solid coverage; skip3 is the coherent poly-ROM path.
     return dec_bonus + mass * 3.0 + cov_term + bonus
 
@@ -625,7 +732,12 @@ def main() -> int:
     ap.add_argument("--focus-y", type=float, default=1.0)
     ap.add_argument("--persp-focus", type=float, default=1.0)
     ap.add_argument("--persp-zmin", type=float, default=1e-3)
-    ap.add_argument("--painter", action="store_true", help="painter sort before z-buffer")
+    ap.add_argument("--painter", action="store_true", default=True,
+                    help="painter mean-depth sort before z-buffer (default on)")
+    ap.add_argument("--no-painter", dest="painter", action="store_false",
+                    help="disable painter sort (z-buffer only)")
+    ap.add_argument("--cull", default="off", choices=("off", "on"),
+                    help="backface cull; analysis default off (do not empty meshes)")
     ap.add_argument("--max-tris", type=int, default=MAX_TRIS_DEFAULT)
     ap.add_argument("--rom-dir", default="roms/vf2")
     ap.add_argument("--no-contact", action="store_true")
@@ -657,11 +769,15 @@ def main() -> int:
         decodes.append(("noskip", 0))
 
     matrix, focus_x, focus_y, matrix_label = parse_matrix_args(args)
+    tgp_absent = "absent" in matrix_label or matrix_label == "identity-fallback"
     tgp_label = (
         VIEW_INFO["tgp"]["label"]
-        if matrix_label != "identity-fallback"
-        else "tgp IDENTITY FALLBACK (no matrix/transforms) fit-ortho"
+        if not tgp_absent
+        else "tgp IDENTITY FALLBACK confidence=absent (no measured matrix/transforms) fit-ortho"
     )
+    print(f"tgp matrix source: {matrix_label}")
+    if "tgp" in views and tgp_absent:
+        print(f"  note: {MEASURED_VIEW_JSON} not present — tgp uses identity fallback")
 
     print(f"building ROM images from {rom_dir} ...")
     main_img = build(MAIN_PAIRS, 0x02400000)
@@ -795,12 +911,18 @@ def main() -> int:
                 )
                 if view == "tgp":
                     label_v = tgp_label
-                rgb_cell, cov = rasterize(proj, args.cell, painter=args.painter)
+                elif view in ("measured-display-scale", "measured-display-iso"):
+                    label_v = VIEW_INFO[view]["label"]
+                rgb_cell, cov = rasterize(
+                    proj, args.cell, painter=args.painter, cull=args.cull
+                )
                 cell_rgbs.append(rgb_cell if tris else None)
                 entry["coverage"][f"{dec_name}|{view}"] = cov
 
                 if not args.no_full and tris:
-                    rgb_full, cov_full = rasterize(proj, args.size, painter=args.painter)
+                    rgb_full, cov_full = rasterize(
+                        proj, args.size, painter=args.painter, cull=args.cull
+                    )
                     full_cache[(dec_name, view)] = (rgb_full, cov_full)
                     sc = score_view(cov_full, len(tris), label_v, dec_name)
                     if sc > best["score"]:
@@ -815,7 +937,9 @@ def main() -> int:
         if not args.no_full:
             for key, (rgb_full, _cov) in full_cache.items():
                 dec_name, view = key
-                fname = out_dir / f"id_{obj_id:03x}_{dec_name}_{view}_{args.size}.png"
+                vinfo = VIEW_INFO.get(view, {})
+                file_view = vinfo.get("file_label", view)
+                fname = out_dir / f"id_{obj_id:03x}_{dec_name}_{file_view}_{args.size}.png"
                 written = write_image(fname, args.size, rgb_full)
                 if written not in files:
                     files.append(written)
@@ -827,6 +951,24 @@ def main() -> int:
         entry["best_view"] = best["view"]
         entry["best_decode"] = best["decode"]
         entry["best_file"] = best["file"] or (files[0] if files else None)
+        entry["measured_display"] = {
+            "label": MEASURED_DISPLAY_LABEL,
+            "translate_T": list(MEASURED_DISPLAY_T),
+            "scale_S": MEASURED_DISPLAY_S,
+            "formula": "p' = (p + T) * S; then fit-ortho or iso-xy basis",
+            "confidence": "host",
+            "note": (
+                "ANALYSIS composition of measured Work-RAM words; "
+                "not recovered projection; not game camera"
+            ),
+            "source_words": {
+                "display_triple": "*(u32*)0x50084c +0x54/58/5c = (6.0f,4.7f,18.5f)",
+                "camera_scale": "0x501084/0x501088 = 600.0f where nonzero",
+            },
+        }
+        entry["tgp_confidence"] = (
+            "absent" if tgp_absent else "present"
+        )
         report_objects.append(entry)
         meta_label = (
             f"{label} s={entry['tris_skip3']} n={entry['tris_noskip']}"
@@ -861,8 +1003,29 @@ def main() -> int:
         ),
         "projection_note": (
             "Views are host analysis cameras. tgp applies tgp.c matrix+focus if "
-            "provided else identity fallback. persp is x=f*x/z_safe looking +Z."
+            "provided else identity fallback confidence=absent. measured-display-* "
+            "compose measured Work-RAM words (T then S) — ANALYSIS only, not "
+            "recovered TGP projection. persp is x=f*x/z_safe looking +Z."
         ),
+        "measured_display": {
+            "label": MEASURED_DISPLAY_LABEL,
+            "views": ["measured-display-scale", "measured-display-iso"],
+            "translate_T": list(MEASURED_DISPLAY_T),
+            "scale_S": MEASURED_DISPLAY_S,
+            "formula": "p' = (p + T) * S; then fit-ortho (scale) or iso-xy (iso)",
+            "confidence": "host",
+            "note": (
+                "ANALYSIS composition of measured Work-RAM words; "
+                "not recovered projection; not game camera; "
+                "TGP class 0x09/0b/0c ABSENT in FIFO traces (v0375)"
+            ),
+        },
+        "raster_note": (
+            "z-buffer always; painter mean-depth sort (farthest first) combined; "
+            f"backface cull={args.cull} (analysis default off)."
+        ),
+        "cull": args.cull,
+        "painter": args.painter,
         "rom_dir": str(rom_dir),
         "out": str(out_dir),
         "size": args.size,
@@ -870,6 +1033,7 @@ def main() -> int:
         "views": views,
         "decodes": [d for d, _ in decodes],
         "tgp_matrix_label": matrix_label,
+        "tgp_confidence": "absent" if tgp_absent else "present",
         "contact_sheet": sheet_path,
         "all_large": all_large_rows,
         "objects": report_objects,

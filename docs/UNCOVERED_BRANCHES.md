@@ -197,6 +197,18 @@ polygons.bin. Host-side triangle decode of measured offsets produces
 mesh**. Named 3D logo remains unwitnessed; do not invent a mesh name.
 See `decomp/i960/notes/attract_poly_objects_v0372.md`.
 
+Helper **`0x00007c60`** is now recovered in C as
+`vf2_recovered_polygon_object_submit` (`src/recovered/polygon_object_submit.c`).
+Covered: gate `0x50101c > 0x501018 → ret`; FIFO preamble `0x1a003434` via
+`(g11)[g12]`; table `ldq` at `0x020e0004[g0*16]`; `st w0 → g10+0x10`;
+`stq` via `(g10)[g12]` with r11 forced to `-1`; optional `g1` path
+(`r9 += (w3>>16)*4`, `0x5010d0 += w3_low`); `0x501010++` and
+`0x50101c += w3_low`. Fail-closed when the table read is unavailable.
+Unit + ROM-backed differential pin `0x148→0x000b026a` and
+`0x88→0x0008e6de`. Nearby helpers `0x7d14`/`0x7d6c`/`0x7e50`
+and inlined sibling `0x1962c` remain **unsupported**. FIFO color
+immediates and `display_command_emit` ids are **not** part of this body.
+
 ### v0375 host mesh pipeline + TGP transforms absent (measured, fail-closed logo)
 
 Host analysis tools only (no recovered-C semantics change): multi-view
@@ -215,6 +227,27 @@ host-usable Work-RAM only: display triple `(6.0f, 4.7f, 18.5f)` at
 remains **unwitnessed**. See
 `decomp/i960/notes/render_mesh_host_v0375.md`,
 `object_rank_v0375.md`, `fifo_transforms_v0375.md`.
+
+### v0376 camera store IPs + host views (measured, matrix still absent)
+
+Live store IPs for Work-RAM camera/display state (probe BEFORE/AFTER):
+display triple `(6.0f, 4.7f, 18.5f)` written at **`0x31024`** in
+`display_transform_defaults@0x31004`; camera scale `600.0f` at
+**`0x1d34c`/`0x1d35c`** in `fa_camera@0x1d320`; aperture cursor
+`0x5001e4` stored at **`0x31094`** (`display_command_emit@0x31040`
+serializes the triple into aperture `0x0090e000[cursor]` — not geo 3x4).
+FIFO word **`0x0b001616`** is a **copro arithmetic tag** (class bits
+`0x16`, not TGP `0x0b`) paired with `600.0f` → camera task+0x5c/60
+(`223.2f`/`172.8f`) — **do not promote to matrix opcode**. TGP
+class-09/0b/0c stream commands remain **absent** (reconfirmed on
+geo-port 928 writes + snap geometry windows). Host re-render
+`render_mesh_host.py` gains analysis views composing measured
+Work-RAM only under auto-fit (silhouette-identical to iso-xy until a
+non-uniform matrix exists) and optional `--view tgp` JSON hook
+(`confidence=absent`). Contact-sheet column-count bug fixed. Named
+3D logo still **unwitnessed**. See
+`decomp/i960/notes/tgp_camera_state_v0376.md`,
+`host_render_views_v0376.md`.
 
 ### v0354 EXIT TEST MODE → warm-boot attract (measured)
 

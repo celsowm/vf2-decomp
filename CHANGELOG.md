@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+- Recovery C do submit polygon `0x7c60` + camera store IPs (v0376):
+  **`vf2_recovered_polygon_object_submit`** (`src/recovered/
+  polygon_object_submit.c`) recupera o body medido `0x7c60–0x7d10`:
+  gate `0x50101c > 0x501018 → ret` sem stores; preâmbulo FIFO
+  `0x1a003434`; tabela `ldq 0x020e0004[g0*16]`; `st w0 → g10+0x10`;
+  `stq` via `(g10)[g12]` com **r11=-1**; caminho opcional `g1`
+  (`r9 += (w3>>16)*4`, `0x5010d0 += w3_low`); contadores
+  `0x501010++` / `0x50101c += w3_low`. Fail-closed: tabela ausente →
+  `OUT_OF_BOUNDS`; IP errado → `UNSUPPORTED`. Pin ROM-backed
+  **`0x148→0x000b026a`**, **`0x88→0x0008e6de`**. Vizinhos `0x7d14`/
+  `0x7d6c`/`0x7e50`/`0x1962c` permanecem unsupported. Oracle de
+  estado de câmera: store IPs **`0x31024`** (display triple
+  6.0/4.7/18.5 em `*(0x50084c)+0x54`) e **`0x1d34c`/`0x1d35c`**
+  (escala `600.0f` em `0x501084/88`); FIFO `0x0b001616` é tag copro
+  aritmética (classe 0x16), **não** opcode TGP matrix; matrix/focus
+  TGP 3x4 seguem **absent** nos streams. Host render: views de
+  análise + fix do contact-sheet; PNGs `out/attr-render/v0376/`.
+  Focused CTest Debug observado **9/9 Passed** (incl.
+  `vf2_polygon_object_submit` + `_differential`). Logo 3D nomeado
+  **fail-closed**. See `decomp/i960/notes/tgp_camera_state_v0376.md`,
+  `host_render_views_v0376.md`, `polygon_object_submit` notes via
+  UNCOVERED v0376.
+
 - Host mesh pipeline + FIFO transform absence (v0375): **análise visual**
   das malhas polygon-ROM medidas — não recovery, **logo 3D nomeado
   fail-closed**. Tools: `render_mesh_host.py` (multi-view PNG, z-buffer,
