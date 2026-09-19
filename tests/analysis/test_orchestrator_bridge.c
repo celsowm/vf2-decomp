@@ -3463,6 +3463,42 @@ static void test_final_status_zero_counter_return(void)
 }
 
 
+static void test_final_status_zero_counter_bit9_clear_calls_tail(void)
+{
+    vf2_model2a machine;
+    vf2_i960_cpu cpu;
+    vf2_hybrid_bridge_report report = {0};
+    uint32_t cleared = UINT32_MAX;
+
+    CHECK(vf2_model2a_initialize(&machine) != 0);
+    if (machine.work_ram == NULL) {
+        return;
+    }
+    /* Oracle attract park all0-ready1: counters 0, board bit9 clear,
+     * ready=1 → 13 steps to 0x4d25c, ready cleared, then status tail. */
+    write_test_u16(&machine, UINT32_C(0x0055c2f0), UINT16_MAX);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x005502c0), 0u) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x005502d0), 0u) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x005502e0), 0u) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00508000), 0u) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00550000), UINT32_C(1)) == VF2_OK);
+    enter_parent(&cpu, UINT32_C(0x0004bf90));
+
+    CHECK(vf2_hybrid_post_frame_bridge_execute(&machine, &cpu, &report) == VF2_OK);
+    CHECK(report.kind == VF2_HYBRID_BRIDGE_TEXTURE_FINAL_STATUS_CALL);
+    CHECK(report.entry_address == UINT32_C(0x0004bf90));
+    CHECK(report.exit_address == UINT32_C(0x0004d25c));
+    CHECK(report.recovered_procedure_calls == UINT64_C(1));
+    CHECK(report.recovered_procedure_returns == UINT64_C(0));
+    CHECK(cpu.ip == UINT32_C(0x0004d25c));
+    CHECK(read_test_u16(&machine, UINT32_C(0x0055c2f0)) == 0u);
+    CHECK(vf2_model2a_read_u32(&machine, UINT32_C(0x00550000), &cleared) == VF2_OK);
+    CHECK(cleared == 0u);
+
+    vf2_model2a_shutdown(&machine);
+}
+
+
 static void test_final_status_first_counter_call(void)
 {
     vf2_model2a machine;
@@ -3554,6 +3590,7 @@ int main(void)
     test_active_prepare_dispatch();
     test_record_advance_dispatch();
     test_final_status_zero_counter_return();
+    test_final_status_zero_counter_bit9_clear_calls_tail();
     test_final_status_first_counter_call();
     test_counter_update_active_countdowns();
     test_counter_update_dispatch();

@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Phase stores + status-tail bit9 clear (v0370): varredura maincpu
+  mapeia **91** sites `ldib/stib` de `0x500030`; no sel3 o avanço é
+  `phase+1` nos workers (phase14 **não** tem store). Memory-trace
+  oracle 80k passos attract ready=0: **0** writes em `0x500030`
+  (só snapshot `0x500031/34`). Thunk `0x7fc0` = blit C-string →
+  glyphs `0x80xx`. Final-status counters0 + board bit9 **clear**:
+  **13** passos até `0x4d25c`, ready 0; `0x50002b=0x03` → dest thunk
+  `0x010000e2`. C tail já fail-closed em mode `0x0c/0x0d`. Unit nova
+  pin bit9-clear. Logo 3D fail-closed. See
+  `decomp/i960/notes/phase_stores_status_tail_v0370.md`.
+
 - Cauda sel3 + fail-closed phase14/15 (v0369): oráculo a partir do
   park phase14/ready=0 mede thunk **0x9444** em **11** passos (phase
   **não** avança; resume 400k permanece 0x0e em spin `0x4c7xx`).

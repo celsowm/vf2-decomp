@@ -151,6 +151,21 @@ for those special masks and for the phase-14 not-ready thunk path.
 Named 3D logo remains unwitnessed. See
 `decomp/i960/notes/attract_tail_phase15_masks_v0369.md`.
 
+### v0370 phase store map + final-status `0x4d25c` bit9 clear (measured)
+
+ROM maincpu contains **91** absolute `ldib`/`stib` sites for
+`0x00500030`. Selector-3 advance uses the measured `phase+1` epilogue
+in workers 3–13/15/16; phase14 (`0xc0a4`) has **no** phase store.
+Oracle memory-trace of 80k attract instructions with ready=0 records
+**zero** writes to `0x500030` (wrapper only snapshots `0x500031/34`).
+Text thunk `0x7fc0` blits C-strings as tile glyphs `0x80xx`. With
+texture counters zero and board `0x508000` bit 9 **clear**, oracle
+final-status takes **13** instructions to status-tail **`0x4d25c`**
+(mode byte `0x50002b=0x03` → thunk dest `0x010000e2`); running the tail
+re-arms `0x550000=1` on the measured park. Recovered C already
+fail-closes status-tail modes `0x0c`/`0x0d`. Named 3D logo remains
+unwitnessed. See `decomp/i960/notes/phase_stores_status_tail_v0370.md`.
+
 ### v0354 EXIT TEST MODE → warm-boot attract (measured)
 
 From the sixth-dispatch park at frame-dispatch `0x0000a6c0`, forcing phase
