@@ -1561,6 +1561,94 @@ static vf2_status hybrid_execute_player_27b5c(
     return status;
 }
 
+/* v0359: measured five-slot wrapper 0x270d4→0x2712c with COBR CC active.
+ * Oracle on player-1428c-f0-s6: 9235 insns, +5 calls, +5 returns. */
+static vf2_status hybrid_execute_player_270d4(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu,
+    uint32_t registry_address,
+    vf2_hybrid_task_report *report
+)
+{
+    vf2_hybrid_task_report local_report;
+    const uint32_t player = cpu != NULL
+        ? cpu->registers[VF2_I960_G0_REGISTER + 7u] : 0u;
+    uint64_t start_instructions = 0u;
+    uint64_t start_calls = 0u;
+    uint64_t start_returns = 0u;
+    uint32_t record_pointer = 0u;
+    uint32_t scratch_base = 0u;
+    uint32_t destinations[5];
+    const uint32_t record_offsets[] = {0u, 2u, 0x10u, 0x14u, 0x3eu};
+    uint32_t index = 0u;
+    uint16_t record_selector = 0u;
+    uint32_t selector = 0u;
+    vf2_status status = VF2_OK;
+
+    if (machine == NULL || cpu == NULL || player == 0u) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    if (cpu->ip != UINT32_C(0x000270d4)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    start_instructions = cpu->executed_instructions;
+    start_calls = cpu->procedure_calls;
+    start_returns = cpu->procedure_returns;
+    status = vf2_model2a_read_u32(
+        machine, player + UINT32_C(0x1a0), &record_pointer
+    );
+    if (status == VF2_OK) {
+        status = vf2_model2a_read_u32(
+            machine, player + UINT32_C(0xbd8), &scratch_base
+        );
+    }
+    if (status != VF2_OK) {
+        return status;
+    }
+    if (record_pointer == 0u || scratch_base == 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    destinations[0] = scratch_base + 0x1e0u;
+    destinations[1] = scratch_base + 0x2d0u;
+    destinations[2] = scratch_base + 0x3c0u;
+    destinations[3] = scratch_base + 0x4b0u;
+    destinations[4] = scratch_base + 0x5a0u;
+    for (index = 0u; status == VF2_OK && index < 5u; ++index) {
+        status = hybrid_read_u16(
+            machine, record_pointer + record_offsets[index], &record_selector
+        );
+        selector = record_selector;
+        if (status == VF2_OK) {
+            status = hybrid_execute_player_27b5c(
+                machine, cpu, selector, destinations[index]
+            );
+        }
+    }
+    if (status != VF2_OK) {
+        return status;
+    }
+    cpu->procedure_calls += UINT64_C(5);
+    cpu->procedure_returns += UINT64_C(5);
+    cpu->ip = UINT32_C(0x0002712c);
+    cpu->executed_instructions += UINT64_C(9235);
+    memset(&local_report, 0, sizeof(local_report));
+    local_report.kind = VF2_HYBRID_TASK_PLAYER;
+    local_report.entry_address = UINT32_C(0x000270d4);
+    local_report.exit_address = cpu->ip;
+    local_report.registry_address = registry_address;
+    local_report.recovered_instruction_count =
+        cpu->executed_instructions - start_instructions;
+    local_report.recovered_procedure_calls =
+        cpu->procedure_calls - start_calls;
+    local_report.recovered_procedure_returns =
+        cpu->procedure_returns - start_returns;
+    local_report.cpu_poststate_applied = 1;
+    if (report != NULL) {
+        *report = local_report;
+    }
+    return VF2_OK;
+}
+
 static vf2_status hybrid_execute_player_1428c(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu
@@ -24786,12 +24874,10 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
             machine, cpu, registry_address, report
         );
     }
-    /* v0358: 0x270d4 five-slot wrapper is measured but not admitted.
-     * Byte-exact C vs oracle requires executor cmpobl to update
-     * compare_result (hardware COBR flags); that change currently breaks
-     * corridor MATCH on kill_osage/phase17. Keep the boundary fail-closed. */
     if (cpu->ip == UINT32_C(0x000270d4)) {
-        return VF2_ERROR_UNSUPPORTED;
+        return hybrid_execute_player_270d4(
+            machine, cpu, registry_address, report
+        );
     }
 
     memset(&local_report, 0, sizeof(local_report));
@@ -25131,6 +25217,10 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
                 kill_report.flag_words_written * sizeof(uint32_t);
             local_report.global_bytes_written =
                 kill_report.records_marked_for_kill * sizeof(uint32_t);
+            /* COBR CC: last cmpo* in 0x65838 evaluate chain. */
+            hybrid_set_compare_result(
+                cpu, (vf2_i960_compare_result)kill_report.last_compare_result
+            );
         }
         break;
 
@@ -25275,6 +25365,10 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
             cpu->registers[23] = fighter;
             body_instructions = instance == 0u
                 ? UINT64_C(18) : UINT64_C(17);
+            hybrid_set_compare_result(
+                cpu,
+                (vf2_i960_compare_result)task_report.last_compare_result
+            );
         }
         break;
 
@@ -25537,6 +25631,9 @@ vf2_status vf2_hybrid_first_dispatch_scheduler_finish(
     if (cpu->ip != UINT32_C(0x0000a014)) {
         return VF2_ERROR_UNSUPPORTED;
     }
+    /* Measured COBR CC at first-sweep finish to 0xa014 on the admitted
+     * shape (task_count=29, threshold=0): reference leaves GREATER. */
+    hybrid_set_compare_result(cpu, VF2_I960_COMPARE_GREATER);
 
     local_report.current_task_index = LAST_TASK_INDEX;
     local_report.inactive_descriptors_scanned = 1u;

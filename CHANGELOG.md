@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- COBR CC + pin `0x270d4` (v0359): executor `cmpo*`/`cmpi*` COBR now write
+  `compare_result` **and** AC low condition bits (hardware lockstep). Recovered
+  exits recalibrated on measured last-cmpo: `fa_kill_osage` (0x65838 chain),
+  `fa_osage0/1` (`cmpobne 0,instance` → EQUAL/LESS), first-sweep scheduler
+  finish → **GREATER** at `0xa014`. `native-first-dispatch` and
+  `native-sixth-dispatch` **MATCH** (870 blocks / 7,404,901 insns). Player
+  wrapper `0x270d4` admitted: C 5×`0x27b5c` equals oracle on five slots,
+  **9235** insns, ROM pin `vf2_player_270d4_five_slot_pin`. Selectors
+  `{0x0505,0x0039,0x00f1,0x00e7,0x00af}` at main_data `0x0201c2fc`.
+  `phase17_zero` differential still fails on per-path CC (open). See
+  `player_270d4_slot_pin_v0358.md` (blocked narrative) + this slice.
+
 - Pin `0x270d4` five slots + coli body 77 (v0358): record selectors medidos
   em main_data `0x0201c2fc` = `{0x0505,0x0039,0x00f1,0x00e7,0x00af}`.
   COBR `cmpobl`+`be` no despacho de `0x27b5c`: com CC arquitetural

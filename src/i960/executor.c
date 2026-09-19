@@ -1139,6 +1139,28 @@ static vf2_status execute_instruction(
         if (status != VF2_OK) {
             return status;
         }
+        /* Hardware COBR cmpo/cmpi set condition codes; a following be/bne/bl
+         * observes this compare. Recovered-C exits must pin the same CC.
+         * Keep compare_result and AC low condition bits in lockstep. */
+        if (strncmp(mnemonic, "cmpo", 4u) == 0 ||
+            strncmp(mnemonic, "cmpi", 4u) == 0) {
+            const int is_signed = strncmp(mnemonic, "cmpi", 4u) == 0;
+            uint32_t condition_bits = 0u;
+            if (first == second) {
+                cpu->compare_result = VF2_I960_COMPARE_EQUAL;
+                condition_bits = 2u;
+            } else if (is_signed
+                           ? ((int32_t)first < (int32_t)second)
+                           : (first < second)) {
+                cpu->compare_result = VF2_I960_COMPARE_LESS;
+                condition_bits = 4u;
+            } else {
+                cpu->compare_result = VF2_I960_COMPARE_GREATER;
+                condition_bits = 1u;
+            }
+            cpu->arithmetic_control =
+                (cpu->arithmetic_control & ~UINT32_C(7)) | condition_bits;
+        }
         if (direct_compare_condition(mnemonic, first, second)) {
             cpu->ip = instruction->target;
         }

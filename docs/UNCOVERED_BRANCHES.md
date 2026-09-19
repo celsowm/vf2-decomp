@@ -87,6 +87,16 @@ legacy COBR (no CC write); `0x270d4` stays `VF2_ERROR_UNSUPPORTED`.
 Reopen after a dedicated CC recalibration campaign.
 See `decomp/i960/notes/player_270d4_slot_pin_v0358.md`.
 
+### v0359 COBR CC recalibration + `0x270d4` admitted
+
+Executor COBR `cmpo*`/`cmpi*` now set `compare_result` and AC condition
+bits together. Recovered exits pin measured last-cmpo CC for `fa_kill_osage`,
+`fa_osage0/1`, and first-sweep scheduler finish (GREATER at `0xa014`).
+`native-first-dispatch` and `native-sixth-dispatch` MATCH. Player wrapper
+`0x270d4` is native-admitted: five-slot ROM pin at **9235** insns,
+cursors `g3=0x520630 g5=0x50ea98 g6=0x50e2d0`. `phase17_zero` still fails
+per-path CC (open). Degenerate record/scratch remains fail-closed.
+
 ## 1. Scheduler and task execution
 
 Recovered scanning uses live registry strides, skips inactive descriptors and

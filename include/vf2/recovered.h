@@ -63,6 +63,7 @@ typedef struct vf2_recovered_task_report {
     uint32_t continuation;
     size_t bytes_written;
     size_t global_bytes_written;
+    uint32_t last_compare_result;
 } vf2_recovered_task_report;
 
 typedef struct vf2_recovered_camera_init_report {
@@ -144,6 +145,8 @@ typedef struct vf2_recovered_kill_osage_report {
     size_t records_evaluated;
     size_t records_marked_for_kill;
     size_t flag_words_written;
+    /* vf2_i960_compare_result from the last ROM cmpo* in 0x65838. */
+    uint32_t last_compare_result;
 } vf2_recovered_kill_osage_report;
 
 typedef struct vf2_recovered_timer_irq_report {

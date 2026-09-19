@@ -6879,13 +6879,159 @@ static void test_player_27b5c_zero_record_fail_closed(void) {
     free(rom);
 }
 
+/* v0359 ROM pin: five 0x270d4 slots vs oracle with COBR CC (9235 insns). */
+static void test_player_270d4_five_slot_rom_pin(const char *rom_dir)
+{
+    static const uint32_t slot_bases[5] = {
+        UINT32_C(0x005201e0), UINT32_C(0x005202d0), UINT32_C(0x005203c0),
+        UINT32_C(0x005204b0), UINT32_C(0x005205a0),
+    };
+    static const uint32_t expected[5][20] = {
+        {0, 0, 0, 0, 0, 0, 0, UINT32_C(0x44b605b0), 0, 0,
+         UINT32_C(0x4660382d), 0, 0, 0, 0, 0,
+         UINT32_C(0x46c2616c), 0, UINT32_C(0x46ff8000), UINT32_C(0xc67fc000)},
+        {0, 0, 0, 0, 0, 0, 0, UINT32_C(0x44b605b0), 0, 0,
+         UINT32_C(0x469b4d83), 0, 0, 0, 0, 0,
+         UINT32_C(0x46c2616c), 0, UINT32_C(0x46ff8000), UINT32_C(0xc67fc000)},
+        {0, 0, 0, 0, 0, 0, 0, UINT32_C(0x44b605b0), 0, 0,
+         UINT32_C(0x4660382d), 0, 0, 0, 0, 0,
+         UINT32_C(0x46c46205), 0, UINT32_C(0x47008065), UINT32_C(0xc67fc000)},
+        {0, 0, 0, 0, 0, 0, 0, UINT32_C(0x44b605b0), 0, 0,
+         UINT32_C(0x469b4d83), 0, 0, 0, 0, 0,
+         UINT32_C(0x46c46205), 0, UINT32_C(0x47008065), UINT32_C(0xc67fc000)},
+        {0, 0, 0, 0, 0, 0, UINT32_C(0x46713c72), UINT32_C(0xc511f6e6),
+         UINT32_C(0x460c230a), UINT32_C(0x46653963), UINT32_C(0xc387fef0),
+         UINT32_C(0xc666c667), UINT32_C(0x467f4000), 0, 0, 0,
+         UINT32_C(0x467f4000), 0, UINT32_C(0x46ff7fff), UINT32_C(0xc67fc000)},
+    };
+    uint8_t *main_rom = NULL;
+    uint8_t *main_data = NULL;
+    size_t main_rom_size = 0u;
+    size_t main_data_size = 0u;
+    vf2_model2a ref_machine;
+    vf2_model2a c_machine;
+    vf2_i960_cpu ref_cpu;
+    vf2_i960_cpu c_cpu;
+    vf2_i960_run_options options;
+    vf2_i960_run_result result;
+    vf2_hybrid_task_report report;
+    const uint32_t player = UINT32_C(0x00510980);
+    const uint32_t registry = UINT32_C(0x00515200);
+    vf2_status st;
+    size_t slot = 0u;
+    size_t word = 0u;
+
+    CHECK(vf2_romset_build_region(
+              rom_dir, VF2_REGION_MAINCPU, &main_rom, &main_rom_size) ==
+          VF2_OK);
+    CHECK(vf2_romset_build_region(
+              rom_dir, VF2_REGION_MAIN_DATA, &main_data, &main_data_size) ==
+          VF2_OK);
+    if (main_rom == NULL || main_data == NULL) {
+        free(main_rom);
+        free(main_data);
+        return;
+    }
+    memset(&ref_machine, 0, sizeof(ref_machine));
+    memset(&c_machine, 0, sizeof(c_machine));
+    CHECK(vf2_model2a_initialize(&ref_machine));
+    CHECK(vf2_model2a_initialize(&c_machine));
+    CHECK(vf2_model2a_attach_main_rom(
+              &ref_machine, main_rom, main_rom_size) == VF2_OK);
+    CHECK(vf2_model2a_attach_main_data(
+              &ref_machine, main_data, main_data_size) == VF2_OK);
+    CHECK(vf2_model2a_attach_main_rom(
+              &c_machine, main_rom, main_rom_size) == VF2_OK);
+    CHECK(vf2_model2a_attach_main_data(
+              &c_machine, main_data, main_data_size) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(
+              &ref_machine, player + UINT32_C(0x1a0),
+              UINT32_C(0x0201c2fc)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(
+              &ref_machine, player + UINT32_C(0xbd8),
+              UINT32_C(0x00520000)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(
+              &c_machine, player + UINT32_C(0x1a0),
+              UINT32_C(0x0201c2fc)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(
+              &c_machine, player + UINT32_C(0xbd8),
+              UINT32_C(0x00520000)) == VF2_OK);
+
+    vf2_i960_cpu_reset(&ref_cpu, 0u, 0u, UINT32_C(0x000270d4));
+    ref_cpu.registers[1] = VF2_WORK_RAM_BASE + UINT32_C(0x3000);
+    ref_cpu.registers[31] = UINT32_C(0x005ff500);
+    ref_cpu.registers[VF2_I960_G0_REGISTER + 7u] = player;
+    ref_cpu.ip = UINT32_C(0x000270d4);
+    memset(&options, 0, sizeof(options));
+    options.stop_address = UINT32_C(0x0002712c);
+    options.max_steps = UINT64_C(20000);
+    options.stop_on_self_branch = false;
+    memset(&result, 0, sizeof(result));
+    st = vf2_i960_run(&ref_cpu, &ref_machine, &options, &result);
+    CHECK(st == VF2_OK);
+    CHECK(ref_cpu.ip == UINT32_C(0x0002712c));
+    CHECK(result.executed_instructions == UINT64_C(9235));
+
+    vf2_i960_cpu_reset(&c_cpu, 0u, 0u, UINT32_C(0x000270d4));
+    c_cpu.registers[1] = VF2_WORK_RAM_BASE + UINT32_C(0x3000);
+    c_cpu.registers[VF2_I960_FP_REGISTER] = UINT32_C(0x005ff500);
+    CHECK(vf2_i960_cpu_enter_procedure(
+              &c_cpu, UINT32_C(0x00001000), UINT32_C(0x00001004)) == VF2_OK);
+    CHECK(vf2_i960_cpu_enter_procedure(
+              &c_cpu, UINT32_C(0x000270d4), UINT32_C(0x0002712c)) == VF2_OK);
+    c_cpu.registers[29] = registry;
+    c_cpu.registers[VF2_I960_G0_REGISTER + 7u] = player;
+    c_cpu.ip = UINT32_C(0x000270d4);
+    memset(&report, 0, sizeof(report));
+    st = vf2_hybrid_first_dispatch_task_execute(
+        &c_machine, &c_cpu, registry, &report);
+    CHECK(st == VF2_OK);
+    CHECK(c_cpu.ip == UINT32_C(0x0002712c));
+    CHECK(report.recovered_instruction_count == UINT64_C(9235));
+
+    for (slot = 0u; slot < 5u; ++slot) {
+        for (word = 0u; word < 20u; ++word) {
+            uint32_t ref_word = 0u;
+            uint32_t c_word = 0u;
+            CHECK(vf2_model2a_read_u32(
+                      &ref_machine,
+                      slot_bases[slot] + (uint32_t)word * 4u,
+                      &ref_word) == VF2_OK);
+            CHECK(vf2_model2a_read_u32(
+                      &c_machine,
+                      slot_bases[slot] + (uint32_t)word * 4u,
+                      &c_word) == VF2_OK);
+            if (ref_word != expected[slot][word] ||
+                c_word != expected[slot][word]) {
+                fprintf(
+                    stderr,
+                    "FAILED 270d4 slot%zu word%zu exp=%08x ref=%08x c=%08x\n",
+                    slot, word, (unsigned)expected[slot][word],
+                    (unsigned)ref_word, (unsigned)c_word);
+                ++failures;
+            }
+        }
+    }
+    CHECK(c_cpu.registers[VF2_I960_G0_REGISTER + 3u] ==
+          UINT32_C(0x00520630));
+    CHECK(c_cpu.registers[VF2_I960_G0_REGISTER + 5u] ==
+          UINT32_C(0x0050ea98));
+    CHECK(c_cpu.registers[VF2_I960_G0_REGISTER + 6u] ==
+          UINT32_C(0x0050e2d0));
+    vf2_model2a_shutdown(&ref_machine);
+    vf2_model2a_shutdown(&c_machine);
+    free(main_rom);
+    free(main_data);
+}
+
 int main(int argc, char **argv) {
-    (void)argc;
-    (void)argv;
     test_initialize_and_names();
     test_post_boot_backup_broken_screen();
     test_frame_dispatch_selector0_signature_fast_path();
     test_player_27b5c_zero_record_fail_closed();
+    if (argc >= 2) {
+        test_player_270d4_five_slot_rom_pin(argv[1]);
+    }
     test_post_boot_delay();
     test_post_boot_texture_init_prefix();
     test_post_boot_texture_wait_poll();

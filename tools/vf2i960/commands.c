@@ -4452,10 +4452,20 @@ static int command_native_dispatch_ex(
             fprintf(
                 stderr,
                 "Task %s mismatch: %s offset=0x%zx "
-                "expected=0x%08x actual=0x%08x bytes=%zu\n",
+                "expected=0x%08x actual=0x%08x bytes=%zu "
+                "ref_cc=%u nat_cc=%u ref_ac=%08x nat_ac=%08x "
+                "ref_ip=%08x nat_ip=%08x ref_depth=%u nat_depth=%u\n",
                 vf2_hybrid_task_kind_name(task_report->kind), diff.component,
                 diff.first_offset, (unsigned)diff.expected_value,
-                (unsigned)diff.actual_value, diff.differing_bytes
+                (unsigned)diff.actual_value, diff.differing_bytes,
+                (unsigned)original_cpu.compare_result,
+                (unsigned)native_cpu.compare_result,
+                (unsigned)original_cpu.arithmetic_control,
+                (unsigned)native_cpu.arithmetic_control,
+                (unsigned)original_cpu.ip,
+                (unsigned)native_cpu.ip,
+                (unsigned)original_cpu.local_frame_depth,
+                (unsigned)native_cpu.local_frame_depth
             );
             status = VF2_ERROR_UNSUPPORTED;
         }

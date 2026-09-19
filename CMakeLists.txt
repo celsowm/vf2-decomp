@@ -258,6 +258,10 @@ if(VF2_BUILD_TESTS)
     target_link_libraries(vf2_native_runtime_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_native_runtime_tests)
     add_test(NAME vf2_native_runtime COMMAND vf2_native_runtime_tests)
+    if(EXISTS "${VF2_ROM_DIR}")
+        add_test(NAME vf2_player_270d4_five_slot_pin
+                 COMMAND vf2_native_runtime_tests "${VF2_ROM_DIR}")
+    endif()
 
     add_executable(vf2_native_runtime_state_tests tests/recovered/test_native_runtime_state.c)
     target_link_libraries(vf2_native_runtime_state_tests PRIVATE vf2_core)
