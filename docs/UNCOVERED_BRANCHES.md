@@ -36,6 +36,19 @@ main-final-cluster), not a `fa_game_info` IP.
 
 See `decomp/i960/notes/display_landmark_v0353.md`.
 
+### v0360 SEGA warning screen (measured + native unit pin)
+
+Frame **selector 0** at `0xa804` draws the Model 2 legal signature when
+COUNTRY==0 and the latch at `0x59cfe0` does **not** match
+`{0x52455320,0x4e4c2053,0x4e204544,0x20514555}`. ROM strings include
+**`SEGA ENTERPRISES,LTD.`** at `0x0000aaad`. Natural witness:
+`park-after-irq` → one frame **15853** instructions, selector **1**,
+countdown **640**, styled glyphs at `0x01000332..0x01001650`. Warm parks
+holding the latch take the **34-insn** path to selector 2 and skip SEGA
+(explains v0353–v0356; `0x80xx`-only decoders also miss `0x89xx` glyphs).
+Game-attract 3D logo after warm sel 2/3→`0x11` TEST MENU remains open.
+See `decomp/i960/notes/sega_warning_screen_v0360.md`.
+
 ### v0354 EXIT TEST MODE → warm-boot attract (measured)
 
 From the sixth-dispatch park at frame-dispatch `0x0000a6c0`, forcing phase

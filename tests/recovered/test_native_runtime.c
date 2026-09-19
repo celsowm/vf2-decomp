@@ -6827,6 +6827,66 @@ static void test_frame_dispatch_selector0_signature_fast_path(void) {
     free(rom);
 }
 
+/* v0360: SEGA warning screen (selector-0 draw) when signature is absent.
+ * ROM strings 0xa9a4.. include "SEGA ENTERPRISES,LTD." at 0xaaad.
+ * Natural witness park-after-irq: one frame -> sel=1, 15853 insns. */
+static void test_frame_dispatch_selector0_sega_warning_draw(void) {
+    vf2_model2a machine;
+    vf2_i960_cpu cpu;
+    vf2_native_runtime_state state;
+    vf2_native_runtime_step_report report;
+    uint8_t *rom = NULL;
+    uint8_t selector = 0u;
+    uint32_t cfg = UINT32_C(0x00599000);
+    uint32_t value = 0u;
+    size_t index = 0u;
+
+    memset(&machine, 0, sizeof(machine));
+    CHECK(vf2_model2a_initialize(&machine) != 0);
+    if (machine.work_ram == NULL) {
+        return;
+    }
+    rom = (uint8_t *)calloc(1u, VF2_MAIN_ROM_SIZE);
+    CHECK(rom != NULL);
+    if (rom == NULL) {
+        vf2_model2a_shutdown(&machine);
+        return;
+    }
+    write_u32_bytes(rom, UINT32_C(0x0000a6f8), UINT32_C(0x0000a804));
+    CHECK(vf2_model2a_attach_main_rom(&machine, rom, VF2_MAIN_ROM_SIZE) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x0050016c), cfg) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, cfg + UINT32_C(0x3350), "\0", 1u) == VF2_OK);
+    for (index = 0u; index < 4u; ++index) {
+        CHECK(vf2_model2a_write_u32(
+                  &machine, UINT32_C(0x0059cfe0) + (uint32_t)index * 4u, 0u) ==
+              VF2_OK);
+    }
+    selector = 0u;
+    CHECK(vf2_model2a_write(&machine, UINT32_C(0x0050002a), &selector,
+                            sizeof(selector)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00500800), 0u) == VF2_OK);
+    vf2_i960_cpu_reset(&cpu, 0u, 0u, UINT32_C(0x0000a6c0));
+    cpu.registers[1] = VF2_WORK_RAM_BASE + UINT32_C(0x3000);
+    CHECK(vf2_i960_cpu_enter_procedure(&cpu, UINT32_C(0x0000a6c0),
+                                       UINT32_C(0x0000a010)) == VF2_OK);
+    cpu.ip = UINT32_C(0x0000a6c0);
+    CHECK(vf2_native_runtime_initialize(&state, 4u) == VF2_OK);
+    memset(&report, 0, sizeof(report));
+    CHECK(vf2_native_runtime_step(&machine, &cpu, &state, &report) == VF2_OK);
+    CHECK(report.recovered_instruction_count == UINT64_C(15853));
+    CHECK(cpu.ip == UINT32_C(0x0000a010));
+    selector = 0xffu;
+    CHECK(vf2_model2a_read(&machine, UINT32_C(0x0050002a), &selector,
+                           sizeof(selector)) == VF2_OK);
+    CHECK(selector == UINT8_C(1));
+    CHECK(vf2_model2a_read_u32(&machine, UINT32_C(0x00500024), &value) == VF2_OK);
+    CHECK(value == UINT32_C(640));
+    CHECK(vf2_model2a_read_u32(&machine, UINT32_C(0x0059cfe0), &value) == VF2_OK);
+    CHECK(value == 0u);
+    vf2_model2a_shutdown(&machine);
+    free(rom);
+}
+
 /* v0357: 0x270d4/0x27b5c fail-closed when record/scratch are zero. */
 static void test_player_27b5c_zero_record_fail_closed(void) {
     uint8_t *rom = NULL;
@@ -7028,6 +7088,7 @@ int main(int argc, char **argv) {
     test_initialize_and_names();
     test_post_boot_backup_broken_screen();
     test_frame_dispatch_selector0_signature_fast_path();
+    test_frame_dispatch_selector0_sega_warning_draw();
     test_player_27b5c_zero_record_fail_closed();
     if (argc >= 2) {
         test_player_270d4_five_slot_rom_pin(argv[1]);

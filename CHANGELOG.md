@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Tela SEGA alcançada (v0360): o **frame selector 0** desenha a assinatura
+  legal Model 2 cujas strings ROM incluem `SEGA ENTERPRISES,LTD.` (`0xaaad`).
+  Witness natural: `park-after-irq` (COUNTRY=JAPAN, assinatura `0xa5a5…` não
+  casa) → 1 frame **15853** insns, selector **1**, countdown **640**, glyphs
+  `0x89xx` nos destinos `0x01000332..0x01001650`. Warm com assinatura em
+  `0x59cfe0` **pula** o desenho (fast path 34 → sel 2) — por que v0353–v0356
+  nunca viram SEGA. Decoders `0x80xx` não liam glyphs estilizados. C
+  `execute_selector0_body` já cobria o ramo draw; unit
+  `test_frame_dispatch_selector0_sega_warning_draw` pin 15853/sel=1/640.
+  Tools em `tools/python/dump_sel0_strings.py` e `decode_glyph_tiles.py`.
+  See `decomp/i960/notes/sega_warning_screen_v0360.md`.
+
 - COBR CC + pin `0x270d4` (v0359): executor `cmpo*`/`cmpi*` COBR now write
   `compare_result` **and** AC low condition bits (hardware lockstep). Recovered
   exits recalibrated on measured last-cmpo: `fa_kill_osage` (0x65838 chain),
