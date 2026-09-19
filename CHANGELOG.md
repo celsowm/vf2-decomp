@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Object-submit attribution + alt selectors (v0373): ~**140** ROM
+  `call 0x7c60` sites (dest=`ip+signed24`); clusters display
+  `0x19xxx` / `0x20xxx` (54, incl. pol_test ids `0x97d–0x986`) /
+  `0x2e4e4–0x31778` (49, `display_command_emit 0x31040` via table
+  `0x70cbc`). Attract phase5 still submits **unnamed** polygon ids
+  `0x88/0x14x`. Alt sel sweep: only **sel 9** from boot park opens
+  FIFO (1408 writes); no SEGA/LOGO ASCII; residual tiles `t4e jef`
+  ≠ título. Logo 3D nomeado **fail-closed**. See
+  `decomp/i960/notes/logo_object_submit_v0372.md`.
+
 - Objetos polygon no attract (v0372): oracle phase5 **lê** a tabela
   `0x020e0004` (ids **0x148/0x88/0x145…**) e **grava** word0 em
   geo/FIFO (`0xb026a` = id 0x148). Helper `0x7c60` + `fa_pol_test`
