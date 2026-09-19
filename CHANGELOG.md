@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Ready-latch + FIFO/texture (v0367): ROM stores em `0x550000` =
+  set **1** (`0x4b414/0x4b83c/0x4ba14`) e clear **0** em
+  **`0x4bfc4`** (r14==0 e ctr2 `0x5502e0`==0). C
+  `execute_texture_final_status_call` espelha o clear; **model2a/TGP
+  não** limpam o latch sozinhos. Parks phase14: ready=1 com
+  contadores 0 — clear não roda no spin de objeto. Worker phase14
+  (ROM+C) **não** escreve phase+1 → fases 15+ não alcançadas por
+  esse caminho. Correlação: attract FIFO **1157–2016** writes +
+  nz_tex **~10154** vs TEST FIFO **9** + nz **0**; sem mesh nomeada
+  → logo 3D fail-closed. See
+  `decomp/i960/notes/ready_clear_fifo_corr_v0367.md`.
+
 - Attract sel3 phases 3–14 + gate `0x550000` (v0366): oracle alcança
   fases **3..14** com nav limpo e scouts de counters medidos
   (`0x500024`, `0x515b50`, `0x500028` com sel=3 preservado). Workers

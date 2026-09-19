@@ -108,6 +108,21 @@ frame-dispatch visits. Texture attract ~10154 nz vs TEST 0; still no
 named 3D logo mesh. See
 `decomp/i960/notes/attract_phases_ready_gate_v0366.md`.
 
+### v0367 video-ready clear `0x4bfc4` + FIFO/texture correlation
+
+ROM stores `0x00550000=1` at `0x4b414`/`0x4b83c`/`0x4ba14` and
+clears it at **`0x4bfc4`** only when `r14==0` and texture counter2
+(`0x005502e0`) is zero. Recovered `execute_texture_final_status_call`
+(`0x4bf90`) implements the same clear when counters
+`0x5502c0/d0/e0` are all zero. Portable `model2a`/`vf2_tgp` do **not**
+auto-clear the latch on video completion. Attract phase-14 parks show
+`ready=1` with counters already 0 (clear path not taken in the object
+spin); selector-3 phase14 ROM/C worker does **not** store `phase+1`.
+Measured FIFO/texture delta: attract **1157–2016** copro FIFO writes
+and texture-64k nz **~10154** versus TEST **9** / **0**. Named 3D
+logo mesh remains unwitnessed. See
+`decomp/i960/notes/ready_clear_fifo_corr_v0367.md`.
+
 ### v0354 EXIT TEST MODE → warm-boot attract (measured)
 
 From the sixth-dispatch park at frame-dispatch `0x0000a6c0`, forcing phase
