@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Attract object-id attribution (v0374): natural phase5 geo/FIFO writes
+  de table w0 atribuídos a **`0x7d08`/`0x7d0c`** (helper `0x7c60`).
+  Callers que carregam `g0`: **`0x190f0`** (ponteiro de estado),
+  **`0x61cc8`** (walker de lista stride +24), **`0x21134`** (tabelas
+  halfword `0x6ee38`/`0x6fe38`). IDs naturais incluem `0x88`, `0x143–
+  0x152`, `0x4d1–0x4eb`, `0xd06–0xd11` — **não** imediatos ROM.
+  `display_command_emit 0x31040` usa `0x70cbc[0]=0xee1` (mesmo em
+  TEST); sem overlap com a família attract. Sem ASCII SEGA/LOGO/TITLE
+  em ROM de objetos; lutadores AKIRA/WOLF/PAI presentes sem ponteiro
+  para ids de attract. **Logo 3D nomeado: fail-closed.** See
+  `decomp/i960/notes/logo_named_witness_v0373.md`.
+
 - Object-submit attribution + alt selectors (v0373): ~**140** ROM
   `call 0x7c60` sites (dest=`ip+signed24`); clusters display
   `0x19xxx` / `0x20xxx` (54, incl. pol_test ids `0x97d–0x986`) /
