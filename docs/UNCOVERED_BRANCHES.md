@@ -94,6 +94,20 @@ No named SEGA/title 3D mesh witness (tiles empty; FIFO not correlated
 to a unique object). Logo 3D recovery stays fail-closed.
 See `decomp/i960/notes/attract_long_fifo_v0365.md`.
 
+### v0366 attract phases 3–14 + video ready latch (measured)
+
+Selector-3 attract phases **3 through 14** are reachable in the
+reference oracle when `0x500704` gate bits stay clear and measured
+counters are stepped. Phase workers 8/9/14 implement ROM: nonzero
+`[0x500834]+0x50` decrements; when zero, `0x00550000==1` **returns**
+(video-ready wait; natural post-phase-7 is 1 per v0026); else
+`balx 0x00009444` text thunk. Static writes to `0x550000` sit at
+`0x4b414` / `0x4b83c` / `0x4ba14` (video command submit). Phase 14
+stalls after re-arming ready=1; coli object spin at `0x224xx` stops
+frame-dispatch visits. Texture attract ~10154 nz vs TEST 0; still no
+named 3D logo mesh. See
+`decomp/i960/notes/attract_phases_ready_gate_v0366.md`.
+
 ### v0354 EXIT TEST MODE → warm-boot attract (measured)
 
 From the sixth-dispatch park at frame-dispatch `0x0000a6c0`, forcing phase

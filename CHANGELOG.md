@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Attract sel3 phases 3–14 + gate `0x550000` (v0366): oracle alcança
+  fases **3..14** com nav limpo e scouts de counters medidos
+  (`0x500024`, `0x515b50`, `0x500028` com sel=3 preservado). Workers
+  phase8/9/14: ctr=0 e `0x550000==1` → **ret** (espera); not-ready →
+  thunk `0x9444` (v0026: 26 insns). Natural pós-phase7 tem ready=1;
+  oráculo re-arm ready=1 e phase14 trava. Coli spin `0x224xx` trava
+  scheduler sem visitas a `0xa6c0` (recete `--set-ip`). Sem logo 3D
+  nomeado. See
+  `decomp/i960/notes/attract_phases_ready_gate_v0366.md`.
+
 - Attract longo + FIFO TGP (v0365): com nav limpo o oráculo drena
   phase3 (cd 256→0, ~1/frame), avança **fases 4→8** (sel3, sem TEST).
   Texture 64k nz **0→4360→~10154** no attract vs **0** em TEST.
