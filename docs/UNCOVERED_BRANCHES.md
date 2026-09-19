@@ -123,6 +123,18 @@ and texture-64k nz **~10154** versus TEST **9** / **0**. Named 3D
 logo mesh remains unwitnessed. See
 `decomp/i960/notes/ready_clear_fifo_corr_v0367.md`.
 
+### v0368 oracle pin texture final-status `0x4bf90`
+
+Controlled probe from an attract phase-14 park sets IP to
+`0x0004bf90` and stops at `0x0004bfdc`. Measured: all texture counters
+zero and `0x550000=1` → **12** instructions, ready **cleared to 0**;
+nonzero counter0 or counter2 → ready **stays 1** (6 / 10 steps).
+Board `0x508000` bit 9 set skips `call 0x4d25c`. Recovered C unit
+already pins the same clear at **13** counts including `ret`.
+After a measured clear, selector-3 phase14 still does not store
+`phase+1`; named 3D logo remains unwitnessed.
+See `decomp/i960/notes/final_status_pin_v0368.md`.
+
 ### v0354 EXIT TEST MODE → warm-boot attract (measured)
 
 From the sixth-dispatch park at frame-dispatch `0x0000a6c0`, forcing phase

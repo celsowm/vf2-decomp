@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Pin oracle final-status `0x4bf90` (v0368): com counters 0 e ready=1
+  o oráculo executa **12** passos até `0x4bfdc` e grava
+  **`0x550000=0`**; ctr0=1 ou ctr2=1 mantêm ready=1 (6/10 passos).
+  Board bit9 set pula `call 0x4d25c`. C unit já pinava **13** insns
+  (12+`ret`) — coerente. Entrada ROM: scan `0x4bd24` → `0x4bf90`.
+  Após clear no attract, phase14 **não** ++phase (worker não grava
+  phase+1). CTest orchestrator/texture **8/8 Passed**. Logo 3D
+  fail-closed. See `decomp/i960/notes/final_status_pin_v0368.md`.
+
 - Ready-latch + FIFO/texture (v0367): ROM stores em `0x550000` =
   set **1** (`0x4b414/0x4b83c/0x4ba14`) e clear **0** em
   **`0x4bfc4`** (r14==0 e ctr2 `0x5502e0`==0). C
