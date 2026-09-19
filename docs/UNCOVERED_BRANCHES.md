@@ -161,10 +161,25 @@ Oracle memory-trace of 80k attract instructions with ready=0 records
 Text thunk `0x7fc0` blits C-strings as tile glyphs `0x80xx`. With
 texture counters zero and board `0x508000` bit 9 **clear**, oracle
 final-status takes **13** instructions to status-tail **`0x4d25c`**
-(mode byte `0x50002b=0x03` → thunk dest `0x010000e2`); running the tail
-re-arms `0x550000=1` on the measured park. Recovered C already
-fail-closes status-tail modes `0x0c`/`0x0d`. Named 3D logo remains
+(mode byte `0x50002b=0x03` → thunk dest `0x010000e2`); the probe park
+entered the tail with ready already 1 (not a tail re-arm). Dispatch C
+recovers status-tail modes `0x0c`/`0x0d` (dual thunk); the non-dispatch
+helper still fail-closes those modes. Named 3D logo remains
 unwitnessed. See `decomp/i960/notes/phase_stores_status_tail_v0370.md`.
+
+### v0371 status-tail oracle (real ROM) + attract thunk (measured)
+
+From the attract park, oracle `0x4d25c → 0x4d2bc` measures mode
+**0x03** at **156** instructions (tile writes only at `0x010000e2`),
+mode **0x0c** at **305** and mode **0x0d** at **307** (writes at
+special `0x010040e2` **and** common `0x010000e2`; the **+2** delta
+matches the recovered unit pin). ROM payloads at `0x4d28c`/`0x4d2ac`
+are fifteen `0x20` bytes plus NUL, blitted as glyphs **`0x8020`**.
+Phase-14 not-ready thunk: **11** steps to `0x9444` and **15** to
+`0x9468` with no tile writes on this park. Unit
+`run_common_only_spaces` pins the mode-3 common-only path. Named 3D
+logo remains unwitnessed. See
+`decomp/i960/notes/status_tail_oracle_v0371.md`.
 
 ### v0354 EXIT TEST MODE → warm-boot attract (measured)
 

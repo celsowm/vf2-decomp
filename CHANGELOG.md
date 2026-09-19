@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Status-tail oracle ROM real (v0371): park attract, `0x4d25c→0x4d2bc`
+  mede mode **0x03** = **156** passos (só dest `0x010000e2`), mode
+  **0x0c** = **305** e **0x0d** = **307** (dests special+common;
+  delta **+2** = pin C). ROM `0x4d28c`/`0x4d2ac` = 15 espaços+NUL →
+  glyphs `0x8020`. Thunk phase14: 11 passos a `0x9444`, 15 a
+  `0x9468` sem tiles neste park. Unit `run_common_only_spaces`
+  pinna mode3 common-only. Logo 3D fail-closed. See
+  `decomp/i960/notes/status_tail_oracle_v0371.md`.
+
 - Phase stores + status-tail bit9 clear (v0370): varredura maincpu
   mapeia **91** sites `ldib/stib` de `0x500030`; no sel3 o avanço é
   `phase+1` nos workers (phase14 **não** tem store). Memory-trace
