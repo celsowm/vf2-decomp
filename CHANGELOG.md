@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Referência MAME TGP/Model 2 (v0363): dump limpo em `third_party/`
+  (mb86233 + model2.cpp, BSD-3-Clause) + `tools/python/tgp_disasm_mame.py`
+  analysis-only. Política: MAME sugere → oráculo mede → C prova; sem
+  link no runtime. Mapa copro/geo/FIO/sincos documentado vs `tgp.c`.
+  See `decomp/i960/notes/mame_mb86233_reference_v0363.md` e
+  `third_party/README.md`.
+
 - Attract pós-SEGA: gate de input + fase 3 (v0362). O oracle grava
   **sel 2→0x10** em `0xa748` quando `0x500704` tem **bit 26 ou 2**
   (trace: `stib 0x10` em `0xa76c`; park lia `0x0f000000`). Com
