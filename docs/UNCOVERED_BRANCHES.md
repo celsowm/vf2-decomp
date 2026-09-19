@@ -82,6 +82,18 @@ texture-ram first-64k non-zero (**4360**) versus TEST baseline **0**.
 during that attract body (function codes + IEEE-like words). Game-title
 3D logo mesh still unwitnessed. See `decomp/i960/notes/teste_attract_tgp_v0364.md`.
 
+### v0365 attract phases 3–8 + FIFO differential (measured fail-closed logo)
+
+With `0x500704` held clear, the reference oracle drains selector-3
+phase-3 countdown (~1 per frame, 256→0), then reaches phases **4, 5,
+6, 7, 8** without entering TEST MENU. Phase 8 remains in an object/task
+loop at `0x4c7xx`. Texture-ram first-64k non-zero rises **0 → 4360 →
+~10154** on attract parks versus **0** on `sixth-fresh` TEST. Copro
+FIFO writes at `0x00884000`: **1157–2016** (attract) vs **9** (TEST).
+No named SEGA/title 3D mesh witness (tiles empty; FIFO not correlated
+to a unique object). Logo 3D recovery stays fail-closed.
+See `decomp/i960/notes/attract_long_fifo_v0365.md`.
+
 ### v0354 EXIT TEST MODE → warm-boot attract (measured)
 
 From the sixth-dispatch park at frame-dispatch `0x0000a6c0`, forcing phase

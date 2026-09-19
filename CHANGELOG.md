@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Attract longo + FIFO TGP (v0365): com nav limpo o oráculo drena
+  phase3 (cd 256→0, ~1/frame), avança **fases 4→8** (sel3, sem TEST).
+  Texture 64k nz **0→4360→~10154** no attract vs **0** em TEST.
+  Memory-trace FIFO `0x884000`: attract **1157–2016** writes vs TEST
+  **9**. Fase 8 fica em loop de objeto `0x4c7xx`; sem tile/malha SEGA
+  3D nomeada → logo 3D **fail-closed**. See
+  `decomp/i960/notes/attract_long_fifo_v0365.md`.
+
 - Executor COBR `teste` + attract TGP (v0364): `test*` (op 0x20–0x27)
   grava `0xffffffff/0` no operando a partir de `compare_result`
   (unit ROM `0x22780000`); `vf2_tests` all passed; focused CTest **7/7**
