@@ -60,6 +60,18 @@ a unique SEGA mesh witness. Game-title attract remains closed until a
 machine state is measured that does not take the 0x10/0x11 handoff.
 See `decomp/i960/notes/attract_sel3_to_testmenu_v0361.md`.
 
+### v0362 attract nav-gate `0xa748` + `teste` frontier (measured)
+
+Scheduler helper `0xa748` forces **frame selector 16** when work `0x500704`
+has **bit 26 or bit 2** set (oracle `stib` at `0xa76c` from sel 2). Natural
+parks often show `0x500704=0x0f000000` (bit 26), which explains the
+sel2→0x10→0x11 TEST chain independent of sel3 phases. Clearing `0x500704`
+each `resume-trace` frame from `sega-after-cd` measures attract **sel 3 /
+phase 3** (geometry/buffer hashes change; tiles clear; not TEST). The
+reference executor then fails closed at **COBR `teste` @ `0x00019024`**
+(fighter/object attract body). Game-title 3D logo remains unwitnessed.
+See `decomp/i960/notes/attract_nav_gate_teste_v0362.md`.
+
 ### v0354 EXIT TEST MODE → warm-boot attract (measured)
 
 From the sixth-dispatch park at frame-dispatch `0x0000a6c0`, forcing phase

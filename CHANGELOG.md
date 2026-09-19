@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Attract pós-SEGA: gate de input + fase 3 (v0362). O oracle grava
+  **sel 2→0x10** em `0xa748` quando `0x500704` tem **bit 26 ou 2**
+  (trace: `stib 0x10` em `0xa76c`; park lia `0x0f000000`). Com
+  `resume-trace` zerando `0x500704` a cada frame a partir de
+  `sega-after-cd`: sel **02→03**, phase3 **0→3**, geometria/buffer
+  mudam, **sem** TEST MENU. Oráculo para em **`teste` @ `0x19024`**
+  (executor sem semântica COBR `test*`) no corpo de objeto/fighter do
+  attract. Logo 3D / malha SEGA **não** witness. COUNTRY não desvia o
+  handoff TEST quando o gate está ativo; COUNTRY≠0 pula a SEGA legal.
+  Tools: `dump_attract_rom.py`, `dump_attract_state.py`,
+  `attract_navclear.py`, etc. See
+  `decomp/i960/notes/attract_nav_gate_teste_v0362.md`.
+
 - Attract pós-SEGA medido (v0361): caminho natural
   **SEGA warning (sel 0→1) → sel 2 → sel 3 → 0x10 → 0x11 TEST MENU**
   neste backup/config. Tabelas ROM corretas: sel2=`0xab0c`,
