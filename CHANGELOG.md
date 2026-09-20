@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Recovery C do coli `0x225cc` live-midbody (v0381): shape
+  (`g8+0x1a4 = 0`, `g7+0x1a4 = 0x100`) nativo com igualdade total
+  de estado (240 steps, 4 calls aninhados, CC final + `g1`
+  pinados; fixture ROM-backed `vf2_coli_225cc_live`). Correções:
+  gate `g8+0x6d4 == 0xffff` relaxado (half alimenta só a máscara),
+  pack `0x22628` inalcançável removido (`be` sempre tomado com
+  `r11 == 0`; −9 fantasma), float-tail `r9 == 0` admitido
+  (`0.0/24.0` bit-exato). Pins sintéticos −9 com floats
+  recomputados. `ctest` 64/64. See
+  `decomp/i960/notes/fa_coli_225cc_live_v0381.md`.
+
 - Sanitizer gate green on Clang ASan/UBSan (Windows): `ctest` 62/62
   em `build-clang-asan` (`-fsanitize=address,undefined`, runtimes
   linkados confirmadas nos binários), cobrindo as mudanças de

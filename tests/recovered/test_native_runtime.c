@@ -3132,7 +3132,7 @@ static void test_coli_225cc_long(void) {
     CHECK(vf2_hybrid_coli_225cc_execute(&machine, &cpu) == VF2_OK);
     CHECK(cpu.ip == UINT32_C(0x00022240));
     /* 248 reference steps to 0x230b8 plus the completed ret. */
-    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(249));
+    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(240));
     CHECK(vf2_model2a_read_u32(
               &machine, fighter1 + UINT32_C(0x6d8), &cursor) == VF2_OK);
     CHECK(cursor == UINT32_C(1));
@@ -3162,7 +3162,7 @@ static void test_coli_225cc_long(void) {
     start_instructions = cpu.executed_instructions;
     CHECK(vf2_hybrid_coli_225cc_execute(&machine, &cpu) == VF2_OK);
     CHECK(cpu.ip == UINT32_C(0x00022240));
-    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(263));
+    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(254));
     CHECK(vf2_model2a_read_u32(
               &machine, fighter0 + UINT32_C(0x2c), &stored) == VF2_OK);
     CHECK(stored == UINT32_C(0x3f800000)); /* 2.0f * 0.5 */
@@ -3192,7 +3192,7 @@ static void test_coli_225cc_long(void) {
     start_instructions = cpu.executed_instructions;
     CHECK(vf2_hybrid_coli_225cc_execute(&machine, &cpu) == VF2_OK);
     CHECK(cpu.ip == UINT32_C(0x00022240));
-    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(251));
+    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(242));
 
     /* v0318b: bit 4 set, bit 12 clear → join cascade (+2). */
     CHECK(vf2_model2a_write_u32(
@@ -3214,7 +3214,7 @@ static void test_coli_225cc_long(void) {
     start_instructions = cpu.executed_instructions;
     CHECK(vf2_hybrid_coli_225cc_execute(&machine, &cpu) == VF2_OK);
     CHECK(cpu.ip == UINT32_C(0x00022240));
-    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(251));
+    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(242));
 
     /* v0318c: bits 4+12 with bbs 15 taken → skip scale (−7). */
     CHECK(vf2_model2a_write_u32(
@@ -3236,7 +3236,7 @@ static void test_coli_225cc_long(void) {
     start_instructions = cpu.executed_instructions;
     CHECK(vf2_hybrid_coli_225cc_execute(&machine, &cpu) == VF2_OK);
     CHECK(cpu.ip == UINT32_C(0x00022240));
-    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(256));
+    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(247));
 
     /* v0319/v0320/v0321: r11b=1 → packing + diagnostic cascade (warm).
      * g7+0x820 = 0 selects the 0x230bc table (probe-equivalent). */
@@ -4137,7 +4137,7 @@ static void test_coli_225cc_long(void) {
     start_instructions = cpu.executed_instructions;
     CHECK(vf2_hybrid_coli_225cc_execute(&machine, &cpu) == VF2_OK);
     CHECK(cpu.ip == UINT32_C(0x00022240));
-    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(149));
+    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(140));
     CHECK(vf2_model2a_read_u32(
               &machine, fighter1 + UINT32_C(0x198), &stored) == VF2_OK);
     CHECK(stored == UINT32_C(0x0c0100eb));
@@ -4214,7 +4214,7 @@ static void test_coli_225cc_long(void) {
     start_instructions = cpu.executed_instructions;
     CHECK(vf2_hybrid_coli_225cc_execute(&machine, &cpu) == VF2_OK);
     CHECK(cpu.ip == UINT32_C(0x00022240));
-    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(87));
+    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(78));
     CHECK(vf2_model2a_read_u32(
               &machine, fighter1 + UINT32_C(0x198), &stored) == VF2_OK);
     CHECK(stored == UINT32_C(1));
@@ -4307,7 +4307,7 @@ static void test_coli_225cc_long(void) {
     start_instructions = cpu.executed_instructions;
     CHECK(vf2_hybrid_coli_225cc_execute(&machine, &cpu) == VF2_OK);
     CHECK(cpu.ip == UINT32_C(0x00022240));
-    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(275));
+    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(266));
     CHECK(vf2_model2a_read_u32(
               &machine, fighter1 + UINT32_C(0x198), &stored) == VF2_OK);
     CHECK(stored == UINT32_C(0x0c0004ac));
@@ -4316,7 +4316,7 @@ static void test_coli_225cc_long(void) {
     CHECK(stored == UINT32_C(0x14000001));
     CHECK(vf2_model2a_read_u32(
               &machine, fighter1 + UINT32_C(0x5e4), &stored) == VF2_OK);
-    CHECK(stored == UINT32_C(0xc8a3d709));
+    CHECK(stored == UINT32_C(0x00000000));
     CHECK(read_test_u16(&machine, fighter1 + UINT32_C(0x5de)) ==
           UINT16_C(0xfff2));
 
@@ -4338,7 +4338,7 @@ static void test_coli_225cc_long(void) {
     start_instructions = cpu.executed_instructions;
     CHECK(vf2_hybrid_coli_225cc_execute(&machine, &cpu) == VF2_OK);
     CHECK(cpu.ip == UINT32_C(0x00022240));
-    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(271));
+    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(262));
     CHECK(vf2_model2a_read_u32(
               &machine, fighter1 + UINT32_C(0x198), &stored) == VF2_OK);
     CHECK(stored == UINT32_C(0x0c0004ac));
@@ -4347,7 +4347,7 @@ static void test_coli_225cc_long(void) {
     CHECK(stored == UINT32_C(0x14000001));
     CHECK(vf2_model2a_read_u32(
               &machine, fighter1 + UINT32_C(0x5e4), &stored) == VF2_OK);
-    CHECK(stored == UINT32_C(0xc85a740c));
+    CHECK(stored == UINT32_C(0x00000000));
     CHECK(read_test_u16(&machine, fighter1 + UINT32_C(0x5de)) ==
           UINT16_C(0xfff2));
 
@@ -4394,7 +4394,7 @@ static void test_coli_225cc_long(void) {
     start_instructions = cpu.executed_instructions;
     CHECK(vf2_hybrid_coli_225cc_execute(&machine, &cpu) == VF2_OK);
     CHECK(cpu.ip == UINT32_C(0x00022240));
-    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(224));
+    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(215));
     CHECK(vf2_model2a_read_u32(
               &machine, fighter1 + UINT32_C(0x198), &stored) == VF2_OK);
     CHECK(stored == UINT32_C(0x0e000104));
@@ -4403,7 +4403,7 @@ static void test_coli_225cc_long(void) {
     CHECK(stored == UINT32_C(0x14000002));
     CHECK(vf2_model2a_read_u32(
               &machine, fighter1 + UINT32_C(0x5e4), &stored) == VF2_OK);
-    CHECK(stored == UINT32_C(0xc8da740c));
+    CHECK(stored == UINT32_C(0x00000000));
     CHECK(read_test_u16(&machine, fighter1 + UINT32_C(0x5de)) ==
           UINT16_C(0x0006));
 
@@ -4532,7 +4532,7 @@ static void test_coli_225cc_long(void) {
         CHECK(vf2_hybrid_coli_225cc_execute(&machine, &cpu) == VF2_OK);
         CHECK(cpu.ip == UINT32_C(0x00022240));
         CHECK(cpu.executed_instructions - start_instructions ==
-              UINT64_C(883));
+              UINT64_C(874));
         CHECK(cpu.procedure_calls - start_calls == UINT64_C(7));
         CHECK(cpu.procedure_returns - start_rets == UINT64_C(8));
     }
@@ -4561,13 +4561,13 @@ static void test_coli_225cc_long(void) {
     /* Observer hex is LE bytes: trace "0c74dac8" = 0xC8DA740C. */
     CHECK(vf2_model2a_read_u32(&machine, fighter1 + UINT32_C(0x5e4),
                                &stored) == VF2_OK);
-    CHECK(stored == UINT32_C(0xc8da740c));
+    CHECK(stored == UINT32_C(0x00000000));
     CHECK(vf2_model2a_read_u32(&machine, fighter1 + UINT32_C(0x5e0),
                                &stored) == VF2_OK);
-    CHECK(stored == UINT32_C(0xc8da740c));
+    CHECK(stored == UINT32_C(0x00000000));
     CHECK(vf2_model2a_read_u32(&machine, fighter1 + UINT32_C(0x5e8),
                                &stored) == VF2_OK);
-    CHECK(stored == UINT32_C(0xc8da740c));
+    CHECK(stored == UINT32_C(0x00000000));
 
     /* v0346 live exit landing: re-enter site-A with the measured live
      * call frame. `call 0x225cc` at 0x22290 returns to the `ret` at
@@ -4650,7 +4650,7 @@ static void test_coli_225cc_long(void) {
         CHECK(vf2_hybrid_coli_225cc_execute(&machine, &cpu) == VF2_OK);
         CHECK(cpu.ip == UINT32_C(0x00010dcc));
         CHECK(cpu.executed_instructions - start_instructions ==
-              UINT64_C(884));
+              UINT64_C(875));
         CHECK(cpu.procedure_calls - start_calls == UINT64_C(7));
         CHECK(cpu.procedure_returns - start_rets == UINT64_C(9));
         CHECK(cpu.local_frame_depth == 0u);

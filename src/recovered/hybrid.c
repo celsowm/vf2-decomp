@@ -19408,7 +19408,9 @@ static vf2_status coli_225cc_long_body(
     uint32_t g8,
     uint64_t *body_out,
     uint64_t *calls_out,
-    uint64_t *rets_out
+    uint64_t *rets_out,
+    vf2_i960_compare_result *cc_out,
+    uint32_t *g1_out
 );
 
 static vf2_status coli_1ab34_body(
@@ -19432,7 +19434,9 @@ static vf2_status coli_225cc_body(
     uint32_t g8,
     uint64_t *body_out,
     uint64_t *calls_out,
-    uint64_t *rets_out
+    uint64_t *rets_out,
+    vf2_i960_compare_result *cc_out,
+    uint32_t *g1_out
 );
 
 /* Body-only recovery of 0x225cc compact sibling (v0304).
@@ -19446,7 +19450,9 @@ static vf2_status coli_225cc_body(
     uint32_t g8,
     uint64_t *body_out,
     uint64_t *calls_out,
-    uint64_t *rets_out
+    uint64_t *rets_out,
+    vf2_i960_compare_result *cc_out,
+    uint32_t *g1_out
 )
 {
     uint8_t type_byte = 0u;
@@ -19522,7 +19528,7 @@ static vf2_status coli_225cc_body(
 
                 /* Prefix already executed: counter++ (3) + type (2). */
                 if (coli_225cc_long_body(machine, g7, g8, &long_body,
-                                         &lcalls, &lrets) !=
+                                         &lcalls, &lrets, cc_out, g1_out) !=
                     VF2_OK) {
                     return VF2_ERROR_UNSUPPORTED;
                 }
@@ -19542,7 +19548,7 @@ static vf2_status coli_225cc_body(
 
         /* Prefix already executed: counter++ (3) + type check (2). */
         if (coli_225cc_long_body(machine, g7, g8, &long_body, &lcalls,
-                                 &lrets) != VF2_OK) {
+                                 &lrets, cc_out, g1_out) != VF2_OK) {
             return VF2_ERROR_UNSUPPORTED;
         }
         if (calls_out != NULL) {
@@ -19576,7 +19582,7 @@ static vf2_status coli_225cc_body(
         uint64_t lrets = UINT64_C(4);
 
         if (coli_225cc_long_body(machine, g7, g8, &long_body, &lcalls,
-                                 &lrets) !=
+                                 &lrets, cc_out, g1_out) !=
             VF2_OK) {
             return VF2_ERROR_UNSUPPORTED;
         }
@@ -21204,7 +21210,9 @@ static vf2_status coli_225cc_long_body(
     uint32_t g8,
     uint64_t *body_out,
     uint64_t *calls_out,
-    uint64_t *rets_out
+    uint64_t *rets_out,
+    vf2_i960_compare_result *cc_out,
+    uint32_t *g1_out
 )
 {
     uint32_t flags_g8 = 0u;
@@ -21349,21 +21357,15 @@ static vf2_status coli_225cc_long_body(
         r11 = r11b;
         body += UINT64_C(1); /* ldob */
         if (r11b == 0u) {
-            /* cmpibl 0,r11 not taken; subi; be not taken (stale CC). */
-            body += UINT64_C(3); /* cmpibl + subi + be */
-            {
-                uint32_t r14 = UINT32_C(31);
-                uint32_t r15 = r14 - UINT32_C(23);
-                uint32_t packed = 0u;
-
-                body += UINT64_C(9); /* scanbit miss pack */
-                packed = 0u;
-                packed = (r15 >= 32u) ? 0u : (packed << r15);
-                packed |= (UINT32_C(1) << 31u);
-                r14 = r14 + UINT32_C(0x7f);
-                r14 <<= 23u;
-                r9 = packed | r14;
-            }
+            /* v0381: cmpibl 0,r11 falls through and publishes EQUAL in
+             * both executors, so be @ 0x22624 is always taken and the
+             * 0x22628 scanbit pack is unreachable (single-predecessor
+             * CFG: only be-not-taken reaches it). r9 = r11 - 0 = 0.
+             * The pre-v0359 pack model counted 9 phantom instructions
+             * here; the live midbody trace executes
+             * 0x2261c,0x22620,0x22624,0x2265c (3 insns, no pack). */
+            body += UINT64_C(3); /* cmpibl + subi + be taken */
+            r9 = 0u;
         } else {
             /* cmpibl taken → 0x22640: scanbit(r11) pack. */
             uint32_t bit = coli_scanbit_msb((uint32_t)r11b);
@@ -22096,9 +22098,10 @@ bit13_skip:
             return VF2_ERROR_UNSUPPORTED;
         }
         body += UINT64_C(1);
-        if (half != UINT16_C(0xffff)) {
-            return VF2_ERROR_UNSUPPORTED;
-        }
+        /* v0381: the half word feeds only the mask below (r5 dies at
+         * the 0x22b6c join); the 0xffff gate was over-narrow for the
+         * live midbody shape (half 0x21e8, mask 0x1b0). The mask==0
+         * sibling stays fail-closed. */
         body += UINT64_C(3); /* ld + ldob + cmpibne 4 taken */
         if (cursor != UINT8_C(1)) {
             return VF2_ERROR_UNSUPPORTED;
@@ -22689,6 +22692,12 @@ bit13_skip:
     /* 0x1ab34 with g1 = 17. */
     body += UINT64_C(1); /* mov 17, g1 */
     body += UINT64_C(1); /* call */
+    if (g1_out != NULL) {
+        /* The callee preserves g1 on every measured shape reaching
+         * this tail; the register still holds 17 at the body exit
+         * (v0381 live shape: g1 = 0x11). */
+        *g1_out = UINT32_C(17);
+    }
     {
         uint32_t walk = 0u;
         if (coli_1ab34_body(
@@ -22810,9 +22819,12 @@ bit13_skip:
         body += UINT64_C(2); /* lda + mulr */
         acc = acc + 60.0f;
         body += UINT64_C(1); /* addr */
-        if (r9 == 0u) {
-            return VF2_ERROR_UNSUPPORTED;
-        }
+        /* v0381: r9 == 0 is a measured live shape (scanbit miss;
+         * acc = 24.0 here), not a trap: the ROM executes divr
+         * unconditionally, and 0.0/24.0 == 0.0 under the same host
+         * float semantics used by every other mulr/divr in this body.
+         * (A 0.0/0.0 shape would be a new measurement; NaN risks stay
+         * fail-closed by the differential, which compares bit-exact.) */
         /* v0343: ROM divr r4,r9,r4 computes r9/r4 (dst = src2/src1,
          * verified exact against L1/L3 float tails). */
         acc = coli_bits_to_float(r9) / acc;
@@ -22884,6 +22896,15 @@ bit13_skip:
             if ((int16_t)phase < 0) {
                 return VF2_ERROR_UNSUPPORTED;
             }
+            /* v0381: replicate the final cmpibge 0,r14 (signed
+             * integer compare); this is the last compare on every
+             * shape reaching this tail. Reported via cc_out; the
+             * execute wrapper applies it with AC bits in lockstep. */
+            if (cc_out != NULL) {
+                *cc_out = (phase == UINT16_C(0))
+                    ? VF2_I960_COMPARE_EQUAL
+                    : VF2_I960_COMPARE_LESS;
+            }
         }
         body += UINT64_C(1); /* cmpibge taken */
         body += UINT64_C(1); /* b 0x230b8 */
@@ -22902,6 +22923,8 @@ vf2_status vf2_hybrid_coli_225cc_execute(
     uint64_t nested_calls = 0u;
     uint64_t nested_rets = 0u;
     vf2_status status = VF2_OK;
+    vf2_i960_compare_result final_cc = VF2_I960_COMPARE_NONE;
+    uint32_t final_g1 = UINT32_C(0xffffffff);
 
     if (machine == NULL || cpu == NULL ||
         cpu->ip != VF2_COLI_225CC_ENTRY ||
@@ -22912,8 +22935,15 @@ vf2_status vf2_hybrid_coli_225cc_execute(
             machine,
             cpu->registers[VF2_I960_G0_REGISTER + 7u],
             cpu->registers[VF2_I960_G0_REGISTER + 8u],
-            &body, &nested_calls, &nested_rets) != VF2_OK) {
+            &body, &nested_calls, &nested_rets, &final_cc,
+            &final_g1) != VF2_OK) {
         return VF2_ERROR_UNSUPPORTED;
+    }
+    if (final_cc != VF2_I960_COMPARE_NONE) {
+        hybrid_set_compare_result(cpu, final_cc);
+    }
+    if (final_g1 != UINT32_C(0xffffffff)) {
+        cpu->registers[VF2_I960_G0_REGISTER + 1u] = final_g1;
     }
     status = hybrid_complete_procedure(
         machine, cpu, body, nested_calls, nested_rets);
@@ -23037,7 +23067,7 @@ vf2_status vf2_hybrid_coli_midbody_tail_execute(
             }
             if ((bit15_g7 & (UINT32_C(1) << 15u)) != 0u) {
                 /* v0306 early-out: bbs 15, f1+0x804 → 0x22290. */
-                if (coli_225cc_body(machine, fighter1, fighter0, &c225, NULL, NULL) !=
+                if (coli_225cc_body(machine, fighter1, fighter0, &c225, NULL, NULL, NULL, NULL) !=
                     VF2_OK) {
                     return VF2_ERROR_UNSUPPORTED;
                 }
@@ -23066,7 +23096,8 @@ vf2_status vf2_hybrid_coli_midbody_tail_execute(
                 }
                 if (pair_g7 > pair_g8) {
                     if (coli_225cc_body(
-                            machine, fighter1, fighter0, &c225, NULL, NULL) !=
+                            machine, fighter1, fighter0, &c225, NULL, NULL,
+                            NULL, NULL) !=
                         VF2_OK) {
                         return VF2_ERROR_UNSUPPORTED;
                     }
@@ -23086,12 +23117,12 @@ vf2_status vf2_hybrid_coli_midbody_tail_execute(
 
                     if (coli_225cc_body(
                             machine, fighter1, fighter0, &c225_a,
-                            NULL, NULL) != VF2_OK) {
+                            NULL, NULL, NULL, NULL) != VF2_OK) {
                         return VF2_ERROR_UNSUPPORTED;
                     }
                     if (coli_225cc_body(
                             machine, fighter0, fighter1, &c225_b,
-                            NULL, NULL) != VF2_OK) {
+                            NULL, NULL, NULL, NULL) != VF2_OK) {
                         return VF2_ERROR_UNSUPPORTED;
                     }
                     /* Parent 32: prefix + pair fall-through + call 0x22290
@@ -23109,7 +23140,7 @@ vf2_status vf2_hybrid_coli_midbody_tail_execute(
         }
         /* v0305: first contact warm, second hit. 0x22240 takes the
          * no-restore jump to call 0x225cc with g7=fighter1, g8=fighter0. */
-        if (coli_225cc_body(machine, fighter1, fighter0, &c225, NULL, NULL) != VF2_OK) {
+        if (coli_225cc_body(machine, fighter1, fighter0, &c225, NULL, NULL, NULL, NULL) != VF2_OK) {
             return VF2_ERROR_UNSUPPORTED;
         }
         /* Parent 9 mov/cmpobe + 5 calls. Measured 130. */
@@ -23122,7 +23153,7 @@ vf2_status vf2_hybrid_coli_midbody_tail_execute(
     if (r6 != 0u) {
         /* v0304: first contact hit, second warm, compact 0x225cc. */
         uint64_t c225 = 0u;
-        if (coli_225cc_body(machine, fighter0, fighter1, &c225, NULL, NULL) != VF2_OK) {
+        if (coli_225cc_body(machine, fighter0, fighter1, &c225, NULL, NULL, NULL, NULL) != VF2_OK) {
             return VF2_ERROR_UNSUPPORTED;
         }
         body = UINT64_C(16) + child_2298_1 + 1u + child_2298_2 + 1u +

@@ -897,6 +897,19 @@ sibling unchanged. `0x2227c` tie-break, `0x18bd4` shortcut, and
 unmeasured flag siblings remain fail-closed (see
 `decomp/i960/notes/fa_coli_225cc_long_v0314.md`).
 
+Status (v0381): the live-midbody shape (`g8+0x1a4 = 0`,
+`g7+0x1a4 = 0x100`, no `0x18bd4` shortcut) is native with full
+live-state equality (240 steps, 4 nested calls, final CC + `g1`
+pinned; new ROM-backed `vf2_coli_225cc_live` fixture). Three
+corrections along the way: relaxed over-narrow `g8+0x6d4 == 0xffff`
+gate (half feeds only the mask), replaced the unreachable
+`0x22628` scanbit-pack arm (`be` always taken at `r11 == 0`;
+single-predecessor CFG + CC semantics in both executors) and admitted
+float-tail `r9 == 0` (`0.0/24.0`, bit-exact differential). Synthetic
+pins move by exactly −9 with FIFO floats recomputed from the
+corrected `r9 = 0.0` chain. See
+`decomp/i960/notes/fa_coli_225cc_live_v0381.md`.
+
 Status (v0315): mid-body `0x2227c` tie-break is native (double
 `0x225cc`, compact-both 282/7/8). `0x18bd4` shortcut remains DEFER
 (v0291). Unmeasured long-body flag siblings remain fail-closed (see
