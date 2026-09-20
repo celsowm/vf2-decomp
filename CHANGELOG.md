@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Fix do game_info countdown-0 compare-state (v0388):
+  `correct_measured_compare_state` agora deixa EQUAL em countdown 0 em
+  todas as distribuicoes (antes so f0-only) e LESS caso contrario,
+  igual ao helper irmao `correct_countdown_compare_state`. Revalidados
+  ROM-backed via `validate_game_info_full_dispatch.py` thresholds
+  0,1,2: `0x06214000` 36/36 (era 8/12 na matriz threshold-0), todas as
+  50 plus2_plus3 36/36 (1800 fixtures), todas as 12 condition-only
+  36/36 (432 fixtures), caudas `0x00204000`/`0x00210000`/`0x00214000`/
+  `0x00218000` 36/36 e spot `0x0021c000` 36/36; snapshot + assinatura
+  + contadores exatos ate `0x10dcc`. `ctest -C Debug` 72/72. Sem novas
+  admissoes; irmaos nao medidos seguem fail-closed. See
+  `decomp/i960/notes/game_info_countdown0_compare_v0388.md`.
+
 - Recovery C do coli whole-task live both-fighters `9528/18/19`
   (v0386): `g6=4` (both-live, warm `44`); shell segundo `0x238a4`
   longo `134` (`g3=0`, fighter1 byte `0` com `half 0/0`) vs single `5`,
