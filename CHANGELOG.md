@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Sanitizer gate green on Clang ASan/UBSan (Windows): `ctest` 62/62
+  em `build-clang-asan` (`-fsanitize=address,undefined`, runtimes
+  linkados confirmadas nos binários), cobrindo as mudanças de
+  runtime v0378/v0380. Fix de portabilidade junto: `libm` só é
+  linkada fora de Windows (ou sob MinGW); MSYS2 GCC segue sem
+  runtime ASan (limitação do ambiente, pré-existente).
+
 - Pin de condition codes por caminho no `phase17_zero` (v0380):
   diferencial 202/202 (era 0/189). Trace de 682k steps agrupa todos
   os casos em 12 tails com cauda comum sem compares

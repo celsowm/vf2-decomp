@@ -121,7 +121,7 @@ target_include_directories(vf2_core
 
 vf2_set_project_warnings(vf2_core)
 
-if(NOT MSVC)
+if(NOT WIN32 OR MINGW)
     target_link_libraries(vf2_core PUBLIC m)
 endif()
 
