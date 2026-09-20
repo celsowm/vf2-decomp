@@ -24,6 +24,15 @@ static vf2_status apply_f1(vf2_model2a *m){
     if(s!=VF2_OK) return s;
     return vf2_model2a_write_u32(m, 0x005149cc, 0x0000ffff);
 }
+static vf2_status apply_both(vf2_model2a *m){
+    vf2_status s=vf2_model2a_write_u32(m, 0x00510b24, 0x00000100);
+    if(s!=VF2_OK) return s;
+    s=vf2_model2a_write_u32(m, 0x00512b24, 0x00000100);
+    if(s!=VF2_OK) return s;
+    uint8_t v=1; s=vf2_model2a_write(m,0x005111a0,&v,1);
+    if(s!=VF2_OK) return s;
+    return vf2_model2a_write_u32(m, 0x005149cc, 0x0000ffff);
+}
 
 static void test_one(const uint8_t *rom,size_t rs,const uint8_t *data,size_t ds,int f1){
     vf2_model2a ref_m={0}, nat_m={0};
@@ -44,7 +53,8 @@ static void test_one(const uint8_t *rom,size_t rs,const uint8_t *data,size_t ds,
     CHECK(vf2_model2a_attach_main_rom(&nat_m,rom,rs)==VF2_OK);
     CHECK(vf2_model2a_attach_main_data(&ref_m,data,ds)==VF2_OK);
     CHECK(vf2_model2a_attach_main_data(&nat_m,data,ds)==VF2_OK);
-    if(f1) {CHECK(apply_f1(&ref_m)==VF2_OK); CHECK(apply_f1(&nat_m)==VF2_OK);}
+    if(f1==2) {CHECK(apply_both(&ref_m)==VF2_OK); CHECK(apply_both(&nat_m)==VF2_OK);}
+    else if(f1) {CHECK(apply_f1(&ref_m)==VF2_OK); CHECK(apply_f1(&nat_m)==VF2_OK);}
     else {CHECK(apply_f0(&ref_m)==VF2_OK); CHECK(apply_f0(&nat_m)==VF2_OK);}
     // reference whole-task stepping
     size_t steps=0;
@@ -67,13 +77,16 @@ static void test_one(const uint8_t *rom,size_t rs,const uint8_t *data,size_t ds,
     uint64_t nat_ins = nat_cpu.executed_instructions - snap.cpu.executed_instructions;
     uint64_t nat_calls = nat_cpu.procedure_calls - snap.cpu.procedure_calls;
     uint64_t nat_rets = nat_cpu.procedure_returns - snap.cpu.procedure_returns;
-    printf("mode %s: ref %llu/%llu/%llu nat %llu/%llu/%llu\n", f1?"f1":"f0",
+    const char *mode_str = f1==2 ? "both" : f1 ? "f1" : "f0";
+    printf("mode %s: ref %llu/%llu/%llu nat %llu/%llu/%llu\n", mode_str,
         (unsigned long long)ref_ins,(unsigned long long)ref_calls,(unsigned long long)ref_rets,
         (unsigned long long)nat_ins,(unsigned long long)nat_calls,(unsigned long long)nat_rets);
     if(f1==0){
         CHECK(ref_ins==9393); CHECK(ref_calls==17); CHECK(ref_rets==18);
-    } else {
+    } else if(f1==1) {
         CHECK(ref_ins==9385); CHECK(ref_calls==17); CHECK(ref_rets==18);
+    } else {
+        CHECK(ref_ins==9528); CHECK(ref_calls==18); CHECK(ref_rets==19);
     }
     CHECK(nat_ins==ref_ins);
     CHECK(nat_calls==ref_calls);
@@ -81,7 +94,7 @@ static void test_one(const uint8_t *rom,size_t rs,const uint8_t *data,size_t ds,
     vf2_i960_snapshot_diff d; memset(&d,0,sizeof(d));
     CHECK(vf2_i960_compare_live_state(&ref_cpu,&ref_m,&nat_cpu,&nat_m,&d)==VF2_OK);
     if(!d.equal){
-        fprintf(stderr,"live state mismatch %s\n", f1?"f1":"f0");
+        fprintf(stderr,"live state mismatch %s: %s off 0x%zx exp 0x%08x act 0x%08x bytes %zu\n", mode_str, d.component, d.first_offset, d.expected_value, d.actual_value, d.differing_bytes);
         ++failures;
     }
     vf2_i960_snapshot_destroy(&snap);
@@ -95,6 +108,7 @@ static void run_rom(const char *dir){
     CHECK(vf2_romset_build_region(dir,VF2_REGION_MAIN_DATA,&data,&ds)==VF2_OK);
     test_one(rom,rs,data,ds,0);
     test_one(rom,rs,data,ds,1);
+    test_one(rom,rs,data,ds,2);
     free(rom); free(data);
 }
 int main(int argc,char **argv){

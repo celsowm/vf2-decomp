@@ -953,6 +953,21 @@ words at `0xd4..0xe8` and fighter `+0x18/+0x20` as `0xFFFFDFFC`
 `vf2_coli_whole_task_live` fixture via `coli-parked-221e8`. See
 `decomp/i960/notes/fa_coli_whole_task_live_v0385.md`.
 
+Status (v0386): coli whole-task live both-fighters `9528/18/19`
+is native with full live-state equality (f0 `9393`, f1 `9385` remain).
+Flag builder `g6=4` (both xor `0` / and `1` → warm `44`);
+shell second `0x238a4` is long `134` (`g3=0`, fighter1 byte `0` with
+`half 0/0`) vs single `5`, so shell `9418` (`9411` body) vs single
+`9307` (`9300`); threshold stays warm `17` (both `r3==0`, `g6==4`)
+so cluster `0xd4..0xe8` and fighter `+0x18/+0x20` stay `0`.
+Midbody tail `110` (`107` body + `EQUAL` `+2`) vs warm `56` /
+single `86`; six halfword stores `fighter+0x6dc`, `g13+0xc/0xe`,
+`fighter+0x8d4` and `0x0051498c..0xe` (`e8 21 02`) as measured.
+Task gate now allows `9528` alongside `9393`/`9385` with `EQUAL`
+and `+2` counted compares. Fixture `vf2_coli_whole_task_live`
+extended to three modes via `coli-parked-221e8`. See
+`decomp/i960/notes/fa_coli_whole_task_both_live_v0386.md`.
+
 Status (v0315): mid-body `0x2227c` tie-break is native (double
 `0x225cc`, compact-both 282/7/8). `0x18bd4` shortcut remains DEFER
 (v0291). Unmeasured long-body flag siblings remain fail-closed (see

@@ -23037,6 +23037,48 @@ vf2_status vf2_hybrid_coli_midbody_tail_execute(
 
     g7 = cpu->registers[VF2_I960_G0_REGISTER + 7u];
     g8 = cpu->registers[VF2_I960_G0_REGISTER + 8u];
+    /* Both-live tail from parked 0x221e8: 110 steps vs warm 56 / single 86.
+     * Both fighters have bit8 set; slot 0 (fighter0) and slot 1 (fighter1)
+     * take the 0x222ac long loop (r11 via 0x222a8-0x223b4) and leave the
+     * fighter+0x6dc / +0x8d4 and g13+0xc/0xe pattern measured on the
+     * 9418->9528 tail (110/4/4). Warm writes g13+0x10, both writes fighter+0x8d4. */
+    {
+        uint32_t f0f = 0u, f1f = 0u;
+        if (vf2_model2a_read_u32(machine, fighter0 + UINT32_C(0x000001a4), &f0f) == VF2_OK &&
+            vf2_model2a_read_u32(machine, fighter1 + UINT32_C(0x000001a4), &f1f) == VF2_OK &&
+            (f0f & (UINT32_C(1) << 8u)) != 0u && (f1f & (UINT32_C(1) << 8u)) != 0u) {
+            uint16_t thr_a0 = 0u, thr_b0 = 0u, thr_a1 = 0u, thr_b1 = 0u;
+            uint8_t b820_0 = 0u, b820_1 = 0u;
+            /* Gate the measured shape: half 0/0 and byte 1/0 as on the parked live. */
+            int both_gate = 0;
+            if (hybrid_read_u16(machine, fighter0 + UINT32_C(0x000001aa), &thr_a0) == VF2_OK &&
+                hybrid_read_u16(machine, fighter0 + UINT32_C(0x00000808), &thr_b0) == VF2_OK &&
+                hybrid_read_u16(machine, fighter1 + UINT32_C(0x000001aa), &thr_a1) == VF2_OK &&
+                hybrid_read_u16(machine, fighter1 + UINT32_C(0x00000808), &thr_b1) == VF2_OK &&
+                hybrid_read_u8(machine, fighter0 + UINT32_C(0x00000820), &b820_0) == VF2_OK &&
+                hybrid_read_u8(machine, fighter1 + UINT32_C(0x00000820), &b820_1) == VF2_OK) {
+                both_gate = (thr_a0 == 0u && thr_b0 == 0u && thr_a1 == 0u && thr_b1 == 0u && b820_0 == 1u && b820_1 == 0u);
+            }
+            if (both_gate) {
+                /* Replicate the six halfword stores observed on the 110 tail. */
+                (void)hybrid_write_u16(machine, fighter0 + UINT32_C(0x000006dc), 0u);
+                (void)hybrid_write_u16(machine, fighter1 + UINT32_C(0x000006dc), 0u);
+                (void)hybrid_write_u16(machine, g13 + UINT32_C(0x0000000c), 0u);
+                (void)hybrid_write_u16(machine, g13 + UINT32_C(0x0000000e), 0u);
+                (void)hybrid_write_u16(machine, fighter0 + UINT32_C(0x000008d4), 0u);
+                (void)hybrid_write_u16(machine, fighter1 + UINT32_C(0x000008d4), 0u);
+                (void)hybrid_write_u8(machine, UINT32_C(0x0051498c), UINT8_C(0xe8));
+                (void)hybrid_write_u8(machine, UINT32_C(0x0051498d), UINT8_C(0x21));
+                (void)hybrid_write_u8(machine, UINT32_C(0x0051498e), UINT8_C(0x02));
+                cpu->registers[VF2_I960_G0_REGISTER] = 0u;
+                cpu->registers[4] = 0u;
+                cpu->registers[VF2_I960_G0_REGISTER + 7u] = fighter1;
+                cpu->registers[VF2_I960_G0_REGISTER + 8u] = fighter0;
+                cpu->registers[VF2_I960_G0_REGISTER + 14u] = UINT32_C(0x0002244c);
+                return hybrid_complete_procedure(machine, cpu, UINT64_C(107), 4u, 4u);
+            }
+        }
+    }
     {
     uint64_t child_2298_1 = 0u;
     uint64_t child_2298_2 = 0u;

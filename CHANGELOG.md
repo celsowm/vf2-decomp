@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Recovery C do coli whole-task live both-fighters `9528/18/19`
+  (v0386): `g6=4` (both-live, warm `44`); shell segundo `0x238a4`
+  longo `134` (`g3=0`, fighter1 byte `0` com `half 0/0`) vs single `5`,
+  shell `9418` vs `9307`; threshold fica warm `17` (`r3==0`,
+  `g6==4`) com cluster `0xd4..0xe8` e fighter `+0x18/+0x20` em `0`.
+  Midbody tail `110` (`107` body + `EQUAL` `+2`) vs `56`/`86`; seis
+  halfwords `fighter+0x6dc`, `g13+0xc/0xe`, `fighter+0x8d4` e
+  `0x0051498c= e8 21 02` medidos. Gate `9528` ao lado de `9393`/`9385`
+  com `EQUAL` `+2`. Fixture `vf2_coli_whole_task_live` estendida a 3
+  modos. `ctest` 72/72; ASan/UBSan green. See
+  `decomp/i960/notes/fa_coli_whole_task_both_live_v0386.md`.
+
 - Recovery C do coli whole-task live single-fighter f0 `9393/17/18`
   e f1 `9385/17/18` (v0385): flag builder `0x233d0` live `53` (`g6=2`,
   tabela `0x2330c` f0 vs `0x23324` f1, `0xFFFFDFFC` em `0xb4/0xb8`,
