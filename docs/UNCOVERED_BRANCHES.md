@@ -931,6 +931,17 @@ measured 9529/21/22) is the explicit next slice and stays fail-closed
 at the task gate (`9214/18/19`, `9528/18/19`, `9393/17/18`). See
 `decomp/i960/notes/fa_coli_midbody_tail_live_v0383.md`.
 
+Status (v0384): coli g3-scan `0x238a4` live (single fighter `+0x1a4`
+bit8) is native (first `136`/`g3=0x18`/`CC=EQUAL`, second `5`,
+mirrored `5`/`134`/`g3=0`/`CC=EQUAL`; new ROM-backed
+`vf2_coli_238a4_live` fixture via `coli-parked-221e8`). Flag builder
+`0x233d0` now allows `xor bit8` with `0x820==1` check (`g6` stays
+0).  Shell `0x23524` now counts `b238+1` per `0x238a4`.  Whole-task
+gate now allows `9385/17/18` (mirrored `f1`) alongside `9393`.
+Whole-task `g4` (`0xffffdffc`) still diverges — next is the
+`0x2396c`/`0x233d0` live `g4`. See
+`decomp/i960/notes/fa_coli_238a4_live_v0384.md`.
+
 Status (v0315): mid-body `0x2227c` tie-break is native (double
 `0x225cc`, compact-both 282/7/8). `0x18bd4` shortcut remains DEFER
 (v0291). Unmeasured long-body flag siblings remain fail-closed (see

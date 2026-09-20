@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Recovery C do coli g3-scan `0x238a4` live (single fighter `+0x1a4`
+  bit8) (v0384): helper `0x238a4` nativo com `136`/`0x18`/`EQUAL` e
+  `134`/`0`/`EQUAL` (f0/f1 espelhados; fixture ROM-backed
+  `vf2_coli_238a4_live` via `coli-parked-221e8`). Flag builder
+  `0x233d0` agora permite `xor bit8` com `0x820==1` (`g6` 0).
+  Shell `0x23524` conta `b238+1`. Gate whole-task agora permite
+  `9385/17/18` (f1) ao lado de `9393`. `ctest` 70/70; ASan/UBSan
+  green. Próximo: `g4` live do shell. See
+  `decomp/i960/notes/fa_coli_238a4_live_v0384.md`.
+
 - Recovery C do coli mid-body tail whole-tail live (primeiro hit, segundo
   warm, long) (v0383): `0x22210 -> 0x10dcc` nativo com igualdade total
   de estado (371 steps, 9 calls / 10 rets, CC final + `g1` pinados;

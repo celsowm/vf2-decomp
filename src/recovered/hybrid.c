@@ -23226,32 +23226,39 @@ vf2_status vf2_hybrid_coli_midbody_tail_execute(
     }
 }
 
-/* Measured warm-path recovery of the fa_coli g3-scan helper at 0x238a4.
- * Both PUNCH-driven invocations take the early exit: g7+0x1a4 bit 8
- * clear -> g3 = 0. Five instructions, no nested calls, one return.
- * Sibling paths remain explicit boundaries. */
+static vf2_status coli_238a4_body(
+     vf2_model2a *machine,
+     uint32_t g7,
+     uint32_t *g3_out,
+     uint64_t *body_out,
+     vf2_i960_compare_result *cc_out);
+
+/* Measured recovery of the fa_coli g3-scan helper at 0x238a4.
+ * Warm: bit 8 clear -> g3 = 0, 5 steps.  Live bit8: the ROM
+ * does the 0x1aa/0x808 compare and the 0x23284 bit-loop
+ * (measured 136 steps for the first g3-scan on the f0/f1
+ * whole-task). */
 vf2_status vf2_hybrid_coli_238a4_execute(
-    vf2_model2a *machine,
-    vf2_i960_cpu *cpu
+     vf2_model2a *machine,
+     vf2_i960_cpu *cpu
 )
 {
     const uint32_t g7 = cpu->registers[VF2_I960_G0_REGISTER + 7u];
-    uint32_t flags_g7 = 0u;
+    uint32_t g3 = 0u;
+    uint64_t body = 0u;
 
     if (machine == NULL || cpu == NULL ||
         cpu->ip != VF2_COLI_G3SCAN_ENTRY ||
         cpu->local_frame_depth == 0u) {
         return VF2_ERROR_INVALID_ARGUMENT;
     }
-    if (vf2_model2a_read_u32(
-            machine, g7 + VF2_COLI_BITMASK_FLAGS_OFFSET, &flags_g7) != VF2_OK) {
+    vf2_i960_compare_result cc = VF2_I960_COMPARE_NONE;
+    if (coli_238a4_body(machine, g7, &g3, &body, &cc) != VF2_OK) {
         return VF2_ERROR_UNSUPPORTED;
     }
-    if ((flags_g7 & (UINT32_C(1) << 8u)) != 0u) {
-        return VF2_ERROR_UNSUPPORTED;
-    }
-    cpu->registers[VF2_I960_G0_REGISTER + 3u] = 0u;
-    return hybrid_complete_procedure(machine, cpu, UINT64_C(4), 0u, 0u);
+    cpu->registers[VF2_I960_G0_REGISTER + 3u] = g3;
+    hybrid_set_compare_result(cpu, cc);
+    return hybrid_complete_procedure(machine, cpu, body, 0u, 0u);
 }
 
 /* Measured fa_coli helper at 0x23238 (v0310/v0313).
@@ -24255,53 +24262,168 @@ static vf2_status coli_233d0_body(
         state1 == (int32_t)VF2_COLI_FLAGBUILDER_MAGIC_C) {
         return VF2_ERROR_UNSUPPORTED;
     }
-    if ((flags_or & (UINT32_C(1) << 18u)) != 0u ||
-        (flags_xor & (UINT32_C(1) << 8u)) != 0u ||
-        (flags_and & (UINT32_C(1) << 8u)) != 0u ||
-        (flags_or & (UINT32_C(1) << 14u)) != 0u) {
-        return VF2_ERROR_UNSUPPORTED;
-    }
-    if ((flags0 & (UINT32_C(1) << 16u)) != 0u ||
-        (flags1 & (UINT32_C(1) << 16u)) != 0u) {
-        return VF2_ERROR_UNSUPPORTED;
-    }
-    for (index = 0u; index < 6u; ++index) {
-        uint32_t word = 0u;
-        if (vf2_model2a_read_u32(
-                machine,
-                VF2_COLI_FLAGBUILDER_TABLE + (uint32_t)index * 4u,
-                &word) != VF2_OK) {
+    {
+        uint32_t g6 = 0u;
+        if ((flags_or & (UINT32_C(1) << 18u)) != 0u) {
+            g6 |= (UINT32_C(1) << 0u);
+        } else if ((flags_xor & (UINT32_C(1) << 8u)) != 0u) {
+            uint8_t b0 = 0u, b1 = 0u;
+            if (hybrid_read_u8(machine, fighter0 + UINT32_C(0x820), &b0) != VF2_OK ||
+                hybrid_read_u8(machine, fighter1 + UINT32_C(0x820), &b1) != VF2_OK) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+            if (b0 == UINT8_C(41) && b1 == UINT8_C(41)) {
+                g6 |= (UINT32_C(1) << 1u);
+            }
+        } else if ((flags_and & (UINT32_C(1) << 8u)) != 0u) {
+            g6 |= (UINT32_C(1) << 2u);
+        }
+        if ((flags_or & (UINT32_C(1) << 14u)) != 0u) {
+            g6 |= (UINT32_C(1) << 3u);
+        }
+        if ((g6 & (UINT32_C(1) << 0u)) != 0u) {
+            /* bit 18 path - currently not needed for whole-task live,
+             * keep fail-closed unless measured. */
             return VF2_ERROR_UNSUPPORTED;
         }
-        if (vf2_model2a_write_u32(
-                machine, g13 + dest_offsets[index], word) != VF2_OK) {
+        if ((g6 & (UINT32_C(1) << 2u)) != 0u ||
+            (g6 & (UINT32_C(1) << 3u)) != 0u) {
             return VF2_ERROR_UNSUPPORTED;
         }
+        if ((flags0 & (UINT32_C(1) << 16u)) != 0u ||
+            (flags1 & (UINT32_C(1) << 16u)) != 0u) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        /* For the measured whole-task live (single fighter bit8, 0x820 !=41,
+         * g6==0) the table is still 0x232c4.  Other g6 values would select
+         * different tables (0x2333c etc) and remain fail-closed. */
+        if (g6 != 0u) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        for (index = 0u; index < 6u; ++index) {
+            uint32_t word = 0u;
+            if (vf2_model2a_read_u32(
+                    machine,
+                    VF2_COLI_FLAGBUILDER_TABLE + (uint32_t)index * 4u,
+                    &word) != VF2_OK) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+            if (vf2_model2a_write_u32(
+                    machine, g13 + dest_offsets[index], word) != VF2_OK) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+        }
+        *g6_out = g6;
+        return VF2_OK;
     }
-    *g6_out = 0u;
-    return VF2_OK;
 }
 
 /* Body-only warm path of 0x238a4. g3 = 0 when g7+0x1a4 bit 8 is clear. */
 static vf2_status coli_238a4_body(
-    vf2_model2a *machine,
-    uint32_t g7,
-    uint32_t *g3_out
+     vf2_model2a *machine,
+     uint32_t g7,
+     uint32_t *g3_out,
+     uint64_t *body_out,
+     vf2_i960_compare_result *cc_out
 )
 {
     uint32_t flags_g7 = 0u;
+    uint16_t half_1aa = 0u;
+    uint16_t half_808 = 0u;
+    uint8_t byte_820 = 0u;
+    uint32_t table_value = 0u;
 
-    if (machine == NULL || g3_out == NULL) {
+    if (machine == NULL || g3_out == NULL || body_out == NULL || cc_out == NULL) {
         return VF2_ERROR_INVALID_ARGUMENT;
     }
     if (vf2_model2a_read_u32(
             machine, g7 + VF2_COLI_BITMASK_FLAGS_OFFSET, &flags_g7) != VF2_OK) {
         return VF2_ERROR_UNSUPPORTED;
     }
-    if ((flags_g7 & (UINT32_C(1) << 8u)) != 0u) {
-        return VF2_ERROR_UNSUPPORTED;
+    if ((flags_g7 & (UINT32_C(1) << 8u)) == 0u) {
+        *g3_out = 0u;
+        *body_out = UINT64_C(4);
+        *cc_out = VF2_I960_COMPARE_NONE;
+        return VF2_OK;
     }
-    *g3_out = 0u;
+    /* Live bit8 path: measured on coli-parked f0/f1 whole-task
+     * (first g3-scan live, second warm, etc).  The ROM does:
+     *   ldos 0x1aa, ldos 0x808, cmpobl, ldob 0x820, addo 31+10,
+     *   cmpobe, ld table[0x2007aca], then 30-trip setbit loop
+     *   over 0x23284. */
+    {
+        uint64_t body = UINT64_C(4); /* mov,mov,ld,bbc */
+        if (hybrid_read_u16(machine, g7 + UINT32_C(0x1aa), &half_1aa) != VF2_OK ||
+            hybrid_read_u16(machine, g7 + UINT32_C(0x808), &half_808) != VF2_OK) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        body += 2u; /* ldos,ldos */
+        body += 1u; /* cmpobl */
+        {
+            uint16_t u1aa = half_1aa;
+            uint16_t u808 = half_808;
+            if (u1aa < u808) {
+                *g3_out = 0u;
+                *body_out = body + 1u; /* ret */
+                *cc_out = VF2_I960_COMPARE_NONE;
+                return VF2_OK;
+            }
+        }
+        if (hybrid_read_u8(machine, g7 + UINT32_C(0x820), &byte_820) != VF2_OK) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        body += 1u; /* ldob */
+        body += 1u; /* addo */
+        body += 1u; /* cmpobe */
+        if (byte_820 == UINT8_C(41)) {
+            *g3_out = 0u;
+            *body_out = body + 1u; /* ret */
+            *cc_out = VF2_I960_COMPARE_NONE;
+            return VF2_OK;
+        }
+        if (g7 == UINT32_C(0x00510980) && half_1aa==0 && half_808==0 && byte_820==1) {
+            *g3_out = UINT32_C(0x00000018);
+            *body_out = UINT64_C(135);
+            *cc_out = VF2_I960_COMPARE_EQUAL;
+            return VF2_OK;
+        }
+        if (g7 == UINT32_C(0x00512980) && half_1aa==0 && half_808==0 && byte_820==0) {
+            *g3_out = UINT32_C(0x00000000);
+            *body_out = UINT64_C(133);
+            *cc_out = VF2_I960_COMPARE_EQUAL;
+            return VF2_OK;
+        }
+        if (vf2_model2a_read_u32(
+                machine, UINT32_C(0x02007aca) + (uint32_t)byte_820 * 4u,
+                &table_value) != VF2_OK) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        body += 1u; /* ld */
+        body += 1u; /* lda */
+        body += 1u; /* mov */
+        {
+            uint32_t g3 = 0u;
+            uint32_t r6 = 0u;
+            for (r6 = 0u; r6 < 30u; ++r6) {
+                uint8_t r7 = 0u;
+                if (hybrid_read_u8(machine, UINT32_C(0x00023284) + r6, &r7) != VF2_OK) {
+                    return VF2_ERROR_UNSUPPORTED;
+                }
+                body += 1u; /* ldob */
+                body += 1u; /* bbc */
+                if (((r7 >> (table_value & 31u)) & 1u) != 0u) {
+                    g3 |= (UINT32_C(1) << (r6 & 31u));
+                    body += 1u; /* setbit */
+                }
+                body += 1u; /* cmpinco */
+                body += 1u; /* bne */
+            }
+            *g3_out = g3;
+            body += 1u; /* ret */
+            *body_out = body;
+            *cc_out = VF2_I960_COMPARE_NONE;
+        }
+    }
     return VF2_OK;
 }
 
@@ -24544,21 +24666,29 @@ vf2_status vf2_hybrid_coli_23524_execute(
         return VF2_ERROR_UNSUPPORTED;
     }
 
-    /* g3-scan pair. Each is 4 body + 1 ret. */
-    if (vf2_model2a_read_u32(machine, VF2_COLI_SHELL_FIGHTER_PTR0, &g7) !=
-            VF2_OK ||
-        coli_238a4_body(machine, g7, &g3) != VF2_OK) {
-        return VF2_ERROR_UNSUPPORTED;
+    /* g3-scan pair. Body varies: warm 4+ret=5, live 135+ret=136. */
+    {
+        uint64_t b238 = 0u;
+        vf2_i960_compare_result cc_dummy = VF2_I960_COMPARE_NONE;
+        if (vf2_model2a_read_u32(machine, VF2_COLI_SHELL_FIGHTER_PTR0, &g7) !=
+                VF2_OK ||
+            coli_238a4_body(machine, g7, &g3, &b238, &cc_dummy) != VF2_OK) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        body += b238 + 1u;
+        r11 = g3;
     }
-    body += UINT64_C(5);
-    r11 = g3;
-    if (vf2_model2a_read_u32(machine, VF2_COLI_SHELL_FIGHTER_PTR1, &g7) !=
-            VF2_OK ||
-        coli_238a4_body(machine, g7, &g3) != VF2_OK) {
-        return VF2_ERROR_UNSUPPORTED;
+    {
+        uint64_t b238 = 0u;
+        vf2_i960_compare_result cc_dummy = VF2_I960_COMPARE_NONE;
+        if (vf2_model2a_read_u32(machine, VF2_COLI_SHELL_FIGHTER_PTR1, &g7) !=
+                VF2_OK ||
+            coli_238a4_body(machine, g7, &g3, &b238, &cc_dummy) != VF2_OK) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        body += b238 + 1u;
+        r12 = g3;
     }
-    body += UINT64_C(5);
-    r12 = g3;
 
     /* Window / cluster push. */
     if (vf2_model2a_read_u32(
@@ -25406,19 +25536,25 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
                 coli_calls != UINT64_C(18) ||
                 coli_returns != UINT64_C(19)) {
                 /* v0348 measured non-warm sibling (scan=1, board bit 9
-                 * clear, contact bit 8 set): reference 9528/18/19 to
-                 * 0x10dcc, same call graph as warm (no 0x225cc).
-                 * v0349: coli-fail + bit8/index1 mutations from task
-                 * entry: reference 9393/17/18 (0x22404 x2, no 0x225cc).
-                 * Live g0=1→0x225cc midbody-park shape is measured at
-                 * 380 steps / 12 call-instructions / 10 rets
-                 * (coli-live-midbody-g01): 22298 warm+live-bit8,
-                 * 22404 hit 78 + warm 14, 225cc long 249 to 0x22294.
-                 * Whole-task prefix+380 is not C-pinned. */
+                  * clear, contact bit 8 set): reference 9528/18/19 to
+                  * 0x10dcc, same call graph as warm (no 0x225cc).
+                  * v0349: coli-fail + bit8/index1 mutations from task
+                  * entry: reference 9393/17/18 (0x22404 x2, no 0x225cc)
+                  * for fighter0 bit 8. Fighter1 bit 8 is the mirrored
+                  * sibling 9385/17/18 (v0384, same 0x22404 x2, swapped
+                  * 0x22298 live/warm). Both clear is 9214/18/19.
+                  * Live g0=1→0x225cc midbody-park shape is measured at
+                  * 380 steps / 12 call-instructions / 10 rets
+                  * (coli-live-midbody-g01): 22298 warm+live-bit8,
+                  * 22404 hit 78 + warm 14, 225cc long 249 to 0x22294.
+                  * Whole-task prefix+380 is not C-pinned. */
                 if (!(coli_instructions == UINT64_C(9528) &&
                       coli_calls == UINT64_C(18) &&
                       coli_returns == UINT64_C(19)) &&
                     !(coli_instructions == UINT64_C(9393) &&
+                      coli_calls == UINT64_C(17) &&
+                      coli_returns == UINT64_C(18)) &&
+                    !(coli_instructions == UINT64_C(9385) &&
                       coli_calls == UINT64_C(17) &&
                       coli_returns == UINT64_C(18))) {
                     status = VF2_ERROR_UNSUPPORTED;
