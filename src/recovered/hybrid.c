@@ -23008,22 +23008,23 @@ vf2_status vf2_hybrid_coli_midbody_tail_execute(
     vf2_i960_cpu *cpu
 )
 {
-    const uint32_t g13 = cpu->registers[VF2_I960_G0_REGISTER + 13u];
-    /* Fighter pointers come from the same table the entry prefix used
-     * (0x221f4/0x221fc). Parent locals r7/r8 hold them in the coli
-     * frame but are not visible once this procedure's frame is current. */
     uint32_t fighter0 = 0u;
     uint32_t fighter1 = 0u;
     uint32_t g7 = 0u;
     uint32_t g8 = 0u;
     uint32_t r6 = 0u;
     uint64_t body = UINT64_C(13);
+    uint32_t g13 = 0u;
 
     if (machine == NULL || cpu == NULL ||
         cpu->ip != VF2_COLI_MIDBODY_ENTRY ||
         cpu->local_frame_depth == 0u) {
         return VF2_ERROR_INVALID_ARGUMENT;
     }
+    g13 = cpu->registers[VF2_I960_G0_REGISTER + 13u];
+    /* Fighter pointers come from the same table the entry prefix used
+     * (0x221f4/0x221fc). Parent locals r7/r8 hold them in the coli
+     * frame but are not visible once this procedure's frame is current. */
     if (vf2_model2a_read_u32(
             machine, VF2_COLI_SHELL_FIGHTER_PTR0, &fighter0) != VF2_OK ||
         vf2_model2a_read_u32(
@@ -23183,16 +23184,39 @@ vf2_status vf2_hybrid_coli_midbody_tail_execute(
         return hybrid_complete_procedure(machine, cpu, body, 5u, 5u);
     }
     if (r6 != 0u) {
-        /* v0304: first contact hit, second warm, compact 0x225cc. */
+        /* v0304: first contact hit, second warm, 0x225cc. Compact
+         * (12 insns, 0 calls) is the original measured shape
+         * (v0304, 130/5/6). The live first-contact shape (v0383)
+         * reaches the long body (bit 3 clear, scan 1) with the same
+         * tail — 371/9/10, final CC + g1 pinned. Other 0x225cc
+         * siblings remain fail-closed via the resolver. */
         uint64_t c225 = 0u;
-        if (coli_225cc_body(machine, fighter0, fighter1, &c225, NULL, NULL, NULL, NULL) != VF2_OK) {
+        uint64_t c_calls = 0u;
+        uint64_t c_rets = 0u;
+        vf2_i960_compare_result c_cc = VF2_I960_COMPARE_NONE;
+        uint32_t c_g1 = UINT32_C(0xffffffff);
+        if (coli_225cc_body(machine, fighter0, fighter1, &c225, &c_calls, &c_rets, &c_cc, &c_g1) != VF2_OK) {
             return VF2_ERROR_UNSUPPORTED;
         }
         body = UINT64_C(16) + child_2298_1 + 1u + child_2298_2 + 1u +
                child_22404_1 + 1u + child_22404_2 + 1u + c225 + 1u;
+        /* Live long is 371, compact is 144; the extra 1 accounts for
+         * the cmpobe/bbs dispatch that selects the long resolver. */
+        if (c_calls != 0u) {
+            body += UINT64_C(1);
+        }
+        if (c_cc != VF2_I960_COMPARE_NONE) {
+            hybrid_set_compare_result(cpu, c_cc);
+        }
+        if (c_g1 != UINT32_C(0xffffffff)) {
+            cpu->registers[VF2_I960_G0_REGISTER + 1u] = c_g1;
+        }
         cpu->registers[VF2_I960_G0_REGISTER + 7u] = fighter0;
         cpu->registers[VF2_I960_G0_REGISTER + 8u] = fighter1;
-        return hybrid_complete_procedure(machine, cpu, body, 5u, 5u);
+        {
+            const uint64_t total_calls = UINT64_C(4) + UINT64_C(1) + c_calls;
+            return hybrid_complete_procedure(machine, cpu, body, total_calls, total_calls);
+        }
     }
     /* Tail leaves g7/g8 in the swapped assignment from 0x22230/0x22234. */
     cpu->registers[VF2_I960_G0_REGISTER + 7u] = fighter1;

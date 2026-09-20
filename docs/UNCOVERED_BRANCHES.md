@@ -918,10 +918,18 @@ stale+empty plus stale slot 1 stay fail-closed. Required an oracle
 fix: the arch wrapper re-decided `bo`/`bno` from stale AC, spinning
 any scanbit-miss shape unless AC agreed by luck — now scoped to the
 integer-compare domain, scanbit domain left to legacy (no pin moves
-anywhere, 66/66). Whole-tail composition (midbody v0304 branch needs
-long-aware counts + CC/`g1` threading; measured 371/12/10) is the
-explicit next slice. See
+anywhere, 66/66). See
 `decomp/i960/notes/fa_coli_22404_live_v0382.md`.
+
+Status (v0383): coli mid-body tail whole-tail live (first-hit-second-warm
+long) is native (371 steps, 9 calls / 10 rets, final CC + `g1` pinned;
+new ROM-backed `vf2_coli_midbody_tail_live` fixture via the measured
+snapshot base). The v0304 branch now forwards long-body counts/CC/G1
+and correctly reports `4,4`/`5,5`/`9,9` nested (warm/compact/long).
+Whole-task `0x221e8 -> 0x10dcc` composition (prefix+shell+tail,
+measured 9529/21/22) is the explicit next slice and stays fail-closed
+at the task gate (`9214/18/19`, `9528/18/19`, `9393/17/18`). See
+`decomp/i960/notes/fa_coli_midbody_tail_live_v0383.md`.
 
 Status (v0315): mid-body `0x2227c` tie-break is native (double
 `0x225cc`, compact-both 282/7/8). `0x18bd4` shortcut remains DEFER

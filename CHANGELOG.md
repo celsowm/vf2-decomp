@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Recovery C do coli mid-body tail whole-tail live (primeiro hit, segundo
+  warm, long) (v0383): `0x22210 -> 0x10dcc` nativo com igualdade total
+  de estado (371 steps, 9 calls / 10 rets, CC final + `g1` pinados;
+  fixture ROM-backed `vf2_coli_midbody_tail_live` via snapshot base
+  medido). Branch v0304 agora encaminha counts/CC/G1 do long
+  (`4,4`/`5,5`/`9,9` nested). `ctest` 68/68; ASan/UBSan green.
+  Próximo: composição whole-task `0x221e8` (9529). See
+  `decomp/i960/notes/fa_coli_midbody_tail_live_v0383.md`.
+
 - Recovery C do coli `0x22404` live first-contact stale slot (v0382):
   shape (slot velho `0xffff` vs snap 0) nativo com igualdade total
   de estado (body 77, `g0 = 1`, CC final pinado; fixture ROM-backed
