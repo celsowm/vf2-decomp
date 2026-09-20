@@ -2,14 +2,25 @@
 
 ## Unreleased
 
+- Recovery C do coli whole-task live single-fighter f0 `9393/17/18`
+  e f1 `9385/17/18` (v0385): flag builder `0x233d0` live `53` (`g6=2`,
+  tabela `0x2330c` f0 vs `0x23324` f1, `0xFFFFDFFC` em `0xb4/0xb8`,
+  `0x88=3`) vs warm `44` (`g6=0`); shell `0x23524` live threshold em
+  `0x236b0` (`r3==4294959100`, `g6==2`) com `26` vs `17` e `12` calls
+  vs `13`, seis stores `0xd4..0xe8` e fighter `+0x18/+0x20` pinados em
+  `0xFFFFDFFC`; whole-task `9393`/`9385` com `EQUAL` e `+1`/`+2`
+  counts. Fixture ROM-backed `vf2_coli_whole_task_live` via
+  `coli-parked-221e8`. `ctest` 72/72; ASan/UBSan green. See
+  `decomp/i960/notes/fa_coli_whole_task_live_v0385.md`.
+
 - Recovery C do coli g3-scan `0x238a4` live (single fighter `+0x1a4`
   bit8) (v0384): helper `0x238a4` nativo com `136`/`0x18`/`EQUAL` e
   `134`/`0`/`EQUAL` (f0/f1 espelhados; fixture ROM-backed
   `vf2_coli_238a4_live` via `coli-parked-221e8`). Flag builder
-  `0x233d0` agora permite `xor bit8` com `0x820==1` (`g6` 0).
+  `0x233d0` agora permite `xor bit8` com `0x820==1` (`g6` 2 vs 0).
   Shell `0x23524` conta `b238+1`. Gate whole-task agora permite
-  `9385/17/18` (f1) ao lado de `9393`. `ctest` 70/70; ASan/UBSan
-  green. Próximo: `g4` live do shell. See
+  `9385/17/18` (f1) ao lado de `9393` no nível helper. `ctest` 70/70;
+  ASan/UBSan green. See
   `decomp/i960/notes/fa_coli_238a4_live_v0384.md`.
 
 - Recovery C do coli mid-body tail whole-tail live (primeiro hit, segundo

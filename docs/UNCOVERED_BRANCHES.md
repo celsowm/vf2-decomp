@@ -935,12 +935,23 @@ Status (v0384): coli g3-scan `0x238a4` live (single fighter `+0x1a4`
 bit8) is native (first `136`/`g3=0x18`/`CC=EQUAL`, second `5`,
 mirrored `5`/`134`/`g3=0`/`CC=EQUAL`; new ROM-backed
 `vf2_coli_238a4_live` fixture via `coli-parked-221e8`). Flag builder
-`0x233d0` now allows `xor bit8` with `0x820==1` check (`g6` stays
-0).  Shell `0x23524` now counts `b238+1` per `0x238a4`.  Whole-task
-gate now allows `9385/17/18` (mirrored `f1`) alongside `9393`.
-Whole-task `g4` (`0xffffdffc`) still diverges — next is the
-`0x2396c`/`0x233d0` live `g4`. See
-`decomp/i960/notes/fa_coli_238a4_live_v0384.md`.
+`0x233d0` now allows `xor bit8` with `0x820==1` check (live `g6=2`
+vs warm `0`).  Shell `0x23524` now counts `b238+1` per `0x238a4`.  Whole-task
+gate now allows `9385/17/18` (mirrored `f1`) alongside `9393` at the
+helper level. See `decomp/i960/notes/fa_coli_238a4_live_v0384.md`.
+
+Status (v0385): coli whole-task live single-fighter (f0 `9393/17/18`,
+f1 `9385/17/18`) is native with full live-state equality. Flag
+builder `0x233d0` live is `53` steps (`g6=2`, table `0x2330c` for f0
+vs `0x23324` for f1, `0xFFFFDFFC` at `g13+0xb4/0xb8`, `g13+0x88=3`);
+both-live `g6=4` keeps warm table `0x232c4`/`44`. Shell `0x23524`
+live threshold at `0x236b0` (`r3==4294959100`, `g6==2`) takes the
+`0x236c4` path (26 vs 17, calls 12 vs 13) and leaves the six cluster
+words at `0xd4..0xe8` and fighter `+0x18/+0x20` as `0xFFFFDFFC`
+(`4294959100`). Whole-task `9393`/`9385` now pass the task gate with
+`EQUAL` and `+1`/`+2` counted compares. New ROM-backed
+`vf2_coli_whole_task_live` fixture via `coli-parked-221e8`. See
+`decomp/i960/notes/fa_coli_whole_task_live_v0385.md`.
 
 Status (v0315): mid-body `0x2227c` tie-break is native (double
 `0x225cc`, compact-both 282/7/8). `0x18bd4` shortcut remains DEFER

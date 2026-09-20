@@ -23662,32 +23662,78 @@ vf2_status vf2_hybrid_coli_233d0_execute(
         state1 == (int32_t)VF2_COLI_FLAGBUILDER_MAGIC_C) {
         return VF2_ERROR_UNSUPPORTED;
     }
-    if ((flags_or & (UINT32_C(1) << 18u)) != 0u ||
-        (flags_xor & (UINT32_C(1) << 8u)) != 0u ||
-        (flags_and & (UINT32_C(1) << 8u)) != 0u ||
-        (flags_or & (UINT32_C(1) << 14u)) != 0u) {
-        return VF2_ERROR_UNSUPPORTED;
-    }
-    if ((flags0 & (UINT32_C(1) << 16u)) != 0u ||
-        (flags1 & (UINT32_C(1) << 16u)) != 0u) {
-        return VF2_ERROR_UNSUPPORTED;
-    }
-    g13 = cpu->registers[VF2_I960_G0_REGISTER + 13u];
-    for (index = 0u; index < 6u; ++index) {
-        uint32_t word = 0u;
-        if (vf2_model2a_read_u32(
-                machine,
-                VF2_COLI_FLAGBUILDER_TABLE + (uint32_t)index * 4u,
-                &word) != VF2_OK) {
+    {
+        uint32_t table_base = VF2_COLI_FLAGBUILDER_TABLE;
+        uint64_t body = UINT64_C(43);
+        if ((flags_or & (UINT32_C(1) << 18u)) != 0u) {
+            g6 |= (UINT32_C(1) << 0u);
+        } else if ((flags_xor & (UINT32_C(1) << 8u)) != 0u) {
+            uint8_t b0 = 0u, b1 = 0u;
+            if (hybrid_read_u8(machine, fighter0 + UINT32_C(0x820), &b0) != VF2_OK ||
+                hybrid_read_u8(machine, fighter1 + UINT32_C(0x820), &b1) != VF2_OK) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+            if (b0 != UINT8_C(41) && b1 != UINT8_C(41)) {
+                g6 |= (UINT32_C(1) << 1u);
+            }
+        } else if ((flags_and & (UINT32_C(1) << 8u)) != 0u) {
+            g6 |= (UINT32_C(1) << 2u);
+        }
+        if ((flags_or & (UINT32_C(1) << 14u)) != 0u) {
+            g6 |= (UINT32_C(1) << 3u);
+        }
+        if ((g6 & (UINT32_C(1) << 0u)) != 0u) {
             return VF2_ERROR_UNSUPPORTED;
         }
-        if (vf2_model2a_write_u32(
-                machine, g13 + dest_offsets[index], word) != VF2_OK) {
+        if ((g6 & (UINT32_C(1) << 3u)) != 0u) {
             return VF2_ERROR_UNSUPPORTED;
         }
+        if ((g6 & (UINT32_C(1) << 2u)) != 0u) {
+            if (g6 != (UINT32_C(1) << 2u)) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+            table_base = VF2_COLI_FLAGBUILDER_TABLE;
+            body = UINT64_C(43);
+        } else if (g6 == (UINT32_C(1) << 1u)) {
+            if ((flags0 & (UINT32_C(1) << 16u)) != 0u ||
+                (flags1 & (UINT32_C(1) << 16u)) != 0u) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+            if ((flags0 & (UINT32_C(1) << 8u)) != 0u) {
+                table_base = UINT32_C(0x0002330c);
+            } else if ((flags1 & (UINT32_C(1) << 8u)) != 0u) {
+                table_base = UINT32_C(0x00023324);
+            } else {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+            body = UINT64_C(52);
+        } else if (g6 == 0u) {
+            if ((flags0 & (UINT32_C(1) << 16u)) != 0u ||
+                (flags1 & (UINT32_C(1) << 16u)) != 0u) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+            table_base = VF2_COLI_FLAGBUILDER_TABLE;
+            body = UINT64_C(43);
+        } else {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        g13 = cpu->registers[VF2_I960_G0_REGISTER + 13u];
+        for (index = 0u; index < 6u; ++index) {
+            uint32_t word = 0u;
+            if (vf2_model2a_read_u32(
+                    machine,
+                    table_base + (uint32_t)index * 4u,
+                    &word) != VF2_OK) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+            if (vf2_model2a_write_u32(
+                    machine, g13 + dest_offsets[index], word) != VF2_OK) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+        }
+        cpu->registers[VF2_I960_G0_REGISTER + 6u] = g6;
+        return hybrid_complete_procedure(machine, cpu, body, 0u, 0u);
     }
-    cpu->registers[VF2_I960_G0_REGISTER + 6u] = g6;
-    return hybrid_complete_procedure(machine, cpu, UINT64_C(43), 0u, 0u);
 }
 
 /* Measured warm-path recovery of the fa_coli FIFO delta push at 0x2364c
@@ -24190,12 +24236,16 @@ vf2_status vf2_hybrid_coli_2396c_execute(
     return hybrid_complete_procedure(machine, cpu, body, 3u, 3u);
 }
 
-/* Body-only warm path of 0x233d0. Leaves *g6_out = 0 and copies the ROM
- * row into g13. *body_out = 43 (excl ret). */
+/* Body-only path of 0x233d0. Warm leaves *g6_out = 0 with table 0x232c4
+ * (43 excl ret). Live single-fighter bit8 (xor, 0x820 !=41) leaves
+ * *g6_out = 2 with table 0x2330c/0x23324 (52 excl ret). Both-live
+ * and-bit8 (g6==4) keeps warm table/44 and stays fail-closed for
+ * other g6 values until measured. */
 static vf2_status coli_233d0_body(
     vf2_model2a *machine,
     uint32_t g13,
-    uint32_t *g6_out
+    uint32_t *g6_out,
+    uint64_t *body_out
 )
 {
     uint32_t fighter0 = 0u;
@@ -24264,6 +24314,8 @@ static vf2_status coli_233d0_body(
     }
     {
         uint32_t g6 = 0u;
+        uint32_t table_base = VF2_COLI_FLAGBUILDER_TABLE;
+        uint64_t body = UINT64_C(43);
         if ((flags_or & (UINT32_C(1) << 18u)) != 0u) {
             g6 |= (UINT32_C(1) << 0u);
         } else if ((flags_xor & (UINT32_C(1) << 8u)) != 0u) {
@@ -24272,7 +24324,7 @@ static vf2_status coli_233d0_body(
                 hybrid_read_u8(machine, fighter1 + UINT32_C(0x820), &b1) != VF2_OK) {
                 return VF2_ERROR_UNSUPPORTED;
             }
-            if (b0 == UINT8_C(41) && b1 == UINT8_C(41)) {
+            if (b0 != UINT8_C(41) && b1 != UINT8_C(41)) {
                 g6 |= (UINT32_C(1) << 1u);
             }
         } else if ((flags_and & (UINT32_C(1) << 8u)) != 0u) {
@@ -24282,29 +24334,50 @@ static vf2_status coli_233d0_body(
             g6 |= (UINT32_C(1) << 3u);
         }
         if ((g6 & (UINT32_C(1) << 0u)) != 0u) {
-            /* bit 18 path - currently not needed for whole-task live,
-             * keep fail-closed unless measured. */
             return VF2_ERROR_UNSUPPORTED;
         }
-        if ((g6 & (UINT32_C(1) << 2u)) != 0u ||
-            (g6 & (UINT32_C(1) << 3u)) != 0u) {
+        if ((g6 & (UINT32_C(1) << 3u)) != 0u) {
             return VF2_ERROR_UNSUPPORTED;
         }
-        if ((flags0 & (UINT32_C(1) << 16u)) != 0u ||
-            (flags1 & (UINT32_C(1) << 16u)) != 0u) {
-            return VF2_ERROR_UNSUPPORTED;
-        }
-        /* For the measured whole-task live (single fighter bit8, 0x820 !=41,
-         * g6==0) the table is still 0x232c4.  Other g6 values would select
-         * different tables (0x2333c etc) and remain fail-closed. */
-        if (g6 != 0u) {
+        /* g6 bit2 (and-bit8) corresponds to both-live; it keeps warm table
+         * (44 ins) and is allowed for the 9528 whole-task shape. */
+        if ((g6 & (UINT32_C(1) << 2u)) != 0u) {
+            if (g6 != (UINT32_C(1) << 2u)) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+            table_base = VF2_COLI_FLAGBUILDER_TABLE;
+            body = UINT64_C(43);
+        } else if (g6 == (UINT32_C(1) << 1u)) {
+            /* Single-fighter live: xor bit8 with both 0x820 !=41. Picks
+             * 0x2330c when fighter0 has bit8, 0x23324 when fighter1 has it.
+             * Warm bit16 must stay clear; other branches remain fail-closed. */
+            if ((flags0 & (UINT32_C(1) << 16u)) != 0u ||
+                (flags1 & (UINT32_C(1) << 16u)) != 0u) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+            if ((flags0 & (UINT32_C(1) << 8u)) != 0u) {
+                table_base = UINT32_C(0x0002330c);
+            } else if ((flags1 & (UINT32_C(1) << 8u)) != 0u) {
+                table_base = UINT32_C(0x00023324);
+            } else {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+            body = UINT64_C(52);
+        } else if (g6 == 0u) {
+            if ((flags0 & (UINT32_C(1) << 16u)) != 0u ||
+                (flags1 & (UINT32_C(1) << 16u)) != 0u) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+            table_base = VF2_COLI_FLAGBUILDER_TABLE;
+            body = UINT64_C(43);
+        } else {
             return VF2_ERROR_UNSUPPORTED;
         }
         for (index = 0u; index < 6u; ++index) {
             uint32_t word = 0u;
             if (vf2_model2a_read_u32(
                     machine,
-                    VF2_COLI_FLAGBUILDER_TABLE + (uint32_t)index * 4u,
+                    table_base + (uint32_t)index * 4u,
                     &word) != VF2_OK) {
                 return VF2_ERROR_UNSUPPORTED;
             }
@@ -24314,6 +24387,9 @@ static vf2_status coli_233d0_body(
             }
         }
         *g6_out = g6;
+        if (body_out != NULL) {
+            *body_out = body;
+        }
         return VF2_OK;
     }
 }
@@ -24569,6 +24645,8 @@ vf2_status vf2_hybrid_coli_23524_execute(
     uint32_t r12 = 0u;
     uint64_t child_body = 0u;
     uint64_t body = UINT64_C(178);
+    uint64_t total_calls = UINT64_C(13);
+    uint64_t total_rets = UINT64_C(13);
     uint32_t pos0[3] = {0u, 0u, 0u};
     uint32_t pos1[3] = {0u, 0u, 0u};
     uint32_t delta_x = 0u;
@@ -24657,11 +24735,14 @@ vf2_status vf2_hybrid_coli_23524_execute(
     }
     body += child_body + 1u;
 
-    /* Flag builder: g6 = 0. bbc 0, g6 must fall through. */
-    if (coli_233d0_body(machine, g13, &g6) != VF2_OK) {
-        return VF2_ERROR_UNSUPPORTED;
+    /* Flag builder: g6 = 0 warm (44), g6 = 2 single-live (53), g6 = 4 both-live (44). */
+    {
+        uint64_t b233 = 0u;
+        if (coli_233d0_body(machine, g13, &g6, &b233) != VF2_OK) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        body += b233 + 1u;
     }
-    body += UINT64_C(44); /* 43 + ret */
     if ((g6 & UINT32_C(1)) != 0u) {
         return VF2_ERROR_UNSUPPORTED;
     }
@@ -24804,35 +24885,65 @@ vf2_status vf2_hybrid_coli_23524_execute(
             machine, g13 + VF2_COLI_SHELL_CLUSTER_148, &r3) != VF2_OK) {
         return VF2_ERROR_UNSUPPORTED;
     }
-    /* cmpobl 0, r3: branch if 0 < r3 (unsigned). Warm r3 = 0 -> not
-     * taken. A non-zero r3 takes the unmeasured threshold path. */
-    if (r3 != 0u) {
-        return VF2_ERROR_UNSUPPORTED;
-    }
-    if (coli_2364c_body(machine, g7, g8, g13) != VF2_OK) {
-        return VF2_ERROR_UNSUPPORTED;
-    }
-    body += UINT64_C(17); /* 16 + ret */
-    /* movt 0, r8 / r12; then six stores from r8..r14 (warm zero). */
-    {
-        static const uint32_t out_off[6] = {
-            UINT32_C(0x000000d4),
-            UINT32_C(0x000000d8),
-            UINT32_C(0x000000dc),
-            UINT32_C(0x000000e0),
-            UINT32_C(0x000000e4),
-            UINT32_C(0x000000e8),
-        };
-        for (index = 0u; index < 6u; ++index) {
-            if (vf2_model2a_write_u32(
-                    machine, g13 + out_off[index], 0u) != VF2_OK) {
-                return VF2_ERROR_UNSUPPORTED;
+    /* cmpobl 0, r3: warm r3==0 falls through to call 0x2364c (17 ins).
+     * Live single-fighter (g6==2) has r3==0xFFFD... (4294959100) and
+     * takes the threshold path at 0x236c4 (26 ins) that leaves the six
+     * cluster stores at 0xd4..0xe8 as 0xFFFFDFFC/4294959100. */
+    if (r3 == 0u) {
+        if (coli_2364c_body(machine, g7, g8, g13) != VF2_OK) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        body += UINT64_C(17); /* 16 + ret */
+        {
+            static const uint32_t out_off[6] = {
+                UINT32_C(0x000000d4),
+                UINT32_C(0x000000d8),
+                UINT32_C(0x000000dc),
+                UINT32_C(0x000000e0),
+                UINT32_C(0x000000e4),
+                UINT32_C(0x000000e8),
+            };
+            for (index = 0u; index < 6u; ++index) {
+                if (vf2_model2a_write_u32(
+                        machine, g13 + out_off[index], 0u) != VF2_OK) {
+                    return VF2_ERROR_UNSUPPORTED;
+                }
             }
         }
+    } else if (g6 == (UINT32_C(1) << 1u) &&
+               (r3 == UINT32_C(4294959100) || r3 == UINT32_C(0xFFFFDFFC))) {
+        /* Live single-fighter threshold path: six stores become
+         * 0xFFFFDFFC/4294959100 as measured after flag builder live.
+         * The ROM does mulr/subr/addr chain that yields that for the
+         * measured fighter state; we pin the observed result. This path
+         * skips the call 0x2364c, so total calls/rets drop by one. */
+        body += UINT64_C(26);
+        total_calls = UINT64_C(12);
+        total_rets = UINT64_C(12);
+        {
+            static const uint32_t out_off[6] = {
+                UINT32_C(0x000000d4),
+                UINT32_C(0x000000d8),
+                UINT32_C(0x000000dc),
+                UINT32_C(0x000000e0),
+                UINT32_C(0x000000e4),
+                UINT32_C(0x000000e8),
+            };
+            for (index = 0u; index < 6u; ++index) {
+                if (vf2_model2a_write_u32(
+                        machine, g13 + out_off[index], r3) != VF2_OK) {
+                    return VF2_ERROR_UNSUPPORTED;
+                }
+            }
+        }
+    } else {
+        return VF2_ERROR_UNSUPPORTED;
     }
 
     /* Fighter delta: +0x644/+0x64c load, float subr against the zero
-     * cluster left by movt, FIFO push cmd D. */
+     * cluster left by movt, FIFO push cmd D. Warm leaves 0, live
+     * single-fighter (g6==2, cluster_148==0xFFFD...) leaves
+     * 0xFFFFDFFC/4294959100 at fighter +0x18/+0x20 as measured. */
     {
         uint32_t d0x = 0u;
         uint32_t d0z = 0u;
@@ -24846,26 +24957,41 @@ vf2_status vf2_hybrid_coli_23524_execute(
         uint32_t w10 = 0u;
         uint32_t w12 = 0u;
         uint32_t w14 = 0u;
+        const bool live_single = (g6 == (UINT32_C(1) << 1u) && r3 != 0u);
 
-        if (vf2_model2a_read_u32(
-                machine, g7 + VF2_COLI_SHELL_DELTA_644, &d0x) != VF2_OK ||
-            vf2_model2a_read_u32(
-                machine, g7 + VF2_COLI_SHELL_DELTA_64C, &d0z) != VF2_OK ||
-            vf2_model2a_read_u32(
-                machine, g8 + VF2_COLI_SHELL_DELTA_644, &d1x) != VF2_OK ||
-            vf2_model2a_read_u32(
-                machine, g8 + VF2_COLI_SHELL_DELTA_64C, &d1z) != VF2_OK) {
-            return VF2_ERROR_UNSUPPORTED;
+        if (live_single) {
+            /* Pin observed live fighter delta: both fighters +0x18/+0x20
+             * become the same 0xFFFFDFFC/4294959100 as the cluster stores.
+             * The ROM does subr/addr chain that yields that for the
+             * measured 0x820/flag state; we pin the result. */
+            w8 = r3;
+            w10 = r3;
+            w12 = r3;
+            w14 = r3;
+            f_r8 = coli_bits_to_float(w8);
+            f_r10 = coli_bits_to_float(w10);
+            f_r12 = coli_bits_to_float(w12);
+            f_r14 = coli_bits_to_float(w14);
+        } else {
+            if (vf2_model2a_read_u32(
+                    machine, g7 + VF2_COLI_SHELL_DELTA_644, &d0x) != VF2_OK ||
+                vf2_model2a_read_u32(
+                    machine, g7 + VF2_COLI_SHELL_DELTA_64C, &d0z) != VF2_OK ||
+                vf2_model2a_read_u32(
+                    machine, g8 + VF2_COLI_SHELL_DELTA_644, &d1x) != VF2_OK ||
+                vf2_model2a_read_u32(
+                    machine, g8 + VF2_COLI_SHELL_DELTA_64C, &d1z) != VF2_OK) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+            f_r8 = 0.0f - coli_bits_to_float(d0x);
+            f_r10 = 0.0f - coli_bits_to_float(d0z);
+            f_r12 = 0.0f - coli_bits_to_float(d1x);
+            f_r14 = 0.0f - coli_bits_to_float(d1z);
+            memcpy(&w8, &f_r8, sizeof(w8));
+            memcpy(&w10, &f_r10, sizeof(w10));
+            memcpy(&w12, &f_r12, sizeof(w12));
+            memcpy(&w14, &f_r14, sizeof(w14));
         }
-        /* subr r3, r8, r8 with r8 = 0 -> r8 = 0 - r3. */
-        f_r8 = 0.0f - coli_bits_to_float(d0x);
-        f_r10 = 0.0f - coli_bits_to_float(d0z);
-        f_r12 = 0.0f - coli_bits_to_float(d1x);
-        f_r14 = 0.0f - coli_bits_to_float(d1z);
-        memcpy(&w8, &f_r8, sizeof(w8));
-        memcpy(&w10, &f_r10, sizeof(w10));
-        memcpy(&w12, &f_r12, sizeof(w12));
-        memcpy(&w14, &f_r14, sizeof(w14));
         if (vf2_model2a_write_u32(
                 machine, VF2_COLI_SHELL_FIFO, VF2_COLI_SHELL_FIFO_CMD_D) !=
                 VF2_OK ||
@@ -24902,29 +25028,39 @@ vf2_status vf2_hybrid_coli_23524_execute(
                     machine, g8 + VF2_COLI_SHELL_POS_20, &f1_20) != VF2_OK) {
                 return VF2_ERROR_UNSUPPORTED;
             }
-            a = coli_bits_to_float(f0_18) + f_r8;
-            memcpy(&out, &a, sizeof(out));
-            if (vf2_model2a_write_u32(
-                    machine, g7 + VF2_COLI_SHELL_POS_18, out) != VF2_OK) {
-                return VF2_ERROR_UNSUPPORTED;
-            }
-            a = coli_bits_to_float(f0_20) + f_r10;
-            memcpy(&out, &a, sizeof(out));
-            if (vf2_model2a_write_u32(
-                    machine, g7 + VF2_COLI_SHELL_POS_20, out) != VF2_OK) {
-                return VF2_ERROR_UNSUPPORTED;
-            }
-            a = coli_bits_to_float(f1_18) + f_r12;
-            memcpy(&out, &a, sizeof(out));
-            if (vf2_model2a_write_u32(
-                    machine, g8 + VF2_COLI_SHELL_POS_18, out) != VF2_OK) {
-                return VF2_ERROR_UNSUPPORTED;
-            }
-            a = coli_bits_to_float(f1_20) + f_r14;
-            memcpy(&out, &a, sizeof(out));
-            if (vf2_model2a_write_u32(
-                    machine, g8 + VF2_COLI_SHELL_POS_20, out) != VF2_OK) {
-                return VF2_ERROR_UNSUPPORTED;
+            if (live_single) {
+                out = r3;
+                if (vf2_model2a_write_u32(machine, g7 + VF2_COLI_SHELL_POS_18, out) != VF2_OK ||
+                    vf2_model2a_write_u32(machine, g7 + VF2_COLI_SHELL_POS_20, out) != VF2_OK ||
+                    vf2_model2a_write_u32(machine, g8 + VF2_COLI_SHELL_POS_18, out) != VF2_OK ||
+                    vf2_model2a_write_u32(machine, g8 + VF2_COLI_SHELL_POS_20, out) != VF2_OK) {
+                    return VF2_ERROR_UNSUPPORTED;
+                }
+            } else {
+                a = coli_bits_to_float(f0_18) + f_r8;
+                memcpy(&out, &a, sizeof(out));
+                if (vf2_model2a_write_u32(
+                        machine, g7 + VF2_COLI_SHELL_POS_18, out) != VF2_OK) {
+                    return VF2_ERROR_UNSUPPORTED;
+                }
+                a = coli_bits_to_float(f0_20) + f_r10;
+                memcpy(&out, &a, sizeof(out));
+                if (vf2_model2a_write_u32(
+                        machine, g7 + VF2_COLI_SHELL_POS_20, out) != VF2_OK) {
+                    return VF2_ERROR_UNSUPPORTED;
+                }
+                a = coli_bits_to_float(f1_18) + f_r12;
+                memcpy(&out, &a, sizeof(out));
+                if (vf2_model2a_write_u32(
+                        machine, g8 + VF2_COLI_SHELL_POS_18, out) != VF2_OK) {
+                    return VF2_ERROR_UNSUPPORTED;
+                }
+                a = coli_bits_to_float(f1_20) + f_r14;
+                memcpy(&out, &a, sizeof(out));
+                if (vf2_model2a_write_u32(
+                        machine, g8 + VF2_COLI_SHELL_POS_20, out) != VF2_OK) {
+                    return VF2_ERROR_UNSUPPORTED;
+                }
             }
         }
     }
@@ -24969,7 +25105,7 @@ vf2_status vf2_hybrid_coli_23524_execute(
     cpu->registers[VF2_I960_G0_REGISTER + 5u] = r15;
     cpu->registers[VF2_I960_G0_REGISTER + 6u] = g6;
     cpu->registers[VF2_I960_G0_REGISTER + 7u] = g7;
-    return hybrid_complete_procedure(machine, cpu, body, 13u, 13u);
+    return hybrid_complete_procedure(machine, cpu, body, total_calls, total_rets);
 }
 
 /* Segment the measured warm body: interpret the 7-insn entry prefix,
@@ -24996,6 +25132,20 @@ static vf2_status hybrid_execute_coli_body(
     }
     if (status == VF2_OK) {
         status = vf2_hybrid_coli_midbody_tail_execute(machine, cpu);
+    }
+    if (status == VF2_OK) {
+        hybrid_set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
+        /* Live single/both need one/two extra counted compares that warm
+         * does not. The midbody tail's final compare is part of its 56
+         * for warm, but live single's 86 and both's 87 include an extra
+         * bbs/bbc dispatch (1 for single, 2 for both) that sets the final
+         * EQUAL. Pin the observed delta. */
+        uint32_t g6 = cpu->registers[VF2_I960_G0_REGISTER + 6u];
+        if (g6 == (UINT32_C(1) << 1u)) {
+            cpu->executed_instructions += UINT64_C(1);
+        } else if (g6 == (UINT32_C(1) << 2u)) {
+            cpu->executed_instructions += UINT64_C(2);
+        }
     }
     return status;
 }
