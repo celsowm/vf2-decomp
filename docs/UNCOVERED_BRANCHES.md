@@ -910,6 +910,19 @@ pins move by exactly −9 with FIFO floats recomputed from the
 corrected `r9 = 0.0` chain. See
 `decomp/i960/notes/fa_coli_225cc_live_v0381.md`.
 
+Status (v0382): `0x22404` live first-contact stale slot is native
+(body 77, `g0 = 1`, final CC pinned; new ROM-backed
+`vf2_coli_22404_live` fixture). The stale slot falls through `cmpobe`
+to `bal 0x225bc` (+5 pending-clear rejoin); all other gates hold, and
+stale+empty plus stale slot 1 stay fail-closed. Required an oracle
+fix: the arch wrapper re-decided `bo`/`bno` from stale AC, spinning
+any scanbit-miss shape unless AC agreed by luck — now scoped to the
+integer-compare domain, scanbit domain left to legacy (no pin moves
+anywhere, 66/66). Whole-tail composition (midbody v0304 branch needs
+long-aware counts + CC/`g1` threading; measured 371/12/10) is the
+explicit next slice. See
+`decomp/i960/notes/fa_coli_22404_live_v0382.md`.
+
 Status (v0315): mid-body `0x2227c` tie-break is native (double
 `0x225cc`, compact-both 282/7/8). `0x18bd4` shortcut remains DEFER
 (v0291). Unmeasured long-body flag siblings remain fail-closed (see

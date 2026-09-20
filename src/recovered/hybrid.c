@@ -18670,7 +18670,10 @@ static vf2_status coli_22298_body(
  * into g8+0x6d4, g0 = 0.
  * Sibling v0303 (bit 8 set, same gates, non-empty mask after andnot,
  * slot 0): body 72 on the measured one-hit scan, pending setbit,
- * polygon FIFO via (g11)[g12], g0 = 1. Slot 1 scan loop and
+ * polygon FIFO via (g11)[g12], g0 = 1. Sibling v0382 (live
+ * first-contact stale slot, same gates, non-empty): body 77 (+5 from
+ * the bal 0x225bc pending-clear rejoin); stale+empty stays
+ * fail-closed. Slot 1 scan loop and
  * g8+0x26 != 0 FIFO cursor is native (v0308). */
 static uint32_t coli_scanbit_msb(uint32_t value)
 {
@@ -18753,8 +18756,18 @@ static vf2_status coli_22404_body(
         return VF2_OK;
     }
 
-    /* Sibling v0290: bit 8 set. Require the measured 30-insn shape. */
-    if (old_snap != snap) {
+    /* Sibling v0290: bit 8 set. Equal snapshots take cmpobe at 0x2242c
+     * to 0x22434 (22-insn prologue). The live first-contact shape
+     * (v0382: stale slot 0xffff vs snap 0 on coli-live-midbody-g01)
+     * falls through to bal 0x225bc, which clears the slot pending bit
+     * (5 insns including bal) and rejoins at 0x22434 (27-insn
+     * prologue). The pending-clear write is value-preserving under the
+     * entry gate below (slot bit already clear; clrbit keeps other
+     * bits), so both paths rejoin exactly and share the tail. */
+    uint64_t prologue = (old_snap == snap) ? UINT64_C(22) : UINT64_C(27);
+    if (old_snap != snap && slot != 0u) {
+        /* Stale slot 1 is unmeasured (live stale witness is slot 0):
+         * fail closed. */
         return VF2_ERROR_UNSUPPORTED;
     }
     if (hybrid_read_u16(
@@ -18809,10 +18822,12 @@ static vf2_status coli_22404_body(
                 &mask) != VF2_OK) {
             return VF2_ERROR_UNSUPPORTED;
         }
-        /* Through mov 0,r6 / cmpobe slot: 22 insns from entry on the
-         * bit-8-set path (prologue 6 + equal/pending/thr/helper 12
-         * including the 4-instruction helper + index/table/mov/cmp). */
-        body = UINT64_C(22);
+        /* Prologue through mov 0,r6 / cmpobe slot: 22 insns from entry
+         * on the equal-snapshot path (6 + cmpobe taken + 0x22434..0x22448
+         * 6 + 0x223bc helper 4 + cmpobne 1 + index/table/mov/cmp 4),
+         * 27 on the measured stale path (bal 0x225bc + pending-clear
+         * helper 5 execute before the same rejoin). */
+        body = prologue;
         if (slot == 1u) {
             /* v0306: measured 15-trip bbc/setbit loop (r4 = 15..1).
              * For each scanbit hit, walk table[15..1]; if table[i] has
@@ -18858,6 +18873,11 @@ static vf2_status coli_22404_body(
             }
             body += UINT64_C(4);
             if (result == 0u) {
+                /* Stale+empty is unmeasured (live stale shape is
+                 * non-empty): fail closed. */
+                if (old_snap != snap) {
+                    return VF2_ERROR_UNSUPPORTED;
+                }
                 cpu->registers[VF2_I960_G0_REGISTER] = 0u;
                 cpu->registers[VF2_I960_G0_REGISTER + 14u] =
                     UINT32_C(0x0002244c);
@@ -19027,6 +19047,11 @@ static vf2_status coli_22404_body(
         }
         body += UINT64_C(4); /* ldos, andnot, stos, cmpobe */
         if (result == 0u) {
+            /* Stale+empty is unmeasured (live stale shape is non-empty):
+             * fail closed. */
+            if (old_snap != snap) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
             cpu->registers[VF2_I960_G0_REGISTER] = 0u;
             cpu->registers[VF2_I960_G0_REGISTER + 14u] = UINT32_C(0x0002244c);
             /* mov 0,g0 at 0x225b4; ret is accounted by the caller. */
@@ -19169,6 +19194,13 @@ static vf2_status coli_22404_body(
         body += UINT64_C(1); /* stt */
         cpu->registers[VF2_I960_G0_REGISTER + 9u] = UINT32_C(0x01000550);
         body += UINT64_C(1); /* lda g9 */
+        if (old_snap != snap) {
+            /* Measured live-77 tail (v0382, ROM-backed): the last
+             * compare is cmpibe on g8+0x26 == 0, taken, so CC is EQUAL
+             * with AC lockstep. Pinned only on the proven stale shape;
+             * equal-path CC stays unpinned until its own fixture. */
+            hybrid_set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
+        }
         cpu->registers[VF2_I960_G0_REGISTER + 14u] = UINT32_C(0x0002244c);
         *body_out = body;
         return VF2_OK;

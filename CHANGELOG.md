@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Recovery C do coli `0x22404` live first-contact stale slot (v0382):
+  shape (slot velho `0xffff` vs snap 0) nativo com igualdade total
+  de estado (body 77, `g0 = 1`, CC final pinado; fixture ROM-backed
+  `vf2_coli_22404_live`). Fall-through `cmpobe` → `bal 0x225bc`
+  (+5); stale+empty e stale slot 1 seguem fail-closed. Fix de oráculo
+  junto: `bo`/`bno` após `scanbit` volta ao domínio do legacy (o
+  wrapper re-decidia de AC stale e spinava o scan loop em qualquer
+  miss) — override AC agora restrito ao domínio integer-compare. `ctest` 66/66; ASan/UBSan green incl. phase17
+  202/202. Próximo: composição whole-tail (371/12/10). See
+  `decomp/i960/notes/fa_coli_22404_live_v0382.md`.
+
 - Recovery C do coli `0x225cc` live-midbody (v0381): shape
   (`g8+0x1a4 = 0`, `g7+0x1a4 = 0x100`) nativo com igualdade total
   de estado (240 steps, 4 calls aninhados, CC final + `g1`

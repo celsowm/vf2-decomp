@@ -2732,6 +2732,101 @@ static void test_coli_contact_query_22404_early_path(void) {
     CHECK(read_test_u16(&machine, UINT32_C(0x00512800) + UINT32_C(0x6d4)) ==
           UINT16_C(0xffff));
 
+    /* v0359: live first-contact stale slot (coli-live-midbody-g01 first
+     * 0x22404: old 0xffff vs snap 0, bit 8 set, pending clear, thr 0/0,
+     * 5b8 bit0 clear, index 1, table bit3, exclude 0, delta 0).
+     * Falls through to bal 0x225bc (+5), rejoins exactly: body 77,
+     * g0 = 1, pending bit set, result 0x21e8. */
+    CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x4),
+                            (const uint8_t *)"\x00", 1u) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, registry + UINT32_C(0x8c),
+                                UINT32_C(0x0000ffff)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x1a8),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x1a4),
+                                UINT32_C(1) << 8u) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, registry + UINT32_C(0x90),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x1aa),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x808),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x5b8),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x820),
+                                UINT32_C(1)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, registry + UINT32_C(0x40) +
+                                             UINT32_C(3) * UINT32_C(4),
+                                UINT32_C(0x000221e8)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00512800) +
+                                             UINT32_C(0x6dc),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00512800) +
+                                             UINT32_C(0x6d4),
+                                UINT32_C(0x0000beef)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00512800) +
+                                             UINT32_C(0x26),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00512800) +
+                                             UINT32_C(0x18),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00512800) +
+                                             UINT32_C(0x1c),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00512800) +
+                                             UINT32_C(0x20),
+                                UINT32_C(0)) == VF2_OK);
+    vf2_i960_cpu_reset(&cpu, 0u, 0u, UINT32_C(0x00022404));
+    cpu.registers[VF2_I960_FP_REGISTER] = UINT32_C(0x005ff500);
+    cpu.registers[1] = UINT32_C(0x005ff580);
+    cpu.registers[VF2_I960_G0_REGISTER + 7u] = fighter0;
+    cpu.registers[VF2_I960_G0_REGISTER + 8u] = UINT32_C(0x00512800);
+    cpu.registers[VF2_I960_G0_REGISTER + 11u] = UINT32_C(0x00880000);
+    cpu.registers[VF2_I960_G0_REGISTER + 12u] = UINT32_C(0x00004000);
+    cpu.registers[VF2_I960_G0_REGISTER + 13u] = registry;
+    CHECK(vf2_i960_cpu_enter_procedure(&cpu, UINT32_C(0x00022404),
+                                       UINT32_C(0x0002222c)) == VF2_OK);
+    start_instructions = cpu.executed_instructions;
+    start_returns = cpu.procedure_returns;
+    CHECK(vf2_hybrid_coli_contact_query_execute(&machine, &cpu) == VF2_OK);
+    CHECK(cpu.ip == UINT32_C(0x0002222c));
+    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(78));
+    CHECK(cpu.procedure_returns - start_returns == UINT64_C(1));
+    CHECK(cpu.registers[VF2_I960_G0_REGISTER] == 1u);
+    CHECK(cpu.registers[VF2_I960_G0_REGISTER + 9u] == UINT32_C(0x01000550));
+    CHECK(read_test_u16(&machine, registry + UINT32_C(0x90)) ==
+          UINT16_C(0x0001));
+    CHECK(read_test_u16(&machine, UINT32_C(0x00512800) + UINT32_C(0x6d4)) ==
+          UINT16_C(0x21e8));
+
+    /* v0359 negative: stale slot with an empty result (index 0, mask 0)
+     * is unmeasured and stays fail-closed. */
+    CHECK(vf2_model2a_write_u32(&machine, registry + UINT32_C(0x8c),
+                                UINT32_C(0x0000ffff)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x820),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, registry + UINT32_C(0x90),
+                                UINT32_C(0)) == VF2_OK);
+    vf2_i960_cpu_reset(&cpu, 0u, 0u, UINT32_C(0x00022404));
+    cpu.registers[VF2_I960_FP_REGISTER] = UINT32_C(0x005ff500);
+    cpu.registers[1] = UINT32_C(0x005ff580);
+    cpu.registers[VF2_I960_G0_REGISTER + 7u] = fighter0;
+    cpu.registers[VF2_I960_G0_REGISTER + 8u] = UINT32_C(0x00512800);
+    cpu.registers[VF2_I960_G0_REGISTER + 11u] = UINT32_C(0x00880000);
+    cpu.registers[VF2_I960_G0_REGISTER + 12u] = UINT32_C(0x00004000);
+    cpu.registers[VF2_I960_G0_REGISTER + 13u] = registry;
+    CHECK(vf2_i960_cpu_enter_procedure(&cpu, UINT32_C(0x00022404),
+                                       UINT32_C(0x0002222c)) == VF2_OK);
+    CHECK(vf2_hybrid_coli_contact_query_execute(&machine, &cpu) ==
+          VF2_ERROR_UNSUPPORTED);
+    /* Restore the v0303 end state for the sibling tests below (index 1,
+     * table bit3 fragment), which rely on those leftovers. */
+    CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x820),
+                                UINT32_C(1)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, registry + UINT32_C(0x40) +
+                                             UINT32_C(3) * UINT32_C(4),
+                                UINT32_C(0x0000ffff)) == VF2_OK);
+
     /* Slot 1 g0=1 sibling is native (v0306): 15-trip scan, body 133. */
     CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x4),
                             (const uint8_t *)"\x01", 1u) == VF2_OK);

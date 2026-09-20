@@ -279,8 +279,19 @@ vf2_status vf2_i960_step(
             cpu, event, &instruction, ip_before, first, second
         );
     }
-    if (strcmp(instruction.mnemonic, "bo") == 0 ||
-        strcmp(instruction.mnemonic, "bno") == 0) {
+    if ((strcmp(instruction.mnemonic, "bo") == 0 ||
+         strcmp(instruction.mnemonic, "bno") == 0) &&
+        cpu->compare_result != VF2_I960_COMPARE_OVERFLOW &&
+        cpu->compare_result != VF2_I960_COMPARE_NONE) {
+        /* bo/bno after an integer compare (cc LESS/EQUAL/GREATER, AC
+         * low bits in lockstep) test orderedness via AC: integer
+         * results are always ordered, so bo is taken and bno is not.
+         * After scanbit/spanbit (cc OVERFLOW on hit, NONE on miss; AC
+         * untouched by the producer) the legacy decision above is
+         * already exact (bno taken only on a miss). Re-deciding from
+         * stale AC mis-executes the scan loop (measured: live
+         * fa_coli 0x22404 first-contact shape spins with AC&7 != 0),
+         * so the scanbit domain stays with legacy. */
         const int ordered = (cpu->arithmetic_control & UINT32_C(7)) != 0u;
         arch_set_ip(
             cpu, event, &instruction, ip_before,
