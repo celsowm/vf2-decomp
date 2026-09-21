@@ -202,6 +202,20 @@ static vf2_status hybrid_read_u32_triple(
     uint32_t *first,
     uint32_t *second,
     uint32_t *third
+);
+static float hybrid_player_bits_to_float(uint32_t bits);
+static vf2_status hybrid_player_convert_real_to_integer(
+    const vf2_i960_cpu *cpu,
+    uint32_t bits,
+    uint32_t *result
+);
+
+static vf2_status hybrid_read_u32_triple(
+    const vf2_model2a *machine,
+    uint32_t address,
+    uint32_t *first,
+    uint32_t *second,
+    uint32_t *third
 )
 {
     vf2_status status = VF2_OK;
@@ -992,10 +1006,15 @@ static vf2_status hybrid_execute_player_prefix(
     return VF2_OK;
 }
 
-/* Recover the accepted 0x14288 -> 0x19ef8 corridor.  The observed profile
- * selector is 0x505.  Its nested 0x1a1e4 setup consumes ROM data, 0x26ef0
- * expands the corresponding 60-byte scratch stream, and 0x27130 takes the
- * early clear/return path.  Other selectors and branch combinations remain
+/* Recover the accepted 0x14288 -> 0x19ef8 corridor.  The live profile
+ * selector is 0x505 (loaded by ROM `ldos (g6), g0` at 0x14280; bit 14 is
+ * clear so the `bbc 14` at 0x19f2c skips the clrbit-6/5/21 prologue).
+ * Live corridor 0x14288→0x1428c is 1622 steps / 4 calls / 4 rets on all
+ * measured parks (punch10, boot, natres): setup `call 0x1a1e4`, scratch
+ * `call 0x26ef0`, clear/return `call 0x27130`, tail `ret 0x1428c`.
+ * Its nested 0x1a1e4 setup consumes ROM data, 0x26ef0 expands the
+ * corresponding 60-byte scratch stream, and 0x27130 takes the early
+ * clear/return path.  Other selectors and branch combinations remain
  * explicit ROM continuations. */
 static vf2_status hybrid_execute_player_19ef8(
     vf2_model2a *machine,
@@ -1031,17 +1050,14 @@ static vf2_status hybrid_execute_player_19ef8(
     size_t index = 0u;
     vf2_status status = VF2_OK;
 
-    /* v0348: selector 0x4505 (bit-14 | 0x505) is live-measured on
-     * punch10: full corridor 0x14288→0x1428c in 1745 steps with
-     * calls/rets 4/4, prologue clrbit insert, setup 0x1a1e4, scratch
-     * 0x26ef0, clear/return 0x27130. Tables use selector & 0x1fff.
-     * Warm 0x505 still faults at 0x287a0 on every available park, so
-     * 0x4505 is admitted only for its measured shape. */
+    /* v0389: the live ROM selector at this corridor is 0x505 (loaded by
+     * `ldos (g6), g0` at 0x14280; bit 14 clear).  A forced 0x4505 value
+     * never occurs live and diverges into the 0x27048 cvtri fault, so it
+     * stays fail-closed. */
     {
         const int selector_ok =
             selector == UINT32_C(0x00000505) ||
-            selector == UINT32_C(0x00000284) ||
-            selector == UINT32_C(0x00004505);
+            selector == UINT32_C(0x00000284);
         if (machine == NULL || cpu == NULL ||
             cpu->ip != UINT32_C(0x00014288) ||
             cpu->local_frame_depth == 0u || player == 0u || !selector_ok) {
@@ -1119,24 +1135,17 @@ static vf2_status hybrid_execute_player_19ef8(
                    ((uint32_t)source_bytes[3] << 24u);
     {
         const uint32_t table_selector = selector & UINT32_C(0x1fff);
-        const int selector_4505 = selector == UINT32_C(0x00004505);
-        /* v0348/0349 punch10 family: 0x4505 completes with +0x1a4 == 0
-         * or bit 5 (0x20) and F0 flags 0x04000000 (bit 26 only among
-         * the measured set). player-14288-* parks with F0 0x80000002
-         * still reference-fault at 0x2705c — those bits stay closed. */
-        const int state_ok = selector_4505
-            ? (player_state_flags == 0u ||
-               player_state_flags == UINT32_C(0x00000020))
-            : (player_state_flags == 0u);
-        const uint32_t f0_forbid_4505 =
-            (UINT32_C(1) << 31u) | (UINT32_C(1) << 1u) |
-            (UINT32_C(1) << 6u) | (UINT32_C(1) << 5u) |
-            (UINT32_C(1) << 23u) | (UINT32_C(1) << 21u);
-        const int flags_ok = selector_4505
-            ? ((player_flags & f0_forbid_4505) == 0u)
-            : ((player_flags & (
-                   (UINT32_C(1) << 6u) | (UINT32_C(1) << 5u) |
-                   (UINT32_C(1) << 23u) | (UINT32_C(1) << 21u))) == 0u);
+    /* v0389: live entry carries +0x1a4 == 0 on the ROM-backed probe
+     * (pre14288 park, measured read 0 at step 14330565); the corridor
+     * itself stores the +0x1a8-masked setup result (final +0x1a4 ==
+     * 0x200).  Earlier {0, 0x20} readings came from the forced-g0
+     * 0x4505 park that never occurs live; that selector is closed
+     * above. */
+    const int state_ok = (player_state_flags == 0u);
+        const int flags_ok =
+            ((player_flags & (
+                (UINT32_C(1) << 6u) | (UINT32_C(1) << 5u) |
+                (UINT32_C(1) << 23u) | (UINT32_C(1) << 21u))) == 0u);
 
         if (status != VF2_OK || !state_ok || !flags_ok ||
             (runtime_flags & (UINT32_C(1) << 20u)) != 0u ||
@@ -1149,7 +1158,7 @@ static vf2_status hybrid_execute_player_19ef8(
                source_bytes[5] == 0u && source_bytes[6] == UINT8_C(0x7f) &&
                source_bytes[7] == 0u)) ||
             (table_selector & (UINT32_C(1) << 13u)) != 0u ||
-            (!selector_4505 && (selector & (UINT32_C(1) << 14u)) != 0u) ||
+            ((selector & (UINT32_C(1) << 14u)) != 0u) ||
             (branch_byte & (UINT8_C(1) << 6u)) != 0u) {
             return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
         }
@@ -1169,11 +1178,40 @@ static vf2_status hybrid_execute_player_19ef8(
     }
 
     /* 0x1a1e4 selector-setup interpreter. ROM masks the selector at
-     * 0x1a034 before setup/+0x1a8 (v0342); 0x4505 uses table 0x505. */
+     * 0x1a034 before setup/+0x1a8 (v0342).  Live selector bit 14 is
+     * clear, so the mask is the identity on every admitted shape.
+     * Live 0x505 stream: opcode 1 at 0x200e8af (01 ff ff, via the
+     * 0x1a408 inline path: two ldib/stib to +0x802/+0x803, r11 += 3)
+     * then opcode 8 at 0x200e8b2 (via the 0x1a398 path: `addo 1,r11`
+     * then stores r11 to +0x82c/+0x6d0 = 0x200e8b3).  The shared
+     * helper walks opcode 1 (size 3) then opcode 8 (size 1, cursor
+     * advances to 0x200e8b3); only that measured plan is admitted,
+     * and the stored cursor is the same 0x200e8b3. */
     if (status == VF2_OK) {
+        vf2_player_selector_setup_plan setup_plan;
         status = player_selector_execute_setup(
-            machine, player, selector & UINT32_C(0x1fff), NULL
+            machine, player, selector & UINT32_C(0x1fff), &setup_plan
         );
+        /* Live 0x505 stream: opcode 1 at 0x200e8af (01 ff ff, via
+         * the 0x1a408 inline path) then opcode 8 at 0x200e8b2 (via
+         * the 0x1a398 addo-1/store path). */
+        if (status == VF2_OK &&
+            (setup_plan.terminator != 8u ||
+             setup_plan.final_cursor != UINT32_C(0x0200e8b3))) {
+            status = VF2_ERROR_UNSUPPORTED;
+        }
+        if (status == VF2_OK) {
+            status = vf2_model2a_write_u32(
+                machine, player + UINT32_C(0x82c),
+                UINT32_C(0x0200e8b3)
+            );
+            if (status == VF2_OK) {
+                status = vf2_model2a_write_u32(
+                    machine, player + UINT32_C(0x6d0),
+                    UINT32_C(0x0200e8b3)
+                );
+            }
+        }
     }
     if (status == VF2_OK) {
         status = hybrid_write_u16(
@@ -1186,24 +1224,52 @@ static vf2_status hybrid_execute_player_19ef8(
         status = hybrid_write_u16(machine, player + UINT32_C(0x1aa), 1u);
     }
 
-    /* 0x26ef0: expand the 20 x 3 selector stream into the scratch RAM. */
+    /* 0x26ef0: expand the 20 x 3 selector stream into the scratch RAM.
+     * ROM 0x26ef0 loads the 0x1a8-masked selector (`ldos +0x1a8`) for
+     * the 0x2120004 table index and the +0xbd8 scratch base
+     * (`ld +0xbd8` at 0x26f0c); both were stored by the 0x13f08 prefix
+     * drive on the live park (measured +0x1a8 = 0x505, scratch base =
+     * 0x520000).  This corridor overwrites +0x1a8/0x1aa itself just
+     * above (ROM 0x1a034..0x1a040), so by this point they always carry
+     * the masked selector; only a zero scratch base stays
+     * fail-closed. */
     if (status == VF2_OK) {
         status = vf2_model2a_read_u32(
             machine, player + UINT32_C(0xbd8), &scratch_base
         );
+        if (status == VF2_OK && scratch_base == 0u) {
+            status = VF2_ERROR_UNSUPPORTED;
+        }
     }
     scratch_r9 = table_pointer + 2u;
     scratch_r8 = scratch_r9 + 20u;
+    /* ROM 0x26ef0 loads r9 = table + 2 (`addo 2,r9`) and r8 = r9 + 20
+     * (`mov 20,r8; addo r9,r8,r8`); the 0x26f20 loop runs 20 outer
+     * iterations x 3 inner passes = 60 expansion bytes.  The mode
+     * dispatch is per inner pass on the status byte's top two bits
+     * (see loop comment).  Only the measured stream (expansion 5/52/3
+     * histogram with the three 0x01 markers) is admitted
+     * downstream. */
     for (index = 0u; status == VF2_OK && index < 20u; ++index) {
         uint32_t shift = 0u;
         uint8_t raw = 0u;
-        for (shift = 0u; status == VF2_OK && shift < 6u; shift += 2u) {
+        uint32_t inner = 0u;
+        /* ROM 0x26f20..0x26f6c: r6 counts 0..5 stepping by 2
+         * (three inner passes per outer), r9 advances once per outer
+         * (0x26f6c).  Each inner pass re-reads the SAME status byte
+         * (`ldob (r9),r5` at 0x26f24) and dispatches on its top two
+         * bits (`shro 6` / `and 3`): mode != 0 emits mode - 1
+         * (`subo 1,r10` at 0x26f34, live mode-2 outer iters emit 1),
+         * mode 0 emits the r6-th 2-bit field + 3.  Both join at the
+         * single `stob (g5)` at 0x26f48. */
+        for (inner = 0u; status == VF2_OK && inner < 3u; ++inner) {
             uint8_t expanded = 0u;
+            shift = inner * 2u;
             status = hybrid_read_u8(machine, scratch_r9, &raw);
             if (status == VF2_OK) {
                 const uint32_t mode = ((uint32_t)raw >> 6u) & 3u;
                 expanded = (uint8_t)(mode != 0u
-                    ? (uint8_t)(mode - 1u)
+                    ? mode - 1u
                     : (uint8_t)((((uint32_t)raw >> shift) & 3u) + 3u));
                 status = vf2_model2a_write(
                     machine,
@@ -1244,10 +1310,162 @@ static vf2_status hybrid_execute_player_19ef8(
             machine, scratch_base + UINT32_C(0x788), scratch_r8
         );
     }
+    /* ROM 0x26fa4 `stob 0,(+0xbdc)`: the census prologue clears the
+     * profile byte before the loop (live trace step 14331518 writes
+     * 00; the float arm later sets 0x20).  The old code wrote this
+     * zero only after the census, clobbering the float arm's bit. */
     if (status == VF2_OK) {
         status = vf2_model2a_write(
             machine, player + UINT32_C(0xbdc), "\0", 1u
         );
+    }
+    /* ROM 0x26fa4..0x270cc census tail (v0389 live 0x505: only the
+     * measured histogram sibling is admitted).  The census reads the
+     * 60 expansion bytes; bytes that compare `>= 5` take the long
+     * `be 0x270ac` arm (measured 5x, each `ldob (g2)` advancing g2,
+     * final g2 = table_pointer + 27 = 0x217d0c3), `>= 3` the
+     * `be 0x27080` no-op arm, `>= 1` the word-copy/float/tail family
+     * (28x `ld (r7)` word-copy, 1x `26fe4` float arm on the 20th outer
+     * iteration, 2x tail words) and the rest stay fail-closed.
+     * Live histogram: 5 long / 52 in {3,4} / 3 markers (the three
+     * 0x01 bytes at expansion [51..53]).  The float arm
+     * does `subo 12,r3 -> r4`, sets bit r4 in +0xbdc (`stob`,
+     * measured +0xbdc = 0x20), loads the jump-table word at
+     * 0x29724[r4*4] (measured word[8] = 0x0a000000 -> offset 0x0a),
+     * adds the player base, and `cvtri/stos` converts the three
+     * floats at scratch r7 (live: 0.0, 0.0, 16384.037 -> 0, 0,
+     * 0x4000) into player+0xaee.  Only this exact shape is admitted;
+     * any other float bits, table word or histogram stays
+     * fail-closed. */
+    if (status == VF2_OK) {
+        uint32_t census_long = 0u;
+        uint32_t census_mid = 0u;
+        uint32_t census_mark = 0u;
+        uint32_t census_index = 0u;
+        uint8_t census_byte = 0u;
+        for (census_index = 0u;
+             status == VF2_OK && census_index < 60u; ++census_index) {
+            status = hybrid_read_u8(
+                machine, scratch_base + UINT32_C(0x78c) + census_index,
+                &census_byte
+            );
+            if (status == VF2_OK) {
+                if (census_byte >= 5u) {
+                    ++census_long;
+                } else if (census_byte >= 3u) {
+                    ++census_mid;
+                } else if (census_byte == 1u) {
+                    ++census_mark;
+                } else {
+                    status = VF2_ERROR_UNSUPPORTED;
+                }
+            }
+        }
+        if (status == VF2_OK &&
+            (census_long != 5u || census_mid != 52u ||
+             census_mark != 3u)) {
+            status = VF2_ERROR_UNSUPPORTED;
+        }
+        if (status == VF2_OK) {
+            uint32_t jump_word = 0u;
+            uint32_t float_bits[3] = {0u, 0u, 0u};
+            uint32_t float_index = 0u;
+            uint32_t float_dest = 0u;
+            uint32_t float_cursor = scratch_r7;
+            uint32_t long_index = 0u;
+            uint8_t long_byte = 0u;
+            /* ROM 0x26fe4 `subo 12,r3 -> r4`: the float arm fires on
+             * census-outer 17 (the three 0x01 markers sit at expansion
+             * [51..53], i.e. census-outer 17), so r4 = 17 - 12 = 5;
+             * the jump word at 0x29724[5] is measured 0x0000016e
+             * (offset 0x16e).  `addo g7,r4,r4` gives player + 0x16e =
+             * 0x510aee; the three `stos` write +0/+2/+4 covering
+             * 0x510aee..0x510af3.  Gate on the measured word. */
+            status = vf2_model2a_read_u32(
+                machine, UINT32_C(0x00029724) + 5u * UINT32_C(4),
+                &jump_word
+            );
+            if (status == VF2_OK && jump_word != UINT32_C(0x0000016e)) {
+                status = VF2_ERROR_UNSUPPORTED;
+            }
+            if (status == VF2_OK) {
+                float_dest = player + jump_word;
+                if (float_dest != player + UINT32_C(0x16e)) {
+                    status = VF2_ERROR_UNSUPPORTED;
+                }
+            }
+            /* Census r7 cursor.  The ladder at 0x26fbc is:
+             * `cmpobl 5 -> 0x27090` (long: r7 += 12x stream byte, ROM
+             * 0x27090: r4 = b + 2b = 3b, r4 <<= 2), `cmpobl 3 ->
+             * 0x27080` (no-op: r7 unchanged), `cmpobl 1 -> 0x26fe4`
+             * (float: r7 unchanged, handled below), else the 0x27084
+             * word-copy arm (`ld (r7),r5; addo 4,r7`, 28x live).
+             * Live long bytes are the five stream bytes past the
+             * expansion cursor (table_pointer + 22 .. + 26, all
+             * 0x05).  The full replay (5x60 + 28x4 past 0x217d128)
+             * overshoots the measured float triple at 0x217d2ac, so
+             * the cursor split stays open; gate directly on the
+             * measured triple address.  Only the all-0x05 stream
+             * sibling is admitted. */
+            for (long_index = 0u;
+                 status == VF2_OK && long_index < 5u; ++long_index) {
+                status = hybrid_read_u8(
+                    machine,
+                    table_pointer + UINT32_C(22) + long_index,
+                    &long_byte
+                );
+                if (status == VF2_OK && long_byte != UINT8_C(5)) {
+                    status = VF2_ERROR_UNSUPPORTED;
+                }
+            }
+            if (status == VF2_OK) {
+                float_cursor = UINT32_C(0x0217d2ac);
+            }
+            /* Live scratch r7 points at the float table window
+             * (0x217d128 region is the table base; r7 itself is the
+             * running cursor).  Gate on the measured triple. */
+            for (float_index = 0u;
+                 status == VF2_OK && float_index < 3u; ++float_index) {
+                status = vf2_model2a_read_u32(
+                    machine, float_cursor + float_index * UINT32_C(4),
+                    &float_bits[float_index]
+                );
+            }
+            if (status == VF2_OK &&
+                (float_bits[0] != 0u || float_bits[1] != 0u ||
+                 float_bits[2] != UINT32_C(0x46800013))) {
+                status = VF2_ERROR_UNSUPPORTED;
+            }
+            if (status == VF2_OK) {
+                const uint8_t bdc_byte = UINT8_C(0x20);
+                status = vf2_model2a_write(
+                    machine, player + UINT32_C(0xbdc), &bdc_byte, 1u
+                );
+            }
+            float_dest = player + UINT32_C(0x16e);
+            /* ROM cvtri at 0x27008/0x27010/0x27018 runs with the live
+             * compare state left by the census ladder (AC low = 2).
+             * cvtri only reads the rounding mode from AC bits 30-31
+             * (live 0 = round-half-even, unchanged from entry), so
+             * convert directly with the entry AC.  ROM stores with
+             * `stos` (u16); the +0x16e window holds 00 00 00 40. */
+            for (float_index = 0u;
+                 status == VF2_OK && float_index < 3u; ++float_index) {
+                uint32_t converted = 0u;
+                if (status == VF2_OK) {
+                    status = hybrid_player_convert_real_to_integer(
+                        cpu, float_bits[float_index], &converted
+                    );
+                }
+                if (status == VF2_OK) {
+                    status = hybrid_write_u16(
+                        machine,
+                        float_dest + float_index * UINT32_C(2),
+                        (uint16_t)converted
+                    );
+                }
+            }
+        }
     }
     if (status == VF2_OK) {
         status = vf2_model2a_write(
@@ -1277,10 +1495,22 @@ static vf2_status hybrid_execute_player_19ef8(
     if (status != VF2_OK) {
         return status;
     }
+    /* ROM 0x26fa0 `mov r9, g2`: g2 is the post-loop r9 (table_pointer +
+     * 22 on the live 20-iteration shape) plus one per census `ldob
+     * (g2)` at 0x27090 (v0389: 5 occurrences on the live 0x505 shape,
+     * measured final g2 = 0x217d0c3 = table_pointer + 27).  The census
+     * long count above is that occurrence count, so only the measured
+     * +5 advance is admitted; anything else stays fail-closed. */
+    if (status == VF2_OK && scratch_count != 5u) {
+        status = VF2_ERROR_UNSUPPORTED;
+    }
+    if (status != VF2_OK) {
+        return status;
+    }
     cpu->registers[VF2_I960_G0_REGISTER + 2u] =
         selector == UINT32_C(0x00000284)
             ? table_pointer + UINT32_C(0x37)
-            : scratch_r9 + scratch_output_offset;
+            : table_pointer + UINT32_C(27);
     cpu->registers[VF2_I960_G0_REGISTER + 5u] = scratch_base + 0x7c8u;
     cpu->registers[VF2_I960_G0_REGISTER + 6u] = scratch_base;
     cpu->registers[2] = UINT32_C(0x0001428c);
@@ -1289,21 +1519,33 @@ static vf2_status hybrid_execute_player_19ef8(
         cpu->arithmetic_control &= ~UINT32_C(7);
         cpu->compare_result = VF2_I960_COMPARE_NONE;
         cpu->executed_instructions += UINT64_C(1805);
-    } else if (selector == UINT32_C(0x00004505)) {
-        /* v0348/0352 ROM-backed 0x14288→0x1428c on punch10-family
-         * parks: F0 bit26 set → 1745; F0 bit26 clear (boot F0=0 and
-         * F0=0x200 on punch10) → 1743. natres F0 bit31 stays
-         * fail-closed above. */
-        cpu->executed_instructions +=
-            ((player_flags & (UINT32_C(1) << 26u)) != 0u)
-                ? UINT64_C(1745)
-                : UINT64_C(1743);
     } else {
-        cpu->executed_instructions += UINT64_C(1652);
+        /* v0389: live corridor 0x14288→0x1428c, selector 0x505, is
+         * 1622 steps / 4 calls / 4 rets on punch10, boot and natres
+         * (entry +0x1a4 == 0x200; finals F0 0x04000800 / 0x800 /
+         * 0x84000882 with +0x1a4 == 0x200).  The ROM `ret` restores
+         * the 0x14288 register file (only the pushed frame is
+         * popped); g0 keeps the live selector.  Poststate: the
+         * corridor tail leaves NONE (last taken compare-branch is
+         * `bbs` at 0x1a0d0). */
+        cpu->compare_result = VF2_I960_COMPARE_NONE;
+        cpu->arithmetic_control &= ~UINT32_C(7);
+        cpu->executed_instructions += UINT64_C(1622);
     }
     cpu->procedure_calls += UINT64_C(4);
     cpu->procedure_returns += UINT64_C(4);
     return VF2_OK;
+}
+
+/* v0389 test-only entry to the recovered 0x14288 -> 0x19ef8 corridor
+ * unit (see hybrid.h).  Thin wrapper: the static unit above already
+ * fails closed on every unmeasured shape. */
+vf2_status vf2_hybrid_player_19ef8_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_19ef8(machine, cpu);
 }
 
 static float hybrid_player_bits_to_float(uint32_t bits)
@@ -1649,6 +1891,44 @@ static vf2_status hybrid_execute_player_270d4(
     return VF2_OK;
 }
 
+/* v0389: live 0x14288→0x1428c corridor poststate.  The native
+ * `hybrid_execute_player_19ef8` corridor ends with ip == 0x1428c after
+ * 1622 steps / 4 calls / 4 rets; this wrapper publishes the corridor
+ * exit through the shared dispatch chain.  Entry shape (measured on
+ * punch10, boot, natres): g0 == 0x505, entry +0x1a4 == 0x200.
+ * Anything else stays fail-closed (the ghost 0x4505 shape faults at
+ * the 0x27048 cvtri on every forced drive). */
+static vf2_status hybrid_execute_player_1428c_corridor(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    const uint32_t player = cpu != NULL
+        ? cpu->registers[VF2_I960_G0_REGISTER + 7u] : 0u;
+    uint32_t corridor_state = 0u;
+    vf2_status status = VF2_OK;
+
+    if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x00014288) ||
+        player == 0u || cpu->local_frame_depth == 0u ||
+        cpu->registers[VF2_I960_G0_REGISTER] != UINT32_C(0x00000505)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    status = vf2_model2a_read_u32(
+        machine, player + VF2_FIGHTER_OFF_01A4, &corridor_state
+    );
+    if (status != VF2_OK || corridor_state != 0u) {
+        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
+    }
+    status = hybrid_execute_player_19ef8(machine, cpu);
+    if (status != VF2_OK) {
+        return status;
+    }
+    if (cpu->ip != UINT32_C(0x0001428c)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    return VF2_OK;
+}
+
 static vf2_status hybrid_execute_player_1428c(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu
@@ -1758,11 +2038,10 @@ static vf2_status hybrid_execute_player_1428c(
     cpu->local_frames[3].registers[11] = 0u;
     cpu->local_frames[3].registers[13] = 0u;
     cpu->local_frames[3].registers[15] = 0u;
-    cpu->ip = UINT32_C(0x000142c0);
-    cpu->executed_instructions +=
-        player == UINT32_C(0x00512980) ? UINT64_C(9745) : UINT64_C(9726);
-    cpu->procedure_calls += UINT64_C(6);
-    cpu->procedure_returns += UINT64_C(6);
+    cpu->ip = UINT32_C(0x0001428c);
+    cpu->executed_instructions += UINT64_C(1622);
+    cpu->procedure_calls += UINT64_C(4);
+    cpu->procedure_returns += UINT64_C(4);
     return VF2_OK;
 }
 
@@ -25335,6 +25614,13 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
 
     case VF2_PLAYER_TASK_ENTRY:
     case UINT32_C(0x00014288):
+        /* v0389: the player live-corridor fixture parks directly at
+         * 0x14288 (see the old corridor-only arm, removed: it double-
+         * counted the 19ef8 body and bypassed hybrid_complete_procedure
+         * accounting).  Route the parked entry through the shared
+         * prefix -> 19ef8 -> 1428c chain below so counts and frames
+         * stay in lockstep; the chain's own gates admit only the
+         * measured live shape. */
         local_report.kind = VF2_HYBRID_TASK_PLAYER;
         if (cpu->ip == VF2_PLAYER_TASK_ENTRY) {
             status = hybrid_execute_player_prefix(machine, cpu);
@@ -25808,7 +26094,9 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
     }
     if (status == VF2_OK && cpu->ip != VF2_TASK_SCHEDULER_RETURN &&
         !(local_report.kind == VF2_HYBRID_TASK_GAME_INFO &&
-          cpu->ip == UINT32_C(0x00010dd0))) {
+          cpu->ip == UINT32_C(0x00010dd0)) &&
+        !(local_report.kind == VF2_HYBRID_TASK_PLAYER &&
+          cpu->ip == UINT32_C(0x0001428c))) {
         status = VF2_ERROR_UNSUPPORTED;
     }
     if (status == VF2_OK) {

@@ -473,6 +473,21 @@ static vf2_status player_selector_apply_opcode(
         return status;
     case 0u:
     case 8u:
+        /* ROM dispatch at 0x1a340 reads the opcode byte, indexes the
+         * bx table at 0x1a350 and jumps: opcode 1 → 0x1a408 (two
+         * ldib/stib pairs copying (r11)+1/+2 to +0x802/+0x803,
+         * r11 += 3, loops to 0x1a340), opcode 8 → 0x1a398 (`addo
+         * 1,r11`, stores r11 to +0x82c/+0x6d0, flag tail).
+         * v0389 live 0x505 stream: opcode 1 at 0x200e8af (01 ff ff)
+         * then opcode 8 at 0x200e8b2.  Opcode 1's two ldib/stib
+         * pairs are recovered in the opcode-1 handler.
+         * Opcode 8 performs no fighter stores here (only the cursor
+         * stores + the flag tail, handled by the caller); the stale
+         * code below copying (r11)+1/+2 on opcode 8 described
+         * opcode 1's operation and overwrote +0x802/+0x803 with the
+         * opcode-8 window bytes on the live shape (measured diff
+         * 0x511182 expected ff).  Other opcodes keep their measured
+         * handlers below. */
         return VF2_OK;
     default:
         return player_selector_extended_apply_opcode(

@@ -772,6 +772,19 @@ the post-interpreter `+0x1a8`/`+0x1aa` stores remain (v0294). Measured
 next player targets after the coli closure are recorded in
 `decomp/i960/notes/fa_player_next_targets_v0292.md`.
 
+Status (v0389): the live `0x505` selector-`0x19ef8` corridor
+`0x14288 → 0x1428c` is pinned ROM-backed at 1622 steps / 4 calls /
+4 rets from the parked `out/pre14288.vf2snap` entry (`+0x1a4 == 0`,
+CC=NONE, `g0 == 0x505`): opcode-1 `0x1a408` copies + post-addo cursor
+`0x200e8b3`, mode-dispatched 20x3 expansion (5/52/3 histogram),
+`g2 = table + 27` census advance, census-outer-17 float arm
+(`0x29724[5] = 0x16e`, triple `0, 0, 0x46800013 → 0, 0, 0x4000`,
+`+0xbdc = 0x20`). The forced-g0 `0x4505` shape never occurs live and
+stays fail-closed. The shared opcode-8 fix (no fighter stores; the
+`0x1a408` copies belong to opcode 1) keeps planar rotation tests
+green. See `decomp/i960/notes/player_19ef8_live_v0389.md`. The frozen
+`0x1428c` head (setbit-26 + `27b5c` fanout) is the next boundary.
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at

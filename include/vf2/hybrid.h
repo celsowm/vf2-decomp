@@ -322,6 +322,26 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
     vf2_hybrid_task_report *report
 );
 
+/* Raw dispatch core compiled from hybrid.c (no game_disp poststate
+ * fixup).  Same contract as above. */
+vf2_status vf2_hybrid_first_dispatch_task_execute_base(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu,
+    uint32_t registry_address,
+    vf2_hybrid_task_report *report
+);
+
+/* v0389: test-only entry to the recovered 0x14288 -> 0x19ef8 corridor
+ * unit (setup `call 0x1a1e4`, scratch `call 0x26ef0`, clear/return
+ * `call 0x27130`, tail `ret 0x1428c`).  The CPU must be parked at
+ * 0x14288 with g0 == 0x505, g7 the player base and a pushed frame;
+ * entry +0x1a4 must be 0.  On success ip == 0x1428c after 1622 steps /
+ * 4 calls / 4 rets.  Anything else is VF2_ERROR_UNSUPPORTED. */
+vf2_status vf2_hybrid_player_19ef8_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 const char *vf2_hybrid_task_kind_name(vf2_hybrid_task_kind kind);
 
 /* Recover the measured fa_coli bit-mask helper at 0x22298.

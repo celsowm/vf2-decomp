@@ -438,12 +438,13 @@ static uint32_t read_test_u32(const vf2_model2a *machine, uint32_t address) {
            ((uint32_t)bytes[2] << 16u) | ((uint32_t)bytes[3] << 24u);
 }
 
-/* v0349: fail-closed gates for selector 0x4505. Positive reference is
- * ROM-backed on the punch10 family (1745/4/4 on punch10, -t6, -pf5,
- * -type6). A full synthetic plant for player_selector setup/scratch
- * is not reconstructed here; C admission stays gated on the measured
- * F0/+0x1a4 shape. Parks player-14288-* still reference-fault
- * 0x2705c — those F0 bits must stay closed. */
+/* v0389: fail-closed gates for the ghost selector 0x4505.  The forced-g0
+ * 0x4505 shape of earlier notes never occurs live (the ROM loads g0 with
+ * 0x505 via `ldos (g6), g0` at 0x14280) and the reference faults at the
+ * 0x27048 cvtri on every forced drive, so the corridor must refuse it.
+ * The live 0x505/1622 corridor is pinned ROM-backed by
+ * vf2_player_4505_live; here C admission stays gated on the live shape
+ * only. */
 static void test_player_19ef8_selector_4505(void) {
     uint8_t *rom = NULL;
     vf2_model2a machine;
@@ -485,14 +486,12 @@ static void test_player_19ef8_selector_4505(void) {
     {
         vf2_status st = vf2_hybrid_first_dispatch_task_execute(
             &machine, &cpu, registry, &report);
-        /* Must never admit the punch10-family 1745 corridor for this F0. */
+        /* The ghost selector must never produce the live corridor. */
         CHECK(!(st == VF2_OK &&
-                report.recovered_instruction_count == UINT64_C(1745) &&
+                report.recovered_instruction_count == UINT64_C(1622) &&
                 cpu.ip == UINT32_C(0x0001428c)));
-        /* v0352: F0 bit26 clear uses the measured boot/1743 shape if
-         * the rest of the plant admits; never the 1745 pin. */
         CHECK(!(st == VF2_OK &&
-                report.recovered_instruction_count == UINT64_C(1745)));
+                report.recovered_instruction_count == UINT64_C(1622)));
         CHECK(st != VF2_OK || report.kind == VF2_HYBRID_TASK_PLAYER);
     }
 
@@ -512,7 +511,7 @@ static void test_player_19ef8_selector_4505(void) {
         vf2_status st = vf2_hybrid_first_dispatch_task_execute(
             &machine, &cpu, registry, &report);
         CHECK(!(st == VF2_OK &&
-                report.recovered_instruction_count == UINT64_C(1745) &&
+                report.recovered_instruction_count == UINT64_C(1622) &&
                 cpu.ip == UINT32_C(0x0001428c)));
     }
 
@@ -532,7 +531,7 @@ static void test_player_19ef8_selector_4505(void) {
         vf2_status st = vf2_hybrid_first_dispatch_task_execute(
             &machine, &cpu, registry, &report);
         CHECK(!(st == VF2_OK &&
-                report.recovered_instruction_count == UINT64_C(1745)));
+                report.recovered_instruction_count == UINT64_C(1622)));
     }
 
     vf2_model2a_shutdown(&machine);
