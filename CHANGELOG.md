@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- Recover the fa_rob `0x144b0` state-25 collision arm (v0395): entered at
+  `0x144b0` when fighter0 `+0x197 == 25`. On the measured live shape
+  (fighter0 `+0x197 == 25`, fighter1 `+0x197 == 0`, fighter0 `+0x194 ==
+  0`) the arm runs the `0x19ef8` g0==0 zero-path (clears `+0x5cc`/`+0x60c`
+  and `(g7)` bit 9, `+0x1a4 &= 0x00814068`, `+0x1a8 = 0`), then the
+  collision/state-exchange body (`+0x1aa = 1`, `+0x61e = +0x1a8(f1)`,
+  `+0x626 = r4`, `+0x822(f1) = +0x822(f0)`, `+0x654(f1) = r5`,
+  `+0x62a(f1) = (u16)(r4-1)`) and the `0x14628` common exit clearing both
+  `+0x198`. Span 53 instructions to `0x1463c` with +1 call / +1 return.
+  ROM-backed `vf2_player_1442c_live_differential` now runs all three cases
+  byte-exact (fast path 51 / +2 / +2, sibling 14 / +0 / +1, state-25
+  53 / +1 / +1). The `0x14640` state-25 helper path and other `0x1442c`
+  heavy arms remain fail-closed. `ctest` 78/78. See
+  `decomp/i960/notes/fa_player_144b0_state25_v0395.md`.
+
 - Recover the fa_rob `0x14640` collision/state helper `+0x194 != 0`
   sibling (v0394): `mov 0,r15; st r15,+0x654(g7)`, CC = LESS,
   14 steps / +1 return, alongside the v0393 no-op (CC = EQUAL, 12 steps).

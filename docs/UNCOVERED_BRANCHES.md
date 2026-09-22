@@ -834,9 +834,20 @@ no-op (`+0x194 == 0`, CC = EQUAL, 12 steps). The shared gates
 (`+0x198 == 0`, `+0x654 == 0`, `+0x197` not 27/28, `(g7)` bit 4 clear)
 dispatch to both measured exits. `vf2_player_1442c_live_differential`
 now runs both ROM-backed cases byte-exact (51 / +2 / +2 and
-14 / +0 / +1). The `0x1442c` state-25 arm (`0x144b0`) and the other
-`0x14640` gates remain fail-closed (see
+14 / +0 / +1). The other `0x14640` gates remain fail-closed (see
 `decomp/i960/notes/fa_player_14640_sibling_v0394.md`).
+
+Status (v0395): the fa_rob `0x144b0` state-25 collision arm is native
+(entered at `0x144b0` when fighter0 `+0x197 == 25`). On the measured live
+shape (fighter0 `+0x197 == 25`, fighter1 `+0x197 == 0`, fighter0
+`+0x194 == 0`) it runs the `0x19ef8` g0==0 zero-path, the
+collision/state-exchange body, and the `0x14628` common exit; span 53
+instructions to `0x1463c` with +1 call / +1 return. `vf2_player_1442c_live`
+now runs all three ROM-backed cases byte-exact (fast path 51 / +2 / +2,
+sibling 14 / +0 / +1, state-25 53 / +1 / +1). The `0x14640` state-25 helper
+path (needed for full-`0x1442c` integration) and the other `0x1442c` heavy
+arms (`0x14510`/`0x1453c`/`0x14570`) remain fail-closed (see
+`decomp/i960/notes/fa_player_144b0_state25_v0395.md`).
 
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The

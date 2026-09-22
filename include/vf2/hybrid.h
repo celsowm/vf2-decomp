@@ -387,6 +387,17 @@ vf2_status vf2_hybrid_player_14640_execute_for_test(
     vf2_i960_cpu *cpu
 );
 
+/* v0395: test-only entry to the measured fa_rob state-25 arm 0x144b0.
+ * The CPU must be parked at 0x144b0 with g7/g8 the fighter bases, r10/r11
+ * their originals and a pushed frame; +0x194(g7) == 0, +0x197(g7) == 25,
+ * +0x197(g8) not 16/24/25/27 and the cmpobl taken.  On success it lands
+ * at 0x1463c after 53 steps / +1 call / +1 return.  Anything else is
+ * VF2_ERROR_UNSUPPORTED. */
+vf2_status vf2_hybrid_player_144b0_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 const char *vf2_hybrid_task_kind_name(vf2_hybrid_task_kind kind);
 
 /* Recover the measured fa_coli bit-mask helper at 0x22298.
