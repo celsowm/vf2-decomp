@@ -1,0 +1,17 @@
++        CHECK(
++            vf2_model2a_read_u32(
++                &machine, UINT32_C(0x00500024), &value
++            ) == VF2_OK
++        );
++        CHECK(value == UINT32_C(319));
+     }
+ 
+     {
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -2,6 +2,24 @@
+ 
+ ## Unreleased
+ 
++- recovered the phase-17 bit-7 indirect dispatch for observed index `0x8b`:
++  `0x00059154` clears the flag and dispatches through table entry `0x0005ff00`

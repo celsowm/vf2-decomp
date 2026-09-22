@@ -1,0 +1,27 @@
+ - added `vf2_native_differential_probe_cycles` and `vf2cycles --boundary-probe` for long-horizon repeated-frame scouting: reference and native execution remain instruction-count locked per recovered block, frame-wait host state is checked on each wait block, complete CPU/mutable-memory state is compared at cycle boundaries, and any failing cycle restores both machines plus native runtime state to its exact start for strict replay;
+ - added `vf2cycles --output-snapshot <file>` to persist successful endurance boundaries together with the versioned `.runtime` sidecar, allowing long ROM-backed probes to resume without replaying earlier cycles;
+ - added ROM-independent coverage for the zero-cycle probe contract and retained the existing strict per-block runner unchanged as the acceptance path;
+--- a/README.md
++++ b/README.md
+@@ -319,5 +319,15 @@
+ and centers the ROM phase label (`EXIT` for index 11) through the original
+ `0x00060410 -> 0x00007fc0` text path. Strict differential replay matches the
+ 12,889-instruction enclosing cluster exactly and stays equal for the following
+-35 blocks. The next observed boundary is the bit-7 indirect dispatch at
+-`0x00059154`, which remains fail-closed.
++35 blocks.
++
++That bit-7 continuation is now recovered for the observed index-11 entry.
++`0x00059154` clears the bit and dispatches through `0x0005ff00` to `0x0005ef60`.
++On the first visit the recovered path reproduces the game-meter update, 15-byte
++CRC, 48x64 tile clear and `EXIT TEST MODE` draw; the frame dispatcher accounts
++13,286 instructions and the enclosing `main-final-cluster` matches strictly at
++13,518 instructions. The path then arms a 320-frame countdown. Positive
++countdown visits strictly match at 626 dispatcher / 858 cluster instructions. A
++cycle-boundary probe from counter 320 validates 319 cycles (11,484 blocks /
++701,481 instructions) and restores an exact checkpoint at the next unsupported
++transition, `counter 1 -> 0`. Other bit-7 table entries remain unsupported.
+--- a/docs/STATUS.md
++++ b/docs/STATUS.md
+@@ -172,10 +172,21 @@
+ plane to `0x0020`, and centers/copies the current phase label. The recovered
