@@ -342,6 +342,17 @@ vf2_status vf2_hybrid_player_19ef8_execute_for_test(
     vf2_i960_cpu *cpu
 );
 
+/* v0390: test-only entry to the measured 0x1428c head
+ * (setbit-26 + `call 0x270d4` five-slot wrapper + 0x1429c tail).
+ * The CPU must be parked at 0x1428c with g7 the player base,
+ * record/scratch live (record 0x0201c2fc, scratch nonzero) and a
+ * pushed frame.  On success ip == 0x142c0 after 9247 steps /
+ * +6 calls / +6 rets.  Anything else is VF2_ERROR_UNSUPPORTED. */
+vf2_status vf2_hybrid_player_1428c_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 const char *vf2_hybrid_task_kind_name(vf2_hybrid_task_kind kind);
 
 /* Recover the measured fa_coli bit-mask helper at 0x22298.

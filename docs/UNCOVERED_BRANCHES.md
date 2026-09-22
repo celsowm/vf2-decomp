@@ -785,6 +785,24 @@ stays fail-closed. The shared opcode-8 fix (no fighter stores; the
 green. See `decomp/i960/notes/player_19ef8_live_v0389.md`. The frozen
 `0x1428c` head (setbit-26 + `27b5c` fanout) is the next boundary.
 
+Status (v0390): the measured `0x1428c → 0x142c0` head is native at
+9247 steps / +6 calls / +6 rets (10869 total with the corridor, +10/+10
+on base/boot/natres parks): setbit-26 store (F0 `0x800 → 0x4000800`,
+no CC write), `call 0x270d4` five-slot wrapper off record `0x0201c2fc`
+(selectors `0x0505/0x0039/0x00f1/0x00e7/0x00af`, 9235/+5/+5, exits
+EQUAL via the cmpdeco tail), and the 7-insn `0x1429c → 0x142c0` tail
+(`+0x10 = 0x501500`, `+0x0c = 0x142f4`, `g0 = +0x640`, `g1 = +0x04`,
+`g2 = +0x1b0`). Entry gated on record `0x0201c2fc` + entry F0
+`0x800`; zero record/scratch and unmeasured selectors stay
+fail-closed. See `decomp/i960/notes/player_1428c_head_v0390.md`. The
+next boundary is the `0x142c0` geometry-expansion body (`call 0x4b838`);
+`hybrid_execute_player_142c0` is native-chained (passes
+`native-sixth-dispatch`) and the partial `resume-trace` witness from
+`at142c0-a.vf2snap` (56 steps, +3 calls, +3 rets) is recorded; a
+focused byte-exact fixture (five-slot payload + float triple vs
+`player_270d4_slot_pin_v0358.md` style) remains open. See
+`decomp/i960/notes/player_142c0_v0391.md`.
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at

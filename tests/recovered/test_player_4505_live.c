@@ -1,5 +1,6 @@
 /* ROM-backed differential fixture for the live player 0x505 corridor
- * 0x14288 -> 0x1428c (v0389).
+ * 0x14288 -> 0x1428c (v0389) plus the measured 0x1428c head through
+ * 0x142c0 (v0390).
  *
  * Witness (measured, current build):
  *   vf2probe --snapshot out/pre14288.vf2snap \
@@ -7,6 +8,11 @@
  *   Identical corridor (1622/4/4) on punch10, boot and
  *   player-14288-natres parks: entry +0x1a4 == 0, final +0x1a4 ==
  *   0x200; finals F0 0x04000800 / 0x800 / 0x84000882.
+ *   vf2probe --snapshot out/pre14288.vf2snap \
+ *     --until 0x142c0            -> 10869 steps, +10 calls / +10 rets
+ *     (1622 corridor + 3-insn setbit-26 head + 9235-step 0x270d4
+ *     five-slot wrapper + 1 call + 7-insn 0x1429c->0x142c0 tail).
+ *   Identical 10869/+10/+10 span on boot and natres parks.
  *
  * Live profile selector is 0x505 (ROM `ldos (g6), g0` at 0x14280; bit 14
  * clear, so `bbc 14` at 0x19f2c skips the clrbit-6/5/21 prologue).  The
@@ -23,6 +29,15 @@
  *     shape, tail st 0x780/0x784/0x788 off scratch base in +0xbd8) ->
  *   clear/return `call 0x27130` (early path via 0x271c4 on the live
  *     shape) -> tail `ret 0x1428c` via 0x1a118 -> 0x1a134.
+ *
+ * Head shape (0x1428c -> 0x142c0):
+ *   `ld (g7),r15; setbit 26,r15; st r15,(g7)` (F0 0x800 -> 0x4000800,
+ *   no CC write) -> `call 0x270d4` (five measured 0x27b5c slots off
+ *   record 0x0201c2fc, selectors 0x0505/0x0039/0x00f1/0x00e7/0x00af,
+ *   9235 steps / +5 calls / +5 rets, exits EQUAL via the cvtri/stis
+ *   cmpdeco tail) -> 0x1429c `lda/st/lda/st/ld/ldob/ldob` tail
+ *   (+0x10 = 0x501500, +0x0c = 0x142f4, g0 = +0x640, g1 = +0x04,
+ *   g2 = +0x1b0; 7 steps, no calls, no CC write) -> 0x142c0.
  *
  * The fixture restores the measured live snapshot out/pre14288.vf2snap
  * (entry +0x1a4 == 0, CC=NONE) into both machines and runs the
@@ -45,6 +60,7 @@
 
 #define PLAYER_4505_ENTRY UINT32_C(0x00014288)
 #define PLAYER_4505_RETURN UINT32_C(0x0001428c)
+#define PLAYER_4505_HEAD_END UINT32_C(0x000142c0)
 
 static int failures = 0;
 
@@ -146,7 +162,7 @@ static void run_rom_case(
     );
     CHECK(
         vf2_model2a_attach_main_data(&reference_machine, main_data,
-                                     main_data_size) == VF2_OK
+                                      main_data_size) == VF2_OK
     );
     CHECK(
         vf2_model2a_attach_main_rom(&native_machine, main_rom,
@@ -154,7 +170,7 @@ static void run_rom_case(
     );
     CHECK(
         vf2_model2a_attach_main_data(&native_machine, main_data,
-                                     main_data_size) == VF2_OK
+                                      main_data_size) == VF2_OK
     );
     CHECK(reference_cpu.ip == PLAYER_4505_ENTRY);
     CHECK(native_cpu.ip == PLAYER_4505_ENTRY);
@@ -221,6 +237,68 @@ static void run_rom_case(
         fprintf(
             stderr,
             "player-4505-live ref=%d native=%d compare=%d "
+            "component=%s offset=%zu expected=0x%08x actual=0x%08x\n",
+            (int)reference_status, (int)native_status,
+            (int)compare_status, diff.component, diff.first_offset,
+            (unsigned)diff.expected_value, (unsigned)diff.actual_value);
+    }
+    CHECK(compare_status == VF2_OK);
+    CHECK(diff.equal);
+
+    /* v0390: extend the same parked machines through the measured
+     * 0x1428c head to 0x142c0.  The reference runs the real head
+     * (setbit-26 + 0x270d4 wrapper + 0x1429c tail); the native side
+     * runs the recovered head unit directly (the shared dispatch has
+     * no 0x1428c entry case; the chain reaches it internally from
+     * 0x14288).  Both must land on 0x142c0 with 10869 total steps /
+     * +10 calls / +10 rets and full live-state equality. */
+    steps = 0u;
+    while (reference_cpu.ip != PLAYER_4505_HEAD_END && steps < 16384u) {
+        reference_status =
+            vf2_i960_step(&reference_cpu, &reference_machine, NULL);
+        CHECK(reference_status == VF2_OK);
+        ++steps;
+        if (reference_status != VF2_OK) {
+            break;
+        }
+    }
+    CHECK(reference_cpu.ip == PLAYER_4505_HEAD_END);
+    reference_instructions =
+        reference_cpu.executed_instructions - snap_instructions;
+    CHECK(reference_instructions == UINT64_C(10869));
+    CHECK(reference_cpu.procedure_calls - snap_calls == UINT64_C(10));
+    CHECK(reference_cpu.procedure_returns - snap_returns == UINT64_C(10));
+
+    native_status = vf2_hybrid_player_1428c_execute_for_test(
+        &native_machine, &native_cpu);
+    CHECK(native_status == VF2_OK);
+    CHECK(native_cpu.ip == PLAYER_4505_HEAD_END);
+    native_instructions =
+        native_cpu.executed_instructions - snap_instructions;
+    printf(
+        "player-1428c-head ref=%llu native=%llu calls=%llu/%llu rets=%llu/%llu\n",
+        (unsigned long long)reference_instructions,
+        (unsigned long long)native_instructions,
+        (unsigned long long)(
+            reference_cpu.procedure_calls - snap_calls),
+        (unsigned long long)(
+            native_cpu.procedure_calls - snap_calls),
+        (unsigned long long)(
+            reference_cpu.procedure_returns - snap_returns),
+        (unsigned long long)(
+            native_cpu.procedure_returns - snap_returns));
+    CHECK(native_instructions == reference_instructions);
+    CHECK(native_instructions == UINT64_C(10869));
+    CHECK(native_cpu.procedure_calls - snap_calls == UINT64_C(10));
+    CHECK(native_cpu.procedure_returns - snap_returns == UINT64_C(10));
+
+    compare_status = vf2_i960_compare_live_state(
+        &reference_cpu, &reference_machine,
+        &native_cpu, &native_machine, &diff);
+    if (compare_status != VF2_OK || !diff.equal) {
+        fprintf(
+            stderr,
+            "player-1428c-head ref=%d native=%d compare=%d "
             "component=%s offset=%zu expected=0x%08x actual=0x%08x\n",
             (int)reference_status, (int)native_status,
             (int)compare_status, diff.component, diff.first_offset,

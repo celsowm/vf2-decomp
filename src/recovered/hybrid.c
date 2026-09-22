@@ -1537,6 +1537,15 @@ static vf2_status hybrid_execute_player_19ef8(
     return VF2_OK;
 }
 
+/* v0390 test-only entry to the measured 0x1428c head (see hybrid.h).
+ * Forward declaration: the static unit is defined below next to the
+ * 0x270d4 wrapper.  The thin wrapper already fails closed on every
+ * unmeasured shape. */
+static vf2_status hybrid_execute_player_1428c(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 /* v0389 test-only entry to the recovered 0x14288 -> 0x19ef8 corridor
  * unit (see hybrid.h).  Thin wrapper: the static unit above already
  * fails closed on every unmeasured shape. */
@@ -1546,6 +1555,15 @@ vf2_status vf2_hybrid_player_19ef8_execute_for_test(
 )
 {
     return hybrid_execute_player_19ef8(machine, cpu);
+}
+
+/* v0390 test-only entry to the measured 0x1428c head (see hybrid.h). */
+vf2_status vf2_hybrid_player_1428c_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_1428c(machine, cpu);
 }
 
 static float hybrid_player_bits_to_float(uint32_t bits)
@@ -1947,8 +1965,15 @@ static vf2_status hybrid_execute_player_1428c(
     uint8_t player_byte = 0u;
     vf2_status status = VF2_OK;
 
+    /* v0390 measured 0x1428c -> 0x142c0 head entry gate.  The CPU must
+     * be parked at the corridor exit: ip == 0x1428c, g7 the live
+     * player base, record 0x0201c2fc + scratch nonzero (the five-slot
+     * wrapper's measured shape), entry F0 carrying only the corridor's
+     * own +0x800 bit (F0 bit 11; bit 26 is what this head sets) and a
+     * pushed frame.  The zero record/scratch shape is the measured
+     * cvtri-fault sibling (v0357) and stays fail-closed. */
     if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x0001428c) ||
-        player == 0u || cpu->local_frame_depth < 2u) {
+        player == 0u || cpu->local_frame_depth == 0u) {
         return VF2_ERROR_UNSUPPORTED;
     }
     status = vf2_model2a_read_u32(machine, player, &player_flags);
@@ -1966,8 +1991,14 @@ static vf2_status hybrid_execute_player_1428c(
         return status;
     }
     /* v0357 fail-closed: zero record/scratch is the measured cvtri-fault
-     * shape (sixth/punch parks). Do not expand from address 0. */
-    if (record_pointer == 0u || scratch_base == 0u) {
+     * shape (sixth/punch parks). Do not expand from address 0.
+     * v0390: the measured head shape is exactly record 0x0201c2fc with
+     * selectors 0x0505/0x0039/0x00f1/0x00e7/0x00af (v0358/v0359) and
+     * the corridor's own entry F0 (bit 11 only); anything else stays
+     * fail-closed so the expander cannot silently succeed on sibling
+     * shapes. */
+    if (record_pointer != UINT32_C(0x0201c2fc) || scratch_base == 0u ||
+        player_flags != UINT32_C(0x00000800)) {
         return VF2_ERROR_UNSUPPORTED;
     }
     destinations[0] = scratch_base + 0x1e0u;
@@ -1989,10 +2020,19 @@ static vf2_status hybrid_execute_player_1428c(
             machine, player + UINT32_C(0x0c), UINT32_C(0x000142f4)
         );
     }
+    /* v0390: gate each slot on its measured record selector
+     * (v0358/v0359: 0x0505/0x0039/0x00f1/0x00e7/0x00af). */
     for (index = 0u; status == VF2_OK && index < 5u; ++index) {
+        static const uint16_t measured_selectors[5] = {
+            UINT16_C(0x0505), UINT16_C(0x0039), UINT16_C(0x00f1),
+            UINT16_C(0x00e7), UINT16_C(0x00af)
+        };
         status = hybrid_read_u16(
             machine, record_pointer + record_offsets[index], &record_selector
         );
+        if (status == VF2_OK && record_selector != measured_selectors[index]) {
+            status = VF2_ERROR_UNSUPPORTED;
+        }
         selector = record_selector;
         if (status == VF2_OK) {
             status = hybrid_execute_player_27b5c(
@@ -2038,10 +2078,20 @@ static vf2_status hybrid_execute_player_1428c(
     cpu->local_frames[3].registers[11] = 0u;
     cpu->local_frames[3].registers[13] = 0u;
     cpu->local_frames[3].registers[15] = 0u;
-    cpu->ip = UINT32_C(0x0001428c);
-    cpu->executed_instructions += UINT64_C(1622);
-    cpu->procedure_calls += UINT64_C(4);
-    cpu->procedure_returns += UINT64_C(4);
+    /* v0390: measured 0x1428c -> 0x142c0 head.  Reference (probe) on
+     * out/pre14288.vf2snap: 0x1428c -> 0x1429c = 9240 steps / +6 calls /
+     * +6 rets (3-insn setbit-26 head + call + 9235-insn 0x270d4 wrapper
+     * + ret), 0x1429c -> 0x142c0 = 7 straight-line insns
+     * (lda/st/lda/st/ld/ldob/ldob, no calls).  Total 9247 / +6 / +6 on
+     * all three pre14288 parks (base/boot/natres).  The wrapper's
+     * cvtri/stis tail leaves EQUAL (cmpdeco loop); no head/tail
+     * instruction writes CC under legacy run semantics, so pin EQUAL
+     * with AC low bits in lockstep. */
+    hybrid_set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
+    cpu->ip = UINT32_C(0x000142c0);
+    cpu->executed_instructions += UINT64_C(9247);
+    cpu->procedure_calls += UINT64_C(6);
+    cpu->procedure_returns += UINT64_C(6);
     return VF2_OK;
 }
 
