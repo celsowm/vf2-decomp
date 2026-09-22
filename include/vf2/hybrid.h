@@ -365,6 +365,28 @@ vf2_status vf2_hybrid_player_142c0_execute_for_test(
     vf2_i960_cpu *cpu
 );
 
+/* v0393: test-only entry to the measured fa_rob fighter-exchange body
+ * 0x1442c (called at 0x14388 when the instance byte +0x04(g7) == 0).
+ * The CPU must be parked at 0x1442c with g7/g8 the two fighter bases,
+ * both +0x197 not in {16,24,25,27}, and a pushed frame.  On the accepted
+ * live (neutral) path it runs the two 0x14640 no-op helper calls and
+ * clears both fighters' +0x198 to 0, ending ip == 0x1463c after 51 steps
+ * / +2 calls / +2 rets.  Anything else is VF2_ERROR_UNSUPPORTED. */
+vf2_status vf2_hybrid_player_1442c_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
+/* v0393: test-only entry to the measured fa_rob collision/state helper
+ * 0x14640 no-op path.  The CPU must be parked at 0x14640 with g7 the
+ * fighter base and a pushed frame; +0x198 == 0, +0x654 == 0, +0x197 not
+ * 27/28, (g7) bit 4 clear and +0x194 == 0.  On success it rets after
+ * 12 steps / +1 return.  Anything else is VF2_ERROR_UNSUPPORTED. */
+vf2_status vf2_hybrid_player_14640_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 const char *vf2_hybrid_task_kind_name(vf2_hybrid_task_kind kind);
 
 /* Recover the measured fa_coli bit-mask helper at 0x22298.

@@ -815,6 +815,18 @@ leaves `r15 == phase` (byte `0x0050002b`, loaded at `0x142c4`) and
 recovery previously wrote `registers[15]` from `g0`/`table_last_value`.
 See `decomp/i960/notes/player_142c0_v0392.md`.
 
+Status (v0393): the fa_rob fighter-exchange body `0x1442c` (called at
+`0x14388` when `+0x04(g7) == 0`) is native for the measured live fast
+path, together with its two `0x14640` no-op helper calls. Restoring
+`out/park-1442c.vf2snap` (driven from `pre14288`), the reference reaches
+`0x1463c` in 51 steps / +2 calls / +2 rets; the native wrapper matches
+full live state byte-exact and clears both fighters' `+0x198`. This is
+the first native block of the collision/state-exchange function that
+follows the recovered player corridor. The heavy collision arms
+(`0x144b0`/`0x14518`/`0x14570`), non-no-op `0x14640` branches, and the
+`+0x04(g7) != 0` shape remain fail-closed (see
+`decomp/i960/notes/fa_player_1442c_live_v0393.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at

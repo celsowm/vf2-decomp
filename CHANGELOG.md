@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Recover the fa_rob fighter-exchange body `0x1442c` live fast path plus
+  its two `0x14640` no-op helper calls (v0393): first native block of the
+  collision/state-exchange function that follows the recovered player
+  corridor. Called at `0x14388` when `+0x04(g7)==0`; on the accepted live
+  (neutral) shape both fighters' `+0x197` are not in {16,24,25,27}, the
+  body runs the two swapped-g7/g8 helper calls, escapes to the `0x14628`
+  common exit and clears both fighters' `+0x198`. Full-function reference
+  to `0x1463c` is 51 steps / +2 calls / +2 rets. New focused ROM-backed
+  fixture `vf2_player_1442c_live_differential` (restores
+  `out/park-1442c.vf2snap`, byte-exact live-state equality) plus
+  ROM-independent unit test. Heavy collision arms and non-no-op `0x14640`
+  branches remain fail-closed. `ctest` 78/78; `native-sixth-dispatch` and
+  `native-twelfth-dispatch` unchanged. AGENTS.md Windows environment
+  canonicalized to the native CMake/MSVC `build/` path. See
+  `decomp/i960/notes/fa_player_1442c_live_v0393.md`.
+
 - Fix do game_info countdown-0 compare-state (v0388):
   `correct_measured_compare_state` agora deixa EQUAL em countdown 0 em
   todas as distribuicoes (antes so f0-only) e LESS caso contrario,

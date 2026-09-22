@@ -5105,6 +5105,231 @@ vf2_status vf2_hybrid_player_29414_execute(
     return hybrid_execute_player_29414(machine, cpu);
 }
 
+/* Measured no-op collision/state fast-path of the fa_rob fighter-exchange
+ * helper 0x14640 (v0393).  It is called twice from the 0x1442c body with
+ * swapped g7/g8 (fighter0 then fighter1).  On the accepted live shape the
+ * helper takes the no-op path: +0x198 == 0, +0x654 == 0, +0x197 not 27/28,
+ * (g7) bit 4 clear and +0x194 == 0.  It leaves r3 = +0x197, r14 = +0x194,
+ * r15 = (g7) flags and CC = EQUAL (from `cmpobe 0, r14`), then rets.
+ * Unobserved branches (any gate failing) stay fail-closed. */
+static vf2_status hybrid_execute_player_14640(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    const uint32_t player = cpu != NULL
+        ? cpu->registers[VF2_I960_G0_REGISTER + 7u] : 0u;
+    uint32_t r198 = 0u;
+    uint32_t r654 = 0u;
+    uint32_t r194 = 0u;
+    uint32_t flags = 0u;
+    uint8_t r197 = 0u;
+    vf2_status status = VF2_OK;
+
+    if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x00014640) ||
+        player == 0u || cpu->local_frame_depth == 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    status = vf2_model2a_read_u32(machine, player + UINT32_C(0x198), &r198);
+    if (status == VF2_OK && r198 != 0u) {
+        status = VF2_ERROR_UNSUPPORTED;
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_read_u32(
+            machine, player + UINT32_C(0x654), &r654
+        );
+    }
+    if (status == VF2_OK && r654 != 0u) {
+        status = VF2_ERROR_UNSUPPORTED;
+    }
+    if (status == VF2_OK) {
+        status = hybrid_read_u8(machine, player + UINT32_C(0x197), &r197);
+    }
+    if (status == VF2_OK && (r197 == 27u || r197 == 28u)) {
+        status = VF2_ERROR_UNSUPPORTED;
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_read_u32(machine, player, &flags);
+    }
+    if (status == VF2_OK && (flags & (UINT32_C(1) << 4u)) != 0u) {
+        status = VF2_ERROR_UNSUPPORTED;
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_read_u32(
+            machine, player + UINT32_C(0x194), &r194
+        );
+    }
+    if (status == VF2_OK && r194 != 0u) {
+        status = VF2_ERROR_UNSUPPORTED;
+    }
+    if (status != VF2_OK) {
+        return status;
+    }
+
+    cpu->registers[3] = (uint32_t)r197;
+    cpu->registers[14u] = r194;
+    cpu->registers[15u] = flags;
+    hybrid_set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
+    cpu->executed_instructions += UINT64_C(11);
+    cpu->ip = UINT32_C(0x000146d8);
+    status = vf2_i960_cpu_return_procedure(cpu, machine);
+    if (status == VF2_OK) {
+        ++cpu->executed_instructions;
+    }
+    return status;
+}
+
+/* Measured fighter-exchange fast-path of the fa_rob body 0x1442c
+ * (v0393), called at 0x14388 when the instance byte +0x04(g7) == 0.
+ * The accepted live shape (pre14288 park) takes the neutral-state path:
+ * both fighters have +0x197 not in {16, 24, 25, 27}, so the body runs two
+ * 0x14640 helper calls (with swapped g7/g8), the state-byte checks escape
+ * to the 0x14628 common exit, and both fighters' +0x198 are cleared to 0.
+ * Span 51 instructions to ip == 0x1463c with +2 calls / +2 returns (the
+ * two 0x14640 rets); the 0x1463c ret itself is not consumed here so the
+ * caller can continue at its 0x1438c return.  All other branches
+ * (state bytes 16/24/25/27, board/instance variants) fail closed. */
+static vf2_status hybrid_execute_player_1442c(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    uint32_t player0 = 0u;
+    uint32_t player1 = 0u;
+    uint32_t r10 = 0u;
+    uint32_t r11 = 0u;
+    uint8_t b19b_f1 = 0u;
+    uint8_t b197_f0 = 0u;
+    uint8_t b197_f1 = 0u;
+    vf2_status status = VF2_OK;
+
+    if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x0001442c) ||
+        cpu->local_frame_depth == 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    player0 = cpu->registers[VF2_I960_G0_REGISTER + 7u];
+    player1 = cpu->registers[VF2_I960_G0_REGISTER + 8u];
+    if (player0 == 0u || player1 == 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    /* 0x1442c mov g7,r10 ; 0x14430 mov g8,r11 */
+    r10 = player0;
+    r11 = player1;
+    cpu->registers[10] = r10;
+    cpu->registers[11] = r11;
+    cpu->executed_instructions += UINT64_C(2);
+    cpu->ip = UINT32_C(0x00014434);
+
+    /* 0x14434 call 0x14640 (g7 = fighter0, g8 = fighter1). */
+    status = hybrid_execute_player_repeated_call(
+        cpu, UINT32_C(0x00014434), UINT32_C(0x00014640),
+        UINT32_C(0x00014438)
+    );
+    if (status == VF2_OK) {
+        status = hybrid_execute_player_14640(machine, cpu);
+    }
+    if (status != VF2_OK) {
+        return status;
+    }
+
+    /* 0x14438 mov r11,g7 ; 0x1443c mov r10,g8 (swap for the second call). */
+    cpu->registers[VF2_I960_G0_REGISTER + 7u] = r11;
+    cpu->registers[VF2_I960_G0_REGISTER + 8u] = r10;
+    cpu->executed_instructions += UINT64_C(2);
+    cpu->ip = UINT32_C(0x00014440);
+
+    /* 0x14440 call 0x14640 (g7 = fighter1, g8 = fighter0). */
+    status = hybrid_execute_player_repeated_call(
+        cpu, UINT32_C(0x00014440), UINT32_C(0x00014640),
+        UINT32_C(0x00014444)
+    );
+    if (status == VF2_OK) {
+        status = hybrid_execute_player_14640(machine, cpu);
+    }
+    if (status != VF2_OK) {
+        return status;
+    }
+
+    /* 0x14444 mov r10,g7 ; 0x14448 mov r11,g8 (restore originals). */
+    cpu->registers[VF2_I960_G0_REGISTER + 7u] = r10;
+    cpu->registers[VF2_I960_G0_REGISTER + 8u] = r11;
+    cpu->executed_instructions += UINT64_C(2);
+    cpu->ip = UINT32_C(0x0001444c);
+
+    /* State-byte checks (fast path requires both fighters' +0x197 not in
+     * {16, 24, 25, 27}; measured all-zero on the accepted shape). */
+    status = hybrid_read_u8(
+        machine, player0 + UINT32_C(0x19b), &b19b_f1
+    );
+    if (status == VF2_OK) {
+        status = hybrid_read_u8(
+            machine, player1 + UINT32_C(0x19b), &b19b_f1
+        );
+    }
+    if (status == VF2_OK) {
+        status = hybrid_read_u8(
+            machine, player0 + UINT32_C(0x197), &b197_f0
+        );
+    }
+    if (status == VF2_OK) {
+        status = hybrid_read_u8(
+            machine, player1 + UINT32_C(0x197), &b197_f1
+        );
+    }
+    if (status != VF2_OK) {
+        return status;
+    }
+    if (b197_f0 == 16u || b197_f0 == 24u || b197_f0 == 25u ||
+        b197_f0 == 27u || b197_f1 == 16u || b197_f1 == 24u ||
+        b197_f1 == 25u || b197_f1 == 27u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    cpu->registers[7] = (uint32_t)b197_f0;   /* 0x1445c ldob +0x197(g7) */
+    cpu->registers[8] = (uint32_t)b197_f1;   /* 0x14460 ldob +0x197(g8) */
+    cpu->registers[14u] = (uint32_t)b19b_f1; /* 0x14454 ldob +0x19b(g8) */
+    cpu->executed_instructions += UINT64_C(14);
+    cpu->ip = UINT32_C(0x00014628);
+
+    /* 0x14628 mov r10,g7 ; 0x1462c mov r11,g8 ; 0x14630 mov 0,r3 ;
+     * 0x14634 st r3,+0x198(g7) ; 0x14638 st r3,+0x198(g8). */
+    cpu->registers[VF2_I960_G0_REGISTER + 7u] = r10;
+    cpu->registers[VF2_I960_G0_REGISTER + 8u] = r11;
+    cpu->registers[3] = 0u;
+    status = vf2_model2a_write_u32(machine, player0 + UINT32_C(0x198), 0u);
+    if (status == VF2_OK) {
+        status = vf2_model2a_write_u32(
+            machine, player1 + UINT32_C(0x198), 0u
+        );
+    }
+    if (status != VF2_OK) {
+        return status;
+    }
+    /* Last compare `0x14560 cmpobne 16, r8` with r8 = +0x197 == 0:
+     * compare(16, 0) -> GREATER. */
+    hybrid_set_compare_result(cpu, VF2_I960_COMPARE_GREATER);
+    cpu->executed_instructions += UINT64_C(5);
+    cpu->ip = UINT32_C(0x0001463c);
+    return VF2_OK;
+}
+
+vf2_status vf2_hybrid_player_1442c_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_1442c(machine, cpu);
+}
+
+vf2_status vf2_hybrid_player_14640_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_14640(machine, cpu);
+}
+
 /* The bit-31 fa_game_info path is a dispatcher around the two large fighter
  * procedures at 0x18144 and 0x18644. Recover only the observed corridors in C;
  * each native child still uses the same architectural call frame the ROM CALL

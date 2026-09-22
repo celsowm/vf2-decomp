@@ -60,18 +60,29 @@ repository has advanced, update this handoff as part of the same work.
 
 ## Windows environment
 
-If the agent is running on **Windows, use WSL2** for development work on this
-repository.
+The canonical agent workflow on this checkout is **native Windows CMake + MSVC**.
+The committed `build/` directory is configured with the Visual Studio generator,
+`VF2_BUILD_TESTS=ON`, `VF2_WARNINGS_AS_ERRORS=ON` and
+`VF2_ROM_DIR=<repo>/roms/vf2`, so it is the primary ROM-backed differential and
+strict-test validation path.
 
-Run the build, CMake/Ninja/CTest commands, Python recovery tooling, shell scripts
-and ROM-backed differential workflows from inside WSL2. Prefer keeping the
-working tree inside the Linux filesystem (for example under `~/src/`) instead of
-building from `/mnt/c/...`, especially for large builds and trace-heavy analysis.
+Run build and tests from the repository root with:
 
-Do not create a separate native-Windows PowerShell/MSVC workflow unless the user
-explicitly asks for Windows-native support. The canonical agent workflow on
-Windows is WSL2 so behavior stays aligned with Linux CI and the documented shell
-commands.
+```powershell
+cmake --build build --config Debug --parallel
+ctest --test-dir build -C Debug --output-on-failure
+```
+
+MSBuild is invoked through `cmake --build` (the VS generator resolves it), so no
+separate developer prompt is required. Python recovery/analysis tooling also runs
+natively under `python tools/python/...`; adapt the documented `build/...` binary
+paths to the native `build\Debug\...` output layout (for example
+`build\Debug\vf2probe.exe`).
+
+A WSL2 `build-wsl/` directory remains available as a secondary cross-check and is
+kept in sync when the user requests it, but it is not the default path. Behavior
+must stay aligned with the documented strict build/test gate and the ROM-backed
+commands described throughout this handoff.
 
 ## Build and test gate
 
