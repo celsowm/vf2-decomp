@@ -5452,6 +5452,7 @@ static vf2_status hybrid_execute_player_1442c(
     uint32_t player1 = 0u;
     uint32_t r10 = 0u;
     uint32_t r11 = 0u;
+    uint8_t b19b_f0 = 0u;
     uint8_t b19b_f1 = 0u;
     uint8_t b197_f0 = 0u;
     uint8_t b197_f1 = 0u;
@@ -5514,7 +5515,7 @@ static vf2_status hybrid_execute_player_1442c(
     /* State-byte checks (fast path requires both fighters' +0x197 not in
      * {16, 24, 25, 27}; measured all-zero on the accepted shape). */
     status = hybrid_read_u8(
-        machine, player0 + UINT32_C(0x19b), &b19b_f1
+        machine, player0 + UINT32_C(0x19b), &b19b_f0
     );
     if (status == VF2_OK) {
         status = hybrid_read_u8(
@@ -5534,9 +5535,25 @@ static vf2_status hybrid_execute_player_1442c(
     if (status != VF2_OK) {
         return status;
     }
-    if (b197_f0 == 16u || b197_f0 == 24u || b197_f0 == 25u ||
-        b197_f0 == 27u || b197_f1 == 16u || b197_f1 == 24u ||
-        b197_f1 == 25u || b197_f1 == 27u) {
+    if (b197_f0 == 25u) {
+        /* State-25 arm: the 0x1444c..0x144a0 branch chain lands at 0x144b0
+         * (v0395) when f0 +0x197 == 25.  Guard mirrors the 0x14450/0x14458/
+         * 0x14464/0x14468 compares that escape elsewhere; the arm itself
+         * re-validates the +0x194/+0x197/0x1aa shape fail-closed. */
+        if (b19b_f0 == 16u || b19b_f1 == 16u || b197_f1 == 24u ||
+            b197_f1 == 16u || b197_f1 == 25u || b197_f1 == 27u) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        cpu->registers[7] = (uint32_t)b197_f0;   /* 0x1445c ldob +0x197(g7) */
+        cpu->registers[8] = (uint32_t)b197_f1;   /* 0x14460 ldob +0x197(g8) */
+        cpu->registers[14u] = (uint32_t)b19b_f1; /* 0x14454 ldob +0x19b(g8) */
+        cpu->executed_instructions += UINT64_C(11);
+        cpu->ip = UINT32_C(0x000144b0);
+        return hybrid_execute_player_144b0(machine, cpu);
+    }
+    if (b197_f0 == 16u || b197_f0 == 24u || b197_f0 == 27u ||
+        b197_f1 == 16u || b197_f1 == 24u || b197_f1 == 25u ||
+        b197_f1 == 27u) {
         return VF2_ERROR_UNSUPPORTED;
     }
 
