@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Recover the fa_rob `0x14640` collision/state helper `+0x194 != 0`
+  sibling (v0394): `mov 0,r15; st r15,+0x654(g7)`, CC = LESS,
+  14 steps / +1 return, alongside the v0393 no-op (CC = EQUAL, 12 steps).
+  The shared gates (`+0x198 == 0`, `+0x654 == 0`, `+0x197` not 27/28,
+  `(g7)` bit 4 clear) dispatch to both measured exits. ROM-backed
+  `vf2_player_1442c_live_differential` now runs both cases byte-exact
+  (fast path 51 / +2 / +2, sibling 14 / +0 / +1). The `0x1442c` state-25
+  arm and other `0x14640` gates remain fail-closed. `ctest` 78/78. See
+  `decomp/i960/notes/fa_player_14640_sibling_v0394.md`.
+
 - Recover the fa_rob fighter-exchange body `0x1442c` live fast path plus
   its two `0x14640` no-op helper calls (v0393): first native block of the
   collision/state-exchange function that follows the recovered player

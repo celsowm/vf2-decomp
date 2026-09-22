@@ -5105,12 +5105,19 @@ vf2_status vf2_hybrid_player_29414_execute(
     return hybrid_execute_player_29414(machine, cpu);
 }
 
-/* Measured no-op collision/state fast-path of the fa_rob fighter-exchange
+/* Measured collision/state fast-paths of the fa_rob fighter-exchange
  * helper 0x14640 (v0393).  It is called twice from the 0x1442c body with
  * swapped g7/g8 (fighter0 then fighter1).  On the accepted live shape the
- * helper takes the no-op path: +0x198 == 0, +0x654 == 0, +0x197 not 27/28,
- * (g7) bit 4 clear and +0x194 == 0.  It leaves r3 = +0x197, r14 = +0x194,
- * r15 = (g7) flags and CC = EQUAL (from `cmpobe 0, r14`), then rets.
+ * helper takes one of two sibling paths after the shared gates
+ * (+0x198 == 0, +0x654 == 0, +0x197 not 27/28, (g7) bit 4 clear):
+ *
+ *   - +0x194 == 0 (no-op): leaves r3 = +0x197, r14 = +0x194, r15 = (g7)
+ *     flags and CC = EQUAL (from `cmpobe 0, r14`), then rets.  Body 11 +
+ *     ret.
+ *   - +0x194 != 0: `mov 0,r15; st r15,+0x654(g7)`, leaving r15 = 0,
+ *     r14 = +0x194, r3 = +0x197 and CC = LESS (compare(0, +0x194)), then
+ *     rets.  Body 13 + ret.
+ *
  * Unobserved branches (any gate failing) stay fail-closed. */
 static vf2_status hybrid_execute_player_14640(
     vf2_model2a *machine,
@@ -5159,18 +5166,30 @@ static vf2_status hybrid_execute_player_14640(
             machine, player + UINT32_C(0x194), &r194
         );
     }
-    if (status == VF2_OK && r194 != 0u) {
-        status = VF2_ERROR_UNSUPPORTED;
-    }
     if (status != VF2_OK) {
         return status;
     }
 
     cpu->registers[3] = (uint32_t)r197;
     cpu->registers[14u] = r194;
-    cpu->registers[15u] = flags;
-    hybrid_set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
-    cpu->executed_instructions += UINT64_C(11);
+    if (r194 == 0u) {
+        /* No-op path (measured v0393): CC = EQUAL, r15 = (g7) flags. */
+        cpu->registers[15u] = flags;
+        hybrid_set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
+        cpu->executed_instructions += UINT64_C(11);
+    } else {
+        /* Sibling (measured v0394): `mov 0,r15; st r15,+0x654(g7)`,
+         * CC = LESS (compare(0, +0x194)). */
+        status = vf2_model2a_write_u32(
+            machine, player + UINT32_C(0x654), 0u
+        );
+        if (status != VF2_OK) {
+            return status;
+        }
+        cpu->registers[15u] = 0u;
+        hybrid_set_compare_result(cpu, VF2_I960_COMPARE_LESS);
+        cpu->executed_instructions += UINT64_C(13);
+    }
     cpu->ip = UINT32_C(0x000146d8);
     status = vf2_i960_cpu_return_procedure(cpu, machine);
     if (status == VF2_OK) {

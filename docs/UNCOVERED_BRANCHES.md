@@ -827,6 +827,17 @@ follows the recovered player corridor. The heavy collision arms
 `+0x04(g7) != 0` shape remain fail-closed (see
 `decomp/i960/notes/fa_player_1442c_live_v0393.md`).
 
+Status (v0394): the fa_rob `0x14640` collision/state helper now has a
+second measured sibling native: `+0x194 != 0` (`mov 0,r15;
+st r15,+0x654(g7)`, CC = LESS, 14 steps / +1 return), alongside the v0393
+no-op (`+0x194 == 0`, CC = EQUAL, 12 steps). The shared gates
+(`+0x198 == 0`, `+0x654 == 0`, `+0x197` not 27/28, `(g7)` bit 4 clear)
+dispatch to both measured exits. `vf2_player_1442c_live_differential`
+now runs both ROM-backed cases byte-exact (51 / +2 / +2 and
+14 / +0 / +1). The `0x1442c` state-25 arm (`0x144b0`) and the other
+`0x14640` gates remain fail-closed (see
+`decomp/i960/notes/fa_player_14640_sibling_v0394.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at
