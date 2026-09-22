@@ -803,6 +803,18 @@ focused byte-exact fixture (five-slot payload + float triple vs
 `player_270d4_slot_pin_v0358.md` style) remains open. See
 `decomp/i960/notes/player_142c0_v0391.md`.
 
+Status (v0392): the `0x142c0` body now has a focused ROM-backed
+differential fixture (`vf2_player_142c0_live_differential`) restoring
+`out/pre14288.vf2snap`, stepping the reference through the full
+corridor + head + body to `0x14310` (10925 / +13 / +13) and asserting
+full live-state equality against the native wrappers. The focused
+comparison exposed and fixed a register-modeling error the coarser
+`native-sixth-dispatch` did not catch: at the `0x14310` boundary the ROM
+leaves `r15 == phase` (byte `0x0050002b`, loaded at `0x142c4`) and
+`r14 == frame_phase` (byte `0x00530005`, loaded at `0x142f4`); the
+recovery previously wrote `registers[15]` from `g0`/`table_last_value`.
+See `decomp/i960/notes/player_142c0_v0392.md`.
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at

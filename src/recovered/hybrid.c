@@ -1566,6 +1566,21 @@ vf2_status vf2_hybrid_player_1428c_execute_for_test(
     return hybrid_execute_player_1428c(machine, cpu);
 }
 
+static vf2_status hybrid_execute_player_142c0(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
+/* v0392 test-only entry to the measured 0x142c0 geometry-expansion body
+ * (see hybrid.h). */
+vf2_status vf2_hybrid_player_142c0_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_142c0(machine, cpu);
+}
+
 static float hybrid_player_bits_to_float(uint32_t bits)
 {
     float value = 0.0f;
@@ -2525,12 +2540,8 @@ static vf2_status hybrid_execute_player_142c0(
     }
     cpu->registers[VF2_I960_G0_REGISTER] = table_pointer;
     cpu->registers[2] = UINT32_C(0x000142e8);
-    if (g1 == 1u) {
-        cpu->registers[14u] = 0u;
-        cpu->registers[15u] = g0;
-    } else {
-        cpu->registers[15u] = table_last_value;
-    }
+    cpu->registers[14u] = frame_phase;
+    cpu->registers[15u] = phase;
     cpu->ip = UINT32_C(0x00014310);
     cpu->executed_instructions += g1 == 1u ? UINT64_C(55) : UINT64_C(56);
     cpu->procedure_calls += UINT64_C(3);

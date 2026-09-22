@@ -353,6 +353,18 @@ vf2_status vf2_hybrid_player_1428c_execute_for_test(
     vf2_i960_cpu *cpu
 );
 
+/* v0392: test-only entry to the measured 0x142c0 geometry-expansion
+ * body (command 0x550000 family + bit-21 flag set + 0x4b5d0 table
+ * lookup).  The CPU must be parked at 0x142c0 with g7 the player base
+ * and g1 in {0,1}; frame phase (byte 0x00530005) must be 0 and game
+ * phase (byte 0x0050002b) must not be 6 or 7.  On success ip == 0x14310
+ * after 56 steps / +3 calls / +3 rets (g1 == 0), with r15 == game phase
+ * and r14 == frame phase.  Anything else is VF2_ERROR_UNSUPPORTED. */
+vf2_status vf2_hybrid_player_142c0_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 const char *vf2_hybrid_task_kind_name(vf2_hybrid_task_kind kind);
 
 /* Recover the measured fa_coli bit-mask helper at 0x22298.
