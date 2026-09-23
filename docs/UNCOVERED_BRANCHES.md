@@ -857,9 +857,15 @@ both `+0x198` (47 steps / +1 / +1, CC = GREATER, `+0x654`/`+0x62a` and the
 state chain skipped). The slice also corrects two latent modeling errors
 that cancel on the all-zero v0395 pin: ROM `ldos` zero-extends and
 `subi r13, r14, r4` computes `+0x808(f1) - +0x858(f0)`. The cmpobl-equal
-point and the other `0x1442c` heavy arms (`0x14474`, `0x1453c`/`0x14570`)
-remain fail-closed (see
-`decomp/i960/notes/fa_player_144b0_sibling_v0397.md`).
+point and the other `0x1442c` heavy arms (`0x1453c`/`0x14570`)
+remain fail-closed; the `0x14474` arm is now native for fighter0
+`+0x197 == 24` with fighter1 `+0x19f` in {25, 22} (54/55 steps, CC =
+EQUAL, `+0x194(f1) = 0x01000000`, bit 0 of `+0x1a4(f1)` cleared; the
+f0 `0x14640` call takes the `+0x194 != 0` sibling since `+0x197` is
+its high byte). Other `+0x19f` values and the `f1 == 24` entry stay
+fail-closed (see
+`decomp/i960/notes/fa_player_144b0_sibling_v0397.md` and
+`decomp/i960/notes/fa_player_14474_arm_v0398.md`).
 
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The

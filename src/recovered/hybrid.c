@@ -5582,7 +5582,83 @@ static vf2_status hybrid_execute_player_1442c(
         cpu->ip = UINT32_C(0x000144b0);
         return hybrid_execute_player_144b0(machine, cpu);
     }
-    if (b197_f0 == 16u || b197_f0 == 24u || b197_f0 == 27u ||
+    if (b197_f0 == 24u) {
+        /* Measured 0x14474 arm (v0398): f0 +0x197 == 24 reaches 0x14474 via
+         * the taken `cmpobe 24, r7`.  When f1 +0x19f is 25 (taken `cmpobe`)
+         * or 22 (both compares fall through), the body stores 0x01000000 to
+         * +0x194(f1), clears bit 0 of +0x1a4(f1) and rejoins the 0x14628
+         * common exit.  Requires both +0x19b != 16 and f1 +0x197 neutral
+         * (not 16/24/25/27); all other +0x19f values and the f1 == 24 entry
+         * stay fail-closed. */
+        uint8_t b19f_f1 = 0u;
+        uint32_t r1a4_f1 = 0u;
+        if (b19b_f0 == 16u || b19b_f1 == 16u || b197_f1 == 16u ||
+            b197_f1 == 24u || b197_f1 == 25u || b197_f1 == 27u) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        status = hybrid_read_u8(
+            machine, player1 + UINT32_C(0x19f), &b19f_f1
+        );
+        if (status == VF2_OK) {
+            status = vf2_model2a_read_u32(
+                machine, player1 + UINT32_C(0x1a4), &r1a4_f1
+            );
+        }
+        if (status != VF2_OK) {
+            return status;
+        }
+        if (b19f_f1 != 25u && b19f_f1 != 22u) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        cpu->registers[7] = (uint32_t)b197_f0;
+        cpu->registers[8] = (uint32_t)b197_f1;
+        cpu->registers[14u] = (uint32_t)b19b_f1;
+        cpu->registers[6] = (uint32_t)b19f_f1;
+        /* 0x14480 shlo 24,1,r15 (0x01000000); stored to +0x194(f1). */
+        status = vf2_model2a_write_u32(
+            machine, player1 + UINT32_C(0x194), UINT32_C(0x01000000)
+        );
+        if (status == VF2_OK) {
+            /* 0x14488 ld +0x1a4(g8); 0x1448c clrbit 0; 0x14490 st. */
+            r1a4_f1 &= ~UINT32_C(1);
+            status = vf2_model2a_write_u32(
+                machine, player1 + UINT32_C(0x1a4), r1a4_f1
+            );
+        }
+        if (status != VF2_OK) {
+            return status;
+        }
+        cpu->registers[VF2_I960_G0_REGISTER + 7u] = r10;
+        cpu->registers[VF2_I960_G0_REGISTER + 8u] = r11;
+        cpu->registers[3] = 0u;
+        cpu->registers[15u] = r1a4_f1;
+        status = vf2_model2a_write_u32(
+            machine, player0 + UINT32_C(0x198), 0u
+        );
+        if (status == VF2_OK) {
+            status = vf2_model2a_write_u32(
+                machine, player1 + UINT32_C(0x198), 0u
+            );
+        }
+        if (status != VF2_OK) {
+            return status;
+        }
+        /* Last compare is the taken `cmpobe 25, r6` (r6 == 25) or the
+         * not-taken `cmpobne 22, r6` (r6 == 22): both leave EQUAL. */
+        hybrid_set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
+        /* Measured totals to 0x1463c: 54 steps for r6 == 25, 55 for
+         * r6 == 22 (one extra not-taken branch).  The two 0x14640 helpers
+         * already counted their live shapes (f0 +0x197 == 24 forces the
+         * +0x194 != 0 sibling since +0x197 is the high byte of +0x194:
+         * 15 for f0, 13 for f1); the middle 0x1444c..0x14494 span is 15/16
+         * and the exit below counts 5. */
+        cpu->executed_instructions +=
+            (b19f_f1 == 25u) ? UINT64_C(15) : UINT64_C(16);
+        cpu->executed_instructions += UINT64_C(5);
+        cpu->ip = UINT32_C(0x0001463c);
+        return VF2_OK;
+    }
+    if (b197_f0 == 16u || b197_f0 == 27u ||
         b197_f1 == 16u || b197_f1 == 24u || b197_f1 == 25u ||
         b197_f1 == 27u) {
         return VF2_ERROR_UNSUPPORTED;

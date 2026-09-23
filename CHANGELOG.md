@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Recover the fa_rob `0x14474` arm (v0398): entered at `0x14474` when
+  fighter0 `+0x197 == 24`. For fighter1 `+0x19f` in {25, 22} the body
+  stores `0x01000000` to `+0x194(f1)`, clears bit 0 of `+0x1a4(f1)`,
+  takes `b 0x14628` and clears both `+0x198`. Spans 54 (`+0x19f ==
+  25`) / 55 (`== 22`) instructions to `0x1463c` with +2 calls / +2
+  rets, CC = EQUAL. The f0 `0x14640` call takes the `+0x194 != 0`
+  sibling (15 steps) since `+0x197` is the high byte of `+0x194`;
+  the f1 call stays no-op (13). ROM-backed
+  `vf2_player_1442c_live_differential` now runs six cases byte-exact.
+  Other `+0x19f` values and the `f1 == 24` entry stay fail-closed.
+  `ctest` 78/78. See
+  `decomp/i960/notes/fa_player_14474_arm_v0398.md`.
+
 - Recover the fa_rob `0x144b0` cmpobl-not-taken sibling (v0397): when
   `0x1450c cmpobl r13, r3` does not take (`r13 > r3` unsigned, measured
   with fighter1 `+0x808 == 1` / `+0x1aa == 100` so `r13 = 100 > r3 =
