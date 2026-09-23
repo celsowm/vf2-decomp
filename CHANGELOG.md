@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Recover the fa_rob `0x14474` both-24 entry (v0400): when both
+  fighters' `+0x197 == 24`, the f0-priority `cmpobe` takes the direct
+  path and runs the same `+0x19f(f1)` body on fighter1. Spans 56
+  (`+0x19f == 25`) / 57 (`== 22`) instructions to `0x1463c` with
+  +2 calls / +2 rets (prefix both siblings 15+15), CC = EQUAL.
+  ROM-backed `vf2_player_1442c_live_differential` now runs ten cases
+  byte-exact. Other `+0x19f` values stay fail-closed. `ctest` 78/78.
+  See `decomp/i960/notes/fa_player_14474_both24_v0400.md`.
+
 - Recover the fa_rob `0x14474` swapped entry (v0399): when fighter1
   `+0x197 == 24` (fighter0 not 24) the body swaps (`g7 = f1`, `g8 =
   f0`) and runs the same `+0x19f` body on fighter0. Spans 57

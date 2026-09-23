@@ -865,10 +865,13 @@ in {25, 22}, 57/58 steps via the `0x1446c` swap). Both leave CC =
 EQUAL, store `0x01000000` to `+0x194` of the `g8` fighter and clear
 bit 0 of its `+0x1a4` (the `0x14640` call on the `+0x197 == 24` side
 takes the `+0x194 != 0` sibling since `+0x197` is its high byte).
-Other `+0x19f` values and the both-`== 24` shape stay fail-closed
+The both-`== 24` shape is now native too on the f0-priority direct
+path (56/57 steps, prefix both siblings 15+15).
+Other `+0x19f` values stay fail-closed
 (see `decomp/i960/notes/fa_player_144b0_sibling_v0397.md`,
-`decomp/i960/notes/fa_player_14474_arm_v0398.md` and
-`decomp/i960/notes/fa_player_14474_swapped_v0399.md`).
+`decomp/i960/notes/fa_player_14474_arm_v0398.md`,
+`decomp/i960/notes/fa_player_14474_swapped_v0399.md` and
+`decomp/i960/notes/fa_player_14474_both24_v0400.md`).
 
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The

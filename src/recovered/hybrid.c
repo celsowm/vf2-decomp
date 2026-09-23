@@ -5588,12 +5588,14 @@ static vf2_status hybrid_execute_player_1442c(
          * or 22 (both compares fall through), the body stores 0x01000000 to
          * +0x194(f1), clears bit 0 of +0x1a4(f1) and rejoins the 0x14628
          * common exit.  Requires both +0x19b != 16 and f1 +0x197 neutral
-         * (not 16/24/25/27); all other +0x19f values stay fail-closed
+         * (not 16/25/27); f1 == 24 takes the same direct path with f0
+         * priority (v0400: prefix both siblings 15+15, totals 56/57).
+         * All other +0x19f values stay fail-closed
          * (the f1 == 24 swapped entry is handled below). */
         uint8_t b19f_f1 = 0u;
         uint32_t r1a4_f1 = 0u;
         if (b19b_f0 == 16u || b19b_f1 == 16u || b197_f1 == 16u ||
-            b197_f1 == 24u || b197_f1 == 25u || b197_f1 == 27u) {
+            b197_f1 == 25u || b197_f1 == 27u) {
             return VF2_ERROR_UNSUPPORTED;
         }
         status = hybrid_read_u8(
