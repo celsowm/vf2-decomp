@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Recover the fa_rob `0x14498` escape for other `+0x19f` values
+  (v0402): on all three `0x14474` entries, any `+0x19f` outside
+  {25, 22} restores `g7/g8` and runs the neutral
+  `0x144a0 -> 0x14528 -> 0x14548 -> 0x14560 -> 0x14628` exit with no
+  `+0x194`/`+0x1a4` stores. Spans 57 (direct) / 60 (swapped) /
+  59 (both-24) instructions to `0x1463c` with +2/+2; last compare
+  `cmpobne 16, r8` leaves GREATER (neutral f1) or LESS (`r8 == 24`).
+  ROM-backed `vf2_player_1442c_live_differential` now runs fourteen
+  cases byte-exact. `ctest` 78/78. See
+  `decomp/i960/notes/fa_player_14498_escape_v0402.md`.
+
 - Recover the fa_rob `0x144b0` cmpobl-equal point (v0401): when
   `0x1450c cmpobl r13, r3` sees `r13 == r3` (measured `r3 == 0` with
   fighter1 `+0x1aa == 0`), the body takes the same `0x14510`

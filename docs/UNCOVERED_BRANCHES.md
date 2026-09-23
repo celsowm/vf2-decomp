@@ -870,12 +870,18 @@ bit 0 of its `+0x1a4` (the `0x14640` call on the `+0x197 == 24` side
 takes the `+0x194 != 0` sibling since `+0x197` is its high byte).
 The both-`== 24` shape is now native too on the f0-priority direct
 path (56/57 steps, prefix both siblings 15+15).
-Other `+0x19f` values stay fail-closed
+Every other `+0x19f` value on all three `0x14474` entries is now
+native as well (v0402): the `0x14498` escape restores `g7/g8` and runs
+the neutral `0x144a0 -> 0x14528 -> 0x14548 -> 0x14560 -> 0x14628` exit
+with no `+0x194`/`+0x1a4` stores (57 direct / 60 swapped / 59 both-24
+steps; last compare GREATER for neutral f1, LESS for `r8 == 24`).
+Non-neutral downstream states stay fail-closed
 (see `decomp/i960/notes/fa_player_144b0_sibling_v0397.md`,
 `decomp/i960/notes/fa_player_144b0_equal_v0401.md`,
 `decomp/i960/notes/fa_player_14474_arm_v0398.md`,
-`decomp/i960/notes/fa_player_14474_swapped_v0399.md` and
-`decomp/i960/notes/fa_player_14474_both24_v0400.md`).
+`decomp/i960/notes/fa_player_14474_swapped_v0399.md`,
+`decomp/i960/notes/fa_player_14474_both24_v0400.md` and
+`decomp/i960/notes/fa_player_14498_escape_v0402.md`).
 
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The

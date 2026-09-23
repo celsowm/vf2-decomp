@@ -5594,7 +5594,8 @@ static vf2_status hybrid_execute_player_1442c(
          * common exit.  Requires both +0x19b != 16 and f1 +0x197 neutral
          * (not 16/25/27); f1 == 24 takes the same direct path with f0
          * priority (v0400: prefix both siblings 15+15, totals 56/57).
-         * All other +0x19f values stay fail-closed
+         * Other +0x19f values take the measured 0x14498 escape to the
+         * neutral 0x14628 exit (v0402: middle 18 + exit 5).
          * (the f1 == 24 swapped entry is handled below). */
         uint8_t b19f_f1 = 0u;
         uint32_t r1a4_f1 = 0u;
@@ -5614,7 +5615,42 @@ static vf2_status hybrid_execute_player_1442c(
             return status;
         }
         if (b19f_f1 != 25u && b19f_f1 != 22u) {
-            return VF2_ERROR_UNSUPPORTED;
+            /* Measured 0x14498 escape (v0402): f0 +0x197 == 24 but f1
+             * +0x19f is neither 25 nor 22, so `cmpobe 25, r6` and
+             * `cmpobne 22, r6` both miss to 0x14498 (restore g7/g8),
+             * then 0x144a0 -> 0x14528 -> 0x14548 -> 0x14560 (all
+             * neutral, f1 not 16/25/27) to the 0x14628 common exit.
+             * No +0x194/+0x1a4 stores; r6 = the 19f byte, r15 keeps
+             * the helper poststate.  Last compare `0x14560 cmpobne 16,
+             * r8` leaves GREATER when r8 < 16, LESS when r8 > 16
+             * (r8 == 16 excluded by the gate).  Middle 18 + exit 5
+             * (57 total, 59 when f1 == 24 via the both-sibling prefix). */
+            cpu->registers[7] = (uint32_t)b197_f0;
+            cpu->registers[8] = (uint32_t)b197_f1;
+            cpu->registers[14u] = (uint32_t)b19b_f1;
+            cpu->registers[6] = (uint32_t)b19f_f1;
+            cpu->registers[VF2_I960_G0_REGISTER + 7u] = r10;
+            cpu->registers[VF2_I960_G0_REGISTER + 8u] = r11;
+            cpu->registers[3] = 0u;
+            status = vf2_model2a_write_u32(
+                machine, player0 + UINT32_C(0x198), 0u
+            );
+            if (status == VF2_OK) {
+                status = vf2_model2a_write_u32(
+                    machine, player1 + UINT32_C(0x198), 0u
+                );
+            }
+            if (status != VF2_OK) {
+                return status;
+            }
+            hybrid_set_compare_result(
+                cpu,
+                (b197_f1 < 16u) ? VF2_I960_COMPARE_GREATER
+                                : VF2_I960_COMPARE_LESS);
+            cpu->executed_instructions += UINT64_C(18);
+            cpu->executed_instructions += UINT64_C(5);
+            cpu->ip = UINT32_C(0x0001463c);
+            return VF2_OK;
         }
         cpu->registers[7] = (uint32_t)b197_f0;
         cpu->registers[8] = (uint32_t)b197_f1;
@@ -5690,7 +5726,36 @@ static vf2_status hybrid_execute_player_1442c(
             return status;
         }
         if (b19f_f0 != 25u && b19f_f0 != 22u) {
-            return VF2_ERROR_UNSUPPORTED;
+            /* Measured swapped 0x14498 escape (v0402): f1 == 24 falls to
+             * the 0x1446c swap, then +0x19f(f0) misses both compares to
+             * 0x14498 (restore), 0x144a0 -> 0x14528 -> 0x14548 -> 0x14560
+             * (f0 not 16/25/27) to the 0x14628 exit.  No +0x194/+0x1a4
+             * stores; r6 = the 19f byte.  Last compare `0x14560 cmpobne
+             * 16, r8` with r8 = b197_f1 (24 on this entry) -> LESS.
+             * Middle 21 + exit 5 (60 total). */
+            cpu->registers[7] = (uint32_t)b197_f0;
+            cpu->registers[8] = (uint32_t)b197_f1;
+            cpu->registers[14u] = (uint32_t)b19b_f1;
+            cpu->registers[6] = (uint32_t)b19f_f0;
+            cpu->registers[VF2_I960_G0_REGISTER + 7u] = r10;
+            cpu->registers[VF2_I960_G0_REGISTER + 8u] = r11;
+            cpu->registers[3] = 0u;
+            status = vf2_model2a_write_u32(
+                machine, player0 + UINT32_C(0x198), 0u
+            );
+            if (status == VF2_OK) {
+                status = vf2_model2a_write_u32(
+                    machine, player1 + UINT32_C(0x198), 0u
+                );
+            }
+            if (status != VF2_OK) {
+                return status;
+            }
+            hybrid_set_compare_result(cpu, VF2_I960_COMPARE_LESS);
+            cpu->executed_instructions += UINT64_C(21);
+            cpu->executed_instructions += UINT64_C(5);
+            cpu->ip = UINT32_C(0x0001463c);
+            return VF2_OK;
         }
         cpu->registers[7] = (uint32_t)b197_f0;
         cpu->registers[8] = (uint32_t)b197_f1;

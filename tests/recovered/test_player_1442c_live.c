@@ -1196,6 +1196,9 @@ static void run_rom_differential(const char *rom_directory)
     run_1474_swapped_case(main_rom, main_rom_size, main_data, main_data_size, 22u, 58u);
     run_1474_both24_case(main_rom, main_rom_size, main_data, main_data_size, 25u, 56u);
     run_1474_both24_case(main_rom, main_rom_size, main_data, main_data_size, 22u, 57u);
+    run_1474_case(main_rom, main_rom_size, main_data, main_data_size, 0u, 57u);
+    run_1474_swapped_case(main_rom, main_rom_size, main_data, main_data_size, 0u, 60u);
+    run_1474_both24_case(main_rom, main_rom_size, main_data, main_data_size, 0u, 59u);
 
     free(main_rom);
     free(main_data);
