@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- Recover the fa_rob `0x144b0` cmpobl-not-taken sibling (v0397): when
+  `0x1450c cmpobl r13, r3` does not take (`r13 > r3` unsigned, measured
+  with fighter1 `+0x808 == 1` / `+0x1aa == 100` so `r13 = 100 > r3 =
+  0`), the state-25 arm stores `r5` to `+0x194(f1)` (`0x14510`), takes
+  `b 0x14628` and clears both `+0x198`, skipping the `+0x654`/`+0x62a`
+  stores and the fighter-state chain. Span 47 instructions to `0x1463c`
+  with +1 call / +1 return, CC = GREATER. Also fixes two latent
+  modeling errors that cancel on the all-zero v0395 pin: ROM `ldos`
+  zero-extends (not sign) and `subi r13, r14, r4` computes
+  `+0x808(f1) - +0x858(f0)`. ROM-backed `vf2_player_1442c_live` now
+  runs all four cases byte-exact (fast path 51 / +2 / +2, `0x14640`
+  sibling 14 / +0 / +1, state-25 53 / +1 / +1, not-taken 47 / +1 / +1).
+  The cmpobl-equal point stays fail-closed. `ctest` 78/78. See
+  `decomp/i960/notes/fa_player_144b0_sibling_v0397.md`.
+
 - Recover the fa_rob `0x144b0` state-25 collision arm (v0395): entered at
   `0x144b0` when fighter0 `+0x197 == 25`. On the measured live shape
   (fighter0 `+0x197 == 25`, fighter1 `+0x197 == 0`, fighter0 `+0x194 ==

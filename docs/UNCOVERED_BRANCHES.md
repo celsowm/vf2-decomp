@@ -849,6 +849,18 @@ path (needed for full-`0x1442c` integration) and the other `0x1442c` heavy
 arms (`0x14510`/`0x1453c`/`0x14570`) remain fail-closed (see
 `decomp/i960/notes/fa_player_144b0_state25_v0395.md`).
 
+Status (v0397): the `0x144b0` cmpobl-not-taken sibling is native. When
+`0x1450c cmpobl r13, r3` does not take (`r13 > r3` unsigned, measured with
+fighter1 `+0x808 == 1` / `+0x1aa == 100`), the arm stores `r5` to
+`+0x194(f1)` at `0x14510`, branches to the `0x14628` common exit and clears
+both `+0x198` (47 steps / +1 / +1, CC = GREATER, `+0x654`/`+0x62a` and the
+state chain skipped). The slice also corrects two latent modeling errors
+that cancel on the all-zero v0395 pin: ROM `ldos` zero-extends and
+`subi r13, r14, r4` computes `+0x808(f1) - +0x858(f0)`. The cmpobl-equal
+point and the other `0x1442c` heavy arms (`0x14474`, `0x1453c`/`0x14570`)
+remain fail-closed (see
+`decomp/i960/notes/fa_player_144b0_sibling_v0397.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at

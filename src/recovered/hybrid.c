@@ -5268,9 +5268,11 @@ static vf2_status hybrid_execute_player_19ef8_zero(
  * 3) the branch chain (fighter1 state not 27/16) falls through to the
  *    0x14628 common exit clearing both fighters' +0x198.
  * Span 53 instructions from 0x144b0 to 0x1463c with +1 call / +1 return
- * (the 0x19ef8 call; the 0x1463c ret is not consumed).  Other shapes
- * (nonzero +0x194, other +0x197 values, the cmpobl-not-taken sibling at
- * 0x14510) stay fail-closed. */
+ * (the 0x19ef8 call; the 0x1463c ret is not consumed).  The v0397 sibling
+ * covers the `0x1450c cmpobl r13,r3` not-taken exit (`st r5,+0x194(g8)` at
+ * 0x14510, `b 0x14628`): span 47 with +1 call / +1 return, the +0x654/+0x62a
+ * stores and the state chain skipped.  Other shapes (nonzero +0x194, other
+ * +0x197 values, the cmpobl-equal point) stay fail-closed. */
 static vf2_status hybrid_execute_player_144b0(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu
@@ -5335,14 +5337,18 @@ static vf2_status hybrid_execute_player_144b0(
         return status;
     }
     g0 = (uint32_t)h194;
-    r4 = (int32_t)(int16_t)h858_f0 - (int32_t)(int16_t)h808_f1;
-    r13 = (uint32_t)(int32_t)(int16_t)h1aa_f1;
+    /* ROM `ldos` zero-extends; `subi r13,r14,r4` computes
+     * r4 = r14 - r13 = +0x808(f1) - +0x858(f0); `subo 1,r4,r3` gives
+     * r3 = r4 - 1.  `cmpobl r13,r3` takes the 0x14518 arm iff
+     * r13 < r3 unsigned. */
+    r4 = (int32_t)((uint32_t)h808_f1 - (uint32_t)h858_f0);
+    r13 = (uint32_t)h1aa_f1;
     r3 = (uint32_t)(r4 - 1);
     if (g0 != 0u || b197_f0 != 25u || b197_f1 == 16u ||
         b197_f1 == 24u || b197_f1 == 25u || b197_f1 == 27u ||
-        r13 >= r3) {
-        /* Not the measured state-25 path (nonzero +0x194, other fighter
-         * states, or the cmpobl-not-taken sibling at 0x14510). */
+        r13 == r3) {
+        /* Not a measured state-25 shape (nonzero +0x194, other fighter
+         * states, or the unmeasured cmpobl-equal point). */
         return VF2_ERROR_UNSUPPORTED;
     }
 
@@ -5366,12 +5372,14 @@ static vf2_status hybrid_execute_player_144b0(
     }
 
     /* 0x144b8..0x1450c collision/state-exchange body (fighter0 side).
-     * Final register poststate (measured): r3=0, r4=0, r5=0x11000000,
-     * r7=+0x197(f0)=25, r8=+0x197(f1)=0, r13=sext(+0x1aa(f1))=0,
-     * r14=sext(+0x828(f0))=0, r15=+0x822(f0)=0, g0=0, g7/g8 restored. */
-    r14 = (uint32_t)(int32_t)(int16_t)h828_f0;      /* 0x144e4 ldos +0x828(g7) */
+     * Final register poststate (measured): r3=0, r4=+0x808(f1)-+0x858(f0),
+     * r5=0x11000000+(+0x828(f0)) with bit 15 cleared, r7=+0x197(f0)=25,
+     * r8=+0x197(f1), r13=+0x1aa(f1) (ldos zero-extends),
+     * r14=+0x828(f0) (ldos zero-extends), r15=+0x822(f0), g0=0,
+     * g7/g8 restored. */
+    r14 = (uint32_t)h828_f0;                           /* 0x144e4 ldos +0x828(g7) */
     r15 = (uint32_t)b822_f0;                        /* 0x144d8 ldib +0x822(g7) */
-    r13 = (uint32_t)(int32_t)(int16_t)h1aa_f1;      /* 0x14508 ldos +0x1aa(g8) */
+    r13 = (uint32_t)h1aa_f1;                        /* 0x14508 ldos +0x1aa(g8) */
     r5 = UINT32_C(0x11000000) + r14;                /* 0x144e0 shlo/0x144e8 addi */
     r5 &= ~(UINT32_C(1) << 15u);                    /* 0x14500 alterbit 15 */
     r3 = (uint32_t)(r4 - 1);                        /* 0x14504 subo 1,r4,r3 */
@@ -5391,18 +5399,32 @@ static vf2_status hybrid_execute_player_144b0(
             machine, fighter1 + UINT32_C(0x822), b822_f0
         );
     }
-    if (status == VF2_OK) {
-        status = vf2_model2a_write_u32(
-            machine, fighter1 + UINT32_C(0x654), r5
-        );
-    }
-    if (status == VF2_OK) {
-        status = hybrid_write_u16(
-            machine, fighter1 + UINT32_C(0x62a), (uint16_t)r3
-        );
-    }
-    if (status != VF2_OK) {
-        return status;
+    if (r13 > r3) {
+        /* 0x1450c cmpobl r13,r3 not-taken sibling (v0397): `st r5,+0x194(g8)`
+         * at 0x14510, `b 0x14628` at 0x14514.  The +0x654/+0x62a stores and
+         * the 0x14528..0x14560 state chain are skipped. */
+        if (status == VF2_OK) {
+            status = vf2_model2a_write_u32(
+                machine, fighter1 + UINT32_C(0x194), r5
+            );
+        }
+        if (status != VF2_OK) {
+            return status;
+        }
+    } else {
+        if (status == VF2_OK) {
+            status = vf2_model2a_write_u32(
+                machine, fighter1 + UINT32_C(0x654), r5
+            );
+        }
+        if (status == VF2_OK) {
+            status = hybrid_write_u16(
+                machine, fighter1 + UINT32_C(0x62a), (uint16_t)r3
+            );
+        }
+        if (status != VF2_OK) {
+            return status;
+        }
     }
 
     /* 0x14520/0x14524 and 0x14628/0x1462c restore g7=g8 to originals;
@@ -5424,11 +5446,20 @@ static vf2_status hybrid_execute_player_144b0(
     if (status != VF2_OK) {
         return status;
     }
-    /* 0x14528/0x1452c/0x14548/0x14560 branch chain (measured: fighter1
-     * state not 27/16) ends at 0x14628.  Last compare `0x14560 cmpobne
-     * 16, r8` with r8 = +0x197(f1) == 0 -> GREATER. */
-    hybrid_set_compare_result(cpu, VF2_I960_COMPARE_GREATER);
-    cpu->executed_instructions += UINT64_C(35);
+    if (r13 > r3) {
+        /* Sibling: the not-taken `cmpobl` leaves compare(r13, r3) = GREATER
+         * and the `b 0x14628` skips the state chain, so no later compare
+         * overwrites it.  Tail is 22 (shared body) + 2 (0x14510/0x14514) +
+         * 5 (common exit) = 29 after the 0x19ef8 call. */
+        hybrid_set_compare_result(cpu, VF2_I960_COMPARE_GREATER);
+        cpu->executed_instructions += UINT64_C(29);
+    } else {
+        /* 0x14528/0x1452c/0x14548/0x14560 branch chain (measured: fighter1
+         * state not 27/16) ends at 0x14628.  Last compare `0x14560 cmpobne
+         * 16, r8` with r8 = +0x197(f1) == 0 -> GREATER. */
+        hybrid_set_compare_result(cpu, VF2_I960_COMPARE_GREATER);
+        cpu->executed_instructions += UINT64_C(35);
+    }
     cpu->ip = UINT32_C(0x0001463c);
     return VF2_OK;
 }
