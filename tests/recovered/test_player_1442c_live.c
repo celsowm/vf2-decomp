@@ -758,6 +758,142 @@ static void run_1474_case(
     vf2_i960_snapshot_destroy(&snap);
 }
 
+static void run_1474_swapped_case(
+    const uint8_t *main_rom,
+    size_t main_rom_size,
+    const uint8_t *main_data,
+    size_t main_data_size,
+    uint8_t b19f_value,
+    uint64_t expected_total
+)
+{
+    vf2_model2a reference_machine;
+    vf2_model2a native_machine;
+    vf2_i960_cpu reference_cpu;
+    vf2_i960_cpu native_cpu;
+    vf2_i960_snapshot snap;
+    vf2_i960_snapshot_diff diff;
+    vf2_status reference_status = VF2_OK;
+    vf2_status native_status = VF2_OK;
+    vf2_status compare_status = VF2_OK;
+    uint64_t reference_instructions = 0u;
+    uint64_t native_instructions = 0u;
+    uint64_t snap_instructions = 0u;
+    uint64_t snap_calls = 0u;
+    uint64_t snap_returns = 0u;
+    uint32_t steps = 0u;
+    uint32_t fighter0 = 0u;
+    uint32_t fighter1 = 0u;
+    uint8_t v24 = 24u;
+    int ok = 0;
+
+    memset(&reference_machine, 0, sizeof(reference_machine));
+    memset(&native_machine, 0, sizeof(native_machine));
+    memset(&diff, 0, sizeof(diff));
+    vf2_i960_snapshot_init(&snap);
+
+    CHECK(vf2_model2a_initialize(&reference_machine));
+    CHECK(vf2_model2a_initialize(&native_machine));
+    if (reference_machine.work_ram == NULL ||
+        native_machine.work_ram == NULL) {
+        vf2_model2a_shutdown(&reference_machine);
+        vf2_model2a_shutdown(&native_machine);
+        return;
+    }
+    ok = (vf2_i960_snapshot_read_file(
+              &snap,
+              "D:/ia/vf2-decomp/out/park-1442c.vf2snap") == VF2_OK ||
+          vf2_i960_snapshot_read_file(
+              &snap, "out/park-1442c.vf2snap") == VF2_OK);
+    CHECK(ok);
+    if (!ok) {
+        vf2_model2a_shutdown(&reference_machine);
+        vf2_model2a_shutdown(&native_machine);
+        return;
+    }
+    CHECK(vf2_i960_snapshot_restore(
+              &snap, &reference_cpu, &reference_machine) == VF2_OK);
+    CHECK(vf2_i960_snapshot_restore(
+              &snap, &native_cpu, &native_machine) == VF2_OK);
+    CHECK(vf2_model2a_attach_main_rom(&reference_machine, main_rom,
+                                    main_rom_size) == VF2_OK);
+    CHECK(vf2_model2a_attach_main_data(&reference_machine, main_data,
+                                      main_data_size) == VF2_OK);
+    CHECK(vf2_model2a_attach_main_rom(&native_machine, main_rom,
+                                    main_rom_size) == VF2_OK);
+    CHECK(vf2_model2a_attach_main_data(&native_machine, main_data,
+                                      main_data_size) == VF2_OK);
+    CHECK(reference_cpu.ip == PLAYER_1442C_ENTRY);
+    fighter0 = reference_cpu.registers[16u + 7u];
+    fighter1 = reference_cpu.registers[16u + 8u];
+    CHECK(fighter0 != 0u);
+    CHECK(fighter1 != 0u);
+    CHECK(vf2_model2a_write(&reference_machine, fighter1 + UINT32_C(0x197),
+                            &v24, 1u) == VF2_OK);
+    CHECK(vf2_model2a_write(&native_machine, fighter1 + UINT32_C(0x197),
+                            &v24, 1u) == VF2_OK);
+    CHECK(vf2_model2a_write(&reference_machine, fighter0 + UINT32_C(0x19f),
+                            &b19f_value, 1u) == VF2_OK);
+    CHECK(vf2_model2a_write(&native_machine, fighter0 + UINT32_C(0x19f),
+                            &b19f_value, 1u) == VF2_OK);
+    snap_instructions = snap.cpu.executed_instructions;
+    snap_calls = snap.cpu.procedure_calls;
+    snap_returns = snap.cpu.procedure_returns;
+
+    steps = 0u;
+    while (reference_cpu.ip != PLAYER_1442C_RETURN && steps < 4096u) {
+        reference_status =
+            vf2_i960_step(&reference_cpu, &reference_machine, NULL);
+        CHECK(reference_status == VF2_OK);
+        ++steps;
+        if (reference_status != VF2_OK) {
+            break;
+        }
+    }
+    CHECK(reference_cpu.ip == PLAYER_1442C_RETURN);
+    reference_instructions =
+        reference_cpu.executed_instructions - snap_instructions;
+    CHECK(reference_instructions == expected_total);
+    CHECK(reference_cpu.procedure_calls - snap_calls == REF_CALLS);
+    CHECK(reference_cpu.procedure_returns - snap_returns == REF_RETS);
+
+    native_status = vf2_hybrid_player_1442c_execute_for_test(
+        &native_machine, &native_cpu);
+    CHECK(native_status == VF2_OK);
+    CHECK(native_cpu.ip == PLAYER_1442C_RETURN);
+    native_instructions =
+        native_cpu.executed_instructions - snap_instructions;
+    CHECK(native_instructions == expected_total);
+    CHECK(native_cpu.procedure_calls - snap_calls == REF_CALLS);
+    CHECK(native_cpu.procedure_returns - snap_returns == REF_RETS);
+
+    printf(
+        "player-1442c-1474-swapped-%u ref=%llu native=%llu\n",
+        (unsigned)b19f_value,
+        (unsigned long long)reference_instructions,
+        (unsigned long long)native_instructions);
+
+    compare_status = vf2_i960_compare_live_state(
+        &reference_cpu, &reference_machine,
+        &native_cpu, &native_machine, &diff);
+    if (compare_status != VF2_OK || !diff.equal) {
+        fprintf(
+            stderr,
+            "player-1442c-1474-swapped-%u ref=%d native=%d compare=%d "
+            "component=%s offset=%zu expected=0x%08x actual=0x%08x\n",
+            (unsigned)b19f_value,
+            (int)reference_status, (int)native_status,
+            (int)compare_status, diff.component, diff.first_offset,
+            (unsigned)diff.expected_value, (unsigned)diff.actual_value);
+    }
+    CHECK(compare_status == VF2_OK);
+    CHECK(diff.equal);
+
+    vf2_model2a_shutdown(&reference_machine);
+    vf2_model2a_shutdown(&native_machine);
+    vf2_i960_snapshot_destroy(&snap);
+}
+
 static void run_rom_differential(const char *rom_directory)
 {
     uint8_t *main_rom = NULL;
@@ -788,6 +924,8 @@ static void run_rom_differential(const char *rom_directory)
     run_s25_nt_case(main_rom, main_rom_size, main_data, main_data_size);
     run_1474_case(main_rom, main_rom_size, main_data, main_data_size, 25u, 54u);
     run_1474_case(main_rom, main_rom_size, main_data, main_data_size, 22u, 55u);
+    run_1474_swapped_case(main_rom, main_rom_size, main_data, main_data_size, 25u, 57u);
+    run_1474_swapped_case(main_rom, main_rom_size, main_data, main_data_size, 22u, 58u);
 
     free(main_rom);
     free(main_data);

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Recover the fa_rob `0x14474` swapped entry (v0399): when fighter1
+  `+0x197 == 24` (fighter0 not 24) the body swaps (`g7 = f1`, `g8 =
+  f0`) and runs the same `+0x19f` body on fighter0. Spans 57
+  (`+0x19f(f0) == 25`) / 58 (`== 22`) instructions to `0x1463c`
+  with +2 calls / +2 rets, CC = EQUAL. ROM-backed
+  `vf2_player_1442c_live_differential` now runs eight cases byte-exact.
+  Other `+0x19f` values and the both-`== 24` shape stay fail-closed.
+  `ctest` 78/78. See
+  `decomp/i960/notes/fa_player_14474_swapped_v0399.md`.
+
 - Recover the fa_rob `0x14474` arm (v0398): entered at `0x14474` when
   fighter0 `+0x197 == 24`. For fighter1 `+0x19f` in {25, 22} the body
   stores `0x01000000` to `+0x194(f1)`, clears bit 0 of `+0x1a4(f1)`,

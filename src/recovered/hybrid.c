@@ -5588,8 +5588,8 @@ static vf2_status hybrid_execute_player_1442c(
          * or 22 (both compares fall through), the body stores 0x01000000 to
          * +0x194(f1), clears bit 0 of +0x1a4(f1) and rejoins the 0x14628
          * common exit.  Requires both +0x19b != 16 and f1 +0x197 neutral
-         * (not 16/24/25/27); all other +0x19f values and the f1 == 24 entry
-         * stay fail-closed. */
+         * (not 16/24/25/27); all other +0x19f values stay fail-closed
+         * (the f1 == 24 swapped entry is handled below). */
         uint8_t b19f_f1 = 0u;
         uint32_t r1a4_f1 = 0u;
         if (b19b_f0 == 16u || b19b_f1 == 16u || b197_f1 == 16u ||
@@ -5658,8 +5658,74 @@ static vf2_status hybrid_execute_player_1442c(
         cpu->ip = UINT32_C(0x0001463c);
         return VF2_OK;
     }
+    if (b197_f1 == 24u) {
+        /* Swapped-entry 0x14474 arm (v0399): f0 +0x197 != 24 but f1 == 24,
+         * so `cmpobe 24, r7` falls through, `cmpobne 24, r8` falls through
+         * to the 0x1446c/0x14470 swap (g7 = f1, g8 = f0) and the same
+         * +0x19f body runs with g8 = fighter0.  Stores target fighter0;
+         * r7 = +0x197(f0), r8 = 24, r14 = +0x19b(f1).  Measured 57 steps
+         * for +0x19f(f0) == 25 and 58 for == 22 (prefix 34: f0 no-op 13,
+         * f1 sibling 15; middle 18/19; exit 5). */
+        uint8_t b19f_f0 = 0u;
+        uint32_t r1a4_f0 = 0u;
+        if (b19b_f0 == 16u || b19b_f1 == 16u || b197_f0 == 16u ||
+            b197_f0 == 25u || b197_f0 == 27u) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        status = hybrid_read_u8(
+            machine, player0 + UINT32_C(0x19f), &b19f_f0
+        );
+        if (status == VF2_OK) {
+            status = vf2_model2a_read_u32(
+                machine, player0 + UINT32_C(0x1a4), &r1a4_f0
+            );
+        }
+        if (status != VF2_OK) {
+            return status;
+        }
+        if (b19f_f0 != 25u && b19f_f0 != 22u) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        cpu->registers[7] = (uint32_t)b197_f0;
+        cpu->registers[8] = (uint32_t)b197_f1;
+        cpu->registers[14u] = (uint32_t)b19b_f1;
+        cpu->registers[6] = (uint32_t)b19f_f0;
+        status = vf2_model2a_write_u32(
+            machine, player0 + UINT32_C(0x194), UINT32_C(0x01000000)
+        );
+        if (status == VF2_OK) {
+            r1a4_f0 &= ~UINT32_C(1);
+            status = vf2_model2a_write_u32(
+                machine, player0 + UINT32_C(0x1a4), r1a4_f0
+            );
+        }
+        if (status != VF2_OK) {
+            return status;
+        }
+        cpu->registers[VF2_I960_G0_REGISTER + 7u] = r10;
+        cpu->registers[VF2_I960_G0_REGISTER + 8u] = r11;
+        cpu->registers[3] = 0u;
+        cpu->registers[15u] = r1a4_f0;
+        status = vf2_model2a_write_u32(
+            machine, player0 + UINT32_C(0x198), 0u
+        );
+        if (status == VF2_OK) {
+            status = vf2_model2a_write_u32(
+                machine, player1 + UINT32_C(0x198), 0u
+            );
+        }
+        if (status != VF2_OK) {
+            return status;
+        }
+        hybrid_set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
+        cpu->executed_instructions +=
+            (b19f_f0 == 25u) ? UINT64_C(18) : UINT64_C(19);
+        cpu->executed_instructions += UINT64_C(5);
+        cpu->ip = UINT32_C(0x0001463c);
+        return VF2_OK;
+    }
     if (b197_f0 == 16u || b197_f0 == 27u ||
-        b197_f1 == 16u || b197_f1 == 24u || b197_f1 == 25u ||
+        b197_f1 == 16u || b197_f1 == 25u ||
         b197_f1 == 27u) {
         return VF2_ERROR_UNSUPPORTED;
     }
