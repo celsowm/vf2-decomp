@@ -882,6 +882,12 @@ Non-neutral downstream states stay fail-closed
 `decomp/i960/notes/fa_player_14474_swapped_v0399.md`,
 `decomp/i960/notes/fa_player_14474_both24_v0400.md` and
 `decomp/i960/notes/fa_player_14498_escape_v0402.md`).
+Status (v0403, measurement only): the `0x1453c` arm head
+(`+0x197(g7) = 16`, 3 steps to `0x14570`) is scoped but not recovered:
+the tail faults in `0x1ab34` at `0x1ab4c` for the parked `+0x194` low
+half 0 and needs a type-5 record index not yet measured; the f1 == 27
+swap and `0x14548..0x1456c` tail joins stay fail-closed (see
+`decomp/i960/notes/fa_player_1453c_tail_blocked_v0403.md`).
 
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The

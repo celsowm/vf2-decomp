@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Scope the fa_rob `0x1453c` arm without recovering it (v0403,
+  measurement only): the head is 3 steps but the `0x14570` tail faults
+  in `0x1ab34` at `0x1ab4c` when `+0x194(g7)` low half is 0
+  (`table[0] == 0`, `g0 == 8` unmapped; a miss-zero would then fault
+  at `0x1457c`). The tail needs a `+0x194` indexing a type-5 record
+  chain; all such paths stay fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_tail_blocked_v0403.md`.
+
 - Recover the fa_rob `0x14498` escape for other `+0x19f` values
   (v0402): on all three `0x14474` entries, any `+0x19f` outside
   {25, 22} restores `g7/g8` and runs the neutral
