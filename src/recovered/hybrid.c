@@ -5345,10 +5345,10 @@ static vf2_status hybrid_execute_player_144b0(
     r13 = (uint32_t)h1aa_f1;
     r3 = (uint32_t)(r4 - 1);
     if (g0 != 0u || b197_f0 != 25u || b197_f1 == 16u ||
-        b197_f1 == 24u || b197_f1 == 25u || b197_f1 == 27u ||
-        r13 == r3) {
-        /* Not a measured state-25 shape (nonzero +0x194, other fighter
-         * states, or the unmeasured cmpobl-equal point). */
+        b197_f1 == 24u || b197_f1 == 25u || b197_f1 == 27u) {
+        /* Not a measured state-25 shape (nonzero +0x194 or other fighter
+         * states).  The cmpobl-equal point (r13 == r3) is now admitted
+         * (v0401) on the same 0x14510 path with an EQUAL postcondition. */
         return VF2_ERROR_UNSUPPORTED;
     }
 
@@ -5399,9 +5399,10 @@ static vf2_status hybrid_execute_player_144b0(
             machine, fighter1 + UINT32_C(0x822), b822_f0
         );
     }
-    if (r13 > r3) {
-        /* 0x1450c cmpobl r13,r3 not-taken sibling (v0397): `st r5,+0x194(g8)`
-         * at 0x14510, `b 0x14628` at 0x14514.  The +0x654/+0x62a stores and
+    if (r13 >= r3) {
+        /* 0x1450c cmpobl r13,r3 not-taken sibling (v0397) plus the
+         * cmpobl-equal point (v0401): `st r5,+0x194(g8)` at 0x14510,
+         * `b 0x14628` at 0x14514.  The +0x654/+0x62a stores and
          * the 0x14528..0x14560 state chain are skipped. */
         if (status == VF2_OK) {
             status = vf2_model2a_write_u32(
@@ -5446,12 +5447,15 @@ static vf2_status hybrid_execute_player_144b0(
     if (status != VF2_OK) {
         return status;
     }
-    if (r13 > r3) {
-        /* Sibling: the not-taken `cmpobl` leaves compare(r13, r3) = GREATER
-         * and the `b 0x14628` skips the state chain, so no later compare
+    if (r13 >= r3) {
+        /* Sibling: the not-taken `cmpobl` leaves compare(r13, r3):
+         * GREATER when r13 > r3 (v0397), EQUAL when r13 == r3 (v0401).
+         * The `b 0x14628` skips the state chain, so no later compare
          * overwrites it.  Tail is 22 (shared body) + 2 (0x14510/0x14514) +
          * 5 (common exit) = 29 after the 0x19ef8 call. */
-        hybrid_set_compare_result(cpu, VF2_I960_COMPARE_GREATER);
+        hybrid_set_compare_result(
+            cpu,
+            (r13 > r3) ? VF2_I960_COMPARE_GREATER : VF2_I960_COMPARE_EQUAL);
         cpu->executed_instructions += UINT64_C(29);
     } else {
         /* 0x14528/0x1452c/0x14548/0x14560 branch chain (measured: fighter1

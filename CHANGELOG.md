@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Recover the fa_rob `0x144b0` cmpobl-equal point (v0401): when
+  `0x1450c cmpobl r13, r3` sees `r13 == r3` (measured `r3 == 0` with
+  fighter1 `+0x1aa == 0`), the body takes the same `0x14510`
+  fall-through as the not-taken sibling (47 steps / +1 / +1) with
+  CC = EQUAL instead of GREATER. ROM-backed
+  `vf2_player_1442c_live_differential` now runs eleven cases
+  byte-exact. `ctest` 78/78. See
+  `decomp/i960/notes/fa_player_144b0_equal_v0401.md`.
+
 - Recover the fa_rob `0x14474` both-24 entry (v0400): when both
   fighters' `+0x197 == 24`, the f0-priority `cmpobe` takes the direct
   path and runs the same `+0x19f(f1)` body on fighter1. Spans 56

@@ -857,8 +857,11 @@ both `+0x198` (47 steps / +1 / +1, CC = GREATER, `+0x654`/`+0x62a` and the
 state chain skipped). The slice also corrects two latent modeling errors
 that cancel on the all-zero v0395 pin: ROM `ldos` zero-extends and
 `subi r13, r14, r4` computes `+0x808(f1) - +0x858(f0)`. The cmpobl-equal
-point and the other `0x1442c` heavy arms (`0x1453c`/`0x14570`)
-remain fail-closed; the `0x14474` arm is now native for both entries:
+point is now native too (v0401: `r13 == r3 == 0` via fighter1 `+0x1aa == 0`,
+same 47-step fall-through with CC = EQUAL).
+The other `0x1442c` heavy arms (`0x1453c`/`0x14570`)
+remain fail-closed; the `0x14474` arm is now native for all three
+measured entries:
 direct (fighter0 `+0x197 == 24`, fighter1 `+0x19f` in {25, 22},
 54/55 steps) and swapped (fighter1 `+0x197 == 24`, fighter0 `+0x19f`
 in {25, 22}, 57/58 steps via the `0x1446c` swap). Both leave CC =
@@ -869,6 +872,7 @@ The both-`== 24` shape is now native too on the f0-priority direct
 path (56/57 steps, prefix both siblings 15+15).
 Other `+0x19f` values stay fail-closed
 (see `decomp/i960/notes/fa_player_144b0_sibling_v0397.md`,
+`decomp/i960/notes/fa_player_144b0_equal_v0401.md`,
 `decomp/i960/notes/fa_player_14474_arm_v0398.md`,
 `decomp/i960/notes/fa_player_14474_swapped_v0399.md` and
 `decomp/i960/notes/fa_player_14474_both24_v0400.md`).
