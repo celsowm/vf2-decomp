@@ -900,6 +900,19 @@ the `0x14528` synthetic entry and is not yet wired into the `0x1442c`
 body dispatch (see reachability note); the separate `0x14640` state-27
 type-15 walk and the f1 == 27 swap path remain explicit boundaries (see
 `decomp/i960/notes/fa_player_1453c_state27_v0404.md`).
+Status (v0405): the `0x14640` state-27 arm is now native as the standalone
+`hybrid_execute_player_14640_state27` (type-15 walk via `+0x194(g7)`,
+41 steps / +1 call / +1 return to the `0x146c4` ret).  It requires
+`+0x198 == 0`, `+0x654 == 0` and `+0x197 == 27` on fighter g7, stores
+`r4 = s16(+1(rec)) - 1` into `+0x62a(g7)`, moves the original full
+`+0x194(g7)` u32 into `+0x654(g7)` and clears `+0x194(g7)`; bit 20 of
+`0x500068` must be clear and the type-15 walk must hit.  The arm is
+dispatched from `hybrid_execute_player_14640` when `+0x197 == 27` and is
+then wired through the `0x146c4` ret, so the full `0x1442c` f0 == 27 flow
+is natively reachable.  Final reference `compare_result` is NONE.  Pinned
+by `vf2_player_14640_state27_live_differential`.  The state-28
+(`0x1469c`) sibling remains an explicit boundary (see
+`decomp/i960/notes/fa_player_14640_state27_v0405.md`).
 
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The

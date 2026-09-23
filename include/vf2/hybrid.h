@@ -411,6 +411,18 @@ vf2_status vf2_hybrid_player_1453c_execute_for_test(
     vf2_i960_cpu *cpu
 );
 
+/* v0405: test-only entry to the measured fa_rob state-27 arm 0x14640.
+ * The CPU must be parked at 0x14640 with g7 the state-27 fighter base and a
+ * pushed frame; +0x198 == 0, +0x654 == 0 and +0x197 == 27, +0x194(g7) must
+ * index a valid type-15 record chain and bit 20 of 0x500068 must be clear.
+ * On success it lands at 0x146c4 after 41 steps / +1 call / +1 return (the
+ * type-15 walker), leaving the 0x146c4 ret unconsumed.  Anything else is
+ * VF2_ERROR_UNSUPPORTED. */
+vf2_status vf2_hybrid_player_14640_state27_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 const char *vf2_hybrid_task_kind_name(vf2_hybrid_task_kind kind);
 
 /* Recover the measured fa_coli bit-mask helper at 0x22298.

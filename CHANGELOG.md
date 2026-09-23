@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+- Recover the fa_rob state-27 arm `0x14640` (v0405), the natural
+  continuation of the f0==27 flow: when fighter g7 has `+0x198 == 0`,
+  `+0x654 == 0` and `+0x197 == 27`, the `0x14664` walk indexes a type-15
+  record chain via `+0x194(g7)` (`0x1ab34`, `g1 == 15`), then stores
+  `r4 = s16(+1(record)) - 1` into `+0x62a(g7)`, moves the original full
+  `+0x194(g7)` u32 into `+0x654(g7)` and clears `+0x194(g7)`.  Measured
+  short path: 41 steps / +1 call / +1 return (the 0x1ab34 walker), leaving
+  the `0x146c4` ret unconsumed.  Recovered as standalone
+  `hybrid_execute_player_14640_state27` +
+  `vf2_hybrid_player_14640_state27_execute_for_test`, dispatched from
+  `hybrid_execute_player_14640` when `+0x197 == 27` (which then consumes
+  the `0x146c4` ret to return through the `0x14640` frame).  The walker is
+  modelled through `vf2_hybrid_coli_1ab34_execute`, so frame linkage and
+  call/return counters match the reference exactly; a walker miss and the
+  unmeasured `shli`/`+0x1aa`/`+0x62a` compare siblings stay fail-closed.
+  Final reference `compare_result` is NONE.  ROM-backed
+  `vf2_player_14640_state27_live_differential` proves the arm byte-exact
+  (41/+1/+1, full live state).  `ctest` 82/82. See
+  `decomp/i960/notes/fa_player_14640_state27_v0405.md`.
+
 - Recover the fa_rob state-27 arm `0x1453c` (v0404), resolving the v0403
   blocker: mine the `0x0200d34c` type-5 record chains to find a `+0x194`
   whose low 13 bits walk to a type-5 record (index `0x73`), then re-probe
