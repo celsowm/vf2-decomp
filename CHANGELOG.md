@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- Recover the fa_rob state-27 arm `0x1453c` (v0404), resolving the v0403
+  blocker: mine the `0x0200d34c` type-5 record chains to find a `+0x194`
+  whose low 13 bits walk to a type-5 record (index `0x73`), then re-probe
+  the `0x14570` tail from the `0x14528` state-27 entry.  The arm sets
+  `+0x197(g7)` to 16, walks type-5 via `+0x194(g7)`, stores
+  `+0x194(g8) = 0x11000000 + s16(rec+1)` and `u8(rec+3)` to `+0x822(g8)`,
+  clears bit 21 of `+0x1a4(g8)`, flips bit 6 of `(g8)` via
+  `chkbit`/`alterbit`, and rejoins the `0x14628` common exit.  Measured
+  short path: 52 steps / +1 call / +1 return (the 0x1ab34 walker).
+  Recovered as standalone `hybrid_execute_player_1453c` +
+  `vf2_hybrid_player_1453c_execute_for_test`.  The walker is modelled
+  through `vf2_hybrid_coli_1ab34_execute`, so frame linkage and
+  call/return counters match the reference exactly; a walker miss and the
+  unmeasured scaling/text branches stay fail-closed.
+  ROM-backed `vf2_player_1453c_live_differential` proves the arm byte-exact
+  (52/+1/+1, full live state).  `ctest` 80/80. See
+  `decomp/i960/notes/fa_player_1453c_state27_v0404.md`.
+
 - Scope the fa_rob `0x1453c` arm without recovering it (v0403,
   measurement only): the head is 3 steps but the `0x14570` tail faults
   in `0x1ab34` at `0x1ab4c` when `+0x194(g7)` low half is 0

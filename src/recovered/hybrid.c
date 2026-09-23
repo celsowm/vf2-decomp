@@ -209,6 +209,13 @@ static vf2_status hybrid_player_convert_real_to_integer(
     uint32_t bits,
     uint32_t *result
 );
+static vf2_status coli_1ab34_body(
+    vf2_model2a *machine,
+    uint32_t g0_in,
+    uint32_t g1,
+    uint32_t *g0_out,
+    uint64_t *body_out
+);
 
 static vf2_status hybrid_read_u32_triple(
     const vf2_model2a *machine,
@@ -5466,6 +5473,207 @@ static vf2_status hybrid_execute_player_144b0(
     }
     cpu->ip = UINT32_C(0x0001463c);
     return VF2_OK;
+}
+
+/* Measured state-27 arm of the fa_rob fighter-exchange body (v0404),
+ * reached at 0x14528 when the state-27 fighter's +0x197 == 27 (r7 == 27).
+ * The arm sets that fighter's +0x197 to 16 (0x14540), walks a type-5
+ * record chain via +0x194(g7) (0x1ab34, g1 == 5), stores the computed
+ * +0x194(g8) and +0x822(g8), clears bit 21 of +0x1a4(g8), flips bit 6 of
+ * (g8), then rejoins the 0x14628 common exit clearing both fighters'
+ * +0x198.  Measured short path (both scaling branches taken, text
+ * skipped) spans 52 steps from 0x14528 to 0x1463c with +1 call / +1
+ * return (the 0x1ab34 walker), when +0x194(g7) indexes a valid type-5
+ * chain.  Unmeasured variants (walker miss, bit 0 of +0x1a4(g8) set, bit
+ * 6 of the 0x50016c+0x3351 byte set, bit 9 of 0x508000 clear) stay
+ * fail-closed. */
+static vf2_status hybrid_execute_player_1453c(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    const uint32_t g7 = cpu != NULL
+        ? cpu->registers[VF2_I960_G0_REGISTER + 7u] : 0u;
+    const uint32_t g8 = cpu != NULL
+        ? cpu->registers[VF2_I960_G0_REGISTER + 8u] : 0u;
+    const uint32_t r10 = cpu != NULL ? cpu->registers[10] : 0u;
+    const uint32_t r11 = cpu != NULL ? cpu->registers[11] : 0u;
+    const uint32_t r7 = cpu != NULL ? cpu->registers[7] : 0u;
+    const uint32_t r8 = cpu != NULL ? cpu->registers[8] : 0u;
+    const uint32_t r14 = cpu != NULL ? cpu->registers[14u] : 0u;
+    uint16_t h194 = 0u;
+    uint32_t walk_rec = 0u;
+    uint32_t r1a4_g8 = 0u;
+    uint32_t r1a4_g7 = 0u;
+    uint32_t word_g7 = 0u;
+    uint32_t word_g8 = 0u;
+    uint32_t base16c = 0u;
+    uint8_t b3351 = 0u;
+    uint32_t board = 0u;
+    int16_t r3s = 0;
+    uint8_t r3b = 0u;
+    uint32_t r15 = 0u;
+    uint32_t r3 = 0u;
+    uint32_t r13 = 0u;
+    uint32_t r4 = 0u;
+    uint64_t body = UINT64_C(6);
+    bool bit6 = false;
+    vf2_status status = VF2_OK;
+
+    if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x00014528) ||
+        cpu->local_frame_depth == 0u || g7 == 0u || g8 == 0u ||
+        r10 == 0u || r11 == 0u || r7 != 27u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    status = hybrid_read_u16(machine, g7 + UINT32_C(0x194), &h194);
+    if (status == VF2_OK) {
+        status = vf2_model2a_read_u32(
+            machine, g8 + UINT32_C(0x1a4), &r1a4_g8
+        );
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_read_u32(
+            machine, g7 + UINT32_C(0x1a4), &r1a4_g7
+        );
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_read_u32(machine, g7, &word_g7);
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_read_u32(machine, g8, &word_g8);
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_read_u32(
+            machine, UINT32_C(0x0050016c), &base16c
+        );
+    }
+    if (status == VF2_OK) {
+        status = hybrid_read_u8(
+            machine, base16c + UINT32_C(0x3351), &b3351
+        );
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_read_u32(
+            machine, UINT32_C(0x00508000), &board
+        );
+    }
+    if (status != VF2_OK) {
+        return status;
+    }
+    if ((r1a4_g8 & UINT32_C(1)) != 0u ||
+        (b3351 & (UINT32_C(1) << 6u)) != 0u ||
+        (board & (UINT32_C(1) << 9u)) == 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    /* 0x1453c mov 16,r15 ; 0x14540 stib r15,+0x197(g7). */
+    status = hybrid_write_u8(machine, g7 + UINT32_C(0x197), 16u);
+    if (status != VF2_OK) {
+        return status;
+    }
+    /* 0x14570 ldos +0x194(g7), g0 ; 0x14574 mov 5,g1. */
+    cpu->registers[VF2_I960_G0_REGISTER] = (uint32_t)(int32_t)(int16_t)h194;
+    cpu->registers[VF2_I960_G0_REGISTER + 1u] = UINT32_C(5);
+    cpu->registers[15] = UINT32_C(16);
+    /* 0x14578 call 0x1ab34 (type-5 walk).  A walker miss returns
+     * VF2_ERROR_UNSUPPORTED, preserving the fail-closed boundary. */
+    cpu->ip = UINT32_C(0x00014578);
+    status = hybrid_execute_player_repeated_call(
+        cpu, UINT32_C(0x00014578), UINT32_C(0x0001ab34),
+        UINT32_C(0x0001457c)
+    );
+    if (status == VF2_OK) {
+        status = vf2_hybrid_coli_1ab34_execute(machine, cpu);
+    }
+    if (status != VF2_OK) {
+        return status;
+    }
+    walk_rec = cpu->registers[VF2_I960_G0_REGISTER];
+    if (walk_rec == 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    /* 0x1457c ldos +1(g0), r3 ; 0x14580 shlo 24,17,r13 ;
+     * 0x14584 addi r13,r3,r15 ; 0x14588 st r15,+0x194(g8). */
+    r3s = (int16_t)0u;
+    {
+        uint16_t rec_half = 0u;
+        status = hybrid_read_u16(machine, walk_rec + UINT32_C(1), &rec_half);
+        if (status != VF2_OK) {
+            return status;
+        }
+        r3s = (int16_t)rec_half;
+    }
+    r15 = UINT32_C(0x11000000) + (uint32_t)(int32_t)r3s;
+    status = vf2_model2a_write_u32(machine, g8 + UINT32_C(0x194), r15);
+    if (status != VF2_OK) {
+        return status;
+    }
+    /* 0x1458c ldob +3(g0), r3 ; 0x14590 lda 0x1b970,g0 (short path). */
+    status = hybrid_read_u8(machine, walk_rec + UINT32_C(3), &r3b);
+    if (status != VF2_OK) {
+        return status;
+    }
+    cpu->registers[VF2_I960_G0_REGISTER] = UINT32_C(0x0001b970);
+    /* 0x145dc stob r3,+0x822(g8). */
+    status = hybrid_write_u8(machine, g8 + UINT32_C(0x822), r3b);
+    if (status != VF2_OK) {
+        return status;
+    }
+    /* 0x145f8..0x14600 ld +0x1a4(g8),r15 ; clrbit 21 ; st. */
+    r15 = r1a4_g8 & ~(UINT32_C(1) << 21u);
+    status = vf2_model2a_write_u32(machine, g8 + UINT32_C(0x1a4), r15);
+    if (status != VF2_OK) {
+        return status;
+    }
+    /* 0x14604..0x14610 ld +0x1a4(g7),r3 ; shro 15 ; ld (g7),r13 ; xor.
+     * r3 = word_g7 ^ (r1a4_g7 >> 15); r13 = word_g7. */
+    r3 = word_g7 ^ (r1a4_g7 >> 15u);
+    r13 = word_g7;
+    /* 0x14614 ld (g8),r4 ; 0x14618 chkbit 6,r3 ; 0x1461c alterbit 6,r4,r4 ;
+     * 0x14620 st r4,(g8).  alterbit copies bit 6 of r3 into r4's bit 6
+     * (via the AC carry set by chkbit). */
+    r4 = word_g8;
+    bit6 = ((r3 >> 6u) & 1u) != 0u;
+    r4 = (r4 & ~(UINT32_C(1) << 6u)) | (bit6 ? (UINT32_C(1) << 6u) : 0u);
+    status = vf2_model2a_write_u32(machine, g8, r4);
+    if (status != VF2_OK) {
+        return status;
+    }
+    /* 0x14628..0x14638 common exit: g7=r10, g8=r11, r3=0, +0x198 cleared. */
+    cpu->registers[VF2_I960_G0_REGISTER + 7u] = r10;
+    cpu->registers[VF2_I960_G0_REGISTER + 8u] = r11;
+    cpu->registers[3] = 0u;
+    cpu->registers[4] = r4;
+    cpu->registers[13] = r13;
+    cpu->registers[15] = r15;
+    cpu->registers[7] = r7;
+    cpu->registers[8] = r8;
+    cpu->registers[14u] = r14;
+    status = vf2_model2a_write_u32(machine, g7 + UINT32_C(0x198), 0u);
+    if (status == VF2_OK) {
+        status = vf2_model2a_write_u32(
+            machine, g8 + UINT32_C(0x198), 0u
+        );
+    }
+    if (status != VF2_OK) {
+        return status;
+    }
+    /* Final CC from `0x14618 chkbit 6, r3`: EQUAL when bit 6 of r3 set,
+     * else NONE. */
+    hybrid_set_compare_result(
+        cpu, bit6 ? VF2_I960_COMPARE_EQUAL : VF2_I960_COMPARE_NONE);
+    body += UINT64_C(31);
+    cpu->executed_instructions += body;
+    cpu->ip = UINT32_C(0x0001463c);
+    return VF2_OK;
+}
+
+vf2_status vf2_hybrid_player_1453c_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_1453c(machine, cpu);
 }
 
 /* Measured fighter-exchange fast-path of the fa_rob body 0x1442c

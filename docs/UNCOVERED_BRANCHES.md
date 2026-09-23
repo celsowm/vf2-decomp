@@ -888,6 +888,18 @@ the tail faults in `0x1ab34` at `0x1ab4c` for the parked `+0x194` low
 half 0 and needs a type-5 record index not yet measured; the f1 == 27
 swap and `0x14548..0x1456c` tail joins stay fail-closed (see
 `decomp/i960/notes/fa_player_1453c_tail_blocked_v0403.md`).
+Status (v0404): the `0x1453c` state-27 arm is now recovered as the
+standalone `hybrid_execute_player_1453c` (type-5 walk via `+0x194(g7)`,
+52 steps / +1 call / +1 return to `0x1463c`).  The v0403 blocker is
+resolved by mining the `0x0200d34c` type-5 chains for a valid index
+(`0x73`).  The walker is modelled through `vf2_hybrid_coli_1ab34_execute`,
+so frame linkage and call/return counters match the reference exactly; a
+type-5 walk miss and the unmeasured scaling/text branches stay fail-closed.
+Pinned by `vf2_player_1453c_live_differential`.  The arm is validated at
+the `0x14528` synthetic entry and is not yet wired into the `0x1442c`
+body dispatch (see reachability note); the separate `0x14640` state-27
+type-15 walk and the f1 == 27 swap path remain explicit boundaries (see
+`decomp/i960/notes/fa_player_1453c_state27_v0404.md`).
 
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
