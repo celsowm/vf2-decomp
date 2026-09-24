@@ -6267,14 +6267,21 @@ static vf2_status hybrid_execute_player_19ef8_zero(
     return status;
 }
 
-/* Measured state-25 arm of the fa_rob fighter-exchange body (v0395),
+static vf2_status hybrid_execute_player_1453c(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
+/* Measured state-25 arm of the fa_rob fighter-exchange body (v0395/v0433),
  * reached at 0x144b0 when fighter0's +0x197 == 25.  On the measured live
  * shape (fighter0 +0x197 == 25, fighter1 +0x197 == 0, +0x194(f0) == 0):
  * 1) the 0x19ef8 g0 == 0 zero-path runs (via the 0x144b4 call),
  * 2) the collision/state-exchange body sets +0x1aa/0x61e/0x626/0x822 and
  *    computes +0x654/0x62a on fighter1,
  * 3) the branch chain (fighter1 state not 27/16) falls through to the
- *    0x14628 common exit clearing both fighters' +0x198.
+ *    0x14628 common exit clearing both fighters' +0x198.  The v0433
+ *    state-16 successor takes the measured 0x14560 fall-through into the
+ *    shared 0x14570 type-5 body.
  * Span 53 instructions from 0x144b0 to 0x1463c with +1 call / +1 return
  * (the 0x19ef8 call; the 0x1463c ret is not consumed).  The v0397 sibling
  * covers the `0x1450c cmpobl r13,r3` not-taken exit (`st r5,+0x194(g8)` at
@@ -6352,7 +6359,7 @@ static vf2_status hybrid_execute_player_144b0(
     r4 = (int32_t)((uint32_t)h808_f1 - (uint32_t)h858_f0);
     r13 = (uint32_t)h1aa_f1;
     r3 = (uint32_t)(r4 - 1);
-    if (g0 != 0u || b197_f0 != 25u || b197_f1 == 16u ||
+    if (g0 != 0u || b197_f0 != 25u ||
         b197_f1 == 24u || b197_f1 == 25u || b197_f1 == 27u) {
         /* Not a measured state-25 shape (nonzero +0x194 or other fighter
          * states).  The cmpobl-equal point (r13 == r3) is now admitted
@@ -6434,6 +6441,26 @@ static vf2_status hybrid_execute_player_144b0(
         if (status != VF2_OK) {
             return status;
         }
+    }
+
+    if (r13 < r3 && b197_f1 == 16u) {
+        /* v0433: the state-25 arm reaches the swapped state-16 body after
+         * the 0x14518 stores.  The 0x14520/0x14524 register restore is part
+         * of the measured 44-instruction prefix; the shared 0x1453c
+         * recovery accounts for the remaining 55 instructions. */
+        cpu->registers[7] = (uint32_t)b197_f0;
+        cpu->registers[8] = (uint32_t)b197_f1;
+        cpu->registers[3] = r3;
+        cpu->registers[4] = (uint32_t)r4;
+        cpu->registers[5] = r5;
+        cpu->registers[13] = r13;
+        cpu->registers[14u] = (uint32_t)r14;
+        cpu->registers[15] = r15;
+        cpu->registers[VF2_I960_G0_REGISTER + 7u] = r10;
+        cpu->registers[VF2_I960_G0_REGISTER + 8u] = r11;
+        cpu->executed_instructions += UINT64_C(26);
+        cpu->ip = UINT32_C(0x00014528);
+        return hybrid_execute_player_1453c(machine, cpu);
     }
 
     /* 0x14520/0x14524 and 0x14628/0x1462c restore g7=g8 to originals;
@@ -6547,6 +6574,11 @@ static vf2_status hybrid_execute_player_1453c(
         /* Measured 0x14528 -> 0x14570 direct state-16 join. */
     } else if (r7 == 0u && r8 == 16u) {
         /* Measured 0x14528 -> 0x14570 swapped state-16 join. */
+        swapped = true;
+        prefix_adjust = UINT64_C(3);
+    } else if (r7 == 25u && r8 == 16u) {
+        /* v0433: the state-25 0x144b0 arm reaches the same swapped
+         * 0x14570 join when the second fighter is state 16. */
         swapped = true;
         prefix_adjust = UINT64_C(3);
     } else if (r7 == 16u && r8 == 16u) {
@@ -6885,13 +6917,14 @@ static vf2_status hybrid_execute_player_1442c(
          * 0x14464/0x14468 compares that escape elsewhere; the arm itself
          * re-validates the +0x194/+0x197/0x1aa shape fail-closed. */
         if (b19b_f0 == 16u || b19b_f1 == 16u || b197_f1 == 24u ||
-            b197_f1 == 16u || b197_f1 == 25u || b197_f1 == 27u) {
+            b197_f1 == 25u || b197_f1 == 27u) {
             return VF2_ERROR_UNSUPPORTED;
         }
         cpu->registers[7] = (uint32_t)b197_f0;   /* 0x1445c ldob +0x197(g7) */
         cpu->registers[8] = (uint32_t)b197_f1;   /* 0x14460 ldob +0x197(g8) */
         cpu->registers[14u] = (uint32_t)b19b_f1; /* 0x14454 ldob +0x19b(g8) */
-        cpu->executed_instructions += UINT64_C(11);
+        cpu->executed_instructions +=
+            b197_f1 == 16u ? UINT64_C(9) : UINT64_C(11);
         cpu->ip = UINT32_C(0x000144b0);
         return hybrid_execute_player_144b0(machine, cpu);
     }

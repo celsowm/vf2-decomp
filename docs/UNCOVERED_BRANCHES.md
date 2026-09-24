@@ -990,6 +990,15 @@ mixed first/later-scaling paths. Every text variant adds 74 instructions and
 one call/return to its corresponding short path; the expanded fixture proves
 full live-state equality. Other 0x1453c walker misses and unrecognized state
 shapes remain explicit boundaries.
+Status (v0433): the `0x144b0` state-25 arm now admits the measured
+state-16 successor. When the `0x1450c cmpobl` takes (`r13 < r3`), the
+`0x14560` fall-through swaps into the recovered `0x14570` type-5 body;
+the direct arm matches 99 instructions with two calls/returns, and the
+integrated `0x1442c` path matches 144 instructions with four calls/returns.
+The focused live fixture proves exact CPU/machine equality for both forms.
+Other state-25 successors and unmeasured `0x144b0` compositions remain
+explicit boundaries (see
+`decomp/i960/notes/fa_player_144b0_state16_v0433.md`).
 Status (v0405): the `0x14640` state-27 arm is now native as the standalone
 `hybrid_execute_player_14640_state27` (type-15 walk via `+0x194(g7)`,
 41 steps / +1 call / +1 return to the `0x146c4` ret).  It requires

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Recover the measured `0x144b0` state-25 to state-16 successor (v0433).
+  The `0x14560` fall-through now reaches the recovered swapped `0x14570`
+  type-5 body: the direct arm matches 99 instructions with two calls/returns,
+  and the integrated `0x1442c` path matches 144 instructions with four
+  calls/returns and exact live-state equality. See
+  `decomp/i960/notes/fa_player_144b0_state16_v0433.md`.
+
 - Recover the measured `0x14640` state-27 board-bit-20 shift sibling
   (v0432). The type-15 tail now admits the `shli` arm at `0x14684`, adding one
   instruction to the compare-prefix witness; the expanded fixture proves the
