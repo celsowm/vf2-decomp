@@ -22066,6 +22066,9 @@ static vf2_status coli_22404_body(
                 !(slot == UINT8_C(1) && field_820 == UINT8_C(0))) {
                 return VF2_ERROR_UNSUPPORTED;
             }
+            if (old_snap != snap) {
+                hybrid_set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
+            }
                 cpu->registers[VF2_I960_G0_REGISTER] = 0u;
                 cpu->registers[VF2_I960_G0_REGISTER + 14u] =
                     UINT32_C(0x0002244c);
@@ -22235,10 +22238,15 @@ static vf2_status coli_22404_body(
         }
         body += UINT64_C(4); /* ldos, andnot, stos, cmpobe */
         if (result == 0u) {
-            /* v0501: measured stale slot-0 + table-index-0 empty tail. */
+            /* v0501/v0502: measured stale slot-0 empty tails.  The
+             * table-index-0, -2 and -5 witnesses all reach this join with
+             * the computed result clear; keep other stale paths closed. */
             if (old_snap != snap &&
-                !(slot == UINT8_C(0) && field_820 == UINT8_C(0))) {
+                !(slot == UINT8_C(0) && result == UINT16_C(0))) {
                 return VF2_ERROR_UNSUPPORTED;
+            }
+            if (old_snap != snap) {
+                hybrid_set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
             }
             cpu->registers[VF2_I960_G0_REGISTER] = 0u;
             cpu->registers[VF2_I960_G0_REGISTER + 14u] = UINT32_C(0x0002244c);

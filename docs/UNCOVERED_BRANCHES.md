@@ -1658,6 +1658,13 @@ and complete live-state equality. Other stale-empty combinations remain
 explicitly fail-closed. See
 `decomp/i960/notes/fa_coli_22404_stale_slot0_empty_v0501.md`.
 
+Status (v0502): the stale slot-0 empty-result family is extended to the
+measured table indices 2 and 5. They return in 41 and 47 instructions with
+`g0 = 0` and complete live-state equality. The native guard is based on the
+measured computed result being zero, not on an unproven table-index list;
+unmeasured stale combinations remain fail-closed. See
+`decomp/i960/notes/fa_coli_22404_stale_slot0_empty_v0502.md`.
+
 Status (v0383): coli mid-body tail whole-tail live (first-hit-second-warm
 long) is native (371 steps, 9 calls / 10 rets, final CC + `g1` pinned;
 new ROM-backed `vf2_coli_midbody_tail_live` fixture via the measured
