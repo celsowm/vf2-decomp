@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Recover the measured `0x144b0` state-25 to state-24 successor (v0434).
+  The neutral `0x14474`/`0x14498` prefix now reaches the existing common
+  `0x144b0` exit: the direct witness matches 53 instructions and the
+  integrated `0x1442c` witness matches 105 instructions, with exact live-state
+  equality in both forms. See
+  `decomp/i960/notes/fa_player_144b0_state24_v0434.md`.
+
 - Recover the measured `0x144b0` state-25 to state-16 successor (v0433).
   The `0x14560` fall-through now reaches the recovered swapped `0x14570`
   type-5 body: the direct arm matches 99 instructions with two calls/returns,

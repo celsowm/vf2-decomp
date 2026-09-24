@@ -6360,7 +6360,7 @@ static vf2_status hybrid_execute_player_144b0(
     r13 = (uint32_t)h1aa_f1;
     r3 = (uint32_t)(r4 - 1);
     if (g0 != 0u || b197_f0 != 25u ||
-        b197_f1 == 24u || b197_f1 == 25u || b197_f1 == 27u) {
+        b197_f1 == 25u || b197_f1 == 27u) {
         /* Not a measured state-25 shape (nonzero +0x194 or other fighter
          * states).  The cmpobl-equal point (r13 == r3) is now admitted
          * (v0401) on the same 0x14510 path with an EQUAL postcondition. */
@@ -6495,8 +6495,12 @@ static vf2_status hybrid_execute_player_144b0(
     } else {
         /* 0x14528/0x1452c/0x14548/0x14560 branch chain (measured: fighter1
          * state not 27/16) ends at 0x14628.  Last compare `0x14560 cmpobne
-         * 16, r8` with r8 = +0x197(f1) == 0 -> GREATER. */
-        hybrid_set_compare_result(cpu, VF2_I960_COMPARE_GREATER);
+         * 16, r8` is GREATER for the neutral state and LESS for the measured
+         * state-24 successor. */
+        hybrid_set_compare_result(
+            cpu,
+            b197_f1 == 24u ? VF2_I960_COMPARE_LESS
+                           : VF2_I960_COMPARE_GREATER);
         cpu->executed_instructions += UINT64_C(35);
     }
     cpu->ip = UINT32_C(0x0001463c);
@@ -6916,15 +6920,38 @@ static vf2_status hybrid_execute_player_1442c(
          * (v0395) when f0 +0x197 == 25.  Guard mirrors the 0x14450/0x14458/
          * 0x14464/0x14468 compares that escape elsewhere; the arm itself
          * re-validates the +0x194/+0x197/0x1aa shape fail-closed. */
-        if (b19b_f0 == 16u || b19b_f1 == 16u || b197_f1 == 24u ||
+        if (b19b_f0 == 16u || b19b_f1 == 16u ||
             b197_f1 == 25u || b197_f1 == 27u) {
             return VF2_ERROR_UNSUPPORTED;
+        }
+        if (b197_f1 == 24u) {
+            uint8_t b19f_f0 = 0u;
+            /* v0434: the 0x14474 -> 0x14498 escape is measured for the
+             * state-25/state-24 join when fighter0 +0x19f misses both
+             * downstream values.  The prefix restores g7/g8 and arrives
+             * at 0x144b0 after 16 instructions from 0x1444c. */
+            status = hybrid_read_u8(
+                machine, player0 + UINT32_C(0x19f), &b19f_f0
+            );
+            if (status != VF2_OK || b19f_f0 == 25u || b19f_f0 == 22u) {
+                return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
+            }
+            cpu->registers[7] = (uint32_t)b197_f0;
+            cpu->registers[8] = (uint32_t)b197_f1;
+            cpu->registers[14u] = (uint32_t)b19b_f1;
+            cpu->registers[6] = (uint32_t)b19f_f0;
+            cpu->registers[VF2_I960_G0_REGISTER + 7u] = r10;
+            cpu->registers[VF2_I960_G0_REGISTER + 8u] = r11;
+            cpu->executed_instructions += UINT64_C(16);
+            cpu->ip = UINT32_C(0x000144b0);
+            return hybrid_execute_player_144b0(machine, cpu);
         }
         cpu->registers[7] = (uint32_t)b197_f0;   /* 0x1445c ldob +0x197(g7) */
         cpu->registers[8] = (uint32_t)b197_f1;   /* 0x14460 ldob +0x197(g8) */
         cpu->registers[14u] = (uint32_t)b19b_f1; /* 0x14454 ldob +0x19b(g8) */
         cpu->executed_instructions +=
-            b197_f1 == 16u ? UINT64_C(9) : UINT64_C(11);
+            b197_f1 == 16u ? UINT64_C(9) :
+            b197_f1 == 24u ? UINT64_C(16) : UINT64_C(11);
         cpu->ip = UINT32_C(0x000144b0);
         return hybrid_execute_player_144b0(machine, cpu);
     }
