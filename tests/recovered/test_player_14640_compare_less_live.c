@@ -1,5 +1,5 @@
 /* Differential pin for the measured fa_rob 0x14640 signed-less compare
- * prefix sibling (v0412). */
+ * prefix siblings (v0412/v0427). */
 
 #include <stdint.h>
 #include <stdio.h>
@@ -15,6 +15,7 @@
 #define ENTRY UINT32_C(0x00014640)
 #define RETURN_IP UINT32_C(0x000146d8)
 #define TOTAL UINT64_C(14)
+#define NONZERO_TOTAL UINT64_C(16)
 
 static int failures = 0;
 
@@ -58,7 +59,7 @@ static void test_unit_fail_closed(void)
 
 static void run_case(const uint8_t *rom, size_t rom_size,
                      const uint8_t *data, size_t data_size,
-                     int state13)
+                     int shape)
 {
     vf2_model2a rm;
     vf2_model2a nm;
@@ -104,12 +105,14 @@ static void run_case(const uint8_t *rom, size_t rom_size,
     write_u32(&nm, fighter + UINT32_C(0x198), 0u);
     write_u32(&rm, fighter + UINT32_C(0x654), 1u);
     write_u32(&nm, fighter + UINT32_C(0x654), 1u);
-    write_u32(&rm, fighter + UINT32_C(0x194), 0u);
-    write_u32(&nm, fighter + UINT32_C(0x194), 0u);
-    write_u32(&rm, fighter, state13 ? UINT32_C(0x10) : 0u);
-    write_u32(&nm, fighter, state13 ? UINT32_C(0x10) : 0u);
-    write_u8(&rm, fighter + UINT32_C(0x197), state13 ? 13u : 0u);
-    write_u8(&nm, fighter + UINT32_C(0x197), state13 ? 13u : 0u);
+    write_u32(&rm, fighter + UINT32_C(0x194),
+              shape == 2 ? UINT32_C(1) : UINT32_C(0));
+    write_u32(&nm, fighter + UINT32_C(0x194),
+              shape == 2 ? UINT32_C(1) : UINT32_C(0));
+    write_u32(&rm, fighter, shape == 1 ? UINT32_C(0x10) : 0u);
+    write_u32(&nm, fighter, shape == 1 ? UINT32_C(0x10) : 0u);
+    write_u8(&rm, fighter + UINT32_C(0x197), shape == 1 ? 13u : 0u);
+    write_u8(&nm, fighter + UINT32_C(0x197), shape == 1 ? 13u : 0u);
     write_u16(&rm, fighter + UINT32_C(0x1aa), 1u);
     write_u16(&nm, fighter + UINT32_C(0x1aa), 1u);
     write_u16(&rm, fighter + UINT32_C(0x62a), 2u);
@@ -123,12 +126,14 @@ static void run_case(const uint8_t *rom, size_t rom_size,
         if (status != VF2_OK) break;
     }
     CHECK(rc.ip == RETURN_IP);
-    CHECK(rc.executed_instructions - base_steps == (state13 ? 17u : TOTAL));
+    CHECK(rc.executed_instructions - base_steps ==
+          (shape == 1 ? 17u : shape == 2 ? NONZERO_TOTAL : TOTAL));
 
     status = vf2_hybrid_player_14640_compare_less_execute_for_test(&nm, &nc);
     CHECK(status == VF2_OK);
     CHECK(nc.ip == RETURN_IP);
-    CHECK(nc.executed_instructions - base_steps == (state13 ? 17u : TOTAL));
+    CHECK(nc.executed_instructions - base_steps ==
+          (shape == 1 ? 17u : shape == 2 ? NONZERO_TOTAL : TOTAL));
     CHECK(vf2_i960_compare_live_state(&rc, &rm, &nc, &nm, &diff) == VF2_OK);
     CHECK(diff.equal);
     if (!diff.equal) {
@@ -156,6 +161,7 @@ int main(int argc, char **argv)
         if (rom != NULL && data != NULL) {
             run_case(rom, rom_size, data, data_size, 0);
             run_case(rom, rom_size, data, data_size, 1);
+            run_case(rom, rom_size, data, data_size, 2);
         }
         free(rom);
         free(data);

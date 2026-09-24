@@ -5779,11 +5779,12 @@ vf2_status vf2_hybrid_player_14640_compare_escape_execute_for_test(
     return hybrid_execute_player_14640_compare_escape(machine, cpu);
 }
 
-/* Measured less-than sibling of the fa_rob compare-prefix helper (v0412).
+/* Measured less-than sibling of the fa_rob compare-prefix helper (v0412/v0427).
  * The signed +0x1aa/+0x62a comparison falls through to the shared state tail.
  * This admitted witness has a neutral state byte, bit 4 clear and a zero
  * +0x194, so 0x146b4 branches to 0x146c8 and the final cmpobe 0,r14 takes
- * the 0x146d8 return. */
+ * the 0x146d8 return. The v0427 neutral sibling also admits nonzero
+ * +0x194 and clears +0x654 in that same tail. */
 static vf2_status hybrid_execute_player_14640_compare_less(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu
@@ -5837,7 +5838,7 @@ static vf2_status hybrid_execute_player_14640_compare_less(
         if (r194 == 0u) {
             return VF2_ERROR_UNSUPPORTED;
         }
-    } else if ((flags & (UINT32_C(1) << 4u)) != 0u || r194 != 0u) {
+    } else if ((flags & (UINT32_C(1) << 4u)) != 0u) {
         return VF2_ERROR_UNSUPPORTED;
     }
 
@@ -5856,6 +5857,15 @@ static vf2_status hybrid_execute_player_14640_compare_less(
         cpu->executed_instructions +=
             (flags & (UINT32_C(1) << 4u)) != 0u
                 ? UINT64_C(17) : UINT64_C(16);
+    } else if (r194 != 0u) {
+        cpu->registers[14u] = r194;
+        cpu->registers[15u] = 0u;
+        status = vf2_model2a_write_u32(machine, g7 + UINT32_C(0x654), 0u);
+        if (status != VF2_OK) {
+            return status;
+        }
+        hybrid_set_compare_result(cpu, VF2_I960_COMPARE_LESS);
+        cpu->executed_instructions += UINT64_C(16);
     } else {
         cpu->registers[14u] = 0u;
         cpu->registers[15u] = flags;

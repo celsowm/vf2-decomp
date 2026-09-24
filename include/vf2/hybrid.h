@@ -504,12 +504,13 @@ vf2_status vf2_hybrid_player_14640_compare_escape_execute_for_test(
     vf2_i960_cpu *cpu
 );
 
-/* v0412/v0413: test-only entry to measured fa_rob compare-prefix less-than
+/* v0412/v0413/v0427: test-only entry to measured fa_rob compare-prefix less-than
  * neutral tails at 0x14640.  The CPU must be parked at 0x14640 with g7 the
  * fighter base and a pushed frame; +0x198 == 0, +0x654 != 0 and
  * s16(+0x1aa) < s16(+0x62a).  The v0412 neutral shape requires +0x197 not
  * 27/28/13, bit 4 clear and +0x194 == 0; it lands at 0x146d8 after 14 steps
- * and leaves +0x654 unchanged.  The v0413 state-13 shape requires bit 4 set
+ * and leaves +0x654 unchanged. The measured neutral bit-4-clear sibling with
+ * nonzero +0x194 also lands there after 16 steps and clears +0x654. The v0413 state-13 shape requires bit 4 set
  * and +0x194 != 0; it lands at 0x146d8 after 17 steps and clears +0x654.
  * Both leave the return unconsumed. Anything else is unsupported. */
 vf2_status vf2_hybrid_player_14640_compare_less_execute_for_test(

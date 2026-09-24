@@ -1072,6 +1072,13 @@ the measured signed-less shape. With `+0x654 != 0`, `+0x1aa < +0x62a` and
 proves both with full live-state equality and generic dispatch reaches the
 new arm. Other compare-prefix relations remain explicit boundaries. See
 `decomp/i960/notes/fa_player_14640_state28_compare_less_v0426.md`.
+Status (v0427): the neutral bit-4-clear less-than tail now admits the
+measured nonzero `+0x194` sibling. With `+0x654 != 0` and signed
+`+0x1aa < +0x62a`, it reaches `0x146d8` in 16 instructions and clears
+`+0x654`; the zero `+0x194` shape remains 14 instructions. The compare-less
+fixture now proves neutral zero, state 13 and neutral nonzero cases with full
+live-state equality. Other less-than compositions remain explicit boundaries.
+See `decomp/i960/notes/fa_player_14640_compare_less_nonzero_v0427.md`.
 
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The

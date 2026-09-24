@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Recover the measured neutral nonzero `0x14640` less-than tail (v0427).
+  With bit 4 clear, `+0x194 != 0`, `+0x654 != 0` and signed
+  `+0x1aa < +0x62a`, the native path now matches the ROM through `0x146d8`
+  in 16 instructions, clearing `+0x654`; the existing zero tail remains
+  14 instructions. The compare-less fixture proves neutral zero, state 13
+  and neutral nonzero shapes with full live-state equality. See
+  `decomp/i960/notes/fa_player_14640_compare_less_nonzero_v0427.md`.
+
 - Recover the measured `0x14640` state-28 compare-prefix sibling (v0426).
   With `+0x654 != 0` and signed `+0x1aa < +0x62a`, the native arithmetic tail
   now matches the ROM through `0x146c4` in 16 instructions, alongside the
