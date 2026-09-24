@@ -696,7 +696,8 @@ static void run_rom_case_with_text(
         expected_returns = UINT64_C(2);
     }
     if (test_expected_steps_override != 0u) {
-        expected_steps = test_expected_steps_override;
+        expected_steps = test_expected_steps_override == UINT64_MAX
+            ? 0u : test_expected_steps_override;
     }
 
     /* Force the measured direct or swapped state shape on both machines. */
@@ -759,7 +760,9 @@ static void run_rom_case_with_text(
     CHECK(reference_cpu.ip == STATE27_RETURN);
     reference_instructions =
         reference_cpu.executed_instructions - snap_instructions;
-    CHECK(reference_instructions == expected_steps);
+    if (expected_steps != 0u) {
+        CHECK(reference_instructions == expected_steps);
+    }
     CHECK(reference_cpu.procedure_calls - snap_calls == expected_calls);
     CHECK(reference_cpu.procedure_returns - snap_returns == expected_returns);
 
@@ -770,7 +773,10 @@ static void run_rom_case_with_text(
     CHECK(native_cpu.ip == STATE27_RETURN);
     native_instructions =
         native_cpu.executed_instructions - snap_instructions;
-    CHECK(native_instructions == expected_steps);
+    if (expected_steps != 0u) {
+        CHECK(native_instructions == expected_steps);
+    }
+    CHECK(native_instructions == reference_instructions);
     CHECK(native_cpu.procedure_calls - snap_calls == expected_calls);
     CHECK(native_cpu.procedure_returns - snap_returns == expected_returns);
 
@@ -1089,6 +1095,14 @@ static void run_rom_differential(const char *rom_directory)
                 CASE_STATE27_DIRECT,
                 type5_selector_cases[case_index].index,
                 type5_selector_cases[case_index].steps
+            );
+        }
+        for (case_index = 129u; case_index <= 256u; ++case_index) {
+            run_rom_case_with_type5_index(
+                main_rom, main_rom_size, main_data, main_data_size,
+                CASE_STATE27_DIRECT,
+                (uint16_t)case_index,
+                UINT64_MAX
             );
         }
     }
