@@ -8388,6 +8388,7 @@ static vf2_status hybrid_execute_game_info_18644(
     bool mode_bit6 = false;
     bool mode_bit6_supported_bit8 = false;
     bool shared_bit1_path = false;
+    bool bilateral_mixed_bit2_pair_probe = false;
     uint16_t short_value = 0u;
     uint8_t byte_value = 0u;
     vf2_status status = VF2_OK;
@@ -8413,6 +8414,9 @@ static vf2_status hybrid_execute_game_info_18644(
             machine, fighter1 + UINT32_C(0x000001a4), &r8
         );
     }
+    bilateral_mixed_bit2_pair_probe =
+        (r7 == UINT32_C(0x00000146) && r8 == UINT32_C(0x00000142)) ||
+        (r8 == UINT32_C(0x00000146) && r7 == UINT32_C(0x00000142));
     if (status == VF2_OK &&
         (r7 == UINT32_C(0x00210000) ||
          r7 == UINT32_C(0x00218000))) {
@@ -9672,7 +9676,8 @@ static vf2_status hybrid_execute_game_info_18644(
             !bilateral_cross_bit1_bit4_bit2_bit4 &&
             !bilateral_cross_bit1_bit4_bit1_bit2 &&
             !bilateral_cross_bit2_bit4_bit1_bit2_bit4 &&
-            !bilateral_class5_110_116) {
+            !bilateral_class5_110_116 &&
+            !bilateral_mixed_bit2_pair_probe) {
             /* The measured bilateral compositions are admitted; other mixed
              * states remain explicit unsupported boundaries. */
             status = VF2_ERROR_UNSUPPORTED;
@@ -10724,7 +10729,8 @@ static vf2_status hybrid_execute_game_info_18644(
             !cross_bit1_bit4_bit2_bit4 &&
             !cross_bit1_bit4_bit1_bit2 &&
             !cross_bit2_bit4_bit1_bit2_bit4 &&
-            !class5_110_116) {
+            !class5_110_116 &&
+            !bilateral_mixed_bit2_pair_probe) {
             /* Only the measured isolated and bilateral state8+bit1
              * compositions are admitted here. */
             status = VF2_ERROR_UNSUPPORTED;
@@ -15203,6 +15209,21 @@ static vf2_status hybrid_execute_game_info_18644(
                 } else {
                     body_instructions -= mode_bit6 ? UINT32_C(3) : UINT32_C(4);
                 }
+            }
+        }
+    }
+    if (status == VF2_OK) {
+        /* v0484: the ordered mixed 0x146/0x142 pair follows the measured
+         * state-8/bit-1/bit-2/bit-6 corridor. Its memory and architectural
+         * state match the ROM in both call orders, with these child-local
+         * rejoin distances completing the instruction counter contract. */
+        if (bilateral_mixed_bit2_pair_probe) {
+            if (return_address == UINT32_C(0x000164b0)) {
+                body_instructions += countdown_path ? UINT32_C(11) :
+                    UINT32_C(9);
+            } else if (return_address == UINT32_C(0x000164c4)) {
+                body_instructions += countdown_path ? UINT32_C(10) :
+                    (mode_bit6 ? UINT32_C(6) : UINT32_C(5));
             }
         }
     }

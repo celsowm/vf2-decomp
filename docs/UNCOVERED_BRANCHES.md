@@ -2186,6 +2186,14 @@ thresholds `0..2`. Each family is `36/36` exact through the full dispatcher
 are recorded in
 `decomp/i960/notes/game_info_18644_positive_bit1_bit6_medium_v0481.md`.
 
+Status (v0484): the ordered mixed pair `(0x0146, 0x0142)` and its reverse
+are now admitted at `0x18644`. Both call orders, countdown clear/set and mode
+bit 6 clear/set are `8/8` exact against the ROM, including architectural,
+memory and instruction/call/return counters. The admission is intentionally
+limited to these two measured ordered combinations; neighboring mixed masks
+remain explicit `VF2_ERROR_UNSUPPORTED` boundaries. See
+`decomp/i960/notes/game_info_18644_mixed_bit2_pair_v0484.md`.
+
 ### v0221 high-26 8140 low cube
 
 * `0x04008140` (high-26 + bits 6+14+15) `1→8` low cube with `-5/-3` (v0221)

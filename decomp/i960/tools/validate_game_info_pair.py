@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 import tempfile
@@ -26,6 +27,18 @@ CHILD_RUNNER = HERE / "run_game_info_child.py"
 
 
 def run_child(binary: Path, roms: Path, source: Path, output: Path, return_address: int) -> None:
+    if os.name == "nt":
+        completed = subprocess.run(
+            [
+                str(binary), "game-info-child", str(roms), str(source),
+                str(output), hex(return_address),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        if completed.returncode != 0:
+            raise RuntimeError(completed.stderr or completed.stdout)
+        return
     completed = subprocess.run(
         [
             sys.executable,
