@@ -910,6 +910,15 @@ shapes with full live-state equality. Other `0x1453c` scaling/text/walker
 variants and the broader `0x1442c` heavy-arm dispatch remain explicit
 boundaries. See
 `decomp/i960/notes/fa_player_1453c_swap_v0415.md`.
+Status (v0416): the measured `0x14570` state-16 joins are native as well:
+`(r7,r8)=(16,0)` reaches `0x1463c` in 52 instructions, `(0,16)` in 55, and
+`(16,16)` takes the measured `0x500028` bit-0 gate for 54 instructions
+without the swap or 58 with the swap. The six-case
+`vf2_player_1453c_live` fixture proves these joins together with the two
+state-27 cases, including full live-state equality. Other state combinations,
+scaling/text/walker variants and the broader `0x1442c` heavy-arm dispatch
+remain explicit boundaries. See
+`decomp/i960/notes/fa_player_1453c_state16_v0416.md`.
 Status (v0405): the `0x14640` state-27 arm is now native as the standalone
 `hybrid_execute_player_14640_state27` (type-15 walk via `+0x194(g7)`,
 41 steps / +1 call / +1 return to the `0x146c4` ret).  It requires

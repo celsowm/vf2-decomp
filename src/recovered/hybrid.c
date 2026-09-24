@@ -6371,7 +6371,8 @@ static vf2_status hybrid_execute_player_144b0(
     return VF2_OK;
 }
 
-/* Measured state-27 arm of the fa_rob fighter-exchange body (v0404),
+/* Measured state-27/state-16 arms of the fa_rob fighter-exchange body
+ * (v0404/v0415/v0416),
  * reached at 0x14528 when the state-27 fighter's +0x197 == 27 (r7 == 27).
  * The arm sets that fighter's +0x197 to 16 (0x14540), walks a type-5
  * record chain via +0x194(g7) (0x1ab34, g1 == 5), stores the computed
@@ -6379,10 +6380,12 @@ static vf2_status hybrid_execute_player_144b0(
  * (g8), then rejoins the 0x14628 common exit clearing both fighters'
  * +0x198.  The direct r7 == 27 shape spans 52 steps; the measured r7 != 27,
  * r8 == 27 shape executes the 0x14530..0x14538 swap and spans 56 steps.
- * Both have +1 call / +1 return when +0x194(g7) indexes a valid type-5
- * chain.  Unmeasured variants (walker miss, bit 0 of +0x1a4(g8) set, bit
- * 6 of the 0x50016c+0x3351 byte set, bit 9 of 0x508000 clear) stay
- * fail-closed. */
+ * The measured state-16 joins span 52 steps (r7=16,r8=0), 55 steps
+ * (r7=0,r8=16), or 54/58 steps for r7=r8=16 with bit 0 of 0x500028 clear/
+ * set.  All measured paths have +1 call / +1 return when +0x194(g7) indexes
+ * a valid type-5 chain.  Unmeasured variants (walker miss, bit 0 of
+ * +0x1a4(g8) set, bit 6 of the 0x50016c+0x3351 byte set, bit 9 of 0x508000
+ * clear) stay fail-closed. */
 static vf2_status hybrid_execute_player_1453c(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu
@@ -6404,6 +6407,7 @@ static vf2_status hybrid_execute_player_1453c(
     uint32_t word_g7 = 0u;
     uint32_t word_g8 = 0u;
     uint32_t base16c = 0u;
+    uint32_t board28 = 0u;
     uint8_t b3351 = 0u;
     uint32_t board = 0u;
     int16_t r3s = 0;
@@ -6415,24 +6419,51 @@ static vf2_status hybrid_execute_player_1453c(
     uint64_t body = UINT64_C(6);
     bool bit6 = false;
     bool swapped = false;
+    bool state27 = false;
+    uint64_t prefix_adjust = 0u;
     vf2_status status = VF2_OK;
 
     if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x00014528) ||
         cpu->local_frame_depth == 0u || g7 == 0u || g8 == 0u ||
-        r10 == 0u || r11 == 0u || (r7 != 27u && r8 != 27u)) {
+        r10 == 0u || r11 == 0u) {
         return VF2_ERROR_UNSUPPORTED;
     }
-    swapped = r7 != 27u;
+    if (r7 == 27u) {
+        state27 = true;
+    } else if (r8 == 27u) {
+        state27 = true;
+        swapped = true;
+        prefix_adjust = UINT64_C(4);
+    } else if (r7 == 16u && r8 == 0u) {
+        /* Measured 0x14528 -> 0x14570 direct state-16 join. */
+    } else if (r7 == 0u && r8 == 16u) {
+        /* Measured 0x14528 -> 0x14570 swapped state-16 join. */
+        swapped = true;
+        prefix_adjust = UINT64_C(3);
+    } else if (r7 == 16u && r8 == 16u) {
+        /* 0x14550 ld 0x500028,r15 ; 0x14558 bbc 0,r15 controls whether
+         * the 0x14564..0x1456c g7/g8 swap is taken. */
+        status = vf2_model2a_read_u32(
+            machine, UINT32_C(0x00500028), &board28
+        );
+        if (status != VF2_OK) {
+            return status;
+        }
+        swapped = (board28 & UINT32_C(1)) != 0u;
+        prefix_adjust = swapped ? UINT64_C(6) : UINT64_C(2);
+    } else {
+        return VF2_ERROR_UNSUPPORTED;
+    }
     if (swapped) {
-        /* 0x14530 mov g8,r15 ; 0x14534 mov g7,g8 ; 0x14538 mov r15,g7.
-         * The preceding 0x1452c comparison established r8 == 27. */
+        /* 0x14530 mov g8,r15 ; 0x14534 mov g7,g8 ; 0x14538 mov r15,g7
+         * (state-27 swap), or 0x14564..0x1456c (state-16 swap). */
         cpu->registers[15] = g8;
         g8 = g7;
         g7 = cpu->registers[15];
         cpu->registers[VF2_I960_G0_REGISTER + 7u] = g7;
         cpu->registers[VF2_I960_G0_REGISTER + 8u] = g8;
-        body += UINT64_C(4);
     }
+    body += prefix_adjust;
     status = hybrid_read_u16(machine, g7 + UINT32_C(0x194), &h194);
     if (status == VF2_OK) {
         status = vf2_model2a_read_u32(
@@ -6474,15 +6505,21 @@ static vf2_status hybrid_execute_player_1453c(
         return VF2_ERROR_UNSUPPORTED;
     }
 
-    /* 0x1453c mov 16,r15 ; 0x14540 stib r15,+0x197(g7). */
-    status = hybrid_write_u8(machine, g7 + UINT32_C(0x197), 16u);
-    if (status != VF2_OK) {
-        return status;
+    /* State-27 enters through 0x1453c and writes 16 before branching to
+     * 0x14570. State-16 joins already arrive at 0x14570 and perform no
+     * state-byte store. */
+    if (state27) {
+        status = hybrid_write_u8(machine, g7 + UINT32_C(0x197), 16u);
+        if (status != VF2_OK) {
+            return status;
+        }
     }
     /* 0x14570 ldos +0x194(g7), g0 ; 0x14574 mov 5,g1. */
     cpu->registers[VF2_I960_G0_REGISTER] = (uint32_t)(int32_t)(int16_t)h194;
     cpu->registers[VF2_I960_G0_REGISTER + 1u] = UINT32_C(5);
-    cpu->registers[15] = UINT32_C(16);
+    if (state27) {
+        cpu->registers[15] = UINT32_C(16);
+    }
     /* 0x14578 call 0x1ab34 (type-5 walk).  A walker miss returns
      * VF2_ERROR_UNSUPPORTED, preserving the fail-closed boundary. */
     cpu->ip = UINT32_C(0x00014578);

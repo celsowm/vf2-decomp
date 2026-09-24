@@ -1,5 +1,5 @@
-/* ROM-backed differential fixture for the fa_rob state-27 arm 0x1453c
- * (v0404/v0415).
+/* ROM-backed differential fixture for the fa_rob state-27/state-16 arms
+ * 0x1453c/0x14570 (v0404/v0415/v0416).
  *
  * The 0x1453c arm is the fa_rob fighter-state exchange reached at 0x14528
  * when the state-27 fighter's +0x197 == 27.  The second-fighter shape first
@@ -14,8 +14,9 @@
  * and a measured +0x194 that indexes a valid type-5 chain (0x73), then runs
  * the reference interpreter and the native helper to ip == 0x1463c and
  * asserts exact step/call/ret lockstep plus full live-state equality
- * (registers/CC/AC/frames/Work-RAM). The direct case is 52 steps; the
- * measured swapped case is 56 steps.
+ * (registers/CC/AC/frames/Work-RAM). The measured cases are 52/56 steps for
+ * state 27, 52/55 steps for the asymmetric state-16 joins, and 54/58 steps
+ * for the board-controlled both-state-16 joins.
  *
  * Witness (measured, current build):
  *   vf2probe --rom-dir roms/vf2 --snapshot out/park-1442c.vf2snap \
@@ -45,6 +46,12 @@
 #define REF_RETS UINT64_C(1)
 
 #define TYPE5_INDEX UINT16_C(0x0073)
+#define CASE_STATE27_DIRECT 0
+#define CASE_STATE27_SWAPPED 1
+#define CASE_STATE16_DIRECT 2
+#define CASE_STATE16_SWAPPED 3
+#define CASE_STATE16_BOTH_DIRECT 4
+#define CASE_STATE16_BOTH_SWAPPED 5
 
 static int failures = 0;
 
@@ -128,12 +135,27 @@ static void write_u16(
     CHECK(vf2_model2a_write(machine, address, bytes, sizeof(bytes)) == VF2_OK);
 }
 
+static void write_u32(
+    vf2_model2a *machine,
+    uint32_t address,
+    uint32_t value
+)
+{
+    const uint8_t bytes[4] = {
+        (uint8_t)value,
+        (uint8_t)(value >> 8u),
+        (uint8_t)(value >> 16u),
+        (uint8_t)(value >> 24u)
+    };
+    CHECK(vf2_model2a_write(machine, address, bytes, sizeof(bytes)) == VF2_OK);
+}
+
 static void run_rom_case(
     const uint8_t *main_rom,
     size_t main_rom_size,
     const uint8_t *main_data,
     size_t main_data_size,
-    int swapped
+    int shape
 )
 {
     vf2_model2a reference_machine;
@@ -155,6 +177,11 @@ static void run_rom_case(
     uint8_t b19b_f1 = 0u;
     uint8_t b197_f1 = 0u;
     uint32_t steps = 0u;
+    uint32_t type5_fighter = 0u;
+    uint64_t expected_steps = 0u;
+    const char *label = "unknown";
+    int swapped = 0;
+    int both16 = 0;
     int ok = 0;
 
     memset(&reference_machine, 0, sizeof(reference_machine));
@@ -203,25 +230,83 @@ static void run_rom_case(
     CHECK(vf2_model2a_read(&reference_machine, fighter1 + UINT32_C(0x197),
                            &b197_f1, 1u) == VF2_OK);
 
-    /* Force the measured direct or swapped state-27 shape on both machines. */
+    switch (shape) {
+    case CASE_STATE27_DIRECT:
+        reference_cpu.registers[7] = 27u;
+        native_cpu.registers[7] = 27u;
+        reference_cpu.registers[8] = (uint32_t)b197_f1;
+        native_cpu.registers[8] = (uint32_t)b197_f1;
+        expected_steps = REF_TOTAL;
+        label = "state27-direct";
+        break;
+    case CASE_STATE27_SWAPPED:
+        reference_cpu.registers[7] = 0u;
+        native_cpu.registers[7] = 0u;
+        reference_cpu.registers[8] = 27u;
+        native_cpu.registers[8] = 27u;
+        expected_steps = UINT64_C(56);
+        swapped = 1;
+        label = "state27-swapped";
+        break;
+    case CASE_STATE16_DIRECT:
+        reference_cpu.registers[7] = 16u;
+        native_cpu.registers[7] = 16u;
+        reference_cpu.registers[8] = 0u;
+        native_cpu.registers[8] = 0u;
+        expected_steps = UINT64_C(52);
+        label = "state16-direct";
+        break;
+    case CASE_STATE16_SWAPPED:
+        reference_cpu.registers[7] = 0u;
+        native_cpu.registers[7] = 0u;
+        reference_cpu.registers[8] = 16u;
+        native_cpu.registers[8] = 16u;
+        expected_steps = UINT64_C(55);
+        swapped = 1;
+        label = "state16-swapped";
+        break;
+    case CASE_STATE16_BOTH_DIRECT:
+        reference_cpu.registers[7] = 16u;
+        native_cpu.registers[7] = 16u;
+        reference_cpu.registers[8] = 16u;
+        native_cpu.registers[8] = 16u;
+        expected_steps = UINT64_C(54);
+        both16 = 1;
+        label = "state16-both-direct";
+        break;
+    case CASE_STATE16_BOTH_SWAPPED:
+        reference_cpu.registers[7] = 16u;
+        native_cpu.registers[7] = 16u;
+        reference_cpu.registers[8] = 16u;
+        native_cpu.registers[8] = 16u;
+        expected_steps = UINT64_C(58);
+        swapped = 1;
+        both16 = 1;
+        label = "state16-both-swapped";
+        break;
+    default:
+        CHECK(0);
+        goto cleanup;
+    }
+
+    /* Force the measured direct or swapped state shape on both machines. */
     reference_cpu.ip = STATE27_ENTRY;
     native_cpu.ip = STATE27_ENTRY;
-    reference_cpu.registers[7] = swapped ? 0u : 27u;
-    native_cpu.registers[7] = swapped ? 0u : 27u;
-    reference_cpu.registers[8] = swapped ? 27u : (uint32_t)b197_f1;
-    native_cpu.registers[8] = swapped ? 27u : (uint32_t)b197_f1;
     reference_cpu.registers[10] = fighter0;
     native_cpu.registers[10] = fighter0;
     reference_cpu.registers[11] = fighter1;
     native_cpu.registers[11] = fighter1;
     reference_cpu.registers[14u] = (uint32_t)b19b_f1;
     native_cpu.registers[14u] = (uint32_t)b19b_f1;
-    write_u16(
-        &reference_machine,
-        (swapped ? fighter1 : fighter0) + UINT32_C(0x194), TYPE5_INDEX);
-    write_u16(
-        &native_machine,
-        (swapped ? fighter1 : fighter0) + UINT32_C(0x194), TYPE5_INDEX);
+    type5_fighter = swapped ? fighter1 : fighter0;
+    write_u16(&reference_machine,
+              type5_fighter + UINT32_C(0x194), TYPE5_INDEX);
+    write_u16(&native_machine, type5_fighter + UINT32_C(0x194), TYPE5_INDEX);
+    if (both16) {
+        const uint32_t board28 = swapped ? UINT32_C(1) : UINT32_C(0);
+        write_u32(&reference_machine, UINT32_C(0x00500028), board28);
+        write_u32(&native_machine, UINT32_C(0x00500028), board28);
+    }
 
     snap_instructions = snap.cpu.executed_instructions;
     snap_calls = snap.cpu.procedure_calls;
@@ -241,7 +326,7 @@ static void run_rom_case(
     CHECK(reference_cpu.ip == STATE27_RETURN);
     reference_instructions =
         reference_cpu.executed_instructions - snap_instructions;
-    CHECK(reference_instructions == (swapped ? UINT64_C(56) : REF_TOTAL));
+    CHECK(reference_instructions == expected_steps);
     CHECK(reference_cpu.procedure_calls - snap_calls == REF_CALLS);
     CHECK(reference_cpu.procedure_returns - snap_returns == REF_RETS);
 
@@ -252,13 +337,13 @@ static void run_rom_case(
     CHECK(native_cpu.ip == STATE27_RETURN);
     native_instructions =
         native_cpu.executed_instructions - snap_instructions;
-    CHECK(native_instructions == (swapped ? UINT64_C(56) : REF_TOTAL));
+    CHECK(native_instructions == expected_steps);
     CHECK(native_cpu.procedure_calls - snap_calls == REF_CALLS);
     CHECK(native_cpu.procedure_returns - snap_returns == REF_RETS);
 
     printf(
         "player-1453c-live %s ref=%llu native=%llu calls=%llu/%llu rets=%llu/%llu\n",
-        swapped ? "swapped" : "direct",
+        label,
         (unsigned long long)reference_instructions,
         (unsigned long long)native_instructions,
         (unsigned long long)(reference_cpu.procedure_calls - snap_calls),
@@ -281,6 +366,7 @@ static void run_rom_case(
     CHECK(compare_status == VF2_OK);
     CHECK(diff.equal);
 
+cleanup:
     vf2_model2a_shutdown(&reference_machine);
     vf2_model2a_shutdown(&native_machine);
     vf2_i960_snapshot_destroy(&snap);
@@ -310,8 +396,18 @@ static void run_rom_differential(const char *rom_directory)
         return;
     }
 
-    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 0);
-    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 1);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE27_DIRECT);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE27_SWAPPED);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_DIRECT);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_SWAPPED);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_BOTH_DIRECT);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_BOTH_SWAPPED);
 
     free(main_rom);
     free(main_data);

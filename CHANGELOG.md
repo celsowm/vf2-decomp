@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Extend the `0x1453c`/`0x14570` fighter-exchange recovery for the measured
+  state-16 joins (v0416). The native helper now covers `(r7,r8)=(16,0)` and
+  `(0,16)`, plus both 16 values with the observed `0x500028` bit-0 swap gate,
+  matching 52/55/54/58 instruction paths and one type-5 call/return. The
+  ROM-backed fixture now proves six direct/swapped state-27/state-16 shapes
+  with full live-state equality; other compositions remain fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_state16_v0416.md`.
+
 - Extend the measured `fa_rob` `0x1453c` state-27 recovery for the f1 == 27
   swap path (v0415). When `r7 != 27` and `r8 == 27`, the native helper now
   models the `0x14530..0x14538` g7/g8 swap and matches the ROM through
