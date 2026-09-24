@@ -1218,6 +1218,12 @@ calls/returns and exact live-state equality. The state-24 `+0x19f` 25/22
 write arms and other state-16 compositions remain explicit boundaries (see
 `decomp/i960/notes/fa_player_1442c_state16_state24_v0447.md`).
 
+Status (v0448): the integrated state-16/state-24 `+0x19f` write arms now
+admit the measured values 25 and 22, matching 59/60 instructions with two
+calls/returns and exact live-state equality. Other state-24 flag, scaling and
+write compositions remain explicit fail-closed boundaries (see
+`decomp/i960/notes/fa_player_1442c_state16_state24_writes_v0448.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at

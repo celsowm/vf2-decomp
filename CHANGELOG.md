@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Recover integrated state-16/state-24 write arms (v0448). The measured
+  `+0x19f == 25` and `22` cases now match in 59/60 instructions with two
+  calls/returns and exact live-state equality. Other state-24 compositions
+  remain fail-closed. See
+  `decomp/i960/notes/fa_player_1442c_state16_state24_writes_v0448.md`.
+
 - Recover the integrated state-16/state-24 neutral continuation (v0447).
   The measured `+0x19f` miss now reaches the direct state-16 type-5 body in
   105 instructions with three calls/returns and exact live-state equality;
