@@ -16185,6 +16185,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
     bool native_bit6_fighter_path = false;
     bool native_state8_bit3_positive_path = false;
     bool native_state8_bit20_bit80_positive_path = false;
+    bool native_state8_bit1_bit2_positive_path = false;
     bool native_state8_bit4_positive_path = false;
     bool native_state4_bit15_fighter_path = false;
     bool native_state4_bit15_bit16_fighter_path = false;
@@ -16551,6 +16552,12 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             measured_matrix_distribution &&
             (combined_state8_flags == (UINT32_C(1) << 5u) ||
              combined_state8_flags == (UINT32_C(1) << 7u)) &&
+            shared_fighter_threshold <= UINT32_C(2);
+        native_state8_bit1_bit2_positive_path =
+            fighter0_state == 8u && fighter1_state == 8u &&
+            measured_matrix_distribution &&
+            (combined_state8_flags == (UINT32_C(1) << 1u) ||
+             combined_state8_flags == (UINT32_C(1) << 2u)) &&
             shared_fighter_threshold <= UINT32_C(2);
         native_state8_bit4_positive_path =
             fighter0_state == 8u && fighter1_state == 8u &&
@@ -20291,6 +20298,23 @@ static vf2_status hybrid_execute_game_info_bit31_native(
          * 2-instruction dispatcher corrections for all three distributions,
          * both countdown values, both mode-bit-6 values and thresholds 0..2.
          * The child state/memory path is already exact. */
+        native_instructions += UINT64_C(2);
+        hybrid_set_compare_result(
+            cpu, countdown_was_nonzero
+                ? VF2_I960_COMPARE_LESS : VF2_I960_COMPARE_EQUAL
+        );
+        if (cpu->local_frame_depth + 1u < VF2_I960_MAX_LOCAL_FRAMES) {
+            vf2_i960_local_frame *stale =
+                &cpu->local_frames[cpu->local_frame_depth + 1u];
+            stale->registers[3] = UINT32_C(0x41000000);
+            stale->registers[4] = UINT32_C(0x07800f0f);
+            stale->registers[7] = UINT32_C(0x41000000);
+        }
+    }
+    if (native_state8_bit1_bit2_positive_path) {
+        /* v0507: positive state-8 bits 1 and 2 have the same uniform
+         * measured 2-instruction dispatcher correction as the isolated
+         * bit-3/bit-5/bit-7 family. */
         native_instructions += UINT64_C(2);
         hybrid_set_compare_result(
             cpu, countdown_was_nonzero
