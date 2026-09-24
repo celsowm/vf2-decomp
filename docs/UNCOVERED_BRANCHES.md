@@ -1065,6 +1065,13 @@ with full live-state equality and generic dispatch reaches the new arm.
 Other compare-prefix state-28/bit-4-clear and non-less relations remain
 explicit boundaries. See
 `decomp/i960/notes/fa_player_14640_state27_compare_less_v0425.md`.
+Status (v0426): the `0x14640` state-28 compare-prefix sibling is native for
+the measured signed-less shape. With `+0x654 != 0`, `+0x1aa < +0x62a` and
+`+0x197 == 28`, it reaches `0x146c4` in 16 instructions; the original
+`+0x654 == 0` shape remains 13 instructions. The expanded state-28 fixture
+proves both with full live-state equality and generic dispatch reaches the
+new arm. Other compare-prefix relations remain explicit boundaries. See
+`decomp/i960/notes/fa_player_14640_state28_compare_less_v0426.md`.
 
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The

@@ -443,12 +443,13 @@ vf2_status vf2_hybrid_player_14640_state27_execute_for_test(
     vf2_i960_cpu *cpu
 );
 
-/* v0406: test-only entry to the measured fa_rob state-28 arm 0x14640.
+/* v0406/v0426: test-only entry to the measured fa_rob state-28 arm 0x14640.
  * The CPU must be parked at 0x14640 with g7 the state-28 fighter base and a
- * pushed frame; +0x198 == 0, +0x654 == 0 and +0x197 == 28.  On success it
- * lands at 0x146c4 after 13 steps / +0 call / +0 return (no walker), having
- * added 3 to s16(+0x1aa(g7)) and cleared +0x194(g7), leaving the 0x146c4 ret
- * unconsumed.  Anything else is VF2_ERROR_UNSUPPORTED. */
+ * pushed frame; +0x198 == 0 and +0x197 == 28. The original +0x654 == 0
+ * shape lands at 0x146c4 after 13 steps; the measured compare-prefix sibling
+ * accepts +0x654 != 0 with signed +0x1aa < +0x62a and lands there after 16
+ * steps. Both have +0 call / +0 return, add 3 to +0x1aa and clear +0x194;
+ * the ret remains unconsumed. Anything else is VF2_ERROR_UNSUPPORTED. */
 vf2_status vf2_hybrid_player_14640_state28_execute_for_test(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu

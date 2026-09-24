@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Recover the measured `0x14640` state-28 compare-prefix sibling (v0426).
+  With `+0x654 != 0` and signed `+0x1aa < +0x62a`, the native arithmetic tail
+  now matches the ROM through `0x146c4` in 16 instructions, alongside the
+  original 13-instruction path. The state-28 fixture proves both with full
+  live-state equality and generic dispatch reaches the recovered arm. See
+  `decomp/i960/notes/fa_player_14640_state28_compare_less_v0426.md`.
+
 - Recover the measured `0x14640` state-27 compare-prefix sibling (v0425).
   With `+0x654 != 0` and signed `+0x1aa < +0x62a`, the existing type-15
   state-27 walk now matches the ROM through `0x146c4` in 44 instructions

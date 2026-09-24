@@ -1,9 +1,11 @@
 /* ROM-backed differential fixture for the fa_rob state-28 arm 0x14640
- * (v0406).
+ * (v0406/v0426).
  *
  * The 0x14640 arm is the fa_rob fighter-state helper reached when the
- * fighter g7 has +0x197 == 28 (plus +0x198 == 0 and +0x654 == 0 so the
- * `cmpobne 27, r3` jumps to 0x1469c and the `cmpobne 28, r3` falls through).
+ * fighter g7 has +0x197 == 28 and +0x198 == 0. The original shape has
+ * +0x654 == 0; the compare-prefix sibling has +0x654 != 0 and signed
+ * +0x1aa < +0x62a. Both jump to 0x1469c and the `cmpobne 28, r3` falls
+ * through.
  * It adds 3 to s16(+0x1aa(g7)) and stores the u16 back to +0x1aa(g7),
  * clears +0x194(g7), leaves r15 = 0 and r3 = the new +0x1aa value.  No
  * walker.
@@ -37,6 +39,7 @@
 #define STATE28_RETURN UINT32_C(0x000146c4)
 
 #define REF_TOTAL UINT64_C(13)
+#define REF_COMPARE_PREFIX_TOTAL UINT64_C(16)
 #define REF_CALLS UINT64_C(0)
 #define REF_RETS UINT64_C(0)
 
@@ -71,7 +74,7 @@ static void test_unit_invalid_arguments(void)
 }
 
 /* ROM-independent fail-closed checks for the 0x14640 state-28 arm.  The arm
- * must refuse any non-state-28 shape (wrong ip, +0x198 != 0, +0x654 != 0,
+ * must refuse any non-state-28 shape (wrong ip, +0x198 != 0,
  * +0x197 != 28, zero fighter base, no pushed frame) before touching memory. */
 static void test_unit_fail_closed(void)
 {
@@ -117,11 +120,40 @@ static void write_u8(
     CHECK(vf2_model2a_write(machine, address, &value, 1u) == VF2_OK);
 }
 
+static void write_u16(
+    vf2_model2a *machine,
+    uint32_t address,
+    uint16_t value
+)
+{
+    const uint8_t bytes[2] = {
+        (uint8_t)value,
+        (uint8_t)(value >> 8u)
+    };
+    CHECK(vf2_model2a_write(machine, address, bytes, sizeof(bytes)) == VF2_OK);
+}
+
+static void write_u32(
+    vf2_model2a *machine,
+    uint32_t address,
+    uint32_t value
+)
+{
+    const uint8_t bytes[4] = {
+        (uint8_t)value,
+        (uint8_t)(value >> 8u),
+        (uint8_t)(value >> 16u),
+        (uint8_t)(value >> 24u)
+    };
+    CHECK(vf2_model2a_write(machine, address, bytes, sizeof(bytes)) == VF2_OK);
+}
+
 static void run_rom_case(
     const uint8_t *main_rom,
     size_t main_rom_size,
     const uint8_t *main_data,
-    size_t main_data_size
+    size_t main_data_size,
+    int compare_prefix
 )
 {
     vf2_model2a reference_machine;
@@ -182,10 +214,23 @@ static void run_rom_case(
     fighter0 = reference_cpu.registers[16u + 7u];
     CHECK(fighter0 != 0u);
 
-    /* Force the measured state-28 shape on both machines: +0x197 == 28.
-     * +0x198/+0x654 are already 0 in the park snapshot. */
+    /* Force the measured state-28 shape on both machines: +0x197 == 28. */
     reference_cpu.ip = STATE28_ENTRY;
     native_cpu.ip = STATE28_ENTRY;
+    write_u32(&reference_machine, fighter0 + UINT32_C(0x198), 0u);
+    write_u32(&native_machine, fighter0 + UINT32_C(0x198), 0u);
+    write_u32(&reference_machine, fighter0 + UINT32_C(0x654),
+              compare_prefix ? UINT32_C(1) : UINT32_C(0));
+    write_u32(&native_machine, fighter0 + UINT32_C(0x654),
+              compare_prefix ? UINT32_C(1) : UINT32_C(0));
+    write_u16(&reference_machine, fighter0 + UINT32_C(0x1aa),
+              compare_prefix ? UINT16_C(1) : UINT16_C(0));
+    write_u16(&native_machine, fighter0 + UINT32_C(0x1aa),
+              compare_prefix ? UINT16_C(1) : UINT16_C(0));
+    write_u16(&reference_machine, fighter0 + UINT32_C(0x62a),
+              compare_prefix ? UINT16_C(2) : UINT16_C(0));
+    write_u16(&native_machine, fighter0 + UINT32_C(0x62a),
+              compare_prefix ? UINT16_C(2) : UINT16_C(0));
     write_u8(&reference_machine, fighter0 + UINT32_C(0x197), 28u);
     write_u8(&native_machine, fighter0 + UINT32_C(0x197), 28u);
 
@@ -208,7 +253,8 @@ static void run_rom_case(
     CHECK(reference_cpu.ip == STATE28_RETURN);
     reference_instructions =
         reference_cpu.executed_instructions - snap_instructions;
-    CHECK(reference_instructions == REF_TOTAL);
+    CHECK(reference_instructions ==
+          (compare_prefix ? REF_COMPARE_PREFIX_TOTAL : REF_TOTAL));
     CHECK(reference_cpu.procedure_calls - snap_calls == REF_CALLS);
     CHECK(reference_cpu.procedure_returns - snap_returns == REF_RETS);
 
@@ -219,7 +265,8 @@ static void run_rom_case(
     CHECK(native_cpu.ip == STATE28_RETURN);
     native_instructions =
         native_cpu.executed_instructions - snap_instructions;
-    CHECK(native_instructions == REF_TOTAL);
+    CHECK(native_instructions ==
+          (compare_prefix ? REF_COMPARE_PREFIX_TOTAL : REF_TOTAL));
     CHECK(native_cpu.procedure_calls - snap_calls == REF_CALLS);
     CHECK(native_cpu.procedure_returns - snap_returns == REF_RETS);
 
@@ -276,7 +323,8 @@ static void run_rom_differential(const char *rom_directory)
         return;
     }
 
-    run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 0);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 1);
 
     free(main_rom);
     free(main_data);

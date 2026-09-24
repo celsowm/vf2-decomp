@@ -5278,14 +5278,16 @@ vf2_status vf2_hybrid_player_14640_state27_execute_for_test(
 }
 
 /* Measured state-28 arm of the fa_rob fighter-exchange helper 0x14640
- * (v0406).  Entered at 0x14640 when fighter g7 has +0x198 == 0, +0x654 == 0
- * and +0x197 == 28 (so `cmpobne 27, r3` jumps to 0x1469c and `cmpobne 28,
+ * (v0406/v0426). Entered at 0x14640 when fighter g7 has +0x198 == 0 and
+ * +0x197 == 28. The v0406 path has +0x654 == 0; the v0426 compare-prefix
+ * sibling has +0x654 != 0 and signed +0x1aa < +0x62a (so `cmpobne 27, r3`
+ * jumps to 0x1469c and `cmpobne 28,
  * r3` falls through).  It adds 3 to s16(+0x1aa(g7)) and stores the u16 back
  * to +0x1aa(g7), clears +0x194(g7), leaves r15 = 0 and r3 = the new +0x1aa
  * value.  No walker.  The span from 0x14640 to the 0x146c4 ret is 13
  * instructions with +0 call / +0 return; the ret at 0x146c4 is not consumed
- * here.  Sibling shapes (the +0x654 != 0 +0x1aa/+0x62a compare arm, the
- * +0x197 == 27 walk, or the +0x197 not 27/28 neutral tail) stay fail-closed.
+ * here. Sibling shapes (other compare relations, the +0x197 == 27 walk, or
+ * the +0x197 not 27/28 neutral tail) stay fail-closed.
  * Only r3/r15 are left distinct from entry; the final reference
  * `compare_result` is EQUAL (the `cmpobne 28, r3` at 0x1469c). */
 static vf2_status hybrid_execute_player_14640_state28(
@@ -5299,7 +5301,9 @@ static vf2_status hybrid_execute_player_14640_state28(
     uint32_t r654 = 0u;
     uint8_t r197 = 0u;
     uint16_t h1aa = 0u;
+    uint16_t h62a = 0u;
     uint32_t r3 = 0u;
+    bool compare_prefix = false;
     vf2_status status = VF2_OK;
 
     if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x00014640) ||
@@ -5316,7 +5320,16 @@ static vf2_status hybrid_execute_player_14640_state28(
         );
     }
     if (status == VF2_OK && r654 != 0u) {
-        status = VF2_ERROR_UNSUPPORTED;
+        status = hybrid_read_u16(machine, g7 + UINT32_C(0x1aa), &h1aa);
+        if (status == VF2_OK) {
+            status = hybrid_read_u16(machine, g7 + UINT32_C(0x62a), &h62a);
+        }
+        if (status == VF2_OK && (int16_t)h1aa >= (int16_t)h62a) {
+            status = VF2_ERROR_UNSUPPORTED;
+        }
+        if (status == VF2_OK) {
+            compare_prefix = true;
+        }
     }
     if (status == VF2_OK) {
         status = hybrid_read_u8(machine, g7 + UINT32_C(0x197), &r197);
@@ -5333,6 +5346,11 @@ static vf2_status hybrid_execute_player_14640_state28(
 
     /* 0x146a0 ldos +0x1aa(g7), r3 ; 0x146a4 addo 3, r3, r3 ;
      * 0x146a8 stos r3, +0x1aa(g7). */
+    if (compare_prefix) {
+        /* 0x14650/0x14654 loads survive the shared tail. */
+        cpu->registers[13u] = (uint32_t)(int32_t)(int16_t)h1aa;
+        cpu->registers[14u] = (uint32_t)(int32_t)(int16_t)h62a;
+    }
     r3 = (uint32_t)(int32_t)(int16_t)h1aa + UINT32_C(3);
     cpu->registers[3] = r3;
     status = hybrid_write_u16(machine, g7 + UINT32_C(0x1aa), (uint16_t)r3);
@@ -5350,7 +5368,8 @@ static vf2_status hybrid_execute_player_14640_state28(
     cpu->compare_result = VF2_I960_COMPARE_EQUAL;
     cpu->arithmetic_control =
         (cpu->arithmetic_control & ~UINT32_C(7)) | UINT32_C(2);
-    cpu->executed_instructions += UINT64_C(13);
+    cpu->executed_instructions += UINT64_C(13) +
+        (compare_prefix ? UINT64_C(3) : UINT64_C(0));
     cpu->ip = UINT32_C(0x000146c4);
     return VF2_OK;
 }
@@ -6013,6 +6032,18 @@ static vf2_status hybrid_execute_player_14640(
             /* v0425: state-27 continues through the compare prefix and then
              * uses the existing type-15 walk. */
             status = hybrid_execute_player_14640_state27(machine, cpu);
+            if (status == VF2_OK) {
+                status = vf2_i960_cpu_return_procedure(cpu, machine);
+                if (status == VF2_OK) {
+                    ++cpu->executed_instructions;
+                }
+            }
+            return status;
+        }
+        if (status == VF2_OK && r197 == 28u) {
+            /* v0426: state-28 continues through the compare prefix and then
+             * uses the existing arithmetic tail. */
+            status = hybrid_execute_player_14640_state28(machine, cpu);
             if (status == VF2_OK) {
                 status = vf2_i960_cpu_return_procedure(cpu, machine);
                 if (status == VF2_OK) {
