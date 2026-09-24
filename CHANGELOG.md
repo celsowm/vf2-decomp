@@ -2,11 +2,17 @@
 
 ## Unreleased
 
+- Recover the measured `fa_coli` bit-16/bit-22-set continuation at `0x225cc`
+  (v0452). The exact scan-4 witness now reaches the g0=5 `0x22d8c` tail,
+  matching 108 instructions and exact live state, including `g0=0xeb` and
+  the `0x0c0100eb` result. Other bit-16 compositions remain fail-closed. See
+  `decomp/i960/notes/fa_coli_225cc_bit16_bit22_v0452.md`.
+
 - Recover the measured `fa_coli` bit-16 scan-4 continuation at `0x225cc`
   (v0451). The `0x22c88` bbs-16 edge now reaches the shared `0x22e24` join
   for the exact `g7 + 0x821 == 4`, `g8 + 0x1a4 == 0x00010000` witness,
   matching 217 instructions and exact live state. Other bit-16 compositions
-  and the `g7 + 0x1a4` bit-22-set continuation remain fail-closed. See
+  remain fail-closed. See
   `decomp/i960/notes/fa_coli_225cc_bit16_scan4_v0451.md`.
 
 - Recover the measured state-16/state-25 type-walker misses (v0450). Indices
