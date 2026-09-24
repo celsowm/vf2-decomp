@@ -1273,6 +1273,12 @@ instructions with full live-state equality; other g8 flag bits remain
 explicit boundaries (see
 `decomp/i960/notes/fa_coli_225cc_bit16_bit11_v0455.md`).
 
+Status (v0456): the exact g8 bit-15/bit-16 word `0x00018000` is now native
+on scan 4 with the measured g7 bit-22 word. The `bbs 15` edge skips the
+`bbc 16` instruction, producing a 107-instruction continuation with exact
+live-state equality; other bit-15 compositions remain explicit boundaries
+(see `decomp/i960/notes/fa_coli_225cc_bit16_bit15_v0456.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at

@@ -22194,9 +22194,9 @@ static vf2_status coli_225cc_body(
             uint32_t board_c = 0u;
             const int bit16_scan4 =
                 scan_byte == UINT8_C(4) &&
-                (flags_g8 & (UINT32_C(1) << 15u)) == 0u &&
                 (flags_g8 & (UINT32_C(1) << 16u)) != 0u &&
-                (flags_g8 & ~UINT32_C(0x00011800)) == 0u;
+                ((flags_g8 & ~UINT32_C(0x00011800)) == 0u ||
+                 flags_g8 == UINT32_C(0x00018000));
 
             if (!bit16_scan4 &&
                 (scan_byte != UINT8_C(1) ||
@@ -24037,6 +24037,10 @@ static vf2_status coli_225cc_long_body(
          * gate and passes the cmpibne-4 check. */
         body += UINT64_C(4); /* cmpibne + bbs15 + bbc16 + cmpibne4 */
         bit16_scan4_path = (flags_g8 == UINT32_C(0x00010000));
+    } else if (scan821 == UINT8_C(4) &&
+               flags_g8 == UINT32_C(0x00018000)) {
+        /* v0456: bbs 15 skips the bbc-16 edge before the scan-4 compare. */
+        body += UINT64_C(3); /* cmpibne + bbs15 + cmpibne4 */
     } else {
         return VF2_ERROR_UNSUPPORTED;
     }
