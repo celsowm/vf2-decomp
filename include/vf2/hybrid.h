@@ -510,7 +510,9 @@ vf2_status vf2_hybrid_player_14640_compare_escape_execute_for_test(
  * s16(+0x1aa) < s16(+0x62a).  The v0412 neutral shape requires +0x197 not
  * 27/28/13, bit 4 clear and +0x194 == 0; it lands at 0x146d8 after 14 steps
  * and leaves +0x654 unchanged. The measured neutral bit-4-clear sibling with
- * nonzero +0x194 also lands there after 16 steps and clears +0x654. The v0413 state-13 shape requires bit 4 set
+ * nonzero +0x194 also lands there after 16 steps and clears +0x654. The
+ * measured neutral bit-4-set sibling returns at 0x146c4 after 15 steps; the
+ * v0413 state-13 shape requires bit 4 set
  * and +0x194 != 0; it lands at 0x146d8 after 17 steps and clears +0x654.
  * Both leave the return unconsumed. Anything else is unsupported. */
 vf2_status vf2_hybrid_player_14640_compare_less_execute_for_test(

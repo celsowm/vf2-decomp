@@ -5838,8 +5838,8 @@ static vf2_status hybrid_execute_player_14640_compare_less(
         if (r194 == 0u) {
             return VF2_ERROR_UNSUPPORTED;
         }
-    } else if ((flags & (UINT32_C(1) << 4u)) != 0u) {
-        return VF2_ERROR_UNSUPPORTED;
+    } else if ((flags & (UINT32_C(1) << 4u)) == 0u) {
+        /* Neutral bit-4-clear tails continue through 0x146c8 below. */
     }
 
     /* 0x14650/0x14654 loads, shared state tail, and 0x146c8 load. */
@@ -5857,6 +5857,19 @@ static vf2_status hybrid_execute_player_14640_compare_less(
         cpu->executed_instructions +=
             (flags & (UINT32_C(1) << 4u)) != 0u
                 ? UINT64_C(17) : UINT64_C(16);
+    } else if ((flags & (UINT32_C(1) << 4u)) != 0u) {
+        /* 0x146b4 bbc is not taken; 0x146b8 cmpobe 13 is not taken for the
+         * neutral state, then 0x146bc clears +0x194 and returns at 146c4. */
+        cpu->registers[14u] = (uint32_t)(int32_t)(int16_t)h62a;
+        cpu->registers[15u] = 0u;
+        status = vf2_model2a_write_u32(machine, g7 + UINT32_C(0x194), 0u);
+        if (status != VF2_OK) {
+            return status;
+        }
+        hybrid_set_compare_result(cpu, VF2_I960_COMPARE_GREATER);
+        cpu->executed_instructions += UINT64_C(15);
+        cpu->ip = UINT32_C(0x000146c4);
+        return VF2_OK;
     } else if (r194 != 0u) {
         cpu->registers[14u] = r194;
         cpu->registers[15u] = 0u;
