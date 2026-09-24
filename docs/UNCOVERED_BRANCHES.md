@@ -2176,6 +2176,14 @@ Each `36/36 exact`. Other positive bases (e.g. `0x8140` high combos,
 are measured. Compact forms now use `& ~0x16` or `& ~0x10016` and share
 `hybrid_set_stale_low()` (v0220).
 
+Status (v0480): the positive state-8 bit-6+bit-14 low-bit-1 composition
+`0x4142` is now admitted for all three fighter distributions, countdown and
+mode-bit-6 settings, and thresholds `0..2` (`36/36` exact through the full
+dispatcher). The new admission is limited to the measured bit-14 medium-bit
+family; adjacent unmeasured compositions such as `0x4146` remain explicit
+`VF2_ERROR_UNSUPPORTED` boundaries (see
+`decomp/i960/notes/game_info_18644_positive_4142_v0480.md`).
+
 ### v0221 high-26 8140 low cube
 
 * `0x04008140` (high-26 + bits 6+14+15) `1→8` low cube with `-5/-3` (v0221)

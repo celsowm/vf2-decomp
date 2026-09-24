@@ -42,6 +42,7 @@ static void usage(const char *program)
         "  %s snapshot <rom-directory> <output.vf2snap>\n"
         "  %s resume-trace <rom-directory> <input.vf2snap> [max-steps] [clear-task-index] [fighter-flags-or] [write-address] [write-value] [output.vf2snap] [stop-address] [raise-irq] [enter-vector] [enter-level]\n"
         "  %s native-resume <rom-directory> <input.vf2snap> [max-blocks] [fighter-flags-or] [stop-address] [output.vf2snap]\n"
+        "  %s game-info-child <rom-directory> <input.vf2snap> <output.vf2snap> <return-address>\n"
         "  %s compare-game-info <rom-directory> <input.vf2snap> [fighter-flags-or] [stop-address]\n"
         "  %s compare-boot <rom-directory>\n"
         "  %s compare-init <rom-directory>\n"
@@ -67,6 +68,7 @@ static void usage(const char *program)
         "  %s trace-orchestrator <rom-directory> [output.csv]\n"
         "  %s compare-snapshots <expected.vf2snap> <actual.vf2snap>\n",
         VF2_VERSION_STRING,
+        program,
         program,
         program,
         program,
@@ -3136,6 +3138,82 @@ static int command_native_resume(
             vf2_native_runtime_step_kind_name(report.last_step_kind),
             vf2_hybrid_bridge_kind_name(report.last_bridge_kind),
             vf2_hybrid_task_kind_name(report.last_task_kind)
+        );
+    }
+
+    vf2_i960_snapshot_destroy(&snapshot);
+    vf2_i960_snapshot_destroy(&output_snapshot);
+    if (machine.work_ram != NULL) {
+        vf2_model2a_shutdown(&machine);
+    }
+    free(image);
+    return status == VF2_OK ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+
+static int command_game_info_child(
+    const char *rom_directory,
+    const char *input_snapshot_path,
+    const char *output_snapshot_path,
+    uint32_t return_address
+)
+{
+    uint8_t *image = NULL;
+    size_t image_size = 0u;
+    vf2_i960_boot_vectors vectors;
+    vf2_model2a machine;
+    vf2_i960_cpu cpu;
+    vf2_i960_snapshot snapshot;
+    vf2_i960_snapshot output_snapshot;
+    vf2_status status = VF2_OK;
+
+    memset(&machine, 0, sizeof(machine));
+    memset(&cpu, 0, sizeof(cpu));
+    vf2_i960_snapshot_init(&snapshot);
+    vf2_i960_snapshot_init(&output_snapshot);
+
+    if (return_address != UINT32_C(0x000164b0) &&
+        return_address != UINT32_C(0x000164c4)) {
+        status = VF2_ERROR_INVALID_ARGUMENT;
+    }
+    if (status == VF2_OK) {
+        status = load_maincpu(rom_directory, &image, &image_size, &vectors);
+    }
+    if (status == VF2_OK) {
+        status = initialize_boot_machine(
+            rom_directory, &machine, image, image_size
+        );
+    }
+    if (status == VF2_OK) {
+        status = vf2_i960_snapshot_read_file(&snapshot, input_snapshot_path);
+    }
+    if (status == VF2_OK) {
+        status = vf2_i960_snapshot_restore(&snapshot, &cpu, &machine);
+    }
+    if (status == VF2_OK) {
+        status = vf2_hybrid_game_info_child_execute_for_test(
+            &machine, &cpu, return_address
+        );
+    }
+    if (status == VF2_OK) {
+        status = vf2_i960_snapshot_capture(
+            &output_snapshot, &cpu, &machine
+        );
+    }
+    if (status == VF2_OK) {
+        status = vf2_i960_snapshot_write_file(
+            &output_snapshot, output_snapshot_path
+        );
+    }
+    if (status == VF2_OK) {
+        printf(
+            "Game-info child: return=0x%08x output=%s\n",
+            (unsigned)return_address, output_snapshot_path
+        );
+    } else {
+        fprintf(
+            stderr,
+            "Game-info child failed: %s at IP=0x%08x\n",
+            vf2_status_string(status), (unsigned)cpu.ip
         );
     }
 
@@ -6495,6 +6573,17 @@ int main(int argc, char **argv)
         return command_native_resume(
             argv[2], argv[3], max_blocks, fighter_flags_or, stop_address,
             argc == 8 ? argv[7] : NULL
+        );
+    }
+
+    if (strcmp(argv[1], "game-info-child") == 0 && argc == 6) {
+        uint32_t return_address = 0u;
+        if (!parse_u32(argv[5], &return_address)) {
+            fprintf(stderr, "Invalid game-info child return address\n");
+            return EXIT_FAILURE;
+        }
+        return command_game_info_child(
+            argv[2], argv[3], argv[4], return_address
         );
     }
 

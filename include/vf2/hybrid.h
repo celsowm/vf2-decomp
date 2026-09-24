@@ -331,6 +331,15 @@ vf2_status vf2_hybrid_first_dispatch_task_execute_base(
     vf2_hybrid_task_report *report
 );
 
+/* Test-only direct child entry for the measured fa_game_info 0x18644
+ * corridor. The caller must park the CPU at the requested return address
+ * (0x164b0 or 0x164c4) with the original call frame still present. */
+vf2_status vf2_hybrid_game_info_child_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu,
+    uint32_t return_address
+);
+
 /* v0389: test-only entry to the recovered 0x14288 -> 0x19ef8 corridor
  * unit (setup `call 0x1a1e4`, scratch `call 0x26ef0`, clear/return
  * `call 0x27130`, tail `ret 0x1428c`).  The CPU must be parked at

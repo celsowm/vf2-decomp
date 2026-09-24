@@ -7450,6 +7450,23 @@ static vf2_status hybrid_execute_game_info_child(
     );
 }
 
+vf2_status vf2_hybrid_game_info_child_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu,
+    uint32_t return_address
+)
+{
+    if (machine == NULL || cpu == NULL ||
+        (return_address != UINT32_C(0x000164b0) &&
+         return_address != UINT32_C(0x000164c4))) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    cpu->ip = return_address;
+    return hybrid_execute_game_info_child(
+        machine, cpu, UINT32_C(0x00018644), return_address
+    );
+}
+
 /* The two observed 0x18d44 calls use the zero-result Model 2 command-port
  * path.  Preserve the call frame and port writes, while rejecting the
  * unobserved non-zero result branches. */
@@ -9343,6 +9360,7 @@ static vf2_status hybrid_execute_game_info_18644(
             (UINT32_C(1) << 21u) | (UINT32_C(1) << 26u) |
             (UINT32_C(1) << 29u) | (UINT32_C(1) << 30u) |
             (UINT32_C(1) << 31u);
+        const uint32_t medium_bits = UINT32_C(1) << 14u;
         const uint32_t bilateral_high_only_state = r7 & ~state8;
         const bool bilateral_both_high_any =
             r7 == r8 && (r7 & state8) != 0u &&
@@ -9373,6 +9391,11 @@ static vf2_status hybrid_execute_game_info_18644(
             (r7 & ~(state8_bit1 | (UINT32_C(1) << 6u) | high_bits)) == 0u &&
             (r7 & (UINT32_C(1) << 6u)) != 0u &&
             (r7 & high_bits) != 0u;
+        const bool bilateral_both_bit1_bit6_medium_any =
+            r7 == r8 && (r7 & state8_bit1) == state8_bit1 &&
+            (r7 & ~(state8_bit1 | (UINT32_C(1) << 6u) | medium_bits)) == 0u &&
+            (r7 & (UINT32_C(1) << 6u)) != 0u &&
+            (r7 & medium_bits) != 0u;
         const bool bilateral_both_bit2_bit4_high_any =
             r7 == r8 && (r7 & state8) != 0u &&
             bilateral_high_low_state != 0u &&
@@ -9513,6 +9536,7 @@ static vf2_status hybrid_execute_game_info_18644(
             !bilateral_both_high && !bilateral_both_high_any &&
             !bilateral_both_bit6_high_any &&
             !bilateral_both_bit1_bit6_high_any &&
+            !bilateral_both_bit1_bit6_medium_any &&
             !bilateral_both_high_bit1 && !bilateral_both_high_bit1_any &&
             !bilateral_both_bit2_bit4_high_any &&
             !bilateral_both_bit1_bit2_bit4_high_any &&
@@ -9699,6 +9723,14 @@ static vf2_status hybrid_execute_game_info_18644(
                     (extra_state & (UINT32_C(1) << 1u)) != 0u &&
                     (extra_state & (UINT32_C(1) << 6u)) != 0u &&
                     extra_high_state != 0u;
+                const uint32_t medium_state_bits = UINT32_C(1) << 14u;
+                const bool extra_bit1_bit6_medium =
+                    (extra_state &
+                     ~((UINT32_C(1) << 1u) |
+                       (UINT32_C(1) << 6u) | medium_state_bits)) == 0u &&
+                    (extra_state & (UINT32_C(1) << 1u)) != 0u &&
+                    (extra_state & (UINT32_C(1) << 6u)) != 0u &&
+                    (extra_state & medium_state_bits) != 0u;
                 const bool extra_bit1_bit6_no_high =
                     (extra_state &
                      ~((UINT32_C(1) << 1u) |
@@ -10337,6 +10369,7 @@ static vf2_status hybrid_execute_game_info_18644(
                      extra_bit2_bit4_high ||
                      extra_high_only || extra_bit6_high ||
                      extra_bit1_bit6_high ||
+                     extra_bit1_bit6_medium ||
                      extra_bit1_bit6_no_high ||
                      extra_bit2_bit6_high ||
                      extra_bit1_bit2_bit6_high ||
@@ -10397,6 +10430,7 @@ static vf2_status hybrid_execute_game_info_18644(
             (UINT32_C(1) << 21u) | (UINT32_C(1) << 26u) |
             (UINT32_C(1) << 29u) | (UINT32_C(1) << 30u) |
             (UINT32_C(1) << 31u);
+        const uint32_t medium_bits_any = UINT32_C(1) << 14u;
         const uint32_t r7_high_any = r7 & ~(state8_bit1_high_mask);
         const uint32_t r8_high_any = r8 & ~(state8_bit1_high_mask);
         const bool r7_bit1_high_any =
@@ -10445,6 +10479,23 @@ static vf2_status hybrid_execute_game_info_18644(
             (r8 == 0u && r7_bit1_bit6_high_any);
         const bool both_bit1_bit6_high_any =
             r7_bit1_bit6_high_any && r8_bit1_bit6_high_any && r7 == r8;
+        const bool r7_bit1_bit6_medium_any =
+            (r7 & state8_bit1_high_mask) == state8_bit1_high_mask &&
+            (r7 & ~(state8_bit1_high_mask | (UINT32_C(1) << 6u) |
+                    medium_bits_any)) == 0u &&
+            (r7 & (UINT32_C(1) << 6u)) != 0u &&
+            (r7 & medium_bits_any) != 0u;
+        const bool r8_bit1_bit6_medium_any =
+            (r8 & state8_bit1_high_mask) == state8_bit1_high_mask &&
+            (r8 & ~(state8_bit1_high_mask | (UINT32_C(1) << 6u) |
+                    medium_bits_any)) == 0u &&
+            (r8 & (UINT32_C(1) << 6u)) != 0u &&
+            (r8 & medium_bits_any) != 0u;
+        const bool isolated_bit1_bit6_medium_any =
+            (r7 == 0u && r8_bit1_bit6_medium_any) ||
+            (r8 == 0u && r7_bit1_bit6_medium_any);
+        const bool both_bit1_bit6_medium_any =
+            r7_bit1_bit6_medium_any && r8_bit1_bit6_medium_any && r7 == r8;
         const uint32_t state8_bit1_bit6_no_high_mask =
             state8_bit1_high_mask | (UINT32_C(1) << 6u);
         const bool r7_bit1_bit6_no_high =
@@ -10641,6 +10692,8 @@ static vf2_status hybrid_execute_game_info_18644(
             !both_bit1_bit2_bit4_high_any &&
             !isolated_bit1_bit6_high_any &&
             !both_bit1_bit6_high_any &&
+            !isolated_bit1_bit6_medium_any &&
+            !both_bit1_bit6_medium_any &&
             !isolated_bit1_bit6_no_high &&
             !both_bit1_bit6_no_high &&
             !isolated_bit1_bit2_bit6_high_any &&
