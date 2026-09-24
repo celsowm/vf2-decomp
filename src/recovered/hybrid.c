@@ -25009,14 +25009,13 @@ bit13_skip:
                     uint64_t g05_tail = 0u;
                     uint32_t g05_result = 0u;
 
-                    /* v0452/v0453: the measured bit-22-set continuation
+                    /* v0452-v0454: the measured bit-22-set continuation
                      * takes bbc 22 not taken, then the g0=5 fork in
-                     * 0x230d4.  The long body only consumes g7 bit 4 on
-                     * this route; the shared join consumes bit 22.  The
-                     * v0453 sweep proves the resulting mask family with
-                     * bit 22 set and bit 4 clear. */
+                     * 0x230d4.  The long body consumes g7 bit 4 (and, when
+                     * set, bit 12) before this join; all four measured
+                     * combinations of those selectors take the modeled
+                     * branches.  Other g7 bits are not read on this route. */
                     if ((flags_g7 & (UINT32_C(1) << 22u)) == 0u ||
-                        (flags_g7 & (UINT32_C(1) << 4u)) != 0u ||
                         coli_22d8c_g05_tail(
                             machine, g7, g8, r11, 0, &g05_tail,
                             &g05_result) != VF2_OK) {

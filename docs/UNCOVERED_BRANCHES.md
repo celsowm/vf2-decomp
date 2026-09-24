@@ -1259,6 +1259,13 @@ family `(flags & bit22) != 0 && (flags & bit4) == 0`. The added witnesses
 unmeasured compositions remain explicit boundaries (see
 `decomp/i960/notes/fa_coli_225cc_bit16_bit22_family_v0453.md`).
 
+Status (v0454): the same route now admits the measured bit-4/bit-12 selector
+combinations under g7 bit 22. New witnesses `0x00400010`, `0x00401000` and
+`0x00401010` match the oracle at 110, 108 and 122 instructions respectively,
+with full live-state equality; unmeasured data-dependent siblings remain
+fail-closed (see
+`decomp/i960/notes/fa_coli_225cc_bit16_bit22_selectors_v0454.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at
