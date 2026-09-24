@@ -1,5 +1,5 @@
-/* ROM-backed differential fixture for the fa_rob state-13 neutral-tail arm
- * 0x14640 (v0411).
+/* ROM-backed differential fixture for the fa_rob state-13 neutral-tail arms
+ * 0x14640 (v0411/v0437).
  *
  * The 0x14640 arm is the fa_rob fighter-state helper reached when the fighter
  * g7 has +0x198 == 0, +0x654 == 0, +0x197 == 13 (so the `0x14660 cmpobne 27,
@@ -12,7 +12,7 @@
  * (13), r14 = +0x194 (unchanged), r15 = 0.  No walker.
  *
  * This fixture restores out/park-1442c.vf2snap, jumps to the 0x14640 entry
- * with +0x197 = 13 and bit 4 of (g7) set, then runs the reference interpreter
+ * with +0x197 = 13 and both bit-4 values, then runs the reference interpreter
  * and the native helper to ip == 0x146d8 and asserts exact step/call/ret
  * lockstep plus full live-state equality (registers/CC/AC/frames/Work-RAM).
  *
@@ -20,7 +20,8 @@
  *   vf2probe --rom-dir roms/vf2 --snapshot out/park-1442c.vf2snap \
  *     --set-ip 0x14640 --set-reg g7=0x510980 --set-reg g8=0x512980 \
  *     --set-u32 0x510980=0x2014 --set-u8 0x510B17=0x0D --until 0x146d8
- *     -> 14 steps, +0 call / +0 return.
+ *     -> 14 steps, +0 call / +0 return (bit 4 set); bit 4 clear measures
+ *     13 steps.
  */
 
 #include <stdint.h>
@@ -138,7 +139,8 @@ static void run_rom_case(
     const uint8_t *main_rom,
     size_t main_rom_size,
     const uint8_t *main_data,
-    size_t main_data_size
+    size_t main_data_size,
+    int bit4_set
 )
 {
     vf2_model2a reference_machine;
@@ -201,15 +203,19 @@ static void run_rom_case(
     CHECK(fighter0 != 0u);
 
     /* Force the measured state-13 shape on both machines: +0x197 = 13 (which
-     * also forces +0x194 non-zero via its high byte) and bit 4 of (g7) set.
-     * +0x198/+0x654 are already 0. */
+     * also forces +0x194 non-zero via its high byte) and the selected bit-4
+     * value.  +0x198/+0x654 are already 0. */
     reference_cpu.ip = STATE13_ENTRY;
     native_cpu.ip = STATE13_ENTRY;
     write_u8(&reference_machine, fighter0 + UINT32_C(0x197), 13u);
     write_u8(&native_machine, fighter0 + UINT32_C(0x197), 13u);
     CHECK(vf2_model2a_read(
               &reference_machine, fighter0, (uint8_t *)&flags, 4u) == VF2_OK);
-    flags |= (UINT32_C(1) << 4u);
+    if (bit4_set != 0) {
+        flags |= (UINT32_C(1) << 4u);
+    } else {
+        flags &= ~(UINT32_C(1) << 4u);
+    }
     write_u32(&reference_machine, fighter0, flags);
     write_u32(&native_machine, fighter0, flags);
 
@@ -218,7 +224,7 @@ static void run_rom_case(
     snap_returns = snap.cpu.procedure_returns;
 
     /* Reference: step the 0x14640 state-13 neutral-tail arm to its 0x146d8
-     * ret instruction (14 steps / +0 call / +0 return). */
+     * ret instruction (14 steps set / 13 clear, +0 call / +0 return). */
     steps = 0u;
     while (reference_cpu.ip != STATE13_RETURN && steps < 1024u) {
         reference_status =
@@ -232,7 +238,7 @@ static void run_rom_case(
     CHECK(reference_cpu.ip == STATE13_RETURN);
     reference_instructions =
         reference_cpu.executed_instructions - snap_instructions;
-    CHECK(reference_instructions == REF_TOTAL);
+    CHECK(reference_instructions == (bit4_set != 0 ? REF_TOTAL : UINT64_C(13)));
     CHECK(reference_cpu.procedure_calls - snap_calls == REF_CALLS);
     CHECK(reference_cpu.procedure_returns - snap_returns == REF_RETS);
 
@@ -243,12 +249,13 @@ static void run_rom_case(
     CHECK(native_cpu.ip == STATE13_RETURN);
     native_instructions =
         native_cpu.executed_instructions - snap_instructions;
-    CHECK(native_instructions == REF_TOTAL);
+    CHECK(native_instructions == (bit4_set != 0 ? REF_TOTAL : UINT64_C(13)));
     CHECK(native_cpu.procedure_calls - snap_calls == REF_CALLS);
     CHECK(native_cpu.procedure_returns - snap_returns == REF_RETS);
 
     printf(
-        "player-14640-state13-live ref=%llu native=%llu calls=%llu/%llu rets=%llu/%llu\n",
+        "player-14640-state13-live%s ref=%llu native=%llu calls=%llu/%llu rets=%llu/%llu\n",
+        bit4_set != 0 ? "-bit4" : "-bit4-clear",
         (unsigned long long)reference_instructions,
         (unsigned long long)native_instructions,
         (unsigned long long)(reference_cpu.procedure_calls - snap_calls),
@@ -300,7 +307,8 @@ static void run_rom_differential(const char *rom_directory)
         return;
     }
 
-    run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 1);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 0);
 
     free(main_rom);
     free(main_data);

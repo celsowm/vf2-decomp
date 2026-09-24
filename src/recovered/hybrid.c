@@ -5913,15 +5913,16 @@ vf2_status vf2_hybrid_player_14640_compare_less_execute_for_test(
  * 0x14640 (v0411).  Entered at 0x14640 when fighter g7 has +0x198 == 0,
  * +0x654 == 0, +0x197 == 13 (so the `0x14660 cmpobne 27, r3` and the
  * `0x1469c cmpobne 28, r3` are both taken, and the `0x146b8 cmpobe 13, r3`
- * IS taken to 0x146c8) and bit 4 of (g7) SET (so the `0x146b4 bbc 4, r15`
- * is not taken).  The 0x146c8 neutral tail then runs with +0x194(g7) != 0
+ * IS taken to 0x146c8).  Both bit-4 values reach the 0x146c8 neutral tail;
+ * bit 4 SET takes the `0x146b4 bbc 4, r15` fall-through and bit 4 CLEAR
+ * takes its branch directly to 0x146c8.  The tail then runs with +0x194(g7) != 0
  * (because +0x197 == 13 forces the high byte of the +0x194 u32), so the
  * `0x146cc cmpobe 0, r14` is not taken, and the sibling clears +0x654(g7):
  * `0x146c8 ld +0x194(g7), r14 ; 0x146d0 mov 0, r15 ; 0x146d4 st r15,
  * +0x654(g7)`.  Leaves r3 = +0x197 (13), r14 = +0x194 (unchanged), r15 = 0.
  * No walker.  The span from 0x14640 to the 0x146d8 ret is 14 instructions
  * with +0 call / +0 return; the ret at 0x146d8 is not consumed here.  Other
- * +0x197 values or bit 4 clear stay fail-closed. */
+ * +0x197 values stay fail-closed. */
 static vf2_status hybrid_execute_player_14640_state13(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu
@@ -5934,6 +5935,7 @@ static vf2_status hybrid_execute_player_14640_state13(
     uint32_t flags = 0u;
     uint32_t r194 = 0u;
     uint8_t r197 = 0u;
+    bool bit4_set = false;
     vf2_status status = VF2_OK;
 
     if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x00014640) ||
@@ -5965,9 +5967,7 @@ static vf2_status hybrid_execute_player_14640_state13(
     if (status != VF2_OK) {
         return status;
     }
-    if ((flags & (UINT32_C(1) << 4u)) == 0u) {
-        return VF2_ERROR_UNSUPPORTED;
-    }
+    bit4_set = (flags & (UINT32_C(1) << 4u)) != 0u;
 
     /* 0x1465c ldob +0x197(g7), r3 ; 0x14660/0x1469c cmpobne (not 27/28) ;
      * 0x146b0 ld (g7), r15 ; 0x146b4 bbc 4 not taken ; 0x146b8 cmpobe 13, r3
@@ -5986,7 +5986,7 @@ static vf2_status hybrid_execute_player_14640_state13(
      * state-13-derived +0x194 value is non-zero; it is the final condition
      * writer and compares 0 against r14, yielding LESS. */
     hybrid_set_compare_result(cpu, VF2_I960_COMPARE_LESS);
-    cpu->executed_instructions += UINT64_C(14);
+    cpu->executed_instructions += bit4_set ? UINT64_C(14) : UINT64_C(13);
     cpu->ip = UINT32_C(0x000146d8);
     return VF2_OK;
 }

@@ -1141,6 +1141,12 @@ shift at `0x14684`. The compare-prefix witness reaches `0x146c4` in 45
 instructions / +1 call / +1 return, one instruction beyond the clear-bit-20
 shape; `vf2_player_14640_state27_live` proves the full live-state result.
 Other board shifts and state compositions remain explicit boundaries.
+Status (v0437): the state-13 neutral tail now admits the measured bit-4-clear
+shape alongside the existing bit-4-set path. Both reach `0x146d8` with exact
+live-state equality: 13 instructions for bit 4 clear and 14 for bit 4 set,
+with no calls or returns. Other state-byte and flag compositions remain
+explicit boundaries (see
+`decomp/i960/notes/fa_player_14640_state13_bit4_clear_v0437.md`).
 
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The

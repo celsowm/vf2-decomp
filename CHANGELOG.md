@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Recover the measured state-13 bit-4-clear `0x14640` tail (v0437). The
+  state-13 helper now admits both flag-bit shapes through `0x146c8` and
+  `0x146d8`; the bit-4-clear witness matches 13 instructions with no calls or
+  returns and exact live-state equality, while the existing bit-4-set witness
+  remains 14 instructions. See
+  `decomp/i960/notes/fa_player_14640_state13_bit4_clear_v0437.md`.
+
 - Recover the measured integrated state-25/state-27 neutral continuation
   (v0436). The live state-27 helper clears fighter1 `+0x194`, after which the
   state-25 arm reaches `0x144b0` and the common exit in 126 instructions with
