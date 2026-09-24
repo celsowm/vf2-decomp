@@ -5122,8 +5122,9 @@ vf2_status vf2_hybrid_player_29414_execute(
  * measured live shape (bit 20 of 0x500068 clear, no shift) the span from
  * 0x14640 to the 0x146c4 ret is 41 instructions with +1 call / +1 return
  * (the type-15 walker).  The ret at 0x146c4 is not consumed here; the
- * caller continues at that instruction. Sibling shapes (bit 20 set, equal
- * compare values, or a walker miss) stay fail-closed.
+ * caller continues at that instruction. Sibling shapes (bit 20 set, or a
+ * walker miss) stay fail-closed here; equal compare values are routed by the
+ * generic dispatcher to the shared equality tail.
  * The walker restores the pre-call r0-r15 frame, so r3/r13/r14 are preserved
  * and only r4/r15/g0/g1 are left distinct; the final reference
  * `compare_result` is NONE (the trailing `subo`/`st` sequence). */
@@ -5286,8 +5287,9 @@ vf2_status vf2_hybrid_player_14640_state27_execute_for_test(
  * to +0x1aa(g7), clears +0x194(g7), leaves r15 = 0 and r3 = the new +0x1aa
  * value.  No walker.  The span from 0x14640 to the 0x146c4 ret is 13
  * instructions with +0 call / +0 return; the ret at 0x146c4 is not consumed
- * here. Sibling shapes (equal compare values, the +0x197 == 27 walk, or
- * the +0x197 not 27/28 neutral tail) stay fail-closed.
+ * here. Sibling shapes (the +0x197 == 27 walk, or the +0x197 not 27/28
+ * neutral tail) stay fail-closed here; equal compare values are routed by the
+ * generic dispatcher to the shared equality tail.
  * Only r3/r15 are left distinct from entry; the final reference
  * `compare_result` is EQUAL (the `cmpobne 28, r3` at 0x1469c). */
 static vf2_status hybrid_execute_player_14640_state28(
@@ -6051,10 +6053,29 @@ static vf2_status hybrid_execute_player_14640(
         int16_t s1aa = 0;
         int16_t s62a = 0;
         status = hybrid_read_u8(machine, player + UINT32_C(0x197), &r197);
-        if (status == VF2_OK && r197 == 27u) {
-            /* v0425: state-27 continues through the compare prefix and then
-             * uses the existing type-15 walk. */
-            status = hybrid_execute_player_14640_state27(machine, cpu);
+        if (status == VF2_OK && (r197 == 27u || r197 == 28u)) {
+            /* v0431: the equality prefix branches at 0x14658 before the
+             * state-specific 27/28 tails.  Keep the state handlers for the
+             * already measured unequal shapes. */
+            status = hybrid_read_u16(machine, player + UINT32_C(0x1aa), &h1aa);
+            if (status == VF2_OK) {
+                status = hybrid_read_u16(
+                    machine, player + UINT32_C(0x62a), &h62a
+                );
+            }
+            if (status == VF2_OK && (int16_t)h1aa == (int16_t)h62a) {
+                status = hybrid_execute_player_14640_compare_escape(
+                    machine, cpu
+                );
+            } else if (status == VF2_OK && r197 == 27u) {
+                /* v0425: state-27 continues through the compare prefix and
+                 * then uses the existing type-15 walk. */
+                status = hybrid_execute_player_14640_state27(machine, cpu);
+            } else if (status == VF2_OK) {
+                /* v0426: state-28 continues through the compare prefix and
+                 * then uses the existing arithmetic tail. */
+                status = hybrid_execute_player_14640_state28(machine, cpu);
+            }
             if (status == VF2_OK) {
                 status = vf2_i960_cpu_return_procedure(cpu, machine);
                 if (status == VF2_OK) {
@@ -6063,22 +6084,11 @@ static vf2_status hybrid_execute_player_14640(
             }
             return status;
         }
-        if (status == VF2_OK && r197 == 28u) {
-            /* v0426: state-28 continues through the compare prefix and then
-             * uses the existing arithmetic tail. */
-            status = hybrid_execute_player_14640_state28(machine, cpu);
-            if (status == VF2_OK) {
-                status = vf2_i960_cpu_return_procedure(cpu, machine);
-                if (status == VF2_OK) {
-                    ++cpu->executed_instructions;
-                }
-            }
-            return status;
-        }
-        status = hybrid_read_u16(machine, player + UINT32_C(0x1aa), &h1aa);
         if (status == VF2_OK) {
-            status = hybrid_read_u16(machine, player + UINT32_C(0x62a),
-                                     &h62a);
+            status = hybrid_read_u16(machine, player + UINT32_C(0x1aa), &h1aa);
+        }
+        if (status == VF2_OK) {
+            status = hybrid_read_u16(machine, player + UINT32_C(0x62a), &h62a);
         }
         if (status == VF2_OK) {
             s1aa = (int16_t)h1aa;
@@ -6097,6 +6107,7 @@ static vf2_status hybrid_execute_player_14640(
             if (status == VF2_OK) {
                 ++cpu->executed_instructions;
             }
+            return status;
         }
         return status;
     }

@@ -1103,6 +1103,13 @@ well. Equality remains routed to the dedicated escape arm; bit-20 board
 shifts, other state compositions and unmeasured siblings remain explicit
 boundaries. See the three live fixtures and the v0428 evidence note.
 
+Status (v0431): the compare-prefix equality tail is now dispatched for state
+27 and state 28 as well. Both measured shapes take the shared 10-instruction
+`0x146dc` tail and return through the helper frame in 11 total instructions /
++1 return; `vf2_player_14640_compare_escape_live` proves the generic dispatch
+and full live-state equality. Unmeasured bit-20 shifts and other state
+compositions remain explicit boundaries.
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Recover the measured `0x14640` compare-prefix equality tails for state 27
+  and state 28 (v0431). The generic dispatcher now routes both states through
+  the shared 10-instruction `0x146dc` tail; the ROM-backed fixture proves the
+  resulting 11-step caller return and exact live-state equality.
+
 - Complete the measured 0x1453c/0x14570 board-bit-9-clear text matrix
   (v0430). The recovered 0x7fc0 expander now covers all 35 accepted
   state/scaling shapes, including swapped, both-state-16 and mixed

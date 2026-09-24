@@ -20,6 +20,10 @@
  *     --set-ip 0x14640 --set-reg g7=0x510980 --set-reg g8=0x512980 \
  *     --set-u32 0x510FD4=0x5 --set-u16 0x510FAA=0x1 --until 0x146e8
  *     -> 10 steps, +0 call / +0 return.
+ *
+ * v0431 equality witnesses for state 27 and state 28 use the generic
+ * 0x14640 dispatcher and return through the pushed frame after 11 steps / +1
+ * return. Both take the same 10-instruction 0x146dc tail before the ret.
  */
 
 #include <stdint.h>
@@ -36,6 +40,7 @@
 
 #define CESC_ENTRY UINT32_C(0x00014640)
 #define CESC_RETURN UINT32_C(0x000146e8)
+#define CESC_DISPATCH_RETURN UINT32_C(0x0001438c)
 
 #define REF_TOTAL UINT64_C(10)
 #define REF_CALLS UINT64_C(0)
@@ -123,6 +128,15 @@ static void write_u16(
     CHECK(vf2_model2a_write(machine, address, bytes, sizeof(bytes)) == VF2_OK);
 }
 
+static void write_u8(
+    vf2_model2a *machine,
+    uint32_t address,
+    uint8_t value
+)
+{
+    CHECK(vf2_model2a_write(machine, address, &value, 1u) == VF2_OK);
+}
+
 static void write_u32(
     vf2_model2a *machine,
     uint32_t address,
@@ -142,7 +156,9 @@ static void run_rom_case(
     const uint8_t *main_rom,
     size_t main_rom_size,
     const uint8_t *main_data,
-    size_t main_data_size
+    size_t main_data_size,
+    uint8_t state,
+    int dispatch
 )
 {
     vf2_model2a reference_machine;
@@ -161,6 +177,11 @@ static void run_rom_case(
     uint64_t snap_returns = 0u;
     uint32_t fighter0 = 0u;
     uint32_t steps = 0u;
+    const uint32_t return_ip = dispatch ? CESC_DISPATCH_RETURN : CESC_RETURN;
+    const uint64_t expected_instructions = dispatch ? UINT64_C(11) : REF_TOTAL;
+    const uint64_t expected_returns = dispatch ? UINT64_C(1) : REF_RETS;
+    const char *label = state == 27u
+        ? "state27" : state == 28u ? "state28" : "neutral";
     int ok = 0;
 
     memset(&reference_machine, 0, sizeof(reference_machine));
@@ -207,6 +228,12 @@ static void run_rom_case(
      * +0x654 != 0 and +0x62a set equal to +0x1aa (park +0x1aa = 1). */
     reference_cpu.ip = CESC_ENTRY;
     native_cpu.ip = CESC_ENTRY;
+    if (state != 0u) {
+        write_u8(&reference_machine, fighter0 + UINT32_C(0x197), state);
+        write_u8(&native_machine, fighter0 + UINT32_C(0x197), state);
+    }
+    write_u32(&reference_machine, fighter0 + UINT32_C(0x198), 0u);
+    write_u32(&native_machine, fighter0 + UINT32_C(0x198), 0u);
     write_u32(&reference_machine, fighter0 + UINT32_C(0x654), 0x00000005u);
     write_u32(&native_machine, fighter0 + UINT32_C(0x654), 0x00000005u);
     write_u16(&reference_machine, fighter0 + UINT32_C(0x62a), 0x0001u);
@@ -216,10 +243,10 @@ static void run_rom_case(
     snap_calls = snap.cpu.procedure_calls;
     snap_returns = snap.cpu.procedure_returns;
 
-    /* Reference: step the 0x14640 compare-prefix escape arm to its 0x146e8
-     * ret instruction (10 steps / +0 call / +0 return). */
+    /* Reference: step the equality tail to its direct ret or through the
+     * generic 0x14640 dispatcher to the caller return address. */
     steps = 0u;
-    while (reference_cpu.ip != CESC_RETURN && steps < 1024u) {
+    while (reference_cpu.ip != return_ip && steps < 1024u) {
         reference_status =
             vf2_i960_step(&reference_cpu, &reference_machine, NULL);
         CHECK(reference_status == VF2_OK);
@@ -228,26 +255,31 @@ static void run_rom_case(
             break;
         }
     }
-    CHECK(reference_cpu.ip == CESC_RETURN);
+    CHECK(reference_cpu.ip == return_ip);
     reference_instructions =
         reference_cpu.executed_instructions - snap_instructions;
-    CHECK(reference_instructions == REF_TOTAL);
+    CHECK(reference_instructions == expected_instructions);
     CHECK(reference_cpu.procedure_calls - snap_calls == REF_CALLS);
-    CHECK(reference_cpu.procedure_returns - snap_returns == REF_RETS);
+    CHECK(reference_cpu.procedure_returns - snap_returns == expected_returns);
 
-    /* Native: the 0x14640 compare-prefix escape arm. */
-    native_status = vf2_hybrid_player_14640_compare_escape_execute_for_test(
-        &native_machine, &native_cpu);
+    /* Native: direct helper for the baseline, generic dispatcher for the
+     * newly admitted state-27/state-28 equality shapes. */
+    native_status = dispatch
+        ? vf2_hybrid_player_14640_execute_for_test(
+              &native_machine, &native_cpu)
+        : vf2_hybrid_player_14640_compare_escape_execute_for_test(
+              &native_machine, &native_cpu);
     CHECK(native_status == VF2_OK);
-    CHECK(native_cpu.ip == CESC_RETURN);
+    CHECK(native_cpu.ip == return_ip);
     native_instructions =
         native_cpu.executed_instructions - snap_instructions;
-    CHECK(native_instructions == REF_TOTAL);
+    CHECK(native_instructions == expected_instructions);
     CHECK(native_cpu.procedure_calls - snap_calls == REF_CALLS);
-    CHECK(native_cpu.procedure_returns - snap_returns == REF_RETS);
+    CHECK(native_cpu.procedure_returns - snap_returns == expected_returns);
 
     printf(
-        "player-14640-compare-escape-live ref=%llu native=%llu calls=%llu/%llu rets=%llu/%llu\n",
+        "player-14640-compare-escape-live %s ref=%llu native=%llu calls=%llu/%llu rets=%llu/%llu\n",
+        label,
         (unsigned long long)reference_instructions,
         (unsigned long long)native_instructions,
         (unsigned long long)(reference_cpu.procedure_calls - snap_calls),
@@ -261,8 +293,9 @@ static void run_rom_case(
     if (compare_status != VF2_OK || !diff.equal) {
         fprintf(
             stderr,
-            "player-14640-compare-escape-live ref=%d native=%d compare=%d "
+            "player-14640-compare-escape-live %s ref=%d native=%d compare=%d "
             "component=%s offset=%zu expected=0x%08x actual=0x%08x\n",
+            label,
             (int)reference_status, (int)native_status,
             (int)compare_status, diff.component, diff.first_offset,
             (unsigned)diff.expected_value, (unsigned)diff.actual_value);
@@ -299,7 +332,9 @@ static void run_rom_differential(const char *rom_directory)
         return;
     }
 
-    run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 0u, 0);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 27u, 1);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 28u, 1);
 
     free(main_rom);
     free(main_data);
