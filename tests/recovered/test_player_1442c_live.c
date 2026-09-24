@@ -138,7 +138,8 @@ static void run_rom_case(
     size_t main_rom_size,
     const uint8_t *main_data,
     size_t main_data_size,
-    int state25_successor
+    int state25_successor,
+    uint8_t state25_f0_19f
 )
 {
     vf2_model2a reference_machine;
@@ -211,6 +212,10 @@ static void run_rom_case(
         write_u16(&native_machine, fighter1 + UINT32_C(0x194), 0x0073u);
         write_u8(&reference_machine, fighter0 + UINT32_C(0x197), 25u);
         write_u8(&native_machine, fighter0 + UINT32_C(0x197), 25u);
+        write_u8(&reference_machine, fighter0 + UINT32_C(0x19f),
+                 state25_f0_19f);
+        write_u8(&native_machine, fighter0 + UINT32_C(0x19f),
+                 state25_f0_19f);
         write_u8(&reference_machine, fighter1 + UINT32_C(0x197),
                  (uint8_t)state25_successor);
         write_u8(&native_machine, fighter1 + UINT32_C(0x197),
@@ -258,12 +263,16 @@ static void run_rom_case(
         reference_cpu.executed_instructions - snap_instructions;
     CHECK(reference_instructions ==
           state25_successor == 16 ? UINT64_C(144) :
+          state25_successor == 24 && state25_f0_19f == 25u ? UINT64_C(59) :
+          state25_successor == 24 && state25_f0_19f == 22u ? UINT64_C(60) :
           state25_successor == 24 ? UINT64_C(105) : REF_TOTAL);
     CHECK(reference_cpu.procedure_calls - snap_calls ==
           state25_successor == 16 ? UINT64_C(4) :
+          state25_successor == 24 && state25_f0_19f != 0u ? UINT64_C(2) :
           state25_successor == 24 ? UINT64_C(3) : REF_CALLS);
     CHECK(reference_cpu.procedure_returns - snap_returns ==
           state25_successor == 16 ? UINT64_C(4) :
+          state25_successor == 24 && state25_f0_19f != 0u ? UINT64_C(2) :
           state25_successor == 24 ? UINT64_C(3) : REF_RETS);
 
     /* Native: the 0x1442c body (including the two 0x14640 helper calls). */
@@ -275,17 +284,23 @@ static void run_rom_case(
         native_cpu.executed_instructions - snap_instructions;
     CHECK(native_instructions ==
           state25_successor == 16 ? UINT64_C(144) :
+          state25_successor == 24 && state25_f0_19f == 25u ? UINT64_C(59) :
+          state25_successor == 24 && state25_f0_19f == 22u ? UINT64_C(60) :
           state25_successor == 24 ? UINT64_C(105) : REF_TOTAL);
     CHECK(native_cpu.procedure_calls - snap_calls ==
           state25_successor == 16 ? UINT64_C(4) :
+          state25_successor == 24 && state25_f0_19f != 0u ? UINT64_C(2) :
           state25_successor == 24 ? UINT64_C(3) : REF_CALLS);
     CHECK(native_cpu.procedure_returns - snap_returns ==
           state25_successor == 16 ? UINT64_C(4) :
+          state25_successor == 24 && state25_f0_19f != 0u ? UINT64_C(2) :
           state25_successor == 24 ? UINT64_C(3) : REF_RETS);
 
     printf(
         "player-1442c-live%s ref=%llu native=%llu calls=%llu/%llu rets=%llu/%llu\n",
         state25_successor == 16 ? "-25-16" :
+        state25_successor == 24 && state25_f0_19f == 25u ? "-25-24-19f25" :
+        state25_successor == 24 && state25_f0_19f == 22u ? "-25-24-19f22" :
         state25_successor == 24 ? "-25-24" : "",
         (unsigned long long)reference_instructions,
         (unsigned long long)native_instructions,
@@ -1290,9 +1305,11 @@ static void run_rom_differential(const char *rom_directory)
         return;
     }
 
-    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 0);
-    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 16);
-    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 24);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 0, 0u);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 16, 0u);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 24, 0u);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 24, 25u);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 24, 22u);
     run_sibling_case(main_rom, main_rom_size, main_data, main_data_size);
     run_s25_case(main_rom, main_rom_size, main_data, main_data_size, 0);
     run_s25_case(main_rom, main_rom_size, main_data, main_data_size, 16);

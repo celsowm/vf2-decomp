@@ -6926,6 +6926,7 @@ static vf2_status hybrid_execute_player_1442c(
         }
         if (b197_f1 == 24u) {
             uint8_t b19f_f0 = 0u;
+            uint32_t r1a4_f0 = 0u;
             /* v0434: the 0x14474 -> 0x14498 escape is measured for the
              * state-25/state-24 join when fighter0 +0x19f misses both
              * downstream values.  The prefix restores g7/g8 and arrives
@@ -6933,8 +6934,58 @@ static vf2_status hybrid_execute_player_1442c(
             status = hybrid_read_u8(
                 machine, player0 + UINT32_C(0x19f), &b19f_f0
             );
-            if (status != VF2_OK || b19f_f0 == 25u || b19f_f0 == 22u) {
-                return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
+            if (status != VF2_OK) {
+                return status;
+            }
+            if (b19f_f0 == 25u || b19f_f0 == 22u) {
+                /* v0435: with f0 still state 25, the 0x14474 arm swaps
+                 * g7/g8 and writes the selected +0x194/+0x1a4 values to
+                 * the original fighter0.  This is the measured 59/60-step
+                 * state-25/state-24 sibling; other 0x19f values continue
+                 * through the 0x144b0 state-25 arm below. */
+                status = vf2_model2a_read_u32(
+                    machine, player0 + UINT32_C(0x1a4), &r1a4_f0
+                );
+                if (status != VF2_OK) {
+                    return status;
+                }
+                cpu->registers[7] = (uint32_t)b197_f0;
+                cpu->registers[8] = (uint32_t)b197_f1;
+                cpu->registers[14u] = (uint32_t)b19b_f1;
+                cpu->registers[6] = (uint32_t)b19f_f0;
+                status = vf2_model2a_write_u32(
+                    machine, player0 + UINT32_C(0x194), UINT32_C(0x01000000)
+                );
+                if (status == VF2_OK) {
+                    r1a4_f0 &= ~UINT32_C(1);
+                    status = vf2_model2a_write_u32(
+                        machine, player0 + UINT32_C(0x1a4), r1a4_f0
+                    );
+                }
+                if (status != VF2_OK) {
+                    return status;
+                }
+                cpu->registers[VF2_I960_G0_REGISTER + 7u] = r10;
+                cpu->registers[VF2_I960_G0_REGISTER + 8u] = r11;
+                cpu->registers[3] = 0u;
+                cpu->registers[15u] = r1a4_f0;
+                status = vf2_model2a_write_u32(
+                    machine, player0 + UINT32_C(0x198), 0u
+                );
+                if (status == VF2_OK) {
+                    status = vf2_model2a_write_u32(
+                        machine, player1 + UINT32_C(0x198), 0u
+                    );
+                }
+                if (status != VF2_OK) {
+                    return status;
+                }
+                hybrid_set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
+                cpu->executed_instructions +=
+                    b19f_f0 == 25u ? UINT64_C(18) : UINT64_C(19);
+                cpu->executed_instructions += UINT64_C(5);
+                cpu->ip = UINT32_C(0x0001463c);
+                return VF2_OK;
             }
             cpu->registers[7] = (uint32_t)b197_f0;
             cpu->registers[8] = (uint32_t)b197_f1;

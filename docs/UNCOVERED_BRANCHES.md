@@ -1005,6 +1005,11 @@ reaches `0x144b0`, and the direct/integrated fixtures prove 53/105
 instructions with one/three calls and returns plus exact live-state equality.
 Other state-24 `0x14474` compositions remain explicit boundaries (see
 `decomp/i960/notes/fa_player_144b0_state24_v0434.md`).
+Status (v0435): the integrated state-25/state-24 arm also admits the measured
+`0x14474` writes for fighter0 `+0x19f == 25` and `22`. The two witnesses prove
+59/60 instructions with two calls/returns and exact live-state equality;
+other state-24 compositions remain explicit boundaries (see
+`decomp/i960/notes/fa_player_1442c_state25_state24_1474_v0435.md`).
 Status (v0405): the `0x14640` state-27 arm is now native as the standalone
 `hybrid_execute_player_14640_state27` (type-15 walk via `+0x194(g7)`,
 41 steps / +1 call / +1 return to the `0x146c4` ret).  It requires

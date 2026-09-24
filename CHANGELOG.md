@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Recover the measured integrated state-25/state-24 `0x14474` sibling
+  (v0435). When fighter0 `+0x19f` is 25 or 22, the swapped arm now writes
+  the original fighter0 `+0x194`/`+0x1a4` state and rejoins the common exit;
+  the ROM-backed witnesses match 59/60 instructions with two calls/returns
+  and exact live-state equality. See
+  `decomp/i960/notes/fa_player_1442c_state25_state24_1474_v0435.md`.
+
 - Recover the measured `0x144b0` state-25 to state-24 successor (v0434).
   The neutral `0x14474`/`0x14498` prefix now reaches the existing common
   `0x144b0` exit: the direct witness matches 53 instructions and the
