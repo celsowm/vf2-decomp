@@ -21640,10 +21640,22 @@ static vf2_status coli_22298_body(
 
             if (hybrid_read_u16(
                     machine, g7 + UINT32_C(0x61c), &half_61c) != VF2_OK ||
-                half_61c != UINT16_C(1) ||
                 hybrid_read_u8(
-                    machine, g8 + UINT32_C(0x821), &scan_821) != VF2_OK ||
-                scan_821 != UINT8_C(0)) {
+                    machine, g8 + UINT32_C(0x821), &scan_821) != VF2_OK) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+            if (half_61c == UINT16_C(1) && scan_821 == UINT8_C(5)) {
+                /* v0494: the measured scan-5 sibling reaches the common
+                 * zero-mask tail without entering either 16-trip loop. */
+                if (hybrid_write_u16(
+                        machine, g7 + VF2_COLI_BITMASK_RESULT_OFFSET,
+                        0u) != VF2_OK) {
+                    return VF2_ERROR_UNSUPPORTED;
+                }
+                *body_out = UINT64_C(14);
+                return VF2_OK;
+            }
+            if (half_61c != UINT16_C(1) || scan_821 != UINT8_C(0)) {
                 return VF2_ERROR_UNSUPPORTED;
             }
             if (vf2_model2a_read_u32(

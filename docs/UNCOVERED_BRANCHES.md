@@ -2722,6 +2722,13 @@ body counts, pinned by `vf2_native_runtime`; all other bit-14 loop shapes
 remain fail-closed. See
 `decomp/i960/notes/fa_coli_bit14_loop_v0485.md`.
 
+Status (v0494): the measured bit-14 scan-5 sibling now takes the common
+zero-mask tail natively: `g7+0x61c == 1`, `g8+0x821 == 5`, 15 instructions
+including the return, and zero stored at `g7+0x6dc`. The adjacent scan-4
+shape and other alternate bit-14 branches remain explicit fail-closed
+boundaries. See
+`decomp/i960/notes/fa_coli_bit14_scan5_v0494.md`.
+
 Status (v0486): the measured `0x225cc` scan-4 selector
 `g8 + 0x1a4 = 0x0001f004` is now native for `g7 + 0x1a4 = 0x00400100`.
 The reference and native runs both return in 217 instructions with complete
