@@ -6380,8 +6380,9 @@ static vf2_status hybrid_execute_player_144b0(
  * (g8), then rejoins the 0x14628 common exit clearing both fighters'
  * +0x198.  The direct r7 == 27 shape spans 52 steps; the measured r7 != 27,
  * r8 == 27 shape executes the 0x14530..0x14538 swap and spans 56 steps.
- * The measured state-16 joins span 52 steps (r7=16,r8=0), 55 steps
- * (r7=0,r8=16), or 54/58 steps for r7=r8=16 with bit 0 of 0x500028 clear/
+ * The measured state-16 joins span 52 steps (r7=16,r8=0), 55 steps for the
+ * first +0x1a4 scaling arm, 55 steps (r7=0,r8=16), or 54/58 steps for
+ * r7=r8=16 with bit 0 of 0x500028 clear/set.
  * set.  All measured paths have +1 call / +1 return when +0x194(g7) indexes
  * a valid type-5 chain.  Unmeasured variants (walker miss, bit 0 of
  * +0x1a4(g8) set, bit 6 of the 0x50016c+0x3351 byte set, bit 9 of 0x508000
@@ -6470,6 +6471,11 @@ static vf2_status hybrid_execute_player_1453c(
             machine, g8 + UINT32_C(0x1a4), &r1a4_g8
         );
     }
+    if (status == VF2_OK && (r1a4_g8 & UINT32_C(1)) != 0u &&
+        !(r7 == 16u && r8 == 0u && !state27 && !swapped)) {
+        /* v0417 measures only the direct state-16 first-scaling arm. */
+        status = VF2_ERROR_UNSUPPORTED;
+    }
     if (status == VF2_OK) {
         status = vf2_model2a_read_u32(
             machine, g7 + UINT32_C(0x1a4), &r1a4_g7
@@ -6499,8 +6505,7 @@ static vf2_status hybrid_execute_player_1453c(
     if (status != VF2_OK) {
         return status;
     }
-    if ((r1a4_g8 & UINT32_C(1)) != 0u ||
-        (b3351 & (UINT32_C(1) << 6u)) != 0u ||
+    if ((b3351 & (UINT32_C(1) << 6u)) != 0u ||
         (board & (UINT32_C(1) << 9u)) == 0u) {
         return VF2_ERROR_UNSUPPORTED;
     }
@@ -6553,14 +6558,23 @@ static vf2_status hybrid_execute_player_1453c(
     if (status != VF2_OK) {
         return status;
     }
-    /* 0x1458c ldob +3(g0), r3 ; 0x14590 lda 0x1b970,g0 (short path). */
+    /* 0x1458c ldob +3(g0), r3 ; 0x14590 lda 0x1b970,g0 (short path).
+     * When +0x1a4(g8) bit 0 is set, the measured 0x1459c fall-through runs
+     * 0x145a0..0x145a8, scaling the byte and selecting 0x1b979 instead. */
     status = hybrid_read_u8(machine, walk_rec + UINT32_C(3), &r3b);
     if (status != VF2_OK) {
         return status;
     }
-    cpu->registers[VF2_I960_G0_REGISTER] = UINT32_C(0x0001b970);
+    r3 = (uint32_t)r3b;
+    if ((r1a4_g8 & UINT32_C(1)) != 0u) {
+        r3 += r3 >> 2u;
+        cpu->registers[VF2_I960_G0_REGISTER] = UINT32_C(0x0001b979);
+        body += UINT64_C(3);
+    } else {
+        cpu->registers[VF2_I960_G0_REGISTER] = UINT32_C(0x0001b970);
+    }
     /* 0x145dc stob r3,+0x822(g8). */
-    status = hybrid_write_u8(machine, g8 + UINT32_C(0x822), r3b);
+    status = hybrid_write_u8(machine, g8 + UINT32_C(0x822), (uint8_t)r3);
     if (status != VF2_OK) {
         return status;
     }

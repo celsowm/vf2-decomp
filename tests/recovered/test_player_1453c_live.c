@@ -15,8 +15,9 @@
  * the reference interpreter and the native helper to ip == 0x1463c and
  * asserts exact step/call/ret lockstep plus full live-state equality
  * (registers/CC/AC/frames/Work-RAM). The measured cases are 52/56 steps for
- * state 27, 52/55 steps for the asymmetric state-16 joins, and 54/58 steps
- * for the board-controlled both-state-16 joins.
+ * state 27, 52/55 steps for the asymmetric state-16 joins, 54/58 steps for
+ * the board-controlled both-state-16 joins, and 55 steps for the measured
+ * direct first-scaling state-16 variant.
  *
  * Witness (measured, current build):
  *   vf2probe --rom-dir roms/vf2 --snapshot out/park-1442c.vf2snap \
@@ -52,6 +53,7 @@
 #define CASE_STATE16_SWAPPED 3
 #define CASE_STATE16_BOTH_DIRECT 4
 #define CASE_STATE16_BOTH_SWAPPED 5
+#define CASE_STATE16_DIRECT_SCALE 6
 
 static int failures = 0;
 
@@ -82,9 +84,9 @@ static void test_unit_invalid_arguments(void)
     );
 }
 
-/* ROM-independent fail-closed checks for the 0x1453c arm.  The arm must
- * refuse any non-state-27 shape (wrong ip, r7 != 27, no pushed frame,
- * zero fighter base) before touching memory. */
+/* ROM-independent fail-closed checks for the 0x1453c/0x14570 arm. The arm
+ * must refuse unknown state shapes (wrong ip, no pushed frame, zero fighter
+ * base) before touching memory. */
 static void test_unit_fail_closed(void)
 {
     vf2_model2a machine;
@@ -182,6 +184,7 @@ static void run_rom_case(
     const char *label = "unknown";
     int swapped = 0;
     int both16 = 0;
+    int scale_first = 0;
     int ok = 0;
 
     memset(&reference_machine, 0, sizeof(reference_machine));
@@ -284,6 +287,15 @@ static void run_rom_case(
         both16 = 1;
         label = "state16-both-swapped";
         break;
+    case CASE_STATE16_DIRECT_SCALE:
+        reference_cpu.registers[7] = 16u;
+        native_cpu.registers[7] = 16u;
+        reference_cpu.registers[8] = 0u;
+        native_cpu.registers[8] = 0u;
+        expected_steps = UINT64_C(55);
+        scale_first = 1;
+        label = "state16-direct-scale";
+        break;
     default:
         CHECK(0);
         goto cleanup;
@@ -302,6 +314,10 @@ static void run_rom_case(
     write_u16(&reference_machine,
               type5_fighter + UINT32_C(0x194), TYPE5_INDEX);
     write_u16(&native_machine, type5_fighter + UINT32_C(0x194), TYPE5_INDEX);
+    if (scale_first) {
+        write_u32(&reference_machine, fighter1 + UINT32_C(0x1a4), 1u);
+        write_u32(&native_machine, fighter1 + UINT32_C(0x1a4), 1u);
+    }
     if (both16) {
         const uint32_t board28 = swapped ? UINT32_C(1) : UINT32_C(0);
         write_u32(&reference_machine, UINT32_C(0x00500028), board28);
@@ -408,6 +424,8 @@ static void run_rom_differential(const char *rom_directory)
                  CASE_STATE16_BOTH_DIRECT);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
                  CASE_STATE16_BOTH_SWAPPED);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_DIRECT_SCALE);
 
     free(main_rom);
     free(main_data);

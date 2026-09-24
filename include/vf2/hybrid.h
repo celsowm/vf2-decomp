@@ -405,10 +405,11 @@ vf2_status vf2_hybrid_player_144b0_execute_for_test(
  * r7 != 27 with r8 == 27 (the measured g7/g8 swap, 56 steps) is accepted;
  * the measured state-16 joins are also accepted for (r7,r8) = (16,0),
  * (0,16), or (16,16) with the observed 0x500028 bit-0 gate. +0x194(g7)
- * must index a valid type-5 record chain and the measured short path must
- * hold (bit 0 of +0x1a4(g8) clear, bit 6 of the 0x50016c+0x3351 byte clear,
- * bit 9 of 0x508000 set). All accepted paths have +1 call / +1 return and
- * land at 0x1463c. Anything else is VF2_ERROR_UNSUPPORTED. */
+ * must index a valid type-5 record chain; the direct (16,0) shape also has a
+ * measured bit-0-set first-scaling variant at 55 steps. The remaining short
+ * path requires bit 0 of +0x1a4(g8) clear, bit 6 of the 0x50016c+0x3351 byte
+ * clear and bit 9 of 0x508000 set. All accepted paths have +1 call / +1
+ * return and land at 0x1463c. Anything else is VF2_ERROR_UNSUPPORTED. */
 vf2_status vf2_hybrid_player_1453c_execute_for_test(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu

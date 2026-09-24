@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Recover the measured direct state-16 first-scaling arm of `0x14570` (v0417).
+  With `+0x1a4(g8)` bit 0 set, the native path scales the type-5 record byte,
+  selects `0x1b979` and matches the ROM through `0x1463c` in 55 instructions
+  with one call/return. The expanded `vf2_player_1453c_live` fixture proves
+  the shape with full live-state equality; unmeasured scaled swaps and later
+  scaling/text arms remain fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_scaling_v0417.md`.
+
 - Extend the `0x1453c`/`0x14570` fighter-exchange recovery for the measured
   state-16 joins (v0416). The native helper now covers `(r7,r8)=(16,0)` and
   `(0,16)`, plus both 16 values with the observed `0x500028` bit-0 swap gate,

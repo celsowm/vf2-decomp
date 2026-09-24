@@ -921,6 +921,13 @@ real body (100/104 instructions). Other state combinations, scaling/text/walker
 variants and the remaining `0x1442c` heavy-arm dispatch remain explicit
 boundaries. See
 `decomp/i960/notes/fa_player_1453c_state16_v0416.md`.
+Status (v0417): the measured direct state-16 first-scaling arm is native when
+`+0x1a4(g8)` bit 0 is set. It scales the type-5 record byte, selects the
+`0x1b979` table and reaches `0x1463c` in 55 instructions. The expanded
+`vf2_player_1453c_live` fixture proves this shape with full live-state
+equality; scaled swapped/state-27 variants and the later scaling/text arms
+remain explicit boundaries. See
+`decomp/i960/notes/fa_player_1453c_scaling_v0417.md`.
 Status (v0405): the `0x14640` state-27 arm is now native as the standalone
 `hybrid_execute_player_14640_state27` (type-15 walk via `+0x194(g7)`,
 41 steps / +1 call / +1 return to the `0x146c4` ret).  It requires
