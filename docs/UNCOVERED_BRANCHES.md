@@ -1440,6 +1440,13 @@ compare equal in full CPU/memory state with one nested call and return.
 Unmeasured type-15 misses remain explicit fail-closed boundaries (see
 `decomp/i960/notes/fa_player_14640_type15_miss_v0476.md`).
 
+Status (v0477): the same `0x14640` state-27 type-15 miss recovery now
+covers the complete measured selector sweep `+0x194 == 1..64`. All 64
+zero-record cases reach `0x146c4` and compare equal in full CPU/memory state,
+with one nested call and return. Misses outside this bounded sweep remain
+explicit fail-closed boundaries (see
+`decomp/i960/notes/fa_player_14640_type15_miss_v0477.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at
