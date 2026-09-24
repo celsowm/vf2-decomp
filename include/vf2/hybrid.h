@@ -409,7 +409,9 @@ vf2_status vf2_hybrid_player_144b0_execute_for_test(
  * measured bit-0-set first-scaling variant at 55 steps. The remaining short
  * path requires bit 0 of +0x1a4(g8) clear, bit 6 of the 0x50016c+0x3351 byte
  * clear and bit 9 of 0x508000 set. All accepted paths have +1 call / +1
- * return and land at 0x1463c. Anything else is VF2_ERROR_UNSUPPORTED. */
+ * return and land at 0x1463c. The direct (16,0) shape also admits the
+ * measured +0x3351 bit-6-set / g8 bit-29-clear second gate at 54 steps.
+ * Anything else is VF2_ERROR_UNSUPPORTED. */
 vf2_status vf2_hybrid_player_1453c_execute_for_test(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu

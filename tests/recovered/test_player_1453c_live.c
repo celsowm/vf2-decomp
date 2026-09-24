@@ -54,6 +54,7 @@
 #define CASE_STATE16_BOTH_DIRECT 4
 #define CASE_STATE16_BOTH_SWAPPED 5
 #define CASE_STATE16_DIRECT_SCALE 6
+#define CASE_STATE16_DIRECT_SECOND_GATE 7
 
 static int failures = 0;
 
@@ -137,6 +138,15 @@ static void write_u16(
     CHECK(vf2_model2a_write(machine, address, bytes, sizeof(bytes)) == VF2_OK);
 }
 
+static void write_u8(
+    vf2_model2a *machine,
+    uint32_t address,
+    uint8_t value
+)
+{
+    CHECK(vf2_model2a_write(machine, address, &value, 1u) == VF2_OK);
+}
+
 static void write_u32(
     vf2_model2a *machine,
     uint32_t address,
@@ -185,6 +195,7 @@ static void run_rom_case(
     int swapped = 0;
     int both16 = 0;
     int scale_first = 0;
+    int second_gate = 0;
     int ok = 0;
 
     memset(&reference_machine, 0, sizeof(reference_machine));
@@ -296,6 +307,15 @@ static void run_rom_case(
         scale_first = 1;
         label = "state16-direct-scale";
         break;
+    case CASE_STATE16_DIRECT_SECOND_GATE:
+        reference_cpu.registers[7] = 16u;
+        native_cpu.registers[7] = 16u;
+        reference_cpu.registers[8] = 0u;
+        native_cpu.registers[8] = 0u;
+        expected_steps = UINT64_C(54);
+        second_gate = 1;
+        label = "state16-direct-second-gate";
+        break;
     default:
         CHECK(0);
         goto cleanup;
@@ -317,6 +337,10 @@ static void run_rom_case(
     if (scale_first) {
         write_u32(&reference_machine, fighter1 + UINT32_C(0x1a4), 1u);
         write_u32(&native_machine, fighter1 + UINT32_C(0x1a4), 1u);
+    }
+    if (second_gate) {
+        write_u8(&reference_machine, UINT32_C(0x0059c351), 0x40u);
+        write_u8(&native_machine, UINT32_C(0x0059c351), 0x40u);
     }
     if (both16) {
         const uint32_t board28 = swapped ? UINT32_C(1) : UINT32_C(0);
@@ -426,6 +450,8 @@ static void run_rom_differential(const char *rom_directory)
                  CASE_STATE16_BOTH_SWAPPED);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
                  CASE_STATE16_DIRECT_SCALE);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_DIRECT_SECOND_GATE);
 
     free(main_rom);
     free(main_data);

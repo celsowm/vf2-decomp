@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Recover the measured direct state-16 `0x145c0` second gate (v0418). With
+  `+0x3351` bit 6 set and `g8` bit 29 clear, the native path matches the ROM
+  through `0x1463c` in 54 instructions with one type-5 call/return. The
+  expanded `vf2_player_1453c_live` fixture now proves eight measured
+  state-27/state-16 shapes with full live-state equality; other second-gate
+  and later scaling/text variants remain fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_second_gate_v0418.md`.
+
 - Recover the measured direct state-16 first-scaling arm of `0x14570` (v0417).
   With `+0x1a4(g8)` bit 0 set, the native path scales the type-5 record byte,
   selects `0x1b979` and matches the ROM through `0x1463c` in 55 instructions

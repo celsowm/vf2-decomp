@@ -928,6 +928,13 @@ Status (v0417): the measured direct state-16 first-scaling arm is native when
 equality; scaled swapped/state-27 variants and the later scaling/text arms
 remain explicit boundaries. See
 `decomp/i960/notes/fa_player_1453c_scaling_v0417.md`.
+Status (v0418): the direct state-16 `0x145c0` second gate is native for the
+measured `+0x3351` bit-6-set and `g8` bit-29-clear composition. It reaches
+`0x1463c` in 54 instructions, two more than the short tail, and preserves the
+same record-byte result. The eight-case `vf2_player_1453c_live` fixture proves
+this alongside the prior state-27/state-16 shapes; other second-gate and
+later scaling/text compositions remain explicit boundaries. See
+`decomp/i960/notes/fa_player_1453c_second_gate_v0418.md`.
 Status (v0405): the `0x14640` state-27 arm is now native as the standalone
 `hybrid_execute_player_14640_state27` (type-15 walk via `+0x194(g7)`,
 41 steps / +1 call / +1 return to the `0x146c4` ret).  It requires

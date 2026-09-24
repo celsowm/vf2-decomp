@@ -6384,9 +6384,10 @@ static vf2_status hybrid_execute_player_144b0(
  * first +0x1a4 scaling arm, 55 steps (r7=0,r8=16), or 54/58 steps for
  * r7=r8=16 with bit 0 of 0x500028 clear/set.
  * set.  All measured paths have +1 call / +1 return when +0x194(g7) indexes
- * a valid type-5 chain.  Unmeasured variants (walker miss, bit 0 of
- * +0x1a4(g8) set, bit 6 of the 0x50016c+0x3351 byte set, bit 9 of 0x508000
- * clear) stay fail-closed. */
+ * a valid type-5 chain.  The measured direct state-16 scaling and second-gate
+ * variants are admitted below; unmeasured combinations (walker miss, scaled
+ * swaps/state-27, bit 29 set on the second gate and bit 9 of 0x508000 clear)
+ * stay fail-closed. */
 static vf2_status hybrid_execute_player_1453c(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu
@@ -6505,8 +6506,17 @@ static vf2_status hybrid_execute_player_1453c(
     if (status != VF2_OK) {
         return status;
     }
-    if ((b3351 & (UINT32_C(1) << 6u)) != 0u ||
-        (board & (UINT32_C(1) << 9u)) == 0u) {
+    if ((b3351 & (UINT32_C(1) << 6u)) != 0u) {
+        if (!(r7 == 16u && r8 == 0u && !state27 && !swapped &&
+              (r1a4_g8 & UINT32_C(1)) == 0u &&
+              (word_g8 & (UINT32_C(1) << 29u)) == 0u)) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        /* 0x145c0 bbc is not taken; 0x145c4 ld (g8),r15 and 0x145c8
+         * bbc 29 are the measured extra pair before 0x145dc. */
+        body += UINT64_C(2);
+    }
+    if ((board & (UINT32_C(1) << 9u)) == 0u) {
         return VF2_ERROR_UNSUPPORTED;
     }
 
