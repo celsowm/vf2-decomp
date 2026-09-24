@@ -9361,7 +9361,8 @@ static vf2_status hybrid_execute_game_info_18644(
             (UINT32_C(1) << 29u) | (UINT32_C(1) << 30u) |
             (UINT32_C(1) << 31u);
         const uint32_t medium_bits =
-            (UINT32_C(1) << 15u) | (UINT32_C(1) << 16u);
+            (UINT32_C(1) << 14u) | (UINT32_C(1) << 15u) |
+            (UINT32_C(1) << 16u);
         const uint32_t bilateral_high_only_state = r7 & ~state8;
         const bool bilateral_both_high_any =
             r7 == r8 && (r7 & state8) != 0u &&
@@ -9725,7 +9726,8 @@ static vf2_status hybrid_execute_game_info_18644(
                     (extra_state & (UINT32_C(1) << 6u)) != 0u &&
                     extra_high_state != 0u;
                 const uint32_t medium_state_bits =
-                    (UINT32_C(1) << 15u) | (UINT32_C(1) << 16u);
+                    (UINT32_C(1) << 14u) | (UINT32_C(1) << 15u) |
+                    (UINT32_C(1) << 16u);
                 const bool extra_bit1_bit6_medium =
                     (extra_state &
                      ~((UINT32_C(1) << 1u) |
@@ -10433,7 +10435,8 @@ static vf2_status hybrid_execute_game_info_18644(
             (UINT32_C(1) << 29u) | (UINT32_C(1) << 30u) |
             (UINT32_C(1) << 31u);
         const uint32_t medium_bits_any =
-            (UINT32_C(1) << 15u) | (UINT32_C(1) << 16u);
+            (UINT32_C(1) << 14u) | (UINT32_C(1) << 15u) |
+            (UINT32_C(1) << 16u);
         const uint32_t r7_high_any = r7 & ~(state8_bit1_high_mask);
         const uint32_t r8_high_any = r8 & ~(state8_bit1_high_mask);
         const bool r7_bit1_high_any =
@@ -14942,6 +14945,47 @@ static vf2_status hybrid_execute_game_info_18644(
                 body_instructions -= UINT32_C(4);
             } else {
                 body_instructions -= UINT32_C(3);
+            }
+        }
+    }
+    /* v0482: the measured positive state-8 bit-1/bit-6/bit-14 family has
+     * the same complete memory post-state as 0x0142, but its dispatcher
+     * pair publishes a distinct order/countdown/mode instruction matrix. */
+    if (status == VF2_OK) {
+        const uint32_t state8_bit1_bit6_bit14 =
+            (UINT32_C(1) << 8u) | (UINT32_C(1) << 1u) |
+            (UINT32_C(1) << 6u) | (UINT32_C(1) << 14u);
+        const bool fighter0_only =
+            r7 == state8_bit1_bit6_bit14 && r8 == 0u;
+        const bool fighter1_only =
+            r7 == 0u && r8 == state8_bit1_bit6_bit14;
+        const bool bilateral =
+            r7 == state8_bit1_bit6_bit14 &&
+            r8 == state8_bit1_bit6_bit14;
+
+        if (return_address == UINT32_C(0x000164c4)) {
+            if (fighter0_only) {
+                if (countdown_path) {
+                    body_instructions += UINT32_C(7);
+                } else {
+                    body_instructions -= UINT32_C(8);
+                }
+            } else if (fighter1_only) {
+                if (countdown_path) {
+                    body_instructions += mode_bit6
+                        ? UINT32_C(13) : UINT32_C(12);
+                } else {
+                    body_instructions -= mode_bit6
+                        ? UINT32_C(6) : UINT32_C(3);
+                }
+            } else if (bilateral) {
+                if (countdown_path) {
+                    body_instructions += mode_bit6
+                        ? UINT32_C(19) : UINT32_C(18);
+                } else {
+                    body_instructions -= mode_bit6
+                        ? UINT32_C(5) : UINT32_C(7);
+                }
             }
         }
     }
