@@ -1190,6 +1190,14 @@ variant with exact live-state equality. Values above 31 and other state-byte
 combinations remain explicit fail-closed boundaries (see
 `decomp/i960/notes/fa_player_1453c_state16_direct_family_v0443.md`).
 
+Status (v0444): a second full bounded row with `r8 == 1` confirms the same
+9-instruction neutral exit for every `r7=0..31` value except `r7 == 16` and
+`r7 == 27`. Native C now admits the measured bounded cross-product where both
+state bytes are in `0..31` and neither is 16/27; the fixture proves the
+state-26/state-1 witness with exact live-state equality. Values above 31 and
+dedicated 16/27 combinations remain explicit boundaries (see
+`decomp/i960/notes/fa_player_1453c_neutral_cross_product_v0444.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at

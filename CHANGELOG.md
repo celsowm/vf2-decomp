@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Generalize the bounded neutral `0x14528` family (v0444). A second full
+  `r7=0..31` reference row at `r8 == 1` matches the same 9-instruction exit,
+  with only the dedicated state-16/state-27 rows taking the type-5 paths.
+  Native C now admits the measured bounded cross-product and the live fixture
+  proves the state-26/state-1 neutral witness; values above 31 remain
+  fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_neutral_cross_product_v0444.md`.
+
 - Consolidate the bounded direct state-16 `0x14528` family (v0443). A
   reference sweep of `r7 == 16` and `r8=0..31` uses the same 52-instruction
   type-5 body for every value except the dedicated state-16/state-27 joins.

@@ -6581,9 +6581,10 @@ static vf2_status hybrid_execute_player_1453c(
     } else if (r7 == 16u && r8 <= 31u && r8 != 16u && r8 != 27u) {
         /* v0443: the bounded r7=16 sweep takes the same direct type-5 body
          * for every measured r8 value except the dedicated 16/27 arms. */
-    } else if (r8 == 0u && r7 <= 31u && r7 != 16u && r7 != 27u) {
-        /* v0442: the bounded r7=0..31 sweep takes the 0x14560 neutral
-         * exit for every value except the dedicated state-16/state-27 arms. */
+    } else if (r7 <= 31u && r8 <= 31u &&
+               r7 != 16u && r7 != 27u && r8 != 16u && r8 != 27u) {
+        /* v0442/v0444: bounded rows take the 0x14560 neutral exit for every
+         * measured pair except the dedicated state-16/state-27 arms. */
         neutral_join = true;
     } else if (r7 == 0u && r8 == 16u) {
         /* Measured 0x14528 -> 0x14570 swapped state-16 join. */

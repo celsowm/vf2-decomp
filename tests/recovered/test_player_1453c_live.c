@@ -667,8 +667,8 @@ static void run_rom_case_with_text(
     case CASE_STATE26_NEUTRAL:
         reference_cpu.registers[7] = 26u;
         native_cpu.registers[7] = 26u;
-        reference_cpu.registers[8] = 0u;
-        native_cpu.registers[8] = 0u;
+        reference_cpu.registers[8] = 1u;
+        native_cpu.registers[8] = 1u;
         expected_steps = UINT64_C(9);
         expected_calls = UINT64_C(0);
         expected_returns = UINT64_C(0);
