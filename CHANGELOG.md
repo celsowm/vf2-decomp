@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Recover the measured `0x14640` state-27 board-bit-20 shift sibling
+  (v0432). The type-15 tail now admits the `shli` arm at `0x14684`, adding one
+  instruction to the compare-prefix witness; the expanded fixture proves the
+  45-step path with exact live-state equality.
+
 - Recover the measured `0x14640` compare-prefix equality tails for state 27
   and state 28 (v0431). The generic dispatcher now routes both states through
   the shared 10-instruction `0x146dc` tail; the ROM-backed fixture proves the

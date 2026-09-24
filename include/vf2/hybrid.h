@@ -430,14 +430,15 @@ vf2_status vf2_hybrid_player_1453c_execute_for_test(
     vf2_i960_cpu *cpu
 );
 
-/* v0405/v0425/v0428: test-only entry to the measured fa_rob state-27 arm 0x14640.
+/* v0405/v0425/v0428/v0432: test-only entry to the measured fa_rob state-27 arm 0x14640.
  * The CPU must be parked at 0x14640 with g7 the state-27 fighter base and a
  * pushed frame; +0x198 == 0, +0x197 == 27, +0x194(g7) must index a valid
  * type-15 record chain and bit 20 of 0x500068 must be clear. The original
  * +0x654 == 0 shape lands at 0x146c4 after 41 steps; the measured compare-
  * prefix sibling accepts +0x654 != 0 with unequal signed +0x1aa/+0x62a and
- * lands there after 44 steps. Both have +1 call / +1 return, with the ret
- * unconsumed. Anything else is VF2_ERROR_UNSUPPORTED. */
+ * lands there after 44 steps. The measured bit-20-set sibling lands there
+ * after 45 steps and leaves its measured condition state. All have +1 call /
+ * +1 return, with the ret unconsumed. Anything else is VF2_ERROR_UNSUPPORTED. */
 vf2_status vf2_hybrid_player_14640_state27_execute_for_test(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu

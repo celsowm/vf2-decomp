@@ -1,5 +1,5 @@
 /* ROM-backed differential fixture for the fa_rob state-27 arm 0x14640
- * (v0405/v0425).
+ * (v0405/v0425/v0432).
  *
  * The 0x14640 arm is the fa_rob fighter-state helper reached when the
  * fighter g7 has +0x197 == 27 and +0x198 == 0. The original shape has
@@ -21,6 +21,8 @@
  *     --set-ip 0x14640 --set-reg g7=0x510980 --set-reg g8=0x512980 \
  *     --set-u8 0x510B17=27 --set-u16 0x510B14=0x73 --until 0x146c4
  *     -> 41 steps, +1 call / +1 return (the 0x1ab34 type-15 walker).
+ *
+ * v0432 also pins the board-bit-20 shift sibling at 45 steps.
  */
 
 #include <stdint.h>
@@ -40,6 +42,7 @@
 
 #define REF_TOTAL UINT64_C(41)
 #define REF_COMPARE_PREFIX_TOTAL UINT64_C(44)
+#define REF_SHIFT_TOTAL UINT64_C(45)
 #define REF_CALLS UINT64_C(1)
 #define REF_RETS UINT64_C(1)
 
@@ -227,21 +230,27 @@ static void run_rom_case(
     write_u32(&native_machine, fighter0 + UINT32_C(0x654),
               compare_shape != 0 ? UINT32_C(1) : UINT32_C(0));
     write_u16(&reference_machine, fighter0 + UINT32_C(0x1aa),
-              compare_shape == 1 ? UINT16_C(1) :
+              (compare_shape == 1 || compare_shape == 3) ? UINT16_C(1) :
               compare_shape == 2 ? UINT16_C(2) : UINT16_C(0));
     write_u16(&native_machine, fighter0 + UINT32_C(0x1aa),
-              compare_shape == 1 ? UINT16_C(1) :
+              (compare_shape == 1 || compare_shape == 3) ? UINT16_C(1) :
               compare_shape == 2 ? UINT16_C(2) : UINT16_C(0));
     write_u16(&reference_machine, fighter0 + UINT32_C(0x62a),
-              compare_shape == 1 ? UINT16_C(2) :
+              (compare_shape == 1 || compare_shape == 3) ? UINT16_C(2) :
               compare_shape == 2 ? UINT16_C(1) : UINT16_C(0));
     write_u16(&native_machine, fighter0 + UINT32_C(0x62a),
-              compare_shape == 1 ? UINT16_C(2) :
+              (compare_shape == 1 || compare_shape == 3) ? UINT16_C(2) :
               compare_shape == 2 ? UINT16_C(1) : UINT16_C(0));
     write_u8(&reference_machine, fighter0 + UINT32_C(0x197), 27u);
     write_u8(&native_machine, fighter0 + UINT32_C(0x197), 27u);
     write_u16(&reference_machine, fighter0 + UINT32_C(0x194), TYPE15_INDEX);
     write_u16(&native_machine, fighter0 + UINT32_C(0x194), TYPE15_INDEX);
+    if (compare_shape == 3) {
+        write_u32(&reference_machine, UINT32_C(0x00500068),
+                  UINT32_C(1) << 20u);
+        write_u32(&native_machine, UINT32_C(0x00500068),
+                  UINT32_C(1) << 20u);
+    }
 
     snap_instructions = snap.cpu.executed_instructions;
     snap_calls = snap.cpu.procedure_calls;
@@ -263,7 +272,8 @@ static void run_rom_case(
     reference_instructions =
         reference_cpu.executed_instructions - snap_instructions;
     CHECK(reference_instructions ==
-          (compare_shape != 0 ? REF_COMPARE_PREFIX_TOTAL : REF_TOTAL));
+          compare_shape == 3 ? REF_SHIFT_TOTAL :
+          compare_shape != 0 ? REF_COMPARE_PREFIX_TOTAL : REF_TOTAL);
     CHECK(reference_cpu.procedure_calls - snap_calls == REF_CALLS);
     CHECK(reference_cpu.procedure_returns - snap_returns == REF_RETS);
 
@@ -275,7 +285,8 @@ static void run_rom_case(
     native_instructions =
         native_cpu.executed_instructions - snap_instructions;
     CHECK(native_instructions ==
-          (compare_shape != 0 ? REF_COMPARE_PREFIX_TOTAL : REF_TOTAL));
+          compare_shape == 3 ? REF_SHIFT_TOTAL :
+          compare_shape != 0 ? REF_COMPARE_PREFIX_TOTAL : REF_TOTAL);
     CHECK(native_cpu.procedure_calls - snap_calls == REF_CALLS);
     CHECK(native_cpu.procedure_returns - snap_returns == REF_RETS);
 
@@ -335,6 +346,7 @@ static void run_rom_differential(const char *rom_directory)
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 0);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 1);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 2);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 3);
 
     free(main_rom);
     free(main_data);

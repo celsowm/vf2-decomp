@@ -1110,6 +1110,12 @@ Status (v0431): the compare-prefix equality tail is now dispatched for state
 and full live-state equality. Unmeasured bit-20 shifts and other state
 compositions remain explicit boundaries.
 
+Status (v0432): the state-27 type-15 arm now admits the measured board-bit-20
+shift at `0x14684`. The compare-prefix witness reaches `0x146c4` in 45
+instructions / +1 call / +1 return, one instruction beyond the clear-bit-20
+shape; `vf2_player_14640_state27_live` proves the full live-state result.
+Other board shifts and state compositions remain explicit boundaries.
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at

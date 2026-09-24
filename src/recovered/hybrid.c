@@ -5113,7 +5113,7 @@ vf2_status vf2_hybrid_player_29414_execute(
 }
 
 /* Measured state-27 arm of the fa_rob fighter-exchange helper 0x14640
- * (v0405/v0425/v0428). Entered at 0x14640 when fighter g7 has +0x198 == 0 and
+ * (v0405/v0425/v0428/v0432). Entered at 0x14640 when fighter g7 has +0x198 == 0 and
  * +0x197 == 27. The v0405 path has +0x654 == 0; the v0425 compare-prefix
  * sibling has +0x654 != 0 and unequal signed +0x1aa/+0x62a values.
  * It indexes a type-15 record chain via +0x194(g7) (0x1ab34, g1 == 15),
@@ -5146,6 +5146,7 @@ static vf2_status hybrid_execute_player_14640_state27(
     uint32_t word68 = 0u;
     int16_t r4s = 0;
     bool compare_prefix = false;
+    bool board_shift = false;
     vf2_status status = VF2_OK;
 
     if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x00014640) ||
@@ -5193,10 +5194,7 @@ static vf2_status hybrid_execute_player_14640_state27(
     if (status != VF2_OK) {
         return status;
     }
-    if ((word68 & (UINT32_C(1) << 20u)) != 0u) {
-        /* 0x14684 shli 1, r4, r4 sibling is unmeasured: fail closed. */
-        return VF2_ERROR_UNSUPPORTED;
-    }
+    board_shift = (word68 & (UINT32_C(1) << 20u)) != 0u;
 
     /* Prefix 0x14640..0x14668 (8 instructions; the 0x1466c call below is
      * added by repeated_call).  r3 = +0x197 (27), CC = EQUAL (cmpobne 27
@@ -5242,7 +5240,12 @@ static vf2_status hybrid_execute_player_14640_state27(
         }
         r4s = (int16_t)rec_half;
     }
-    cpu->registers[4] = (uint32_t)(int32_t)r4s - UINT32_C(1);
+    cpu->registers[4] = (uint32_t)(int32_t)r4s;
+    if (board_shift) {
+        /* 0x14684 shli 1, r4, r4. */
+        cpu->registers[4] <<= 1u;
+    }
+    cpu->registers[4] -= UINT32_C(1);
     /* 0x1468c stos r4, +0x62a(g7). */
     status = hybrid_write_u16(machine, g7 + UINT32_C(0x62a),
                               (uint16_t)cpu->registers[4]);
@@ -5261,11 +5264,16 @@ static vf2_status hybrid_execute_player_14640_state27(
     if (status != VF2_OK) {
         return status;
     }
-    /* Final CC: measured reference leaves compare_result = NONE (the
-     * trailing `subo`/`st` sequence does not leave EQUAL). */
-    cpu->compare_result = VF2_I960_COMPARE_NONE;
+    /* Final CC: the clear-bit-20 shape leaves NONE, while the measured
+     * shifted witness leaves EQUAL after the arithmetic tail. */
+    cpu->compare_result = board_shift
+        ? VF2_I960_COMPARE_EQUAL : VF2_I960_COMPARE_NONE;
     cpu->arithmetic_control &= ~UINT32_C(7);
-    cpu->executed_instructions += UINT64_C(11);
+    if (board_shift) {
+        cpu->arithmetic_control |= UINT32_C(2);
+    }
+    cpu->executed_instructions += UINT64_C(11) +
+        (board_shift ? UINT64_C(1) : UINT64_C(0));
     cpu->ip = UINT32_C(0x000146c4);
     return VF2_OK;
 }
