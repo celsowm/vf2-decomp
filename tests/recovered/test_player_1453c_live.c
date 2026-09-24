@@ -17,7 +17,8 @@
  * (registers/CC/AC/frames/Work-RAM). The measured cases are 52/56 steps for
  * state 27, 52/55 steps for the asymmetric state-16 joins, 54/58 steps for
  * the board-controlled both-state-16 joins, and 55 steps for the measured
- * direct first-scaling state-16 variant. The board-bit-9-clear text tail is
+ * direct first-scaling state-16 variant. The state-24/state-16 swapped join
+ * also measures 55 steps. The board-bit-9-clear text tail is
  * rerun for the 34 non-baseline state/scaling shapes and must add 74 steps
  * plus one call/return with full live-state equality.
  *
@@ -84,6 +85,7 @@
 #define CASE_STATE16_BOTH_DIRECT_MIXED_LATER 32
 #define CASE_STATE16_BOTH_SWAPPED_MIXED_SHORT 33
 #define CASE_STATE16_BOTH_SWAPPED_MIXED_LATER 34
+#define CASE_STATE24_SWAPPED 35
 
 static int failures = 0;
 
@@ -631,6 +633,15 @@ static void run_rom_case_with_text(
         later_scale = 1;
         label = "state16-both-swapped-mixed-later";
         break;
+    case CASE_STATE24_SWAPPED:
+        reference_cpu.registers[7] = 24u;
+        native_cpu.registers[7] = 24u;
+        reference_cpu.registers[8] = 16u;
+        native_cpu.registers[8] = 16u;
+        expected_steps = UINT64_C(55);
+        swapped = 1;
+        label = "state24-swapped";
+        break;
     default:
         CHECK(0);
         goto cleanup;
@@ -855,6 +866,8 @@ static void run_rom_differential(const char *rom_directory)
                  CASE_STATE16_BOTH_SWAPPED_MIXED_SHORT);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
                  CASE_STATE16_BOTH_SWAPPED_MIXED_LATER);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE24_SWAPPED);
 
     {
         static const int text_shapes[] = {
@@ -891,7 +904,8 @@ static void run_rom_differential(const char *rom_directory)
             CASE_STATE16_BOTH_DIRECT_MIXED_SHORT,
             CASE_STATE16_BOTH_DIRECT_MIXED_LATER,
             CASE_STATE16_BOTH_SWAPPED_MIXED_SHORT,
-            CASE_STATE16_BOTH_SWAPPED_MIXED_LATER
+            CASE_STATE16_BOTH_SWAPPED_MIXED_LATER,
+            CASE_STATE24_SWAPPED
         };
         size_t i;
 

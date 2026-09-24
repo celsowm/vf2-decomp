@@ -1148,6 +1148,14 @@ with no calls or returns. Other state-byte and flag compositions remain
 explicit boundaries (see
 `decomp/i960/notes/fa_player_14640_state13_bit4_clear_v0437.md`).
 
+Status (v0438): the `0x14528` state-24/state-16 swapped join now admits the
+measured `r7 == 24`, `r8 == 16` shape. It takes the existing `0x14564..0x1456c`
+swap into the shared type-5 body and matches the ROM in 55 instructions with
+one call/return and exact live-state equality; the board-bit-9-clear text
+variant matches at 129 instructions with two calls/returns. Other unmeasured
+state/scaling combinations and walker misses remain explicit boundaries (see
+`decomp/i960/notes/fa_player_1453c_state24_v0438.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at

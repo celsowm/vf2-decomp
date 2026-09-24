@@ -6585,6 +6585,11 @@ static vf2_status hybrid_execute_player_1453c(
          * 0x14570 join when the second fighter is state 16. */
         swapped = true;
         prefix_adjust = UINT64_C(3);
+    } else if (r7 == 24u && r8 == 16u) {
+        /* v0438: the measured state-24 sibling takes the same 0x14564
+         * swap into the shared state-16 body. */
+        swapped = true;
+        prefix_adjust = UINT64_C(3);
     } else if (r7 == 16u && r8 == 16u) {
         /* 0x14550 ld 0x500028,r15 ; 0x14558 bbc 0,r15 controls whether
          * the 0x14564..0x1456c g7/g8 swap is taken. */

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Recover the measured `0x1453c` state-24/state-16 swapped join (v0438).
+  The shared type-5 body now admits the `r7 == 24`, `r8 == 16` shape and
+  matches the ROM in 55 instructions with one call/return and exact
+  live-state equality. The board/text siblings remain bounded by measured
+  shapes. See
+  `decomp/i960/notes/fa_player_1453c_state24_v0438.md`.
+
 - Recover the measured state-13 bit-4-clear `0x14640` tail (v0437). The
   state-13 helper now admits both flag-bit shapes through `0x146c8` and
   `0x146d8`; the bit-4-clear witness matches 13 instructions with no calls or
