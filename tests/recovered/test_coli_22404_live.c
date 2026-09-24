@@ -177,7 +177,9 @@ static void run_rom_case(
     const uint8_t *main_data,
     size_t main_data_size,
     uint8_t slot,
-    uint32_t expected_steps
+    uint8_t table_index,
+    uint32_t expected_steps,
+    uint32_t expected_g0
 )
 {
     vf2_model2a reference_machine;
@@ -222,6 +224,18 @@ static void run_rom_case(
     );
     CHECK(seed_live_entry(&reference_machine) == VF2_OK);
     CHECK(seed_live_entry(&native_machine) == VF2_OK);
+    CHECK(write_seed_bytes(
+        &reference_machine,
+        COLI_22404_FIGHTER0 + UINT32_C(0x820),
+        table_index,
+        1u
+    ) == VF2_OK);
+    CHECK(write_seed_bytes(
+        &native_machine,
+        COLI_22404_FIGHTER0 + UINT32_C(0x820),
+        table_index,
+        1u
+    ) == VF2_OK);
     if (slot == UINT8_C(1)) {
         CHECK(write_seed_bytes(
             &reference_machine,
@@ -273,7 +287,7 @@ static void run_rom_case(
     }
     CHECK(reference_cpu.ip == COLI_22404_RETURN);
     CHECK(steps == expected_steps);
-    CHECK(reference_cpu.registers[VF2_I960_G0_REGISTER] == 1u);
+    CHECK(reference_cpu.registers[VF2_I960_G0_REGISTER] == expected_g0);
     reference_instructions =
         reference_cpu.executed_instructions - reference_instructions;
 
@@ -335,11 +349,15 @@ static void run_rom_differential(const char *rom_directory)
 
     run_rom_case(
         main_rom, main_rom_size, main_data, main_data_size,
-        UINT8_C(0), UINT32_C(78)
+        UINT8_C(0), UINT8_C(1), UINT32_C(78), UINT32_C(1)
     );
     run_rom_case(
         main_rom, main_rom_size, main_data, main_data_size,
-        UINT8_C(1), UINT32_C(139)
+        UINT8_C(1), UINT8_C(1), UINT32_C(139), UINT32_C(1)
+    );
+    run_rom_case(
+        main_rom, main_rom_size, main_data, main_data_size,
+        UINT8_C(1), UINT8_C(0), UINT32_C(35), UINT32_C(0)
     );
 
     free(main_rom);

@@ -1643,8 +1643,14 @@ Status (v0499): the measured stale slot-1 non-empty scan is native. With
 `g7+0x4 == 1`, stale `g13+0x8e == 0xffff`, the existing slot-1 15-trip
 mask, and unchanged live gates, the reference/native body returns in 139
 instructions with complete CPU, condition, procedure and memory equality.
-Stale+empty and other unmeasured slot compositions remain fail-closed. See
+Other stale+empty and unmeasured slot compositions remain fail-closed. See
 `decomp/i960/notes/fa_coli_22404_stale_slot1_v0499.md`.
+
+Status (v0500): the measured stale slot-1 table-index-0 empty tail is native.
+It writes zero to `g8+0x6d4`, returns with `g0 = 0` in 35 instructions, and
+matches complete CPU, condition, procedure and memory state. Other stale-empty
+combinations remain explicitly fail-closed. See
+`decomp/i960/notes/fa_coli_22404_stale_slot1_empty_v0500.md`.
 
 Status (v0383): coli mid-body tail whole-tail live (first-hit-second-warm
 long) is native (371 steps, 9 calls / 10 rets, final CC + `g1` pinned;
