@@ -950,6 +950,20 @@ the `0x146e8` ret.  Final reference `compare_result` is LESS.  Pinned by
 `+0x1aa`/`+0x62a` compare arm (which can also jump to this same
 `0x146dc` escape) remains an explicit boundary (see
 `decomp/i960/notes/fa_player_14640_escape_v0408.md`).
+Status (v0409): the `0x14640` compare-prefix arm is now native as the
+standalone `hybrid_execute_player_14640_compare` (no walker, 15 steps /
++0 call / +0 return to the `0x146c4` ret).  It requires `+0x198 == 0`,
+`+0x654 != 0` (the `0x1464c cmpobe 0, r3` not taken) and
+`s16(+0x1aa) > s16(+0x62a)` (the `0x14658 cmpobe r13, r14` not taken) on
+fighter g7; on the measured `+0x197` not 27/28/13, bit-4-set shape it
+clears `+0x194(g7)` and leaves `r15 = 0`, `r3 = +0x197`,
+`r13 = s16(+0x1aa)`, `r14 = s16(+0x62a)`.  The arm is dispatched from
+`hybrid_execute_player_14640` when `+0x654 != 0` and is then wired through
+the `0x146c4` ret.  Final reference `compare_result` is GREATER.  Pinned
+by `vf2_player_14640_compare_live_differential`.  The
+`s16(+0x1aa) <= s16(+0x62a)` escape jump and the compare-prefix
+state-27/state-28/bit-4-clear siblings remain explicit boundaries (see
+`decomp/i960/notes/fa_player_14640_compare_v0409.md`).
 
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
