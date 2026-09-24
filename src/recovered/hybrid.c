@@ -5113,17 +5113,17 @@ vf2_status vf2_hybrid_player_29414_execute(
 }
 
 /* Measured state-27 arm of the fa_rob fighter-exchange helper 0x14640
- * (v0405/v0425). Entered at 0x14640 when fighter g7 has +0x198 == 0 and
+ * (v0405/v0425/v0428). Entered at 0x14640 when fighter g7 has +0x198 == 0 and
  * +0x197 == 27. The v0405 path has +0x654 == 0; the v0425 compare-prefix
- * sibling has +0x654 != 0 and signed +0x1aa < +0x62a.
+ * sibling has +0x654 != 0 and unequal signed +0x1aa/+0x62a values.
  * It indexes a type-15 record chain via +0x194(g7) (0x1ab34, g1 == 15),
  * then stores r4 = s16(+1(record)) - 1 into +0x62a(g7), moves the original
  * full +0x194(g7) u32 into +0x654(g7) and clears +0x194(g7).  On the
  * measured live shape (bit 20 of 0x500068 clear, no shift) the span from
  * 0x14640 to the 0x146c4 ret is 41 instructions with +1 call / +1 return
  * (the type-15 walker).  The ret at 0x146c4 is not consumed here; the
- * caller continues at that instruction. Sibling shapes (bit 20 set, other
- * compare relations, or a walker miss) stay fail-closed.
+ * caller continues at that instruction. Sibling shapes (bit 20 set, equal
+ * compare values, or a walker miss) stay fail-closed.
  * The walker restores the pre-call r0-r15 frame, so r3/r13/r14 are preserved
  * and only r4/r15/g0/g1 are left distinct; the final reference
  * `compare_result` is NONE (the trailing `subo`/`st` sequence). */
@@ -5165,7 +5165,7 @@ static vf2_status hybrid_execute_player_14640_state27(
         if (status == VF2_OK) {
             status = hybrid_read_u16(machine, g7 + UINT32_C(0x62a), &h62a);
         }
-        if (status == VF2_OK && (int16_t)h1aa >= (int16_t)h62a) {
+        if (status == VF2_OK && (int16_t)h1aa == (int16_t)h62a) {
             status = VF2_ERROR_UNSUPPORTED;
         }
         if (status == VF2_OK) {
@@ -5278,15 +5278,15 @@ vf2_status vf2_hybrid_player_14640_state27_execute_for_test(
 }
 
 /* Measured state-28 arm of the fa_rob fighter-exchange helper 0x14640
- * (v0406/v0426). Entered at 0x14640 when fighter g7 has +0x198 == 0 and
+ * (v0406/v0426/v0428). Entered at 0x14640 when fighter g7 has +0x198 == 0 and
  * +0x197 == 28. The v0406 path has +0x654 == 0; the v0426 compare-prefix
- * sibling has +0x654 != 0 and signed +0x1aa < +0x62a (so `cmpobne 27, r3`
+ * sibling has +0x654 != 0 and unequal signed +0x1aa/+0x62a values (so `cmpobne 27, r3`
  * jumps to 0x1469c and `cmpobne 28,
  * r3` falls through).  It adds 3 to s16(+0x1aa(g7)) and stores the u16 back
  * to +0x1aa(g7), clears +0x194(g7), leaves r15 = 0 and r3 = the new +0x1aa
  * value.  No walker.  The span from 0x14640 to the 0x146c4 ret is 13
  * instructions with +0 call / +0 return; the ret at 0x146c4 is not consumed
- * here. Sibling shapes (other compare relations, the +0x197 == 27 walk, or
+ * here. Sibling shapes (equal compare values, the +0x197 == 27 walk, or
  * the +0x197 not 27/28 neutral tail) stay fail-closed.
  * Only r3/r15 are left distinct from entry; the final reference
  * `compare_result` is EQUAL (the `cmpobne 28, r3` at 0x1469c). */
@@ -5324,7 +5324,7 @@ static vf2_status hybrid_execute_player_14640_state28(
         if (status == VF2_OK) {
             status = hybrid_read_u16(machine, g7 + UINT32_C(0x62a), &h62a);
         }
-        if (status == VF2_OK && (int16_t)h1aa >= (int16_t)h62a) {
+        if (status == VF2_OK && (int16_t)h1aa == (int16_t)h62a) {
             status = VF2_ERROR_UNSUPPORTED;
         }
         if (status == VF2_OK) {
@@ -5779,7 +5779,7 @@ vf2_status vf2_hybrid_player_14640_compare_escape_execute_for_test(
     return hybrid_execute_player_14640_compare_escape(machine, cpu);
 }
 
-/* Measured less-than sibling of the fa_rob compare-prefix helper (v0412/v0427).
+/* Measured non-equal sibling of the fa_rob compare-prefix helper (v0412/v0427/v0428).
  * The signed +0x1aa/+0x62a comparison falls through to the shared state tail.
  * This admitted witness has a neutral state byte, bit 4 clear and a zero
  * +0x194, so 0x146b4 branches to 0x146c8 and the final cmpobe 0,r14 takes
@@ -5828,7 +5828,7 @@ static vf2_status hybrid_execute_player_14640_compare_less(
         return status;
     }
     if (r198 != 0u || r654 == 0u || r197 == 27u || r197 == 28u ||
-        (int16_t)h1aa >= (int16_t)h62a) {
+        (int16_t)h1aa == (int16_t)h62a) {
         return VF2_ERROR_UNSUPPORTED;
     }
 

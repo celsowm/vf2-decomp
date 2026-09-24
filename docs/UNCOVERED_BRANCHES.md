@@ -1082,6 +1082,14 @@ bit-4-set cases with full live-state equality. Other less-than compositions
 remain explicit boundaries.
 See `decomp/i960/notes/fa_player_14640_compare_less_nonzero_v0427.md`.
 
+Status (v0428): the measured compare-prefix arms now accept both signed
+directions when `+0x1aa` and `+0x62a` are unequal. State 27 and state 28 retain
+their 44/16-step compare-prefix tails, while the neutral/state-13 fixture
+covers the existing 14/16/15/17-step shapes for the greater witnesses as
+well. Equality remains routed to the dedicated escape arm; bit-20 board
+shifts, other state compositions and unmeasured siblings remain explicit
+boundaries. See the three live fixtures and the v0428 evidence note.
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at

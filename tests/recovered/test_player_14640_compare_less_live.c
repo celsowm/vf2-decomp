@@ -69,7 +69,9 @@ static void run_case(const uint8_t *rom, size_t rom_size,
     vf2_i960_snapshot_diff diff;
     vf2_status status;
     uint32_t fighter;
-    const uint32_t return_ip = shape >= 3
+    const int variant = shape >= 5 ? shape - 5 : shape;
+    const int greater = shape >= 5;
+    const uint32_t return_ip = variant >= 3
         ? UINT32_C(0x000146c4) : RETURN_IP;
     uint64_t base_steps;
     uint32_t steps = 0u;
@@ -108,19 +110,19 @@ static void run_case(const uint8_t *rom, size_t rom_size,
     write_u32(&rm, fighter + UINT32_C(0x654), 1u);
     write_u32(&nm, fighter + UINT32_C(0x654), 1u);
     write_u32(&rm, fighter + UINT32_C(0x194),
-              (shape == 2 || shape == 4) ? UINT32_C(1) : UINT32_C(0));
+              (variant == 2 || variant == 4) ? UINT32_C(1) : UINT32_C(0));
     write_u32(&nm, fighter + UINT32_C(0x194),
-              (shape == 2 || shape == 4) ? UINT32_C(1) : UINT32_C(0));
+              (variant == 2 || variant == 4) ? UINT32_C(1) : UINT32_C(0));
     write_u32(&rm, fighter,
-              (shape == 1 || shape >= 3) ? UINT32_C(0x10) : 0u);
+              (variant == 1 || variant >= 3) ? UINT32_C(0x10) : 0u);
     write_u32(&nm, fighter,
-              (shape == 1 || shape >= 3) ? UINT32_C(0x10) : 0u);
-    write_u8(&rm, fighter + UINT32_C(0x197), shape == 1 ? 13u : 0u);
-    write_u8(&nm, fighter + UINT32_C(0x197), shape == 1 ? 13u : 0u);
-    write_u16(&rm, fighter + UINT32_C(0x1aa), 1u);
-    write_u16(&nm, fighter + UINT32_C(0x1aa), 1u);
-    write_u16(&rm, fighter + UINT32_C(0x62a), 2u);
-    write_u16(&nm, fighter + UINT32_C(0x62a), 2u);
+              (variant == 1 || variant >= 3) ? UINT32_C(0x10) : 0u);
+    write_u8(&rm, fighter + UINT32_C(0x197), variant == 1 ? 13u : 0u);
+    write_u8(&nm, fighter + UINT32_C(0x197), variant == 1 ? 13u : 0u);
+    write_u16(&rm, fighter + UINT32_C(0x1aa), greater ? 2u : 1u);
+    write_u16(&nm, fighter + UINT32_C(0x1aa), greater ? 2u : 1u);
+    write_u16(&rm, fighter + UINT32_C(0x62a), greater ? 1u : 2u);
+    write_u16(&nm, fighter + UINT32_C(0x62a), greater ? 1u : 2u);
 
     base_steps = snap.cpu.executed_instructions;
     while (rc.ip != return_ip && steps < 128u) {
@@ -131,15 +133,15 @@ static void run_case(const uint8_t *rom, size_t rom_size,
     }
     CHECK(rc.ip == return_ip);
     CHECK(rc.executed_instructions - base_steps ==
-          (shape == 1 ? 17u : shape >= 3 ? 15u :
-           shape == 2 ? NONZERO_TOTAL : TOTAL));
+          (variant == 1 ? 17u : variant >= 3 ? 15u :
+           variant == 2 ? NONZERO_TOTAL : TOTAL));
 
     status = vf2_hybrid_player_14640_compare_less_execute_for_test(&nm, &nc);
     CHECK(status == VF2_OK);
     CHECK(nc.ip == return_ip);
     CHECK(nc.executed_instructions - base_steps ==
-          (shape == 1 ? 17u : shape >= 3 ? 15u :
-           shape == 2 ? NONZERO_TOTAL : TOTAL));
+          (variant == 1 ? 17u : variant >= 3 ? 15u :
+           variant == 2 ? NONZERO_TOTAL : TOTAL));
     CHECK(vf2_i960_compare_live_state(&rc, &rm, &nc, &nm, &diff) == VF2_OK);
     CHECK(diff.equal);
     if (!diff.equal) {
@@ -170,6 +172,11 @@ int main(int argc, char **argv)
             run_case(rom, rom_size, data, data_size, 2);
             run_case(rom, rom_size, data, data_size, 3);
             run_case(rom, rom_size, data, data_size, 4);
+            run_case(rom, rom_size, data, data_size, 5);
+            run_case(rom, rom_size, data, data_size, 6);
+            run_case(rom, rom_size, data, data_size, 7);
+            run_case(rom, rom_size, data, data_size, 8);
+            run_case(rom, rom_size, data, data_size, 9);
         }
         free(rom);
         free(data);

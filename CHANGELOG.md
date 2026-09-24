@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Extend the measured `0x14640` compare-prefix tails to signed-greater
+  variants (v0428). State 27, state 28 and the neutral/state-13 tails now
+  accept unequal `+0x1aa`/`+0x62a` values in either signed order; equal values
+  remain fail-closed. The live fixtures prove exact state equality for both
+  compare directions.
+
 - Recover the measured neutral nonzero `0x14640` less-than tail (v0427).
   With bit 4 clear, `+0x194 != 0`, `+0x654 != 0` and signed
   `+0x1aa < +0x62a`, the native path now matches the ROM through `0x146d8`

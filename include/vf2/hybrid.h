@@ -430,24 +430,24 @@ vf2_status vf2_hybrid_player_1453c_execute_for_test(
     vf2_i960_cpu *cpu
 );
 
-/* v0405/v0425: test-only entry to the measured fa_rob state-27 arm 0x14640.
+/* v0405/v0425/v0428: test-only entry to the measured fa_rob state-27 arm 0x14640.
  * The CPU must be parked at 0x14640 with g7 the state-27 fighter base and a
  * pushed frame; +0x198 == 0, +0x197 == 27, +0x194(g7) must index a valid
  * type-15 record chain and bit 20 of 0x500068 must be clear. The original
  * +0x654 == 0 shape lands at 0x146c4 after 41 steps; the measured compare-
- * prefix sibling accepts +0x654 != 0 with signed +0x1aa < +0x62a and lands
- * there after 44 steps. Both have +1 call / +1 return, with the ret
+ * prefix sibling accepts +0x654 != 0 with unequal signed +0x1aa/+0x62a and
+ * lands there after 44 steps. Both have +1 call / +1 return, with the ret
  * unconsumed. Anything else is VF2_ERROR_UNSUPPORTED. */
 vf2_status vf2_hybrid_player_14640_state27_execute_for_test(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu
 );
 
-/* v0406/v0426: test-only entry to the measured fa_rob state-28 arm 0x14640.
+/* v0406/v0426/v0428: test-only entry to the measured fa_rob state-28 arm 0x14640.
  * The CPU must be parked at 0x14640 with g7 the state-28 fighter base and a
  * pushed frame; +0x198 == 0 and +0x197 == 28. The original +0x654 == 0
  * shape lands at 0x146c4 after 13 steps; the measured compare-prefix sibling
- * accepts +0x654 != 0 with signed +0x1aa < +0x62a and lands there after 16
+ * accepts +0x654 != 0 with unequal signed +0x1aa/+0x62a and lands there after 16
  * steps. Both have +0 call / +0 return, add 3 to +0x1aa and clear +0x194;
  * the ret remains unconsumed. Anything else is VF2_ERROR_UNSUPPORTED. */
 vf2_status vf2_hybrid_player_14640_state28_execute_for_test(
@@ -504,10 +504,10 @@ vf2_status vf2_hybrid_player_14640_compare_escape_execute_for_test(
     vf2_i960_cpu *cpu
 );
 
-/* v0412/v0413/v0427: test-only entry to measured fa_rob compare-prefix less-than
+/* v0412/v0413/v0427/v0428: test-only entry to measured fa_rob compare-prefix
  * neutral tails at 0x14640.  The CPU must be parked at 0x14640 with g7 the
  * fighter base and a pushed frame; +0x198 == 0, +0x654 != 0 and
- * s16(+0x1aa) < s16(+0x62a).  The v0412 neutral shape requires +0x197 not
+ * unequal s16(+0x1aa)/s16(+0x62a).  The v0412 neutral shape requires +0x197 not
  * 27/28/13, bit 4 clear and +0x194 == 0; it lands at 0x146d8 after 14 steps
  * and leaves +0x654 unchanged. The measured neutral bit-4-clear sibling with
  * nonzero +0x194 also lands there after 16 steps and clears +0x654. The
