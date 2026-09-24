@@ -525,7 +525,7 @@ static void run_rom_differential(const char *rom_directory)
                 type15_selector_cases[case_index].steps
             );
         }
-        for (case_index = 129u; case_index <= 256u; ++case_index) {
+        for (case_index = 129u; case_index <= 512u; ++case_index) {
             run_rom_case_with_type15_index(
                 main_rom, main_rom_size, main_data, main_data_size,
                 (uint16_t)case_index, UINT64_MAX
