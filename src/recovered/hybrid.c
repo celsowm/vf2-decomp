@@ -22192,10 +22192,10 @@ static vf2_status coli_225cc_body(
          * fires solely on this newly-admitted path. */
         if (scan_byte != 0u) {
             uint32_t board_c = 0u;
-            const int bit16_scan4 =
+            const int scan4_long =
                 scan_byte == UINT8_C(4) &&
-                (flags_g8 & (UINT32_C(1) << 16u)) != 0u &&
-                 ((flags_g8 & ~UINT32_C(0x00011800)) == 0u ||
+                (((flags_g8 & (UINT32_C(1) << 16u)) != 0u &&
+                  ((flags_g8 & ~UINT32_C(0x00011800)) == 0u ||
                  flags_g8 == UINT32_C(0x00018000) ||
                  flags_g8 == UINT32_C(0x00018001) ||
                  flags_g8 == UINT32_C(0x00018002) ||
@@ -22263,9 +22263,13 @@ static vf2_status coli_225cc_body(
                  flags_g8 == UINT32_C(0x00019814) ||
                  flags_g8 == UINT32_C(0x00019815) ||
                  flags_g8 == UINT32_C(0x0001c000) ||
-                 flags_g8 == UINT32_C(0x00038000));
+                 flags_g8 == UINT32_C(0x00038000)) ||
+                 flags_g8 == UINT32_C(0x00002000) ||
+                 flags_g8 == UINT32_C(0x00002001) ||
+                 flags_g8 == UINT32_C(0x00002010) ||
+                 flags_g8 == UINT32_C(0x0000a000)));
 
-            if (!bit16_scan4 &&
+            if (!scan4_long &&
                 (scan_byte != UINT8_C(1) ||
                  (flags_g8 & (UINT32_C(1) << 13u)) != 0u ||
                  (flags_g8 &
@@ -22347,7 +22351,7 @@ static vf2_status coli_225cc_body(
           flags_g8 == UINT32_C(0x0001a808) ||
           flags_g8 == UINT32_C(0x0001b008) ||
           flags_g8 == UINT32_C(0x0001e008)))) {
-        /* v0462/v0465/v0467-v0468: the measured bit-3 scan-4 words take the long body
+        /* v0462/v0465/v0467-v0469: the measured scan-4 words take the long body
          * through the same bbs-15/direct g0=5 route. */
         uint64_t long_body = 0u;
         uint64_t lcalls = UINT64_C(4);
@@ -24127,6 +24131,10 @@ static vf2_status coli_225cc_long_body(
                 flags_g8 == UINT32_C(0x00018002) ||
                 flags_g8 == UINT32_C(0x00018008) ||
                 flags_g8 == UINT32_C(0x0001a000) ||
+                flags_g8 == UINT32_C(0x00002000) ||
+                flags_g8 == UINT32_C(0x00002001) ||
+                flags_g8 == UINT32_C(0x00002010) ||
+                flags_g8 == UINT32_C(0x0000a000) ||
                 flags_g8 == UINT32_C(0x0001a008) ||
                 flags_g8 == UINT32_C(0x0001a009) ||
                 flags_g8 == UINT32_C(0x0001a00c) ||
@@ -24190,7 +24198,7 @@ static vf2_status coli_225cc_long_body(
                 flags_g8 == UINT32_C(0x00019815) ||
                 flags_g8 == UINT32_C(0x0001c000) ||
                 flags_g8 == UINT32_C(0x00038000))) {
-        /* v0456-v0468: bbs 15 skips the bbc-16 edge before the scan-4
+        /* v0456-v0469: bbs 15 skips the bbc-16 edge before the scan-4
          * compare. The exact words below are independently measured. */
         body += UINT64_C(3); /* cmpibne + bbs15 + cmpibne4 */
     } else {
@@ -25875,6 +25883,10 @@ coli_22bc0_common:
     }
     if (g0_out != NULL &&
         (flags_g8 == UINT32_C(0x0001a000) ||
+         flags_g8 == UINT32_C(0x00002000) ||
+         flags_g8 == UINT32_C(0x00002001) ||
+         flags_g8 == UINT32_C(0x00002010) ||
+         flags_g8 == UINT32_C(0x0000a000) ||
          flags_g8 == UINT32_C(0x0001a100) ||
          flags_g8 == UINT32_C(0x0001a800) ||
          flags_g8 == UINT32_C(0x0001b000) ||

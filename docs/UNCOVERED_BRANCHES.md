@@ -1373,6 +1373,13 @@ in full live state. Other bit-3/bit-13 compositions remain explicit
 boundaries (see
 `decomp/i960/notes/fa_coli_225cc_bit16_bit15_bit13_bit3_low_v0468.md`).
 
+Status (v0469): four exact bit-13 scan-4 words without the prior bit-15/bit-16
+pair are now native: `0x00002000`, `0x00002001`, `0x00002010` and
+`0x0000a000`. With `g7 + 0x1a4 = 0x00400100`, each matches 217 instructions
+and full live state through `0x00022294`. Other bit13-only scan-4
+compositions remain explicit boundaries (see
+`decomp/i960/notes/fa_coli_225cc_bit13_scan4_v0469.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at
