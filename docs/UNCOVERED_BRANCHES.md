@@ -1365,6 +1365,14 @@ All four match full live state; other bit-3/bit-13 compositions remain
 explicit boundaries (see
 `decomp/i960/notes/fa_coli_225cc_bit16_bit15_bit13_bit3_more_v0467.md`).
 
+Status (v0468): eight additional exact bit-3/bit-13 low-selector words are
+now native: `0x0001a009`, `0x0001a00c`, `0x0001a018`, `0x0001a028`,
+`0x0001a048`, `0x0001a088`, `0x0001a208` and `0x0001a408`. All use
+`g7 + 0x1a4 = 0x00400100`, scan 4, match 125 instructions and compare equal
+in full live state. Other bit-3/bit-13 compositions remain explicit
+boundaries (see
+`decomp/i960/notes/fa_coli_225cc_bit16_bit15_bit13_bit3_low_v0468.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at
