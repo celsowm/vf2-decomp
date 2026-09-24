@@ -22194,7 +22194,9 @@ static vf2_status coli_225cc_body(
             uint32_t board_c = 0u;
             const int bit16_scan4 =
                 scan_byte == UINT8_C(4) &&
-                flags_g8 == UINT32_C(0x00010000);
+                (flags_g8 & (UINT32_C(1) << 15u)) == 0u &&
+                (flags_g8 & (UINT32_C(1) << 16u)) != 0u &&
+                (flags_g8 & ~UINT32_C(0x00011800)) == 0u;
 
             if (!bit16_scan4 &&
                 (scan_byte != UINT8_C(1) ||
@@ -25008,16 +25010,20 @@ bit13_skip:
                 if ((flags_g7 & (UINT32_C(1) << 22u)) != 0u) {
                     uint64_t g05_tail = 0u;
                     uint32_t g05_result = 0u;
+                    const int require_bit11 =
+                        (flags_g8 & (UINT32_C(1) << 11u)) != 0u;
 
-                    /* v0452-v0454: the measured bit-22-set continuation
+                    /* v0452-v0455: the measured bit-22-set continuation
                      * takes bbc 22 not taken, then the g0=5 fork in
                      * 0x230d4.  The long body consumes g7 bit 4 (and, when
                      * set, bit 12) before this join; all four measured
                      * combinations of those selectors take the modeled
-                     * branches.  Other g7 bits are not read on this route. */
+                     * branches.  Other g7 bits are not read on this route;
+                     * g8 bit 11 selects the measured r3=42 sibling in the
+                     * g0=5 fork. */
                     if ((flags_g7 & (UINT32_C(1) << 22u)) == 0u ||
                         coli_22d8c_g05_tail(
-                            machine, g7, g8, r11, 0, &g05_tail,
+                            machine, g7, g8, r11, require_bit11, &g05_tail,
                             &g05_result) != VF2_OK) {
                         return VF2_ERROR_UNSUPPORTED;
                     }

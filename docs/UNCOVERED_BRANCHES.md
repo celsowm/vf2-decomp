@@ -1266,6 +1266,13 @@ with full live-state equality; unmeasured data-dependent siblings remain
 fail-closed (see
 `decomp/i960/notes/fa_coli_225cc_bit16_bit22_selectors_v0454.md`).
 
+Status (v0455): the scan-4/bit-16 route now admits the measured g8 selector
+family containing only bits 11, 12 and 16. New witnesses `0x00010800`,
+`0x00011000` and `0x00011800` match the oracle at 110, 108 and 110
+instructions with full live-state equality; other g8 flag bits remain
+explicit boundaries (see
+`decomp/i960/notes/fa_coli_225cc_bit16_bit11_v0455.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at
