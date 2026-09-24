@@ -938,6 +938,18 @@ reference `compare_result` is GREATER.  Pinned by
 (which takes the `0x146c8` tail), the `+0x654 != 0` `+0x1aa`/`+0x62a`
 compare arm and the `r198 != 0` escape remain explicit boundaries (see
 `decomp/i960/notes/fa_player_14640_bit4set_v0407.md`).
+Status (v0408): the `0x14640` escape arm is now native as the standalone
+`hybrid_execute_player_14640_escape` (no walker, 5 steps / +0 call / +0
+return to the `0x146e8` ret).  It requires `+0x198 != 0` on fighter g7
+(the `0x14644 cmpobne 0, r3` jumps directly to `0x146dc`), stores r3
+(= the `+0x198` value) to `+0x194(g7)`, clears `+0x654(g7)` and leaves
+`r15 = 0`, `r3 = +0x198`.  The arm is dispatched from
+`hybrid_execute_player_14640` when `+0x198 != 0` and is then wired through
+the `0x146e8` ret.  Final reference `compare_result` is LESS.  Pinned by
+`vf2_player_14640_escape_live_differential`.  The `+0x654 != 0`
+`+0x1aa`/`+0x62a` compare arm (which can also jump to this same
+`0x146dc` escape) remains an explicit boundary (see
+`decomp/i960/notes/fa_player_14640_escape_v0408.md`).
 
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The

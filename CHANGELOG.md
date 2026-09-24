@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Recover the fa_rob escape arm `0x14640` (v0408), reached when fighter
+  g7 has `+0x198 != 0` (the `0x14644 cmpobne 0, r3` jumps directly to
+  `0x146dc`).  It stores r3 (= the `+0x198` value) to `+0x194(g7)`,
+  clears `+0x654(g7)` and leaves `r15 = 0` and `r3 = +0x198`.  No walker.
+  Measured path: 5 steps / +0 call / +0 return, leaving the `0x146e8` ret
+  unconsumed.  Recovered as standalone
+  `hybrid_execute_player_14640_escape` +
+  `vf2_hybrid_player_14640_escape_execute_for_test`, dispatched from
+  `hybrid_execute_player_14640` when `+0x198 != 0` (which then consumes
+  the `0x146e8` ret to return through the `0x14640` frame).  The
+  `+0x654 != 0` `+0x1aa`/`+0x62a` compare arm stays fail-closed.  Final
+  reference `compare_result` is LESS.  ROM-backed
+  `vf2_player_14640_escape_live_differential` proves the arm byte-exact
+  (5/+0/+0, full live state).  `ctest` 88/88. See
+  `decomp/i960/notes/fa_player_14640_escape_v0408.md`.
+
 - Recover the fa_rob bit-4-set neutral arm `0x14640` (v0407), the
   `+0x197` not 27/28 neutral tail when bit 4 of `(g7)` is SET (the
   `0x146b0 bbc 4, r15` not taken) and r3 (`+0x197`) != 13 (the `0x146b8

@@ -5425,6 +5425,69 @@ vf2_status vf2_hybrid_player_14640_bit4set_execute_for_test(
     return hybrid_execute_player_14640_bit4set(machine, cpu);
 }
 
+/* Measured escape arm of the fa_rob fighter-exchange helper 0x14640
+ * (v0408).  Entered at 0x14640 when fighter g7 has +0x198 != 0 (so the
+ * `0x14644 cmpobne 0, r3` is taken directly to 0x146dc).  It stores r3
+ * (= the +0x198 value) to +0x194(g7), clears +0x654(g7) and leaves
+ * r15 = 0 and r3 = +0x198.  No walker, no compare prefix.  The span from
+ * 0x14640 to the 0x146e8 ret is 5 instructions with +0 call / +0 return;
+ * the ret at 0x146e8 is not consumed here.  Sibling shapes (+0x198 == 0,
+ * which flows into the +0x654 compare prefix or the shared state/neutral
+ * tails) stay fail-closed.  Only r3/r15 are left distinct from entry; the
+ * final reference `compare_result` is LESS (the `cmpobne 0, r3` with
+ * r3 = +0x198 > 0). */
+static vf2_status hybrid_execute_player_14640_escape(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    const uint32_t g7 = cpu != NULL
+        ? cpu->registers[VF2_I960_G0_REGISTER + 7u] : 0u;
+    uint32_t r198 = 0u;
+    vf2_status status = VF2_OK;
+
+    if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x00014640) ||
+        cpu->local_frame_depth == 0u || g7 == 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    status = vf2_model2a_read_u32(machine, g7 + UINT32_C(0x198), &r198);
+    if (status != VF2_OK) {
+        return status;
+    }
+    if (r198 == 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    /* 0x14640 ld +0x198(g7), r3 ; 0x14644 cmpobne 0, r3, 0x146dc (taken). */
+    cpu->registers[3] = r198;
+    /* CC = LESS (compare(0, +0x198) with +0x198 > 0). */
+    hybrid_set_compare_result(cpu, VF2_I960_COMPARE_LESS);
+    cpu->executed_instructions += UINT64_C(2);
+
+    /* 0x146dc st r3, +0x194(g7) ; 0x146e0 mov 0, r15 ;
+     * 0x146e4 st r15, +0x654(g7). */
+    status = vf2_model2a_write_u32(machine, g7 + UINT32_C(0x194), r198);
+    if (status != VF2_OK) {
+        return status;
+    }
+    cpu->registers[15] = 0u;
+    status = vf2_model2a_write_u32(machine, g7 + UINT32_C(0x654), 0u);
+    if (status != VF2_OK) {
+        return status;
+    }
+    cpu->executed_instructions += UINT64_C(3);
+    cpu->ip = UINT32_C(0x000146e8);
+    return VF2_OK;
+}
+
+vf2_status vf2_hybrid_player_14640_escape_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_14640_escape(machine, cpu);
+}
+
 /* Measured collision/state fast-paths of the fa_rob fighter-exchange
  * helper 0x14640 (v0393).  It is called twice from the 0x1442c body with
  * swapped g7/g8 (fighter0 then fighter1).  On the accepted live shape the
@@ -5459,7 +5522,17 @@ static vf2_status hybrid_execute_player_14640(
     }
     status = vf2_model2a_read_u32(machine, player + UINT32_C(0x198), &r198);
     if (status == VF2_OK && r198 != 0u) {
-        status = VF2_ERROR_UNSUPPORTED;
+        /* Escape arm (v0408): `0x14644 cmpobne 0, r3` jumps directly to
+         * 0x146dc.  The arm leaves ip at the 0x146e8 ret; consume it to
+         * return through the 0x14640 frame to 0x14438. */
+        status = hybrid_execute_player_14640_escape(machine, cpu);
+        if (status == VF2_OK) {
+            status = vf2_i960_cpu_return_procedure(cpu, machine);
+            if (status == VF2_OK) {
+                ++cpu->executed_instructions;
+            }
+        }
+        return status;
     }
     if (status == VF2_OK) {
         status = vf2_model2a_read_u32(
