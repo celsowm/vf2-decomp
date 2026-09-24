@@ -1433,6 +1433,13 @@ for the short tail. Misses outside this bounded sweep remain explicit
 fail-closed boundaries (see
 `decomp/i960/notes/fa_player_1453c_type5_miss_v0475.md`).
 
+Status (v0479): the direct state-27 `0x1453c/0x14570` type-5 recovery now
+covers the measured selector range `+0x194 == 1..128`. The added `33..128`
+cases include measured type-5 hits and misses; all 96 compare equal in full
+CPU/memory state at `0x1463c`. Misses outside this bounded range remain
+explicit fail-closed boundaries (see
+`decomp/i960/notes/fa_player_1453c_type5_miss_v0479.md`).
+
 Status (v0476): the `fa_rob` `0x14640` state-27 type-15 walker now admits
 the complete measured miss sweep `+0x194 == 1..32`. Every selector reaches
 the `0x146c4` return through the zero-record arithmetic tail; all 32 cases
