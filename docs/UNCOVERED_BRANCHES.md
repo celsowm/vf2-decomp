@@ -2693,6 +2693,16 @@ exact bit-2 sibling is admitted; other unmeasured selector compositions
 remain fail-closed. See
 `decomp/i960/notes/fa_coli_bit16_bit13_high_v0486.md`.
 
+Status (v0487): eight additional exact scan-4 selectors in the `0x0001fxxx`
+family are native for `g7 + 0x1a4 = 0x00400100`: `0x0001f001`,
+`0x0001f005`, `0x0001f011`, `0x0001f014`, `0x0001f015` and `0x0001f020`
+match 217 instructions with the measured `g0 = 0xee` result; `0x0001f009`
+and `0x0001f00c` match 125 instructions with the measured three-instruction
+direct-tail correction. Each case compares equal in complete live state.
+Only these exact words are admitted; other selector compositions remain
+fail-closed. See
+`decomp/i960/notes/fa_coli_bit16_bit13_high_v0487.md`.
+
 ### v0291 measure `0x225cc` `g8+0x19f==22` shortcut (defer)
 
 Forcing `g8+0x19f = 22` takes the `call 0x18bd4` shortcut. That helper

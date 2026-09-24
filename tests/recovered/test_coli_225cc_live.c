@@ -641,6 +641,30 @@ static void run_rom_case(
             /* v0486: measured bit-2 sibling of the high selector words. */
             g7_flags = UINT32_C(0x00400100);
             g8_flags = UINT32_C(0x0001f004);
+        } else if (bit16_scan4 == 130) {
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x0001f001);
+        } else if (bit16_scan4 == 131) {
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x0001f005);
+        } else if (bit16_scan4 == 132) {
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x0001f009);
+        } else if (bit16_scan4 == 133) {
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x0001f00c);
+        } else if (bit16_scan4 == 134) {
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x0001f011);
+        } else if (bit16_scan4 == 135) {
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x0001f014);
+        } else if (bit16_scan4 == 136) {
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x0001f015);
+        } else if (bit16_scan4 == 137) {
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x0001f020);
         }
         CHECK(vf2_model2a_write_u32(
                   &reference_machine, COLI_LIVE_FIGHTER0 + UINT32_C(0x1a4),
@@ -873,6 +897,14 @@ static void run_rom_differential(const char *rom_directory)
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 127);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 128);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 129);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 130);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 131);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 132);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 133);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 134);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 135);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 136);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 137);
 
     free(main_rom);
     free(main_data);
