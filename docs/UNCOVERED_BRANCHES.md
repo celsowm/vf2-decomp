@@ -1380,6 +1380,14 @@ and full live state through `0x00022294`. Other bit13-only scan-4
 compositions remain explicit boundaries (see
 `decomp/i960/notes/fa_coli_225cc_bit13_scan4_v0469.md`).
 
+Status (v0470): eight exact bit16+bit13 scan-4 selectors are now native:
+`0x00012000`, `0x00012001`, `0x00012004`, `0x00012010`, `0x00012020`,
+`0x00012040`, `0x00012080` (218 instructions each) and bit3 sibling
+`0x00012008` (126 instructions). All use `g7 + 0x1a4 = 0x00400100` and
+compare equal in full live state; other bit16+bit13 compositions remain
+explicit boundaries (see
+`decomp/i960/notes/fa_coli_225cc_bit16_bit13_v0470.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at
