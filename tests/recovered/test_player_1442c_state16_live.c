@@ -46,6 +46,7 @@ static void write_u32(vf2_model2a *m, uint32_t a, uint32_t v)
 static void run_case(const uint8_t *rom, size_t rom_size,
                      const uint8_t *data, size_t data_size,
                      uint32_t board28, uint8_t state0_19f, uint8_t state1,
+                     uint32_t state1_194,
                      uint64_t expected_steps, uint64_t expected_calls)
 {
     vf2_model2a rm;
@@ -95,8 +96,8 @@ static void run_case(const uint8_t *rom, size_t rom_size,
     write_u32(&nm, f1, 0u);
     write_u32(&rm, f0 + UINT32_C(0x194), TYPE5_INDEX);
     write_u32(&nm, f0 + UINT32_C(0x194), TYPE5_INDEX);
-    write_u32(&rm, f1 + UINT32_C(0x194), TYPE5_INDEX);
-    write_u32(&nm, f1 + UINT32_C(0x194), TYPE5_INDEX);
+    write_u32(&rm, f1 + UINT32_C(0x194), state1_194);
+    write_u32(&nm, f1 + UINT32_C(0x194), state1_194);
     write_u8(&rm, f0 + UINT32_C(0x197), 16u);
     write_u8(&nm, f0 + UINT32_C(0x197), 16u);
     write_u8(&rm, f0 + UINT32_C(0x19f), state0_19f);
@@ -181,19 +182,21 @@ int main(int argc, char **argv)
                                       &data, &data_size) == VF2_OK);
         if (rom != NULL && data != NULL) {
             run_case(rom, rom_size, data, data_size,
-                     0u, 0u, 16u, UINT64_C(100), UINT64_C(3));
+                     0u, 0u, 16u, TYPE5_INDEX, UINT64_C(100), UINT64_C(3));
             run_case(rom, rom_size, data, data_size,
-                     1u, 0u, 16u, UINT64_C(104), UINT64_C(3));
+                     1u, 0u, 16u, TYPE5_INDEX, UINT64_C(104), UINT64_C(3));
             run_case(rom, rom_size, data, data_size,
-                     0u, 0u, 26u, UINT64_C(98), UINT64_C(3));
+                     0u, 0u, 26u, TYPE5_INDEX, UINT64_C(98), UINT64_C(3));
             run_case(rom, rom_size, data, data_size,
-                     0u, 0u, 27u, UINT64_C(126), UINT64_C(4));
+                     0u, 0u, 27u, TYPE5_INDEX, UINT64_C(126), UINT64_C(4));
             run_case(rom, rom_size, data, data_size,
-                     0u, 0u, 24u, UINT64_C(105), UINT64_C(3));
+                     0u, 0u, 24u, TYPE5_INDEX, UINT64_C(105), UINT64_C(3));
             run_case(rom, rom_size, data, data_size,
-                     0u, 25u, 24u, UINT64_C(59), UINT64_C(2));
+                     0u, 25u, 24u, TYPE5_INDEX, UINT64_C(59), UINT64_C(2));
             run_case(rom, rom_size, data, data_size,
-                     0u, 22u, 24u, UINT64_C(60), UINT64_C(2));
+                     0u, 22u, 24u, TYPE5_INDEX, UINT64_C(60), UINT64_C(2));
+            run_case(rom, rom_size, data, data_size,
+                     0u, 0u, 25u, 0u, UINT64_C(144), UINT64_C(4));
         }
         free(rom);
         free(data);

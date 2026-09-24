@@ -6288,9 +6288,12 @@ static vf2_status hybrid_execute_player_1453c(
  * 0x14510, `b 0x14628`): span 47 with +1 call / +1 return, the +0x654/+0x62a
  * stores and the state chain skipped.  Other shapes (nonzero +0x194, other
  * +0x197 values, the cmpobl-equal point) stay fail-closed. */
-static vf2_status hybrid_execute_player_144b0(
+static vf2_status hybrid_execute_player_144b0_with_states(
     vf2_model2a *machine,
-    vf2_i960_cpu *cpu
+    vf2_i960_cpu *cpu,
+    uint8_t branch_state0,
+    uint8_t branch_state1,
+    uint8_t use_branch_states
 )
 {
     const uint32_t fighter0 = cpu != NULL
@@ -6315,6 +6318,8 @@ static vf2_status hybrid_execute_player_144b0(
     uint32_t r13 = 0u;
     uint32_t r14 = 0u;
     uint32_t r15 = 0u;
+    uint8_t path_state0 = 0u;
+    uint8_t path_state1 = 0u;
     vf2_status status = VF2_OK;
 
     if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x000144b0) ||
@@ -6351,6 +6356,8 @@ static vf2_status hybrid_execute_player_144b0(
     if (status != VF2_OK) {
         return status;
     }
+    path_state0 = use_branch_states != 0u ? branch_state0 : b197_f0;
+    path_state1 = use_branch_states != 0u ? branch_state1 : b197_f1;
     g0 = (uint32_t)h194;
     /* ROM `ldos` zero-extends; `subi r13,r14,r4` computes
      * r4 = r14 - r13 = +0x808(f1) - +0x858(f0); `subo 1,r4,r3` gives
@@ -6449,8 +6456,8 @@ static vf2_status hybrid_execute_player_144b0(
          * the 0x14518 stores.  The 0x14520/0x14524 register restore is part
          * of the measured prefix; the shared 0x1453c recovery accounts for
          * the remaining 55/56 instructions. */
-        cpu->registers[7] = (uint32_t)b197_f0;
-        cpu->registers[8] = (uint32_t)b197_f1;
+        cpu->registers[7] = (uint32_t)path_state0;
+        cpu->registers[8] = (uint32_t)path_state1;
         cpu->registers[3] = r3;
         cpu->registers[4] = (uint32_t)r4;
         cpu->registers[5] = r5;
@@ -6506,6 +6513,16 @@ static vf2_status hybrid_execute_player_144b0(
     }
     cpu->ip = UINT32_C(0x0001463c);
     return VF2_OK;
+}
+
+static vf2_status hybrid_execute_player_144b0(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_144b0_with_states(
+        machine, cpu, 0u, 0u, 0u
+    );
 }
 
 /* Measured state-27/state-16 arms of the fa_rob fighter-exchange body
@@ -7275,6 +7292,39 @@ static vf2_status hybrid_execute_player_1442c(
         cpu->executed_instructions += UINT64_C(10);
         cpu->ip = UINT32_C(0x00014528);
         return hybrid_execute_player_1453c(machine, cpu);
+    }
+    if (b197_f0 == 16u && b197_f1 == 25u) {
+        uint32_t r194_f0 = 0u;
+        uint32_t r194_f1 = 0u;
+
+        /* v0449: the state-16/state-25 row takes the 0x1446c swap into
+         * 0x144b0.  The swapped 0x19ef8 call sees fighter1's zero
+         * +0x194, while the restored state-16 tail walks fighter0's
+         * measured type-5 index 0x73.  Other selector/index compositions
+         * remain outside the measured contract. */
+        status = vf2_model2a_read_u32(
+            machine, player0 + UINT32_C(0x194), &r194_f0
+        );
+        if (status == VF2_OK) {
+            status = vf2_model2a_read_u32(
+                machine, player1 + UINT32_C(0x194), &r194_f1
+            );
+        }
+        if (status != VF2_OK ||
+            (r194_f0 & UINT32_C(0x0000ffff)) != UINT32_C(0x00000073) ||
+            (r194_f1 & UINT32_C(0x0000ffff)) != 0u) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        cpu->registers[7] = UINT32_C(16);
+        cpu->registers[8] = UINT32_C(25);
+        cpu->registers[14u] = (uint32_t)b19b_f1;
+        cpu->registers[VF2_I960_G0_REGISTER + 7u] = player1;
+        cpu->registers[VF2_I960_G0_REGISTER + 8u] = player0;
+        cpu->executed_instructions += UINT64_C(12);
+        cpu->ip = UINT32_C(0x000144b0);
+        return hybrid_execute_player_144b0_with_states(
+            machine, cpu, 16u, 25u, 1u
+        );
     }
     if (b197_f0 == 16u && b197_f1 <= 31u &&
         b197_f1 != 16u && b197_f1 != 24u &&

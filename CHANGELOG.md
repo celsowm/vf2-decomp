@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Recover the integrated state-16/state-25 zero-selector join (v0449). The
+  measured row now follows the swapped zero `0x19ef8` path into the existing
+  direct state-16 type-5 tail, matching 144 instructions with four
+  calls/returns and exact live-state equality. Nonzero selectors and other
+  index compositions remain fail-closed. See
+  `decomp/i960/notes/fa_player_1442c_state16_state25_v0449.md`.
+
 - Recover integrated state-16/state-24 write arms (v0448). The measured
   `+0x19f == 25` and `22` cases now match in 59/60 instructions with two
   calls/returns and exact live-state equality. Other state-24 compositions
