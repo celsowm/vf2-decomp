@@ -22199,6 +22199,7 @@ static vf2_status coli_225cc_body(
                  flags_g8 == UINT32_C(0x00018000) ||
                  flags_g8 == UINT32_C(0x00018001) ||
                  flags_g8 == UINT32_C(0x00018002) ||
+                 flags_g8 == UINT32_C(0x00018008) ||
                  flags_g8 == UINT32_C(0x00018020) ||
                  flags_g8 == UINT32_C(0x00018040) ||
                  flags_g8 == UINT32_C(0x00018080) ||
@@ -22302,9 +22303,13 @@ static vf2_status coli_225cc_body(
         *body_out = UINT64_C(12);
         return VF2_OK;
     }
-    if (scan_byte == UINT8_C(1) &&
-        (flags_g8 & (UINT32_C(1) << 13u)) != 0u &&
-        (flags_g8 & ((UINT32_C(1) << 15u) | (UINT32_C(1) << 16u))) == 0u) {
+    if ((scan_byte == UINT8_C(1) &&
+         (flags_g8 & (UINT32_C(1) << 13u)) != 0u &&
+         (flags_g8 & ((UINT32_C(1) << 15u) | (UINT32_C(1) << 16u))) == 0u) ||
+        (scan_byte == UINT8_C(4) &&
+         flags_g8 == UINT32_C(0x00018008))) {
+        /* v0462: bit 3 plus bits 15/16 takes the measured scan-4 long
+         * body through the same bbs-15/direct g0=5 route. */
         uint64_t long_body = 0u;
         uint64_t lcalls = UINT64_C(4);
         uint64_t lrets = UINT64_C(4);
@@ -24081,6 +24086,7 @@ static vf2_status coli_225cc_long_body(
                (flags_g8 == UINT32_C(0x00018000) ||
                 flags_g8 == UINT32_C(0x00018001) ||
                 flags_g8 == UINT32_C(0x00018002) ||
+                flags_g8 == UINT32_C(0x00018008) ||
                 flags_g8 == UINT32_C(0x00018020) ||
                 flags_g8 == UINT32_C(0x00018040) ||
                 flags_g8 == UINT32_C(0x00018080) ||
@@ -24119,7 +24125,7 @@ static vf2_status coli_225cc_long_body(
                 flags_g8 == UINT32_C(0x00019815) ||
                 flags_g8 == UINT32_C(0x0001c000) ||
                 flags_g8 == UINT32_C(0x00038000))) {
-        /* v0456-v0460: bbs 15 skips the bbc-16 edge before the scan-4
+        /* v0456-v0462: bbs 15 skips the bbc-16 edge before the scan-4
          * compare. The exact words below are independently measured. */
         body += UINT64_C(3); /* cmpibne + bbs15 + cmpibne4 */
     } else {
@@ -24943,7 +24949,8 @@ bit13_skip:
                 return VF2_ERROR_UNSUPPORTED;
             }
             body += UINT64_C(1);
-            if ((field & (UINT32_C(1) << 8u)) != 0u) {
+            if ((field & (UINT32_C(1) << 8u)) != 0u &&
+                flags_g8 != UINT32_C(0x00018008)) {
                 return VF2_ERROR_UNSUPPORTED;
             }
             body += UINT64_C(1); /* bbc 8 taken */

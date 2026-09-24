@@ -1320,6 +1320,14 @@ ROM at 103 instructions with full live-state equality. Other bit-8 and
 bit-13 compositions remain explicit boundaries (see
 `decomp/i960/notes/fa_coli_225cc_bit16_bit15_bit8_v0461.md`).
 
+Status (v0462): the exact bit-3 sibling `g8 + 0x1a4 = 0x00018008` is now
+native on scan 4 with `g7 + 0x1a4 = 0x00400100`. The outer bit-3 gate admits
+only this measured word; its bit-16 edge skips the downstream `bbc 14` mask
+and reaches the common `0x22bc0`/direct g0=5 tail. The ROM-backed fixture
+matches 107 instructions with full live-state equality. Other bit-3 words
+remain explicit boundaries (see
+`decomp/i960/notes/fa_coli_225cc_bit16_bit15_bit3_v0462.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at
