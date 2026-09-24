@@ -1206,6 +1206,12 @@ and 27); those special successors and unmeasured state-16 rows remain
 explicit boundaries (see
 `decomp/i960/notes/fa_player_1442c_state16_ordinary_v0445.md`).
 
+Status (v0446): the integrated state-16/state-27 row is now covered by the
+existing post-helper both-state-16 join. The live fixture proves 126
+instructions with four calls/returns and exact live-state equality; the
+state-24 special continuation remains an explicit boundary (see
+`decomp/i960/notes/fa_player_1442c_state16_state27_v0446.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at

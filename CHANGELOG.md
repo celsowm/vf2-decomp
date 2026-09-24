@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Prove the integrated state-16/state-27 join (v0446). The state-27 helper
+  mutates the post-helper row into the existing both-state-16 join; the live
+  fixture now proves the 126-instruction path with four calls/returns and
+  exact live-state equality. See
+  `decomp/i960/notes/fa_player_1442c_state16_state27_v0446.md`.
+
 - Recover integrated state-16 ordinary joins (v0445). The live `0x1442c`
   row with fighter 0 state 16 and fighter 1 state 26 now reaches the native
   direct `0x14570` body in 98 instructions with three calls/returns and exact
