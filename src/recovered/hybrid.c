@@ -6561,6 +6561,7 @@ static vf2_status hybrid_execute_player_1453c(
     bool text_branch = false;
     bool swapped = false;
     bool state27 = false;
+    bool neutral_join = false;
     uint64_t prefix_adjust = 0u;
     vf2_status status = VF2_OK;
 
@@ -6577,6 +6578,10 @@ static vf2_status hybrid_execute_player_1453c(
         prefix_adjust = UINT64_C(4);
     } else if (r7 == 16u && r8 == 0u) {
         /* Measured 0x14528 -> 0x14570 direct state-16 join. */
+    } else if (r8 == 0u && r7 <= 31u && r7 != 16u && r7 != 27u) {
+        /* v0442: the bounded r7=0..31 sweep takes the 0x14560 neutral
+         * exit for every value except the dedicated state-16/state-27 arms. */
+        neutral_join = true;
     } else if (r7 == 0u && r8 == 16u) {
         /* Measured 0x14528 -> 0x14570 swapped state-16 join. */
         swapped = true;
@@ -6600,6 +6605,27 @@ static vf2_status hybrid_execute_player_1453c(
         prefix_adjust = swapped ? UINT64_C(6) : UINT64_C(2);
     } else {
         return VF2_ERROR_UNSUPPORTED;
+    }
+    if (neutral_join) {
+        /* 0x14548/0x1454c/0x14560 branch to the common 0x14628 exit.
+         * The measured path is four branch instructions plus the five
+         * common-exit instructions; no type-5 walk or memory reads occur. */
+        cpu->registers[3] = 0u;
+        status = vf2_model2a_write_u32(
+            machine, g7 + UINT32_C(0x198), 0u
+        );
+        if (status == VF2_OK) {
+            status = vf2_model2a_write_u32(
+                machine, g8 + UINT32_C(0x198), 0u
+            );
+        }
+        if (status != VF2_OK) {
+            return status;
+        }
+        hybrid_set_compare_result(cpu, VF2_I960_COMPARE_GREATER);
+        cpu->executed_instructions += UINT64_C(9);
+        cpu->ip = UINT32_C(0x0001463c);
+        return VF2_OK;
     }
     if (swapped) {
         /* 0x14530 mov g8,r15 ; 0x14534 mov g7,g8 ; 0x14538 mov r15,g7

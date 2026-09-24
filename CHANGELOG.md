@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Recover the bounded neutral `0x14528` state family (v0442). A reference
+  sweep of `r8 == 0` and `r7=0..31` takes the same 9-instruction
+  `0x14560 -> 0x14628` exit for every value except the dedicated state-16
+  and state-27 arms. Native C admits that measured family and the live
+  fixture proves state 26 with zero calls/returns; values above 31 and other
+  state-byte combinations remain fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_neutral_family_v0442.md`.
+
 - Consolidate the measured `0x14528` state-16 swapped joins (v0441). A
   bounded `r7=0..31` reference sweep shows one 55-instruction path for every
   value except the dedicated state-16 and state-27 arms; native C now admits
