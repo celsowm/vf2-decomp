@@ -2362,6 +2362,16 @@ for each mask; other positive compositions remain explicit fail-closed
 boundaries. See
 `decomp/i960/notes/game_info_18644_positive_bit8_low_family_v0513.md`.
 
+Status (v0514): the adjacent positive state-8 mask `0x00000108` (bits 3+8)
+has a narrower native slice: exactly one fighter carrying the mask, mode bit 6
+clear, countdown `0` or `1`, and threshold `0..2` (`24/24` exact across both
+unilateral distributions). The dispatcher correction is −9 at zero countdown
+and +2 otherwise, with the same measured stale frame and countdown-derived
+condition used by the neighboring positive corridors. Bilateral, mode-bit-6
+and threshold-3 cases remain explicit unsupported controls (`0/12` for the
+threshold-3 matrix). See
+`decomp/i960/notes/game_info_18644_positive_bit3_bit8_unilateral_v0514.md`.
+
 ### v0221 high-26 8140 low cube
 
 * `0x04008140` (high-26 + bits 6+14+15) `1→8` low cube with `-5/-3` (v0221)
