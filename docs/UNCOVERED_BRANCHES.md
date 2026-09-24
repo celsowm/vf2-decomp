@@ -1239,6 +1239,14 @@ matches in 161/147 instructions with four calls/returns and exact live-state
 equality. Other walker misses remain explicit fail-closed boundaries (see
 `decomp/i960/notes/fa_player_1442c_state16_state25_walker_miss_v0450.md`).
 
+Status (v0451): the measured `fa_coli` `0x225cc` bit-16 scan-4 witness is now
+native through the shared `0x22e24` join. With `g8 + 0x1a4 == 0x00010000`,
+`g7 + 0x821 == 4`, and the measured bit-22-clear `g7 + 0x1a4` value, the
+`0x22c88` bbs-16 edge matches 217 instructions and exact live state. Other
+bit-16 compositions and the bit-22-set continuation remain explicit
+fail-closed boundaries (see
+`decomp/i960/notes/fa_coli_225cc_bit16_scan4_v0451.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at
@@ -1574,8 +1582,10 @@ Coli campaign summary (v0330–v0338): all main `g8+0x1a4` flag
 bits (3/4/8/10/13/14/16/18/26), the diagnostic cascade, bit-13
 profundo alt tail, bit-13 sub-paths (`0x22744`/`0x22778`/`0x22794`/
 `0x227ac`/`0x227c4`), and `g7+0x1a4` bit 22 are native. Remaining:
-`0x22d8c` (needs `0x230d4` g0=5), `0x227dc` (type-5), `0x502a4`
-(board bit 9). See `decomp/i960/notes/fa_coli_campaign_final.md`.
+`0x22d8c` g0=5 and sibling continuations, `0x227dc` (type-5), and
+`0x502a4` (board bit 9). The measured bit-16 scan-4 edge through
+`0x22d8c`/`0x22e24` is now covered by v0451; other bit-16 compositions
+remain fail-closed. See `decomp/i960/notes/fa_coli_campaign_final.md`.
 
 Status (v0339): the `0x22d8c` bbs-11 edge is native at all four
 `0x22e24` join sites (`g7+0x1a4` bit 22 set, `g8+0x1a4` bit 11 set,
@@ -1583,10 +1593,13 @@ bit 4 clear): `mov 5, g0`, `0x230d4` g0=5 fork (`cmpobne 5` nt,
 `r3 = 42` via bbc-11 nt, shared `0x231ec` tail, `0x23238`
 early-out), `0x22d9c` tail (`g8+0x198 = g0 + 0x0c010000`,
 caller-r11 halfword at `g8+0x5de`), `0x23070` skip of `0x18a54`,
-ret at `0x230b8` (unit **149**). The `0x22c88` bbs-16 edge, the
+ret at `0x230b8` (unit **149**). Other `0x22c88` bbs-16 compositions, the
 g0=5 fork siblings (r3=40, bit-25-set table return, branch-byte-set,
 bbc-20-nt, `0x18a54` call), `0x227dc` and `0x502a4` remain
-fail-closed. See `decomp/i960/notes/fa_coli_22d8c_g05_v0339.md`.
+fail-closed. The separate v0451 bit-16 scan-4 witness reaches the shared
+join through `bbc 22`; its bit-22-set sibling remains fail-closed. See
+`decomp/i960/notes/fa_coli_22d8c_g05_v0339.md` and
+`decomp/i960/notes/fa_coli_225cc_bit16_scan4_v0451.md`.
 
 Status (v0340): `0x227dc` is native for the miss shape
 (`g8+0x1a4` bits 13+3, scan 1, `g7+0x844` bit 30,

@@ -193,7 +193,8 @@ static void run_rom_case(
     const uint8_t *main_rom,
     size_t main_rom_size,
     const uint8_t *main_data,
-    size_t main_data_size
+    size_t main_data_size,
+    int bit16_scan4
 )
 {
     vf2_model2a reference_machine;
@@ -242,6 +243,20 @@ static void run_rom_case(
     );
     CHECK(seed_live_entry(&reference_machine) == VF2_OK);
     CHECK(seed_live_entry(&native_machine) == VF2_OK);
+    if (bit16_scan4 != 0) {
+        CHECK(vf2_model2a_write_u32(
+                  &reference_machine, COLI_LIVE_FIGHTER1 + UINT32_C(0x1a4),
+                  UINT32_C(0x00010000)) == VF2_OK);
+        CHECK(vf2_model2a_write_u32(
+                  &native_machine, COLI_LIVE_FIGHTER1 + UINT32_C(0x1a4),
+                  UINT32_C(0x00010000)) == VF2_OK);
+        CHECK(vf2_model2a_write(
+                  &reference_machine, COLI_LIVE_FIGHTER0 + UINT32_C(0x821),
+                  (const uint8_t *)"\x04", 1u) == VF2_OK);
+        CHECK(vf2_model2a_write(
+                  &native_machine, COLI_LIVE_FIGHTER0 + UINT32_C(0x821),
+                  (const uint8_t *)"\x04", 1u) == VF2_OK);
+    }
 
     setup_live_cpu(&reference_cpu);
     setup_live_cpu(&native_cpu);
@@ -325,7 +340,8 @@ static void run_rom_differential(const char *rom_directory)
         return;
     }
 
-    run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 0);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 1);
 
     free(main_rom);
     free(main_data);

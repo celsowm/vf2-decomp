@@ -4244,6 +4244,50 @@ static void test_coli_225cc_long(void) {
     CHECK(read_test_u16(&machine, fighter1 + UINT32_C(0x5de)) ==
           UINT16_C(0xfff2));
 
+    /* v0451: g8 bit 16 with scan 4 takes 0x22c88 -> 0x22d8c.  Unlike
+     * the v0339 bit-11 join, this uses the ordinary 0x230d4 long body
+     * with input g0=5; the shared join selects the 0x4ac result.
+     * Reference entry -> 0x22294 is 217 instructions. */
+    if (main_data != NULL) {
+        write_u32_bytes(main_data, UINT32_C(0x1ead4), UINT32_C(0x000004ac));
+    }
+    CHECK(vf2_model2a_write_u32(
+              &machine, fighter0 + UINT32_C(0x1a4),
+              UINT32_C(0x00000100)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(
+              &machine, fighter1 + UINT32_C(0x1a4),
+              UINT32_C(0x00010000)) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x821),
+                            (const uint8_t *)"\x04", 1u) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x822),
+                            (const uint8_t *)"\x00", 1u) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x828),
+                            (const uint8_t *)"\x00\x00", 2u) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x823),
+                            (const uint8_t *)"\x00", 1u) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter1 + UINT32_C(0x198),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter1 + UINT32_C(0x6d8),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter1 + UINT32_C(0x700),
+                                UINT32_C(0)) == VF2_OK);
+    vf2_i960_cpu_reset(&cpu, 0u, 0u, UINT32_C(0x000225cc));
+    cpu.registers[VF2_I960_FP_REGISTER] = UINT32_C(0x005ff500);
+    cpu.registers[1] = UINT32_C(0x005ff580);
+    cpu.registers[VF2_I960_G0_REGISTER + 7u] = fighter0;
+    cpu.registers[VF2_I960_G0_REGISTER + 8u] = fighter1;
+    CHECK(vf2_i960_cpu_enter_procedure(&cpu, UINT32_C(0x000225cc),
+                                       UINT32_C(0x00022240)) == VF2_OK);
+    start_instructions = cpu.executed_instructions;
+    CHECK(vf2_hybrid_coli_225cc_execute(&machine, &cpu) == VF2_OK);
+    CHECK(cpu.ip == UINT32_C(0x00022240));
+    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(217));
+    CHECK(vf2_model2a_read_u32(
+              &machine, fighter1 + UINT32_C(0x198), &stored) == VF2_OK);
+    CHECK(stored == UINT32_C(0x0c0004ac));
+    CHECK(read_test_u16(&machine, fighter1 + UINT32_C(0x5de)) ==
+          UINT16_C(0xfff2));
+
     /* v0340: bit-13 + bit 3 + g7+0x844 bit 30 → 0x227dc miss path.
      * Reference entry→0x22804 is 86 steps (52 prefix + 34 block);
      * native adds the frame ret = 87. Chain replicates the live

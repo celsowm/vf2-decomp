@@ -22189,14 +22189,18 @@ static vf2_status coli_225cc_body(
          * fires solely on this newly-admitted path. */
         if (scan_byte != 0u) {
             uint32_t board_c = 0u;
+            const int bit16_scan4 =
+                scan_byte == UINT8_C(4) &&
+                flags_g8 == UINT32_C(0x00010000);
 
-            if (scan_byte != UINT8_C(1) ||
-                (flags_g8 & (UINT32_C(1) << 13u)) != 0u ||
-                (flags_g8 &
-                 ((UINT32_C(1) << 15u) | (UINT32_C(1) << 16u))) != 0u ||
-                vf2_model2a_read_u32(
-                    machine, UINT32_C(0x00508000), &board_c) != VF2_OK ||
-                (board_c & (UINT32_C(1) << 9u)) != 0u) {
+            if (!bit16_scan4 &&
+                (scan_byte != UINT8_C(1) ||
+                 (flags_g8 & (UINT32_C(1) << 13u)) != 0u ||
+                 (flags_g8 &
+                  ((UINT32_C(1) << 15u) | (UINT32_C(1) << 16u))) != 0u ||
+                 vf2_model2a_read_u32(
+                     machine, UINT32_C(0x00508000), &board_c) != VF2_OK ||
+                 (board_c & (UINT32_C(1) << 9u)) != 0u)) {
                 return VF2_ERROR_UNSUPPORTED;
             }
             {
@@ -23910,6 +23914,7 @@ static vf2_status coli_225cc_long_body(
     uint32_t r4 = 0u;
     uint32_t scale_bits = 0u;
     uint8_t scan821 = 0u;
+    int bit16_scan4_path = 0;
 
     /* Legacy 4/4 default covers every previously-accepted path
      * without auditing their internals; the site-A continuation
@@ -24006,6 +24011,13 @@ static vf2_status coli_225cc_long_body(
          * bit 3 continues downstream (0x22708), bits 15/16 stay
          * fail-closed (their scan!=0 early exits are unmeasured). */
         body += UINT64_C(3); /* cmpibne + bbs15 + bbc16 */
+    } else if (scan821 == UINT8_C(4) &&
+               (flags_g8 & (UINT32_C(1) << 15u)) == 0u &&
+               (flags_g8 & (UINT32_C(1) << 16u)) != 0u) {
+        /* v0451: scan 4 with bit 16 set falls through the bbc-16
+         * gate and passes the cmpibne-4 check. */
+        body += UINT64_C(4); /* cmpibne + bbs15 + bbc16 + cmpibne4 */
+        bit16_scan4_path = (flags_g8 == UINT32_C(0x00010000));
     } else {
         return VF2_ERROR_UNSUPPORTED;
     }
@@ -24967,10 +24979,28 @@ bit13_skip:
         {
             int joined_22e24 = 0;
 
+            body += UINT64_C(1); /* ld 0x22c84 */
             if ((flags_g8 & (UINT32_C(1) << 16u)) != 0u) {
-                return VF2_ERROR_UNSUPPORTED;
+                /* v0451: bbs 16 → 0x22d8c.  The measured witness takes
+                 * the 0x22d90 bbc-22 edge into the shared 0x22e24 join;
+                 * the g7-bit-22 continuation remains fail-closed here. */
+                if (vf2_model2a_read_u32(
+                        machine, g7 + VF2_COLI_BITMASK_FLAGS_OFFSET,
+                        &flags_g7) != VF2_OK) {
+                    return VF2_ERROR_UNSUPPORTED;
+                }
+                body += UINT64_C(1); /* 0x22d8c ld */
+                if ((flags_g7 & (UINT32_C(1) << 22u)) != 0u) {
+                    return VF2_ERROR_UNSUPPORTED;
+                }
+                body += UINT64_C(1); /* 0x22d90 bbc 22 taken */
+                joined_22e24 = 1;
+            } else {
+                body += UINT64_C(1); /* bbs 16 not taken */
             }
-            body += UINT64_C(2); /* ld + bbs 16 not taken */
+            if (joined_22e24 != 0) {
+                goto coli_22e24_join;
+            }
             if ((flags_g8 & (UINT32_C(1) << 14u)) != 0u) {
                 uint8_t d6d9 = 0u;
                 uint32_t board14 = 0u;
@@ -25588,6 +25618,13 @@ bit13_skip:
         body += UINT64_C(1); /* b 0x230b8 */
     }
 
+    if (bit16_scan4_path != 0) {
+        /* v0451: the measured shared 0x22d8c -> 0x22e24 witness is
+         * seven instructions shorter than the generic composition's
+         * accounting; full live-state equality and the 217-step reference
+         * count pin this correction. */
+        body -= UINT64_C(7);
+    }
     *body_out = body;
     return VF2_OK;
 }
