@@ -1287,6 +1287,14 @@ bit-4 word uses the measured two-instruction direct g0=5 correction. Other
 bit-15 compositions remain explicit boundaries (see
 `decomp/i960/notes/fa_coli_225cc_bit16_bit15_selectors_v0457.md`).
 
+Status (v0458): eleven further low-selector words are now native:
+`0x00018004`, `0x00018005`, `0x00018801`, `0x00018804`, `0x00018805`,
+`0x00019001`, `0x00019004`, `0x00019005`, `0x00019801`, `0x00019804` and
+`0x00019805`. The 17-word measured set matches the ROM at 107 or 109
+instructions with full live-state equality; unmeasured compositions remain
+explicit boundaries (see
+`decomp/i960/notes/fa_coli_225cc_bit16_bit15_low_cross_v0458.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at

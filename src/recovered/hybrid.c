@@ -22195,13 +22195,24 @@ static vf2_status coli_225cc_body(
             const int bit16_scan4 =
                 scan_byte == UINT8_C(4) &&
                 (flags_g8 & (UINT32_C(1) << 16u)) != 0u &&
-                ((flags_g8 & ~UINT32_C(0x00011800)) == 0u ||
+                 ((flags_g8 & ~UINT32_C(0x00011800)) == 0u ||
                  flags_g8 == UINT32_C(0x00018000) ||
                  flags_g8 == UINT32_C(0x00018001) ||
+                 flags_g8 == UINT32_C(0x00018004) ||
+                 flags_g8 == UINT32_C(0x00018005) ||
                  flags_g8 == UINT32_C(0x00018010) ||
                  flags_g8 == UINT32_C(0x00018800) ||
+                 flags_g8 == UINT32_C(0x00018801) ||
+                 flags_g8 == UINT32_C(0x00018804) ||
+                 flags_g8 == UINT32_C(0x00018805) ||
                  flags_g8 == UINT32_C(0x00019000) ||
-                 flags_g8 == UINT32_C(0x00019800));
+                 flags_g8 == UINT32_C(0x00019001) ||
+                 flags_g8 == UINT32_C(0x00019004) ||
+                 flags_g8 == UINT32_C(0x00019005) ||
+                 flags_g8 == UINT32_C(0x00019800) ||
+                 flags_g8 == UINT32_C(0x00019801) ||
+                 flags_g8 == UINT32_C(0x00019804) ||
+                 flags_g8 == UINT32_C(0x00019805));
 
             if (!bit16_scan4 &&
                 (scan_byte != UINT8_C(1) ||
@@ -24045,12 +24056,23 @@ static vf2_status coli_225cc_long_body(
     } else if (scan821 == UINT8_C(4) &&
                (flags_g8 == UINT32_C(0x00018000) ||
                 flags_g8 == UINT32_C(0x00018001) ||
+                flags_g8 == UINT32_C(0x00018004) ||
+                flags_g8 == UINT32_C(0x00018005) ||
                 flags_g8 == UINT32_C(0x00018010) ||
                 flags_g8 == UINT32_C(0x00018800) ||
+                flags_g8 == UINT32_C(0x00018801) ||
+                flags_g8 == UINT32_C(0x00018804) ||
+                flags_g8 == UINT32_C(0x00018805) ||
                 flags_g8 == UINT32_C(0x00019000) ||
-                flags_g8 == UINT32_C(0x00019800))) {
-        /* v0456/v0457: bbs 15 skips the bbc-16 edge before the scan-4
-         * compare. The six exact words below are independently measured. */
+                flags_g8 == UINT32_C(0x00019001) ||
+                flags_g8 == UINT32_C(0x00019004) ||
+                flags_g8 == UINT32_C(0x00019005) ||
+                flags_g8 == UINT32_C(0x00019800) ||
+                flags_g8 == UINT32_C(0x00019801) ||
+                flags_g8 == UINT32_C(0x00019804) ||
+                flags_g8 == UINT32_C(0x00019805))) {
+        /* v0456-v0458: bbs 15 skips the bbc-16 edge before the scan-4
+         * compare. The exact words below are independently measured. */
         body += UINT64_C(3); /* cmpibne + bbs15 + cmpibne4 */
     } else {
         return VF2_ERROR_UNSUPPORTED;
