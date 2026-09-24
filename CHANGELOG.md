@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Recover the measured `0x14640` state-27 compare-prefix sibling (v0425).
+  With `+0x654 != 0` and signed `+0x1aa < +0x62a`, the existing type-15
+  state-27 walk now matches the ROM through `0x146c4` in 44 instructions
+  (+1 call/return), alongside the original 41-instruction path. The
+  standalone fixture proves both with full live-state equality and the
+  dispatcher now reaches the recovered arm. See
+  `decomp/i960/notes/fa_player_14640_state27_compare_less_v0425.md`.
+
 - Recover the measured mixed first/later scaling matrix (v0424). With
   `+0x1a4(g8)` bit 0, `+0x3351` bit 6 and optionally target g8 bit 29 set,
   direct/swapped state 27 reaches 57/60 and 61/64, swapped state 16 reaches

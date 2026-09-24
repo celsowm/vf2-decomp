@@ -5113,16 +5113,17 @@ vf2_status vf2_hybrid_player_29414_execute(
 }
 
 /* Measured state-27 arm of the fa_rob fighter-exchange helper 0x14640
- * (v0405).  Entered at 0x14640 when fighter g7 has +0x198 == 0, +0x654 == 0
- * and +0x197 == 27 (so `cmpobne 27, r3` falls through to the 0x14664 walk).
+ * (v0405/v0425). Entered at 0x14640 when fighter g7 has +0x198 == 0 and
+ * +0x197 == 27. The v0405 path has +0x654 == 0; the v0425 compare-prefix
+ * sibling has +0x654 != 0 and signed +0x1aa < +0x62a.
  * It indexes a type-15 record chain via +0x194(g7) (0x1ab34, g1 == 15),
  * then stores r4 = s16(+1(record)) - 1 into +0x62a(g7), moves the original
  * full +0x194(g7) u32 into +0x654(g7) and clears +0x194(g7).  On the
  * measured live shape (bit 20 of 0x500068 clear, no shift) the span from
  * 0x14640 to the 0x146c4 ret is 41 instructions with +1 call / +1 return
  * (the type-15 walker).  The ret at 0x146c4 is not consumed here; the
- * caller continues at that instruction.  Sibling shapes (bit 20 set, the
- * +0x654 != 0 +0x1aa/+0x62a compare arm, or a walker miss) stay fail-closed.
+ * caller continues at that instruction. Sibling shapes (bit 20 set, other
+ * compare relations, or a walker miss) stay fail-closed.
  * The walker restores the pre-call r0-r15 frame, so r3/r13/r14 are preserved
  * and only r4/r15/g0/g1 are left distinct; the final reference
  * `compare_result` is NONE (the trailing `subo`/`st` sequence). */
@@ -5137,10 +5138,13 @@ static vf2_status hybrid_execute_player_14640_state27(
     uint32_t r654 = 0u;
     uint8_t r197 = 0u;
     uint16_t h194 = 0u;
+    uint16_t h1aa = 0u;
+    uint16_t h62a = 0u;
     uint32_t w194 = 0u;
     uint32_t walk_rec = 0u;
     uint32_t word68 = 0u;
     int16_t r4s = 0;
+    bool compare_prefix = false;
     vf2_status status = VF2_OK;
 
     if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x00014640) ||
@@ -5157,7 +5161,16 @@ static vf2_status hybrid_execute_player_14640_state27(
         );
     }
     if (status == VF2_OK && r654 != 0u) {
-        status = VF2_ERROR_UNSUPPORTED;
+        status = hybrid_read_u16(machine, g7 + UINT32_C(0x1aa), &h1aa);
+        if (status == VF2_OK) {
+            status = hybrid_read_u16(machine, g7 + UINT32_C(0x62a), &h62a);
+        }
+        if (status == VF2_OK && (int16_t)h1aa >= (int16_t)h62a) {
+            status = VF2_ERROR_UNSUPPORTED;
+        }
+        if (status == VF2_OK) {
+            compare_prefix = true;
+        }
     }
     if (status == VF2_OK) {
         status = hybrid_read_u8(machine, g7 + UINT32_C(0x197), &r197);
@@ -5187,11 +5200,17 @@ static vf2_status hybrid_execute_player_14640_state27(
     /* Prefix 0x14640..0x14668 (8 instructions; the 0x1466c call below is
      * added by repeated_call).  r3 = +0x197 (27), CC = EQUAL (cmpobne 27
      * not taken), g0 = low16(+0x194), g1 = 15. */
+    if (compare_prefix) {
+        /* 0x14650/0x14654 loads survive the type-15 call frame. */
+        cpu->registers[13u] = (uint32_t)(int32_t)(int16_t)h1aa;
+        cpu->registers[14u] = (uint32_t)(int32_t)(int16_t)h62a;
+    }
     cpu->registers[3] = (uint32_t)r197;
     cpu->registers[VF2_I960_G0_REGISTER] = (uint32_t)(int32_t)(int16_t)h194;
     cpu->registers[VF2_I960_G0_REGISTER + 1u] = UINT32_C(15);
     hybrid_set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
-    cpu->executed_instructions += UINT64_C(8);
+    cpu->executed_instructions += UINT64_C(8) +
+        (compare_prefix ? UINT64_C(3) : UINT64_C(0));
 
     /* 0x1466c call 0x1ab34 (type-15 walk).  A walker miss returns
      * VF2_ERROR_UNSUPPORTED, preserving the fail-closed boundary. */
@@ -5989,6 +6008,19 @@ static vf2_status hybrid_execute_player_14640(
         uint16_t h62a = 0u;
         int16_t s1aa = 0;
         int16_t s62a = 0;
+        status = hybrid_read_u8(machine, player + UINT32_C(0x197), &r197);
+        if (status == VF2_OK && r197 == 27u) {
+            /* v0425: state-27 continues through the compare prefix and then
+             * uses the existing type-15 walk. */
+            status = hybrid_execute_player_14640_state27(machine, cpu);
+            if (status == VF2_OK) {
+                status = vf2_i960_cpu_return_procedure(cpu, machine);
+                if (status == VF2_OK) {
+                    ++cpu->executed_instructions;
+                }
+            }
+            return status;
+        }
         status = hybrid_read_u16(machine, player + UINT32_C(0x1aa), &h1aa);
         if (status == VF2_OK) {
             status = hybrid_read_u16(machine, player + UINT32_C(0x62a),
