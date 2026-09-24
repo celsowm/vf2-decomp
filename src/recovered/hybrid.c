@@ -22196,7 +22196,12 @@ static vf2_status coli_225cc_body(
                 scan_byte == UINT8_C(4) &&
                 (flags_g8 & (UINT32_C(1) << 16u)) != 0u &&
                 ((flags_g8 & ~UINT32_C(0x00011800)) == 0u ||
-                 flags_g8 == UINT32_C(0x00018000));
+                 flags_g8 == UINT32_C(0x00018000) ||
+                 flags_g8 == UINT32_C(0x00018001) ||
+                 flags_g8 == UINT32_C(0x00018010) ||
+                 flags_g8 == UINT32_C(0x00018800) ||
+                 flags_g8 == UINT32_C(0x00019000) ||
+                 flags_g8 == UINT32_C(0x00019800));
 
             if (!bit16_scan4 &&
                 (scan_byte != UINT8_C(1) ||
@@ -24038,8 +24043,14 @@ static vf2_status coli_225cc_long_body(
         body += UINT64_C(4); /* cmpibne + bbs15 + bbc16 + cmpibne4 */
         bit16_scan4_path = (flags_g8 == UINT32_C(0x00010000));
     } else if (scan821 == UINT8_C(4) &&
-               flags_g8 == UINT32_C(0x00018000)) {
-        /* v0456: bbs 15 skips the bbc-16 edge before the scan-4 compare. */
+               (flags_g8 == UINT32_C(0x00018000) ||
+                flags_g8 == UINT32_C(0x00018001) ||
+                flags_g8 == UINT32_C(0x00018010) ||
+                flags_g8 == UINT32_C(0x00018800) ||
+                flags_g8 == UINT32_C(0x00019000) ||
+                flags_g8 == UINT32_C(0x00019800))) {
+        /* v0456/v0457: bbs 15 skips the bbc-16 edge before the scan-4
+         * compare. The six exact words below are independently measured. */
         body += UINT64_C(3); /* cmpibne + bbs15 + cmpibne4 */
     } else {
         return VF2_ERROR_UNSUPPORTED;
@@ -25042,6 +25053,11 @@ bit13_skip:
                     }
                     if (g0_out != NULL) {
                         *g0_out = g05_result;
+                    }
+                    if (flags_g8 == UINT32_C(0x00018010)) {
+                        /* v0457: this direct g0=5 tail is two instructions
+                         * shorter for the measured bit-4 selector. */
+                        body -= UINT64_C(2);
                     }
                     *body_out = body;
                     return VF2_OK;

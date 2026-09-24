@@ -285,6 +285,26 @@ static void run_rom_case(
             /* v0456: g8 bits 15 and 16 skip the bbc-16 edge. */
             g7_flags = UINT32_C(0x00400100);
             g8_flags = UINT32_C(0x00018000);
+        } else if (bit16_scan4 == 14) {
+            /* v0457: bit 11 remains visible after the bit-15 skip. */
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x00018800);
+        } else if (bit16_scan4 == 15) {
+            /* v0457: bit 12 remains visible after the bit-15 skip. */
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x00019000);
+        } else if (bit16_scan4 == 16) {
+            /* v0457: bits 11 and 12 remain visible after the skip. */
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x00019800);
+        } else if (bit16_scan4 == 17) {
+            /* v0457: low bit remains visible after the bit-15 skip. */
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x00018001);
+        } else if (bit16_scan4 == 18) {
+            /* v0457: bit 4 remains visible after the bit-15 skip. */
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x00018010);
         }
         CHECK(vf2_model2a_write_u32(
                   &reference_machine, COLI_LIVE_FIGHTER0 + UINT32_C(0x1a4),
@@ -402,6 +422,11 @@ static void run_rom_differential(const char *rom_directory)
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 11);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 12);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 13);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 14);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 15);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 16);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 17);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 18);
 
     free(main_rom);
     free(main_data);

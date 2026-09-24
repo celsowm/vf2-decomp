@@ -1279,6 +1279,14 @@ on scan 4 with the measured g7 bit-22 word. The `bbs 15` edge skips the
 live-state equality; other bit-15 compositions remain explicit boundaries
 (see `decomp/i960/notes/fa_coli_225cc_bit16_bit15_v0456.md`).
 
+Status (v0457): five additional exact g8 bit-15/bit-16 selector words are
+now native on the same scan-4 route: `0x00018800`, `0x00019000`,
+`0x00019800`, `0x00018001` and `0x00018010`. They match 109, 107, 109,
+107 and 107 instructions respectively with full live-state equality; the
+bit-4 word uses the measured two-instruction direct g0=5 correction. Other
+bit-15 compositions remain explicit boundaries (see
+`decomp/i960/notes/fa_coli_225cc_bit16_bit15_selectors_v0457.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at
