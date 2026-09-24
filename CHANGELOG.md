@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- Recover the fa_rob bit-4-set neutral arm `0x14640` (v0407), the
+  `+0x197` not 27/28 neutral tail when bit 4 of `(g7)` is SET (the
+  `0x146b0 bbc 4, r15` not taken) and r3 (`+0x197`) != 13 (the `0x146b8
+  cmpobe 13, r3` not taken).  It clears `+0x194(g7)` and leaves `r15 = 0`
+  and `r3 = +0x197`.  No walker.  Measured path: 12 steps / +0 call / +0
+  return, leaving the `0x146c4` ret unconsumed.  Recovered as standalone
+  `hybrid_execute_player_14640_bit4set` +
+  `vf2_hybrid_player_14640_bit4set_execute_for_test`, dispatched from
+  `hybrid_execute_player_14640` when bit 4 of `(g7)` is set and `+0x197`
+  not 27/28/13 (which then consumes the `0x146c4` ret to return through
+  the `0x14640` frame).  The `r3 == 13` sibling (which takes the 0x146c8
+  tail), the `+0x654 != 0` `+0x1aa`/`+0x62a` compare arm, and the
+  `r198 != 0` escape stay fail-closed.  Final reference `compare_result`
+  is GREATER.  ROM-backed
+  `vf2_player_14640_bit4set_live_differential` proves the arm byte-exact
+  (12/+0/+0, full live state).  `ctest` 86/86. See
+  `decomp/i960/notes/fa_player_14640_bit4set_v0407.md`.
+
 - Recover the fa_rob state-28 arm `0x14640` (v0406), the state-28 sibling
   of the v0405 state-27 walk: when fighter g7 has `+0x198 == 0`,
   `+0x654 == 0` and `+0x197 == 28`, the `0x1469c cmpobne 28, r3` falls

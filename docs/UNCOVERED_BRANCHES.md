@@ -926,6 +926,18 @@ reference `compare_result` is EQUAL.  Pinned by
 `+0x1aa`/`+0x62a` compare arm and the `+0x197` not 27/28 neutral tail
 (`0x146b0`/`0x146c8`/`0x146dc`) remain explicit boundaries (see
 `decomp/i960/notes/fa_player_14640_state28_v0406.md`).
+Status (v0407): the `0x14640` bit-4-set neutral arm is now native as the
+standalone `hybrid_execute_player_14640_bit4set` (no walker, 12 steps /
++0 call / +0 return to the `0x146c4` ret).  It requires `+0x198 == 0`,
+`+0x654 == 0`, `+0x197` not 27/28/13 and bit 4 of `(g7)` SET; it clears
+`+0x194(g7)` and leaves `r15 = 0`, `r3 = +0x197`.  The arm is dispatched
+from `hybrid_execute_player_14640` when bit 4 of `(g7)` is set and
+`+0x197` not 27/28/13, and is then wired through the `0x146c4` ret.  Final
+reference `compare_result` is GREATER.  Pinned by
+`vf2_player_14640_bit4set_live_differential`.  The `r3 == 13` sibling
+(which takes the `0x146c8` tail), the `+0x654 != 0` `+0x1aa`/`+0x62a`
+compare arm and the `r198 != 0` escape remain explicit boundaries (see
+`decomp/i960/notes/fa_player_14640_bit4set_v0407.md`).
 
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
