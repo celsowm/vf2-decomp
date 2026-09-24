@@ -6539,9 +6539,9 @@ static vf2_status hybrid_execute_player_144b0(
  * r7=r8=16 with bit 0 of 0x500028 clear/set.
  * set.  All measured paths have +1 call / +1 return when +0x194(g7) indexes
  * a valid type-5 chain. The measured state/scaling variants are admitted below;
- * v0474 additionally admits the measured type-5 walker misses for
- * `+0x194 == 1` and `+0x194 == 2`; all other misses and unrecognized
- * state/scaling shapes stay fail-closed. The
+ * v0475 additionally admits the bounded measured type-5 walker misses for
+ * the selector sweep 1..32; all other misses and unrecognized state/scaling
+ * shapes stay fail-closed. The
  * measured text tails are admitted for board bit 9 clear across the complete
  * accepted state/scaling matrix, with the recovered 0x7fc0 expander. */
 static vf2_status hybrid_execute_player_1453c(
@@ -6731,8 +6731,9 @@ static vf2_status hybrid_execute_player_1453c(
     if (state27) {
         cpu->registers[15] = UINT32_C(16);
     }
-    /* 0x14578 call 0x1ab34 (type-5 walk).  v0474 admits only the two
-     * measured miss values below; all other walker misses remain fail-closed. */
+    /* 0x14578 call 0x1ab34 (type-5 walk).  v0475 admits only the bounded
+     * measured miss selectors below; all other walker misses remain
+     * fail-closed. */
     cpu->ip = UINT32_C(0x00014578);
     status = hybrid_execute_player_repeated_call(
         cpu, UINT32_C(0x00014578), UINT32_C(0x0001ab34),
@@ -6746,8 +6747,13 @@ static vf2_status hybrid_execute_player_1453c(
     }
     walk_rec = cpu->registers[VF2_I960_G0_REGISTER];
     if (walk_rec == 0u) {
-        if (h194 != UINT16_C(0x0001) && h194 != UINT16_C(0x0002) &&
-            h194 != UINT16_C(0x0110) && h194 != UINT16_C(0x02cf)) {
+        if ((h194 < UINT16_C(0x0001) || h194 > UINT16_C(0x000c)) &&
+            (h194 < UINT16_C(0x0010) || h194 > UINT16_C(0x0015)) &&
+            h194 != UINT16_C(0x0017) && h194 != UINT16_C(0x0018) &&
+            h194 != UINT16_C(0x001a) && h194 != UINT16_C(0x001c) &&
+            h194 != UINT16_C(0x001d) && h194 != UINT16_C(0x001f) &&
+            h194 != UINT16_C(0x0020) && h194 != UINT16_C(0x0110) &&
+            h194 != UINT16_C(0x02cf)) {
             return VF2_ERROR_UNSUPPORTED;
         }
         walker_miss = 1u;

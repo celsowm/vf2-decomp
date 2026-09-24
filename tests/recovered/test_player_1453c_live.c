@@ -944,14 +944,58 @@ static void run_rom_differential(const char *rom_directory)
                  CASE_STATE26_NEUTRAL);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
                  CASE_STATE16_DIRECT_FAMILY);
-    run_rom_case_with_type5_index(
-        main_rom, main_rom_size, main_data, main_data_size,
-        CASE_STATE27_DIRECT, UINT16_C(1), UINT64_C(62)
-    );
-    run_rom_case_with_type5_index(
-        main_rom, main_rom_size, main_data, main_data_size,
-        CASE_STATE27_DIRECT, UINT16_C(2), UINT64_C(69)
-    );
+    {
+        static const struct {
+            uint16_t index;
+            uint64_t steps;
+        } type5_selector_cases[] = {
+            { UINT16_C(1), UINT64_C(62) },
+            { UINT16_C(2), UINT64_C(69) },
+            { UINT16_C(3), UINT64_C(62) },
+            { UINT16_C(4), UINT64_C(62) },
+            { UINT16_C(5), UINT64_C(62) },
+            { UINT16_C(6), UINT64_C(62) },
+            { UINT16_C(7), UINT64_C(61) },
+            { UINT16_C(8), UINT64_C(61) },
+            { UINT16_C(9), UINT64_C(61) },
+            { UINT16_C(10), UINT64_C(61) },
+            { UINT16_C(11), UINT64_C(62) },
+            { UINT16_C(12), UINT64_C(62) },
+            { UINT16_C(13), UINT64_C(52) },
+            { UINT16_C(14), UINT64_C(52) },
+            { UINT16_C(15), UINT64_C(52) },
+            { UINT16_C(16), UINT64_C(55) },
+            { UINT16_C(17), UINT64_C(69) },
+            { UINT16_C(18), UINT64_C(69) },
+            { UINT16_C(19), UINT64_C(69) },
+            { UINT16_C(20), UINT64_C(69) },
+            { UINT16_C(21), UINT64_C(55) },
+            { UINT16_C(22), UINT64_C(52) },
+            { UINT16_C(23), UINT64_C(69) },
+            { UINT16_C(24), UINT64_C(55) },
+            { UINT16_C(25), UINT64_C(52) },
+            { UINT16_C(26), UINT64_C(69) },
+            { UINT16_C(27), UINT64_C(52) },
+            { UINT16_C(28), UINT64_C(55) },
+            { UINT16_C(29), UINT64_C(62) },
+            { UINT16_C(30), UINT64_C(52) },
+            { UINT16_C(31), UINT64_C(62) },
+            { UINT16_C(32), UINT64_C(54) }
+        };
+        size_t case_index = 0u;
+
+        for (case_index = 0u;
+             case_index < sizeof(type5_selector_cases) /
+                 sizeof(type5_selector_cases[0]);
+             ++case_index) {
+            run_rom_case_with_type5_index(
+                main_rom, main_rom_size, main_data, main_data_size,
+                CASE_STATE27_DIRECT,
+                type5_selector_cases[case_index].index,
+                type5_selector_cases[case_index].steps
+            );
+        }
+    }
 
     {
         static const int text_shapes[] = {

@@ -1424,6 +1424,15 @@ in full CPU/memory state with one nested call and return. Other walker misses
 remain explicit fail-closed boundaries (see
 `decomp/i960/notes/fa_player_1453c_type5_miss_v0474.md`).
 
+Status (v0475): the same direct state-27 fixture now proves the complete
+selector sweep `+0x194 == 1..32`. This adds the measured miss selectors
+`1..12`, `16..21`, `23..24`, `26`, `28..29`, and `31..32`; the seven
+type-5 hits in the range remain covered by the existing record path. All 32
+cases compare equal in full CPU/memory state, with one nested call and return
+for the short tail. Misses outside this bounded sweep remain explicit
+fail-closed boundaries (see
+`decomp/i960/notes/fa_player_1453c_type5_miss_v0475.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at
