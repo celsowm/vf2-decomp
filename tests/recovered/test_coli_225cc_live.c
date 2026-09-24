@@ -210,6 +210,7 @@ static void run_rom_case(
     uint64_t reference_instructions = 0u;
     uint64_t native_instructions = 0u;
     uint32_t steps = 0u;
+    uint32_t g7_flags = UINT32_C(0x00000100);
 
     memset(&reference_machine, 0, sizeof(reference_machine));
     memset(&native_machine, 0, sizeof(native_machine));
@@ -245,13 +246,26 @@ static void run_rom_case(
     CHECK(seed_live_entry(&native_machine) == VF2_OK);
     if (bit16_scan4 != 0) {
         if (bit16_scan4 == 2) {
-            CHECK(vf2_model2a_write_u32(
-                      &reference_machine, COLI_LIVE_FIGHTER0 + UINT32_C(0x1a4),
-                      UINT32_C(0x00400100)) == VF2_OK);
-            CHECK(vf2_model2a_write_u32(
-                      &native_machine, COLI_LIVE_FIGHTER0 + UINT32_C(0x1a4),
-                      UINT32_C(0x00400100)) == VF2_OK);
+            g7_flags = UINT32_C(0x00400100);
+        } else if (bit16_scan4 == 3) {
+            /* v0453: bit-22 set with the seed's unrelated low bit clear. */
+            g7_flags = UINT32_C(0x00400000);
+        } else if (bit16_scan4 == 4) {
+            /* v0453: bit-22 plus low bit 0. */
+            g7_flags = UINT32_C(0x00400001);
+        } else if (bit16_scan4 == 5) {
+            /* v0453: bit-22 plus bits 8 and 16. */
+            g7_flags = UINT32_C(0x00410100);
+        } else if (bit16_scan4 == 6) {
+            /* v0453: bit-22 plus bit 23. */
+            g7_flags = UINT32_C(0x00c00100);
         }
+        CHECK(vf2_model2a_write_u32(
+                  &reference_machine, COLI_LIVE_FIGHTER0 + UINT32_C(0x1a4),
+                  g7_flags) == VF2_OK);
+        CHECK(vf2_model2a_write_u32(
+                  &native_machine, COLI_LIVE_FIGHTER0 + UINT32_C(0x1a4),
+                  g7_flags) == VF2_OK);
         CHECK(vf2_model2a_write_u32(
                   &reference_machine, COLI_LIVE_FIGHTER1 + UINT32_C(0x1a4),
                   UINT32_C(0x00010000)) == VF2_OK);
@@ -351,6 +365,10 @@ static void run_rom_differential(const char *rom_directory)
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 0);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 1);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 2);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 3);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 4);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 5);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 6);
 
     free(main_rom);
     free(main_data);

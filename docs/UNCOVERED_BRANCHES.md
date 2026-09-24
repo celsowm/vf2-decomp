@@ -1252,6 +1252,13 @@ g0=5 `0x22d8c` tail and matches 108 instructions with exact live state;
 other g7 flag compositions remain explicit fail-closed boundaries (see
 `decomp/i960/notes/fa_coli_225cc_bit16_bit22_v0452.md`).
 
+Status (v0453): the same scan-4/bit-16 path now admits the measured g7 flag
+family `(flags & bit22) != 0 && (flags & bit4) == 0`. The added witnesses
+`0x00400000`, `0x00400001`, `0x00410100` and `0x00c00100` all match the
+108-instruction v0452 continuation and full live state; bit-4-set and other
+unmeasured compositions remain explicit boundaries (see
+`decomp/i960/notes/fa_coli_225cc_bit16_bit22_family_v0453.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at
