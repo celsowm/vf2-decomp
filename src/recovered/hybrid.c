@@ -6541,8 +6541,8 @@ static vf2_status hybrid_execute_player_144b0(
  * r7=r8=16 with bit 0 of 0x500028 clear/set.
  * set.  All measured paths have +1 call / +1 return when +0x194(g7) indexes
  * a valid type-5 chain. The measured state/scaling variants are admitted below;
-     * v0490 additionally admits the bounded measured type-5 walker misses for
-     * the selector sweep 1..256; all other misses and unrecognized state/scaling
+     * v0491 additionally admits the bounded measured type-5 walker misses for
+     * the selector sweep 1..512; all other misses and unrecognized state/scaling
  * shapes stay fail-closed. The
  * measured text tails are admitted for board bit 9 clear across the complete
  * accepted state/scaling matrix, with the recovered 0x7fc0 expander. */
@@ -6749,7 +6749,7 @@ static vf2_status hybrid_execute_player_1453c(
     }
     walk_rec = cpu->registers[VF2_I960_G0_REGISTER];
     if (walk_rec == 0u) {
-        if ((h194 < UINT16_C(0x0001) || h194 > UINT16_C(0x0100)) &&
+        if ((h194 < UINT16_C(0x0001) || h194 > UINT16_C(0x0200)) &&
             h194 != UINT16_C(0x0110) && h194 != UINT16_C(0x02cf)) {
             return VF2_ERROR_UNSUPPORTED;
         }
