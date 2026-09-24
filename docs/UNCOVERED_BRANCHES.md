@@ -2330,6 +2330,16 @@ stale frame and countdown-derived condition also match. Other positive
 compositions remain explicit fail-closed boundaries. See
 `decomp/i960/notes/game_info_18644_positive_bit1_bit8_v0510.md`.
 
+Status (v0511): the positive state-8 bit-2+bit-8 mask `0x00000104` and
+bit-4+bit-8 mask `0x00000110` are native for their complete measured matrices
+of three fighter distributions, both countdown values, both mode-bit-6 values
+and thresholds `0..2` (`72/72` exact together). Mask `0x104` uses a
+distribution-independent unilateral countdown split and bilateral correction;
+mask `0x110` reuses the measured isolated bit-8 distribution-specific rule.
+Both share the stale frame and countdown-derived condition. Other positive
+compositions remain explicit fail-closed boundaries. See
+`decomp/i960/notes/game_info_18644_positive_bit2_bit4_bit8_v0511.md`.
+
 ### v0221 high-26 8140 low cube
 
 * `0x04008140` (high-26 + bits 6+14+15) `1→8` low cube with `-5/-3` (v0221)
