@@ -1212,6 +1212,12 @@ instructions with four calls/returns and exact live-state equality; the
 state-24 special continuation remains an explicit boundary (see
 `decomp/i960/notes/fa_player_1442c_state16_state27_v0446.md`).
 
+Status (v0447): the integrated state-16/state-24 neutral `+0x19f` miss now
+reaches the direct state-16 type-5 body in 105 instructions with three
+calls/returns and exact live-state equality. The state-24 `+0x19f` 25/22
+write arms and other state-16 compositions remain explicit boundaries (see
+`decomp/i960/notes/fa_player_1442c_state16_state24_v0447.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at

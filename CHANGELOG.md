@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Recover the integrated state-16/state-24 neutral continuation (v0447).
+  The measured `+0x19f` miss now reaches the direct state-16 type-5 body in
+  105 instructions with three calls/returns and exact live-state equality;
+  state-24 `+0x19f` values 25/22 remain separate boundaries. See
+  `decomp/i960/notes/fa_player_1442c_state16_state24_v0447.md`.
+
 - Prove the integrated state-16/state-27 join (v0446). The state-27 helper
   mutates the post-helper row into the existing both-state-16 join; the live
   fixture now proves the 126-instruction path with four calls/returns and

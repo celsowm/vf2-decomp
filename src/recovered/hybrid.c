@@ -7165,7 +7165,7 @@ static vf2_status hybrid_execute_player_1442c(
          * f1 sibling 15; middle 18/19; exit 5). */
         uint8_t b19f_f0 = 0u;
         uint32_t r1a4_f0 = 0u;
-        if (b19b_f0 == 16u || b19b_f1 == 16u || b197_f0 == 16u ||
+        if (b19b_f0 == 16u || b19b_f1 == 16u ||
             b197_f0 == 25u || b197_f0 == 27u) {
             return VF2_ERROR_UNSUPPORTED;
         }
@@ -7181,6 +7181,20 @@ static vf2_status hybrid_execute_player_1442c(
             return status;
         }
         if (b19f_f0 != 25u && b19f_f0 != 22u) {
+            if (b197_f0 == 16u) {
+                /* v0447: the measured state-16/state-24 escape restores
+                 * the original bases and falls through 0x144a0/0x144a4
+                 * into the direct state-16 body at 0x14528. */
+                cpu->registers[7] = (uint32_t)b197_f0;
+                cpu->registers[8] = (uint32_t)b197_f1;
+                cpu->registers[14u] = (uint32_t)b19b_f1;
+                cpu->registers[6] = (uint32_t)b19f_f0;
+                cpu->registers[VF2_I960_G0_REGISTER + 7u] = r10;
+                cpu->registers[VF2_I960_G0_REGISTER + 8u] = r11;
+                cpu->executed_instructions += UINT64_C(17);
+                cpu->ip = UINT32_C(0x00014528);
+                return hybrid_execute_player_1453c(machine, cpu);
+            }
             /* Measured swapped 0x14498 escape (v0402): f1 == 24 falls to
              * the 0x1446c swap, then +0x19f(f0) misses both compares to
              * 0x14498 (restore), 0x144a0 -> 0x14528 -> 0x14548 -> 0x14560
