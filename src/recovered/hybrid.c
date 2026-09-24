@@ -21616,7 +21616,8 @@ static vf2_status coli_22298_body(
          * Measured (coli-live-midbody-g01): bbc14 g7+0x1a4 taken to
          * 0x22320; g7+0x61c==0; g8+0x821 not in {2,5,6}; cmpibne 2
          * taken → stos r11(=0) at g7+0x6dc; body 13 before ret.
-         * Bit-14-set (0x222b4 float loop) and r6∈{2,5,6} stay fail-closed. */
+         * The measured bit-14/16-trip loop is handled below; other
+         * bit-14 shapes and r6∈{2,5,6} stay fail-closed. */
         uint32_t flags_g7 = 0u;
         uint16_t half_61c = 0u;
         uint8_t scan_821 = 0u;
@@ -21627,7 +21628,63 @@ static vf2_status coli_22298_body(
             return VF2_ERROR_UNSUPPORTED;
         }
         if ((flags_g7 & (UINT32_C(1) << 14u)) != 0u) {
-            return VF2_ERROR_UNSUPPORTED;
+            uint32_t r4 = 0u;
+            uint32_t r5 = 0u;
+            uint32_t r6 = 0u;
+            uint32_t r10 = 0u;
+            uint32_t r13 = 0u;
+            uint32_t r14 = 0u;
+            uint32_t result = 0u;
+            uint32_t set_count = 0u;
+            uint32_t index = 0u;
+
+            if (hybrid_read_u16(
+                    machine, g7 + UINT32_C(0x61c), &half_61c) != VF2_OK ||
+                half_61c != UINT16_C(1) ||
+                hybrid_read_u8(
+                    machine, g8 + UINT32_C(0x821), &scan_821) != VF2_OK ||
+                scan_821 != UINT8_C(0)) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+            if (vf2_model2a_read_u32(
+                    machine, g7 + UINT32_C(0x1f4), &r4) != VF2_OK ||
+                vf2_model2a_read_u32(
+                    machine, UINT32_C(0x0050a010), &r5) != VF2_OK ||
+                vf2_model2a_read_u32(
+                    machine, UINT32_C(0x0050a00c), &r14) != VF2_OK ||
+                vf2_model2a_read_u32(
+                    machine, UINT32_C(0x0050a174), &r10) != VF2_OK) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+            r13 = r4 & UINT32_C(0x7fffffff);
+            r6 = (uint32_t)scan_821;
+            if ((int32_t)r13 < (int32_t)r14 &&
+                (int32_t)(r6 & UINT32_C(0x7fffffff)) < (int32_t)r14) {
+                r5 = 0u;
+            }
+            r10 += r5;
+            for (index = 0u; index < 16u; ++index) {
+                uint32_t value = 0u;
+                if (vf2_model2a_read_u32(
+                        machine,
+                        g7 + UINT32_C(0x1f8) + index * UINT32_C(12),
+                        &value) != VF2_OK) {
+                    return VF2_ERROR_UNSUPPORTED;
+                }
+                if ((int32_t)value < (int32_t)r10) {
+                    result |= UINT32_C(1) << index;
+                    ++set_count;
+                }
+            }
+            if (hybrid_write_u16(
+                    machine, g7 + VF2_COLI_BITMASK_RESULT_OFFSET,
+                    (uint16_t)result) != VF2_OK) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+            /* 0x222b4..0x2231c has a fixed 16-trip shape. Each selected
+             * comparison takes the extra setbit instruction. */
+            *body_out = UINT64_C(121) + (uint64_t)set_count;
+            return VF2_OK;
         }
         if (hybrid_read_u16(machine, g7 + UINT32_C(0x61c), &half_61c) !=
             VF2_OK) {

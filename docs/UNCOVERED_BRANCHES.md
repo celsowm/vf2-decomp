@@ -2676,6 +2676,13 @@ float loops in `0x22298`, the non-empty scan / `g0 = 1` path in
 `0x22404`) remain explicit boundaries. PUNCH remains `320/320` MATCH.
 See `decomp/i960/notes/fa_coli_bit8_siblings_v0290.md`.
 
+Status (v0485): the first measured `0x22298` bit-14 float-loop witness is
+native for the exact gates `g7 + 0x1a4` bit 14, `g7 + 0x61c == 1` and
+`g8 + 0x821 == 0`. Its sixteen signed comparisons produce the measured
+`g7 + 0x6dc` mask and body count, pinned by `vf2_native_runtime`; all other
+bit-14 loop shapes remain fail-closed. See
+`decomp/i960/notes/fa_coli_bit14_loop_v0485.md`.
+
 ### v0291 measure `0x225cc` `g8+0x19f==22` shortcut (defer)
 
 Forcing `g8+0x19f = 22` takes the `call 0x18bd4` shortcut. That helper
