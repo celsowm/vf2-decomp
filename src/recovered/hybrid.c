@@ -6581,19 +6581,10 @@ static vf2_status hybrid_execute_player_1453c(
         /* Measured 0x14528 -> 0x14570 swapped state-16 join. */
         swapped = true;
         prefix_adjust = UINT64_C(3);
-    } else if (r7 == 25u && r8 == 16u) {
-        /* v0433: the state-25 0x144b0 arm reaches the same swapped
-         * 0x14570 join when the second fighter is state 16. */
-        swapped = true;
-        prefix_adjust = UINT64_C(3);
-    } else if (r7 == 24u && r8 == 16u) {
-        /* v0438: the measured state-24 sibling takes the same 0x14564
-         * swap into the shared state-16 body. */
-        swapped = true;
-        prefix_adjust = UINT64_C(3);
-    } else if (r7 == 28u && r8 == 16u) {
-        /* v0439: the measured state-28 sibling takes the same 0x14564
-         * swap into the shared state-16 body. */
+    } else if (r8 == 16u && r7 <= 31u && r7 != 16u) {
+        /* v0433/v0438/v0439/v0441: the bounded state-byte sweep admits the
+         * complete r7=0..31 family here except the dedicated r7=16 and r7=27
+         * arms above. Each value takes the same 0x14564..0x1456c swap. */
         swapped = true;
         prefix_adjust = UINT64_C(3);
     } else if (r7 == 16u && r8 == 16u) {

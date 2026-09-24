@@ -1166,6 +1166,14 @@ Other unmeasured state/scaling combinations and walker misses remain
 explicit boundaries (see
 `decomp/i960/notes/fa_player_1453c_state28_v0439.md`).
 
+Status (v0441): a bounded reference sweep of `r7=0..31` with `r8 == 16`
+measures the same 55-instruction swapped body for every value except the
+dedicated `r7 == 16` and `r7 == 27` arms. Native C now admits that measured
+state-byte family; the live fixture proves state 26 and its text-tail sibling
+at 55/129 instructions with one/two calls and returns. Values above 31,
+other state/scaling compositions and walker misses remain fail-closed (see
+`decomp/i960/notes/fa_player_1453c_state16_family_v0441.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at

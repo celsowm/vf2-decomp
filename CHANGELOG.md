@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Consolidate the measured `0x14528` state-16 swapped joins (v0441). A
+  bounded `r7=0..31` reference sweep shows one 55-instruction path for every
+  value except the dedicated state-16 and state-27 arms; native C now admits
+  that measured family and the focused fixture proves state 26 plus text.
+  Values outside the measured state-byte domain remain fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_state16_family_v0441.md`.
+
 - Recover the measured direct `0x144b0` state-25/state-27 successor (v0440).
   The state-25 arm now reaches the recovered swapped state-27 type-5 body and
   matches the ROM in 100 instructions with two calls/returns and exact
