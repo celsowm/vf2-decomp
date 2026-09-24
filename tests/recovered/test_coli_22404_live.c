@@ -21,7 +21,9 @@
  *   field_5b8 = 0, index (g7+0x820) = 1, table (g13+0x4c) = 0x221e8,
  *   exclude (g8+0x6dc) = 0, delta (g8+0x26) = 0, coords = 0.
  *   The stale slot falls through cmpobe to bal 0x225bc (pending
- *   slot-clear, +5 vs the equal path) and rejoins at 0x22434.
+ *   slot-clear, +5 vs the equal path) and rejoins at 0x22434. The
+ *   differential fixture also repeats this shape with slot 1 and its stale
+ *   registry entry.
  *
  * The work-RAM seed below is the exact initial-read set of the
  * reference body trace: every address the body reads before writing
@@ -173,7 +175,9 @@ static void run_rom_case(
     const uint8_t *main_rom,
     size_t main_rom_size,
     const uint8_t *main_data,
-    size_t main_data_size
+    size_t main_data_size,
+    uint8_t slot,
+    uint32_t expected_steps
 )
 {
     vf2_model2a reference_machine;
@@ -218,6 +222,32 @@ static void run_rom_case(
     );
     CHECK(seed_live_entry(&reference_machine) == VF2_OK);
     CHECK(seed_live_entry(&native_machine) == VF2_OK);
+    if (slot == UINT8_C(1)) {
+        CHECK(write_seed_bytes(
+            &reference_machine,
+            COLI_22404_FIGHTER0 + UINT32_C(0x4),
+            UINT32_C(1),
+            1u
+        ) == VF2_OK);
+        CHECK(write_seed_bytes(
+            &native_machine,
+            COLI_22404_FIGHTER0 + UINT32_C(0x4),
+            UINT32_C(1),
+            1u
+        ) == VF2_OK);
+        CHECK(write_seed_bytes(
+            &reference_machine,
+            COLI_22404_REGISTRY + UINT32_C(0x8e),
+            UINT32_C(0xffff),
+            2u
+        ) == VF2_OK);
+        CHECK(write_seed_bytes(
+            &native_machine,
+            COLI_22404_REGISTRY + UINT32_C(0x8e),
+            UINT32_C(0xffff),
+            2u
+        ) == VF2_OK);
+    }
 
     setup_live_cpu(&reference_cpu);
     setup_live_cpu(&native_cpu);
@@ -242,7 +272,7 @@ static void run_rom_case(
         }
     }
     CHECK(reference_cpu.ip == COLI_22404_RETURN);
-    CHECK(steps == 78u);
+    CHECK(steps == expected_steps);
     CHECK(reference_cpu.registers[VF2_I960_G0_REGISTER] == 1u);
     reference_instructions =
         reference_cpu.executed_instructions - reference_instructions;
@@ -303,7 +333,14 @@ static void run_rom_differential(const char *rom_directory)
         return;
     }
 
-    run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
+    run_rom_case(
+        main_rom, main_rom_size, main_data, main_data_size,
+        UINT8_C(0), UINT32_C(78)
+    );
+    run_rom_case(
+        main_rom, main_rom_size, main_data, main_data_size,
+        UINT8_C(1), UINT32_C(139)
+    );
 
     free(main_rom);
     free(main_data);

@@ -21854,7 +21854,9 @@ static vf2_status coli_22298_body(
  * first-contact stale slot, same gates, non-empty): body 77 (+5 from
  * the bal 0x225bc pending-clear rejoin); stale+empty stays
  * fail-closed. Slot 1 scan loop and
- * g8+0x26 != 0 FIFO cursor is native (v0308). */
+ * g8+0x26 != 0 FIFO cursor is native (v0308). Stale slot 1 with a
+ * non-empty scan is native on the measured v0499 shape; stale+empty remains
+ * fail-closed. */
 static uint32_t coli_scanbit_msb(uint32_t value)
 {
     int bit = 31;
@@ -21945,10 +21947,10 @@ static vf2_status coli_22404_body(
      * entry gate below (slot bit already clear; clrbit keeps other
      * bits), so both paths rejoin exactly and share the tail. */
     uint64_t prologue = (old_snap == snap) ? UINT64_C(22) : UINT64_C(27);
-    if (old_snap != snap && slot != 0u) {
-        /* Stale slot 1 is unmeasured (live stale witness is slot 0):
-         * fail closed. */
-        return VF2_ERROR_UNSUPPORTED;
+    if (old_snap != snap && slot == UINT8_C(1)) {
+        /* v0499: the measured stale slot-1 scan returns with the final
+         * slot-loop comparison equal. */
+        hybrid_set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
     }
     if (hybrid_read_u16(
             machine, g13 + VF2_COLI_CONTACT_PENDING_MASK, &pending) != VF2_OK) {
