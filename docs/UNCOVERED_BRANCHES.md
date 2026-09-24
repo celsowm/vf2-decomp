@@ -915,9 +915,11 @@ Status (v0416): the measured `0x14570` state-16 joins are native as well:
 `(16,16)` takes the measured `0x500028` bit-0 gate for 54 instructions
 without the swap or 58 with the swap. The six-case
 `vf2_player_1453c_live` fixture proves these joins together with the two
-state-27 cases, including full live-state equality. Other state combinations,
-scaling/text/walker variants and the broader `0x1442c` heavy-arm dispatch
-remain explicit boundaries. See
+state-27 cases, including full live-state equality, and
+`vf2_player_1442c_state16_live` proves both-state-16 integration through the
+real body (100/104 instructions). Other state combinations, scaling/text/walker
+variants and the remaining `0x1442c` heavy-arm dispatch remain explicit
+boundaries. See
 `decomp/i960/notes/fa_player_1453c_state16_v0416.md`.
 Status (v0405): the `0x14640` state-27 arm is now native as the standalone
 `hybrid_execute_player_14640_state27` (type-15 walk via `+0x194(g7)`,

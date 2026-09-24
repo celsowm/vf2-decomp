@@ -22,3 +22,8 @@ scaling branches, text submission and walker misses unsupported.
 `out/park-1442c.vf2snap`: the two state-27 direct/swap shapes from v0415 and
 the four state-16 joins above. Every case requires the measured instruction
 count, call/return counters and full live-state equality.
+
+The integrated `vf2_player_1442c_state16_live` fixture also drives both
+fighters through the preceding `0x14640` neutral helpers and the real body
+dispatch. It proves 100 instructions for the direct board gate and 104 for
+the swapped gate, with three calls/returns and full live-state equality.

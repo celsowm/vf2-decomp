@@ -6629,8 +6629,9 @@ vf2_status vf2_hybrid_player_1453c_execute_for_test(
  * to the 0x14628 common exit, and both fighters' +0x198 are cleared to 0.
  * Span 51 instructions to ip == 0x1463c with +2 calls / +2 returns (the
  * two 0x14640 rets); the 0x1463c ret itself is not consumed here so the
- * caller can continue at its 0x1438c return.  All other branches
- * (state bytes 16/24/25/27, board/instance variants) fail closed. */
+ * caller can continue at its 0x1438c return.  The measured both-state-16
+ * branch now joins the shared 0x14570 recovery (v0416); other state bytes,
+ * board/instance variants and heavy arms remain fail closed. */
 static vf2_status hybrid_execute_player_1442c(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu
@@ -6947,6 +6948,18 @@ static vf2_status hybrid_execute_player_1442c(
         cpu->executed_instructions += UINT64_C(5);
         cpu->ip = UINT32_C(0x0001463c);
         return VF2_OK;
+    }
+    if (b197_f0 == 16u && b197_f1 == 16u) {
+        /* v0416: after the two measured 0x14640 state-16 neutral helpers,
+         * the body reaches 0x14528 with both state registers equal to 16.
+         * The 0x14528..0x1456c branch selects the direct or board-gated swap
+         * state-16 join, which the shared 0x14570 recovery completes. */
+        cpu->registers[7] = (uint32_t)b197_f0;
+        cpu->registers[8] = (uint32_t)b197_f1;
+        cpu->registers[14u] = (uint32_t)b19b_f1;
+        cpu->executed_instructions += UINT64_C(10);
+        cpu->ip = UINT32_C(0x00014528);
+        return hybrid_execute_player_1453c(machine, cpu);
     }
     if (b197_f0 == 16u || b197_f0 == 27u ||
         b197_f1 == 16u || b197_f1 == 25u ||
