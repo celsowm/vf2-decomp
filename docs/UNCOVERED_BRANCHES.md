@@ -1440,6 +1440,14 @@ CPU/memory state at `0x1463c`. Misses outside this bounded range remain
 explicit fail-closed boundaries (see
 `decomp/i960/notes/fa_player_1453c_type5_miss_v0479.md`).
 
+Status (v0489): the `fa_rob` `0x14640` state-27 type-15 miss recovery now
+covers the complete measured selector range `+0x194 == 1..256`. The new
+selectors `129..256` are all reference-measured misses (`g0 == 0`) and match
+the native tail with exact instruction counts and full live-state equality,
+including one nested call and return. Misses outside the measured range
+remain explicit fail-closed boundaries. See
+`decomp/i960/notes/fa_player_14640_type15_miss_v0489.md`.
+
 Status (v0476): the `fa_rob` `0x14640` state-27 type-15 walker now admits
 the complete measured miss sweep `+0x194 == 1..32`. Every selector reaches
 the `0x146c4` return through the zero-record arithmetic tail; all 32 cases

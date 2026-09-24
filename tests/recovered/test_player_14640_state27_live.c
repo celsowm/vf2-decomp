@@ -261,7 +261,8 @@ static void run_rom_case(
     expected_instructions = compare_shape == 3 ? REF_SHIFT_TOTAL :
         compare_shape != 0 ? REF_COMPARE_PREFIX_TOTAL : REF_TOTAL;
     if (test_expected_steps_override != 0u) {
-        expected_instructions = test_expected_steps_override;
+        expected_instructions = test_expected_steps_override == UINT64_MAX
+            ? 0u : test_expected_steps_override;
     }
 
     /* Reference: step the 0x14640 state-27 arm to its 0x146c4 ret
@@ -279,7 +280,9 @@ static void run_rom_case(
     CHECK(reference_cpu.ip == STATE27_RETURN);
     reference_instructions =
         reference_cpu.executed_instructions - snap_instructions;
-    CHECK(reference_instructions == expected_instructions);
+    if (expected_instructions != 0u) {
+        CHECK(reference_instructions == expected_instructions);
+    }
     CHECK(reference_cpu.procedure_calls - snap_calls == REF_CALLS);
     CHECK(reference_cpu.procedure_returns - snap_returns == REF_RETS);
 
@@ -290,7 +293,10 @@ static void run_rom_case(
     CHECK(native_cpu.ip == STATE27_RETURN);
     native_instructions =
         native_cpu.executed_instructions - snap_instructions;
-    CHECK(native_instructions == expected_instructions);
+    if (expected_instructions != 0u) {
+        CHECK(native_instructions == expected_instructions);
+    }
+    CHECK(native_instructions == reference_instructions);
     CHECK(native_cpu.procedure_calls - snap_calls == REF_CALLS);
     CHECK(native_cpu.procedure_returns - snap_returns == REF_RETS);
 
@@ -517,6 +523,12 @@ static void run_rom_differential(const char *rom_directory)
                 main_rom, main_rom_size, main_data, main_data_size,
                 type15_selector_cases[case_index].index,
                 type15_selector_cases[case_index].steps
+            );
+        }
+        for (case_index = 129u; case_index <= 256u; ++case_index) {
+            run_rom_case_with_type15_index(
+                main_rom, main_rom_size, main_data, main_data_size,
+                (uint16_t)case_index, UINT64_MAX
             );
         }
     }
