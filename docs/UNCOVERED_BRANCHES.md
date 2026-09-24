@@ -1182,6 +1182,14 @@ equality. Values above 31 and other `r8` combinations remain explicit
 fail-closed boundaries (see
 `decomp/i960/notes/fa_player_1453c_neutral_family_v0442.md`).
 
+Status (v0443): a bounded reference sweep with `r7 == 16` and `r8=0..31`
+measures the same 52-instruction direct type-5 body for every value except
+the dedicated `r8 == 16` and `r8 == 27` arms. Native C now admits that
+measured direct family; the live fixture proves `r8 == 26` and its text-tail
+variant with exact live-state equality. Values above 31 and other state-byte
+combinations remain explicit fail-closed boundaries (see
+`decomp/i960/notes/fa_player_1453c_state16_direct_family_v0443.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at

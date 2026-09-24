@@ -89,6 +89,7 @@
 #define CASE_STATE28_SWAPPED 36
 #define CASE_STATE26_SWAPPED 37
 #define CASE_STATE26_NEUTRAL 38
+#define CASE_STATE16_DIRECT_FAMILY 39
 
 static int failures = 0;
 
@@ -673,6 +674,14 @@ static void run_rom_case_with_text(
         expected_returns = UINT64_C(0);
         label = "state26-neutral";
         break;
+    case CASE_STATE16_DIRECT_FAMILY:
+        reference_cpu.registers[7] = 16u;
+        native_cpu.registers[7] = 16u;
+        reference_cpu.registers[8] = 26u;
+        native_cpu.registers[8] = 26u;
+        expected_steps = UINT64_C(52);
+        label = "state16-direct-family";
+        break;
     default:
         CHECK(0);
         goto cleanup;
@@ -905,6 +914,8 @@ static void run_rom_differential(const char *rom_directory)
                  CASE_STATE26_SWAPPED);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
                  CASE_STATE26_NEUTRAL);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_DIRECT_FAMILY);
 
     {
         static const int text_shapes[] = {
@@ -944,7 +955,8 @@ static void run_rom_differential(const char *rom_directory)
             CASE_STATE16_BOTH_SWAPPED_MIXED_LATER,
             CASE_STATE24_SWAPPED,
             CASE_STATE28_SWAPPED,
-            CASE_STATE26_SWAPPED
+            CASE_STATE26_SWAPPED,
+            CASE_STATE16_DIRECT_FAMILY
         };
         size_t i;
 

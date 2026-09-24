@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Consolidate the bounded direct state-16 `0x14528` family (v0443). A
+  reference sweep of `r7 == 16` and `r8=0..31` uses the same 52-instruction
+  type-5 body for every value except the dedicated state-16/state-27 joins.
+  Native C and the live fixture now cover `r8 == 26`, including its text-tail
+  variant; values above 31 remain fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_state16_direct_family_v0443.md`.
+
 - Recover the bounded neutral `0x14528` state family (v0442). A reference
   sweep of `r8 == 0` and `r7=0..31` takes the same 9-instruction
   `0x14560 -> 0x14628` exit for every value except the dedicated state-16
