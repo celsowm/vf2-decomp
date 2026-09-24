@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Recover the measured direct state-16 later scaling arm of `0x14570` (v0419).
+  With `+0x3351` bit 6 and the g8 word bit 29 set, the native path performs
+  the measured second `shro`/`addo`, selects `0x1b982` and matches the ROM
+  through `0x1463c` in 57 instructions with one call/return. The
+  `vf2_player_1453c_live` fixture now proves nine measured shapes with full
+  live-state equality; other later scaling/text compositions remain
+  fail-closed. See `decomp/i960/notes/fa_player_1453c_later_scaling_v0419.md`.
+
 - Recover the measured direct state-16 `0x145c0` second gate (v0418). With
   `+0x3351` bit 6 set and `g8` bit 29 clear, the native path matches the ROM
   through `0x1463c` in 54 instructions with one type-5 call/return. The

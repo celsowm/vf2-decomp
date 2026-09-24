@@ -6420,6 +6420,7 @@ static vf2_status hybrid_execute_player_1453c(
     uint32_t r4 = 0u;
     uint64_t body = UINT64_C(6);
     bool bit6 = false;
+    bool second_scale = false;
     bool swapped = false;
     bool state27 = false;
     uint64_t prefix_adjust = 0u;
@@ -6508,13 +6509,18 @@ static vf2_status hybrid_execute_player_1453c(
     }
     if ((b3351 & (UINT32_C(1) << 6u)) != 0u) {
         if (!(r7 == 16u && r8 == 0u && !state27 && !swapped &&
-              (r1a4_g8 & UINT32_C(1)) == 0u &&
-              (word_g8 & (UINT32_C(1) << 29u)) == 0u)) {
+              (r1a4_g8 & UINT32_C(1)) == 0u)) {
             return VF2_ERROR_UNSUPPORTED;
         }
-        /* 0x145c0 bbc is not taken; 0x145c4 ld (g8),r15 and 0x145c8
-         * bbc 29 are the measured extra pair before 0x145dc. */
+        /* 0x145c0 bbc is not taken; 0x145c4 loads (g8), and 0x145c8
+         * selects either the common store or the measured later scaling
+         * arm. */
         body += UINT64_C(2);
+        if ((word_g8 & (UINT32_C(1) << 29u)) != 0u) {
+            /* v0419 measures the direct state-16 0x145cc arm only. */
+            second_scale = true;
+            body += UINT64_C(3);
+        }
     }
     if ((board & (UINT32_C(1) << 9u)) == 0u) {
         return VF2_ERROR_UNSUPPORTED;
@@ -6582,6 +6588,12 @@ static vf2_status hybrid_execute_player_1453c(
         body += UINT64_C(3);
     } else {
         cpu->registers[VF2_I960_G0_REGISTER] = UINT32_C(0x0001b970);
+    }
+    if (second_scale) {
+        /* 0x145cc..0x145d4 repeats the record-byte scaling and selects the
+         * later measured table. */
+        r3 += r3 >> 2u;
+        cpu->registers[VF2_I960_G0_REGISTER] = UINT32_C(0x0001b982);
     }
     /* 0x145dc stob r3,+0x822(g8). */
     status = hybrid_write_u8(machine, g8 + UINT32_C(0x822), (uint8_t)r3);

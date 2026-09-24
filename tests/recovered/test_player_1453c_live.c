@@ -55,6 +55,7 @@
 #define CASE_STATE16_BOTH_SWAPPED 5
 #define CASE_STATE16_DIRECT_SCALE 6
 #define CASE_STATE16_DIRECT_SECOND_GATE 7
+#define CASE_STATE16_DIRECT_LATER_SCALE 8
 
 static int failures = 0;
 
@@ -196,6 +197,7 @@ static void run_rom_case(
     int both16 = 0;
     int scale_first = 0;
     int second_gate = 0;
+    int later_scale = 0;
     int ok = 0;
 
     memset(&reference_machine, 0, sizeof(reference_machine));
@@ -316,6 +318,15 @@ static void run_rom_case(
         second_gate = 1;
         label = "state16-direct-second-gate";
         break;
+    case CASE_STATE16_DIRECT_LATER_SCALE:
+        reference_cpu.registers[7] = 16u;
+        native_cpu.registers[7] = 16u;
+        reference_cpu.registers[8] = 0u;
+        native_cpu.registers[8] = 0u;
+        expected_steps = UINT64_C(57);
+        later_scale = 1;
+        label = "state16-direct-later-scale";
+        break;
     default:
         CHECK(0);
         goto cleanup;
@@ -341,6 +352,12 @@ static void run_rom_case(
     if (second_gate) {
         write_u8(&reference_machine, UINT32_C(0x0059c351), 0x40u);
         write_u8(&native_machine, UINT32_C(0x0059c351), 0x40u);
+    }
+    if (later_scale) {
+        write_u8(&reference_machine, UINT32_C(0x0059c351), 0x40u);
+        write_u8(&native_machine, UINT32_C(0x0059c351), 0x40u);
+        write_u32(&reference_machine, fighter1, UINT32_C(0x20000000));
+        write_u32(&native_machine, fighter1, UINT32_C(0x20000000));
     }
     if (both16) {
         const uint32_t board28 = swapped ? UINT32_C(1) : UINT32_C(0);
@@ -452,6 +469,8 @@ static void run_rom_differential(const char *rom_directory)
                  CASE_STATE16_DIRECT_SCALE);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
                  CASE_STATE16_DIRECT_SECOND_GATE);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_DIRECT_LATER_SCALE);
 
     free(main_rom);
     free(main_data);

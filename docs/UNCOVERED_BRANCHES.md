@@ -935,6 +935,13 @@ same record-byte result. The eight-case `vf2_player_1453c_live` fixture proves
 this alongside the prior state-27/state-16 shapes; other second-gate and
 later scaling/text compositions remain explicit boundaries. See
 `decomp/i960/notes/fa_player_1453c_second_gate_v0418.md`.
+Status (v0419): the direct state-16 later scaling arm is native for the
+measured `+0x3351` bit-6-set and `g8` bit-29-set composition. The ROM takes
+the `0x145cc..0x145d4` `shro`/`addo`/table-select sequence and reaches
+`0x1463c` in 57 instructions. The nine-case `vf2_player_1453c_live` fixture
+proves this with full live-state equality; swapped/state-27 scaling and the
+text branch remain explicit boundaries. See
+`decomp/i960/notes/fa_player_1453c_later_scaling_v0419.md`.
 Status (v0405): the `0x14640` state-27 arm is now native as the standalone
 `hybrid_execute_player_14640_state27` (type-15 walk via `+0x194(g7)`,
 41 steps / +1 call / +1 return to the `0x146c4` ret).  It requires
