@@ -9360,7 +9360,8 @@ static vf2_status hybrid_execute_game_info_18644(
             (UINT32_C(1) << 21u) | (UINT32_C(1) << 26u) |
             (UINT32_C(1) << 29u) | (UINT32_C(1) << 30u) |
             (UINT32_C(1) << 31u);
-        const uint32_t medium_bits = UINT32_C(1) << 14u;
+        const uint32_t medium_bits =
+            (UINT32_C(1) << 15u) | (UINT32_C(1) << 16u);
         const uint32_t bilateral_high_only_state = r7 & ~state8;
         const bool bilateral_both_high_any =
             r7 == r8 && (r7 & state8) != 0u &&
@@ -9723,7 +9724,8 @@ static vf2_status hybrid_execute_game_info_18644(
                     (extra_state & (UINT32_C(1) << 1u)) != 0u &&
                     (extra_state & (UINT32_C(1) << 6u)) != 0u &&
                     extra_high_state != 0u;
-                const uint32_t medium_state_bits = UINT32_C(1) << 14u;
+                const uint32_t medium_state_bits =
+                    (UINT32_C(1) << 15u) | (UINT32_C(1) << 16u);
                 const bool extra_bit1_bit6_medium =
                     (extra_state &
                      ~((UINT32_C(1) << 1u) |
@@ -10430,7 +10432,8 @@ static vf2_status hybrid_execute_game_info_18644(
             (UINT32_C(1) << 21u) | (UINT32_C(1) << 26u) |
             (UINT32_C(1) << 29u) | (UINT32_C(1) << 30u) |
             (UINT32_C(1) << 31u);
-        const uint32_t medium_bits_any = UINT32_C(1) << 14u;
+        const uint32_t medium_bits_any =
+            (UINT32_C(1) << 15u) | (UINT32_C(1) << 16u);
         const uint32_t r7_high_any = r7 & ~(state8_bit1_high_mask);
         const uint32_t r8_high_any = r8 & ~(state8_bit1_high_mask);
         const bool r7_bit1_high_any =
@@ -14939,6 +14942,122 @@ static vf2_status hybrid_execute_game_info_18644(
                 body_instructions -= UINT32_C(4);
             } else {
                 body_instructions -= UINT32_C(3);
+            }
+        }
+    }
+    /* v0481: the measured positive state-8 bit-1/bit-6/bit-15 family has
+     * the same memory post-state as the existing 0x0142 corridor, but its
+     * two child calls publish a distribution- and countdown-dependent
+     * instruction count. Keep the correction exact to 0x8142. */
+    if (status == VF2_OK) {
+        const uint32_t state8_bit1_bit6_bit15 =
+            (UINT32_C(1) << 8u) | (UINT32_C(1) << 1u) |
+            (UINT32_C(1) << 6u) | (UINT32_C(1) << 15u);
+        const bool fighter0_only =
+            r7 == state8_bit1_bit6_bit15 && r8 == 0u;
+        const bool fighter1_only =
+            r7 == 0u && r8 == state8_bit1_bit6_bit15;
+        const bool bilateral =
+            r7 == state8_bit1_bit6_bit15 &&
+            r8 == state8_bit1_bit6_bit15;
+
+        if (return_address == UINT32_C(0x000164b0)) {
+            if (fighter0_only) {
+                if (!countdown_path && mode_bit6) {
+                    body_instructions -= UINT32_C(4);
+                } else if (countdown_path) {
+                    body_instructions += UINT32_C(3);
+                }
+            } else if (fighter1_only) {
+                if (countdown_path) {
+                    --body_instructions;
+                }
+            } else if (bilateral) {
+                if (countdown_path) {
+                    ++body_instructions;
+                } else {
+                    --body_instructions;
+                }
+            }
+        } else if (return_address == UINT32_C(0x000164c4)) {
+            if (fighter0_only) {
+                if (countdown_path) {
+                    body_instructions += UINT32_C(2);
+                } else {
+                    body_instructions -= UINT32_C(5);
+                }
+            } else if (fighter1_only) {
+                if (countdown_path) {
+                    body_instructions -= UINT32_C(7);
+                } else {
+                    body_instructions -= UINT32_C(5);
+                }
+            } else if (bilateral) {
+                if (countdown_path) {
+                    body_instructions -= UINT32_C(5);
+                } else {
+                    body_instructions -= mode_bit6
+                        ? UINT32_C(4) : UINT32_C(5);
+                }
+            }
+        }
+    }
+    if (status == VF2_OK) {
+        const uint32_t state8_bit1_bit6_bit16 =
+            (UINT32_C(1) << 8u) | (UINT32_C(1) << 1u) |
+            (UINT32_C(1) << 6u) | (UINT32_C(1) << 16u);
+        const bool fighter0_only =
+            r7 == state8_bit1_bit6_bit16 && r8 == 0u;
+        const bool fighter1_only =
+            r7 == 0u && r8 == state8_bit1_bit6_bit16;
+        const bool bilateral =
+            r7 == state8_bit1_bit6_bit16 &&
+            r8 == state8_bit1_bit6_bit16;
+
+        if (return_address == UINT32_C(0x000164b0)) {
+            if (fighter0_only) {
+                if (!countdown_path && mode_bit6) {
+                    body_instructions -= UINT32_C(4);
+                } else if (countdown_path) {
+                    ++body_instructions;
+                }
+            } else if (fighter1_only) {
+                if (!countdown_path) {
+                    ++body_instructions;
+                } else {
+                    body_instructions += UINT32_C(11);
+                }
+            } else if (bilateral && countdown_path) {
+                body_instructions += UINT32_C(11);
+            }
+        } else if (return_address == UINT32_C(0x000164c4)) {
+            if (fighter0_only) {
+                if (countdown_path) {
+                    body_instructions += UINT32_C(10);
+                }
+            } else if (fighter1_only) {
+                if (!countdown_path) {
+                    body_instructions -= UINT32_C(5);
+                }
+            } else if (bilateral) {
+                if (countdown_path) {
+                    body_instructions += UINT32_C(10);
+                } else {
+                    body_instructions -= mode_bit6
+                        ? UINT32_C(3) : UINT32_C(4);
+                }
+            }
+        }
+        /* The two dispatcher calls expose the bit-16 singleton on opposite
+         * register orientations. The measured pair total has this final
+         * second-call correction, independent of mode bit 6. */
+        if (return_address == UINT32_C(0x000164c4)) {
+            if (fighter0_only) {
+                body_instructions -= countdown_path ? UINT32_C(10) :
+                    UINT32_C(5);
+            } else if (fighter1_only) {
+                body_instructions += countdown_path ? UINT32_C(10) :
+                    UINT32_C(1);
             }
         }
     }
