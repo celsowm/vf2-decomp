@@ -2557,6 +2557,27 @@ static void test_coli_bitmask_22298_early_path(void) {
     CHECK(read_test_u16(&machine, fighter0 + UINT32_C(0x6dc)) ==
           UINT16_C(0xffff));
 
+    /* v0496: scan 6 selects the same measured 0x2233c loop body as scan 2. */
+    CHECK(vf2_model2a_write(&machine, fighter1 + UINT32_C(0x821),
+                            (const uint8_t *)"\x06", 1u) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x6dc), poison,
+                            sizeof(poison)) == VF2_OK);
+    vf2_i960_cpu_reset(&cpu, 0u, 0u, UINT32_C(0x00022298));
+    cpu.registers[VF2_I960_FP_REGISTER] = UINT32_C(0x005ff500);
+    cpu.registers[1] = UINT32_C(0x005ff580);
+    cpu.registers[VF2_I960_G0_REGISTER + 7u] = fighter0;
+    cpu.registers[VF2_I960_G0_REGISTER + 8u] = fighter1;
+    CHECK(vf2_i960_cpu_enter_procedure(&cpu, UINT32_C(0x00022298),
+                                       UINT32_C(0x00022214)) == VF2_OK);
+    start_instructions = cpu.executed_instructions;
+    start_returns = cpu.procedure_returns;
+    CHECK(vf2_hybrid_coli_bitmask_execute(&machine, &cpu) == VF2_OK);
+    CHECK(cpu.ip == UINT32_C(0x00022214));
+    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(145));
+    CHECK(cpu.procedure_returns - start_returns == UINT64_C(1));
+    CHECK(read_test_u16(&machine, fighter0 + UINT32_C(0x6dc)) ==
+          UINT16_C(0xffff));
+
     /* v0495 measured the second-loop ordering-fail sibling: scan 2 with
      * g7+0x1f8 >= g7+0x6e4 selects the 0xffff tail in 22 instructions. */
     CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x1a4),

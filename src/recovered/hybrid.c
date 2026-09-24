@@ -21716,8 +21716,8 @@ static vf2_status coli_22298_body(
                     machine, g8 + UINT32_C(0x821), &scan_821) != VF2_OK) {
                 return VF2_ERROR_UNSUPPORTED;
             }
-            second_loop_candidate = half_61c == 0u &&
-                scan_821 == UINT8_C(2);
+            second_loop_candidate = half_61c == UINT16_C(0) &&
+                (scan_821 == UINT8_C(2) || scan_821 == UINT8_C(6));
             if (second_loop_candidate &&
                 vf2_model2a_read_u32(
                     machine, g7 + UINT32_C(0x1f8), &r4) != VF2_OK ||

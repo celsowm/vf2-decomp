@@ -2736,6 +2736,12 @@ It stores `0xffff` at `g7+0x6dc` and returns in 22 instructions. Other
 scan-2 and alternate bit-14 compositions remain explicitly fail-closed. See
 `decomp/i960/notes/fa_coli_bit14_ordering_fail_v0495.md`.
 
+Status (v0496): the measured scan-6 sibling now reaches the existing
+`0x2233c` 16-trip body under the same zero/one ordering gates as scan 2.
+The native/reference shape returns in 142 instructions for the measured
+mask; other scan values and gate compositions remain fail-closed. See
+`decomp/i960/notes/fa_coli_bit14_scan6_v0496.md`.
+
 Status (v0486): the measured `0x225cc` scan-4 selector
 `g8 + 0x1a4 = 0x0001f004` is now native for `g7 + 0x1a4 = 0x00400100`.
 The reference and native runs both return in 217 instructions with complete
