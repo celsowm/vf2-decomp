@@ -21644,6 +21644,17 @@ static vf2_status coli_22298_body(
                     machine, g8 + UINT32_C(0x821), &scan_821) != VF2_OK) {
                 return VF2_ERROR_UNSUPPORTED;
             }
+            if (flags_g8 == (UINT32_C(1) << 8u) &&
+                half_61c == UINT16_C(0) && scan_821 == UINT8_C(0)) {
+                /* v0497: the measured bit-14/scan-0 zero-mask tail. */
+                if (hybrid_write_u16(
+                        machine, g7 + VF2_COLI_BITMASK_RESULT_OFFSET,
+                        0u) != VF2_OK) {
+                    return VF2_ERROR_UNSUPPORTED;
+                }
+                *body_out = UINT64_C(13);
+                return VF2_OK;
+            }
             if (half_61c == UINT16_C(1) && scan_821 == UINT8_C(5)) {
                 /* v0494: the measured scan-5 sibling reaches the common
                  * zero-mask tail without entering either 16-trip loop. */
@@ -21697,6 +21708,29 @@ static vf2_status coli_22298_body(
              * comparison takes the extra setbit instruction. */
             *body_out = UINT64_C(121) + (uint64_t)set_count;
             return VF2_OK;
+        }
+        if (flags_g8 == ((UINT32_C(1) << 8u) | (UINT32_C(1) << 14u))) {
+            uint16_t half_61c_alt = 0u;
+            uint8_t scan_821_alt = 0u;
+
+            if (hybrid_read_u16(
+                    machine, g7 + UINT32_C(0x61c), &half_61c_alt) != VF2_OK ||
+                hybrid_read_u8(
+                    machine, g8 + UINT32_C(0x821), &scan_821_alt) != VF2_OK) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+            if (half_61c_alt == UINT16_C(0) &&
+                scan_821_alt == UINT8_C(0)) {
+                /* v0498: the measured g8 bit-14 zero-mask tail. */
+                if (hybrid_write_u16(
+                        machine, g7 + VF2_COLI_BITMASK_RESULT_OFFSET,
+                        0u) != VF2_OK) {
+                    return VF2_ERROR_UNSUPPORTED;
+                }
+                *body_out = UINT64_C(14);
+                return VF2_OK;
+            }
+            return VF2_ERROR_UNSUPPORTED;
         }
         if (flags_g7 == 0u && flags_g8 == (UINT32_C(1) << 8u)) {
             uint32_t r4 = 0u;

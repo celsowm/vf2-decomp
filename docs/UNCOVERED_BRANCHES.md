@@ -2742,6 +2742,12 @@ The native/reference shape returns in 142 instructions for the measured
 mask; other scan values and gate compositions remain fail-closed. See
 `decomp/i960/notes/fa_coli_bit14_scan6_v0496.md`.
 
+Status (v0497/v0498): two measured scan-0 zero-mask tails are native: the
+`g7` bit-14 / `g8` bit-8 shape returns in 14 instructions, and the zero-`g7`
+`g8 == 0x4100` shape returns in 15. Both require `g7+0x61c == 0` and store
+zero at `g7+0x6dc`; neighboring flag compositions remain fail-closed. See
+`decomp/i960/notes/fa_coli_bit14_zero_tails_v0497.md`.
+
 Status (v0486): the measured `0x225cc` scan-4 selector
 `g8 + 0x1a4 = 0x0001f004` is now native for `g7 + 0x1a4 = 0x00400100`.
 The reference and native runs both return in 217 instructions with complete

@@ -2638,6 +2638,59 @@ static void test_coli_bitmask_22298_early_path(void) {
     CHECK(read_test_u16(&machine, fighter0 + UINT32_C(0x6dc)) ==
           UINT16_C(0));
 
+    /* v0497: bit-14 with scan 0 and a zero 0x61c gate takes the measured
+     * zero-mask tail in 14 instructions. */
+    CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x1a4),
+                                UINT32_C(1) << 14u) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter1 + UINT32_C(0x1a4),
+                                UINT32_C(1) << 8u) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x61c),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, fighter1 + UINT32_C(0x821),
+                            (const uint8_t *)"\x00", 1u) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x6dc), poison,
+                            sizeof(poison)) == VF2_OK);
+    vf2_i960_cpu_reset(&cpu, 0u, 0u, UINT32_C(0x00022298));
+    cpu.registers[VF2_I960_FP_REGISTER] = UINT32_C(0x005ff500);
+    cpu.registers[1] = UINT32_C(0x005ff580);
+    cpu.registers[VF2_I960_G0_REGISTER + 7u] = fighter0;
+    cpu.registers[VF2_I960_G0_REGISTER + 8u] = fighter1;
+    CHECK(vf2_i960_cpu_enter_procedure(&cpu, UINT32_C(0x00022298),
+                                       UINT32_C(0x00022214)) == VF2_OK);
+    start_instructions = cpu.executed_instructions;
+    start_returns = cpu.procedure_returns;
+    CHECK(vf2_hybrid_coli_bitmask_execute(&machine, &cpu) == VF2_OK);
+    CHECK(cpu.ip == UINT32_C(0x00022214));
+    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(14));
+    CHECK(cpu.procedure_returns - start_returns == UINT64_C(1));
+    CHECK(read_test_u16(&machine, fighter0 + UINT32_C(0x6dc)) ==
+          UINT16_C(0));
+
+    /* v0498: g8 flags 0x4100 with zero g7 flags takes the measured
+     * zero-mask tail in 15 instructions. */
+    CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x1a4),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter1 + UINT32_C(0x1a4),
+                                (UINT32_C(1) << 8u) |
+                                (UINT32_C(1) << 14u)) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x6dc), poison,
+                            sizeof(poison)) == VF2_OK);
+    vf2_i960_cpu_reset(&cpu, 0u, 0u, UINT32_C(0x00022298));
+    cpu.registers[VF2_I960_FP_REGISTER] = UINT32_C(0x005ff500);
+    cpu.registers[1] = UINT32_C(0x005ff580);
+    cpu.registers[VF2_I960_G0_REGISTER + 7u] = fighter0;
+    cpu.registers[VF2_I960_G0_REGISTER + 8u] = fighter1;
+    CHECK(vf2_i960_cpu_enter_procedure(&cpu, UINT32_C(0x00022298),
+                                       UINT32_C(0x00022214)) == VF2_OK);
+    start_instructions = cpu.executed_instructions;
+    start_returns = cpu.procedure_returns;
+    CHECK(vf2_hybrid_coli_bitmask_execute(&machine, &cpu) == VF2_OK);
+    CHECK(cpu.ip == UINT32_C(0x00022214));
+    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(15));
+    CHECK(cpu.procedure_returns - start_returns == UINT64_C(1));
+    CHECK(read_test_u16(&machine, fighter0 + UINT32_C(0x6dc)) ==
+          UINT16_C(0));
+
     /* Fail-closed: the measured bit-14 shape's 4-dispatch sibling. */
     CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x6dc), poison,
                             sizeof(poison)) == VF2_OK);
