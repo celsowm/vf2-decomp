@@ -977,6 +977,13 @@ and both-state-16 direct/swapped reaches 59/62 and 63/66. The 35-case
 `vf2_player_1453c_live` fixture proves these with full live-state equality;
 mixed scaled text remains an explicit boundary. See
 `decomp/i960/notes/fa_player_1453c_mixed_scaling_v0424.md`.
+Status (v0429): the board-bit-9-clear text tail now covers the measured
+unscaled state-27/state-16 direct, swapped and both-state-16 joins, plus
+direct state-16 first-scaling, second-gate and later-scaling variants. The
+expanded fixture proves 126/130/129/128/132/129/128/131-step shapes with two
+calls/returns and full live-state equality. Mixed scaling/text combinations
+and other text compositions remain explicit boundaries. See
+decomp/i960/notes/fa_player_1453c_text_matrix_v0429.md.
 Status (v0405): the `0x14640` state-27 arm is now native as the standalone
 `hybrid_execute_player_14640_state27` (type-15 walk via `+0x194(g7)`,
 41 steps / +1 call / +1 return to the `0x146c4` ret).  It requires

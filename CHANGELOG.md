@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Extend the measured 0x1453c/0x14570 text tail (v0429). The board-bit-9-clear
+  0x7fc0 path now covers unscaled state-27/state-16 direct, swapped and
+  both-state-16 joins, plus direct state-16 first/second/later single-scaling
+  variants. The fixture proves 126/130/129/128/132/129/128/131-step shapes
+  with exact live-state equality; mixed text compositions remain fail-closed.
+
 - Extend the measured `0x14640` compare-prefix tails to signed-greater
   variants (v0428). State 27, state 28 and the neutral/state-13 tails now
   accept unequal `+0x1aa`/`+0x62a` values in either signed order; equal values

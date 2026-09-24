@@ -57,6 +57,14 @@
 #define CASE_STATE16_DIRECT_SECOND_GATE 7
 #define CASE_STATE16_DIRECT_LATER_SCALE 8
 #define CASE_STATE16_DIRECT_TEXT 9
+#define CASE_STATE27_DIRECT_TEXT 35
+#define CASE_STATE27_SWAPPED_TEXT 36
+#define CASE_STATE16_SWAPPED_TEXT 37
+#define CASE_STATE16_BOTH_DIRECT_TEXT 38
+#define CASE_STATE16_BOTH_SWAPPED_TEXT 39
+#define CASE_STATE16_DIRECT_SCALE_TEXT 40
+#define CASE_STATE16_DIRECT_SECOND_GATE_TEXT 41
+#define CASE_STATE16_DIRECT_LATER_SCALE_TEXT 42
 #define CASE_STATE27_DIRECT_SCALE 10
 #define CASE_STATE27_SWAPPED_SCALE 11
 #define CASE_STATE16_SWAPPED_SCALE 12
@@ -367,6 +375,102 @@ static void run_rom_case(
         expected_calls = UINT64_C(2);
         expected_returns = UINT64_C(2);
         label = "state16-direct-text";
+        break;
+    case CASE_STATE27_DIRECT_TEXT:
+        reference_cpu.registers[7] = 27u;
+        native_cpu.registers[7] = 27u;
+        reference_cpu.registers[8] = (uint32_t)b197_f1;
+        native_cpu.registers[8] = (uint32_t)b197_f1;
+        expected_steps = UINT64_C(126);
+        text_branch = 1;
+        expected_calls = UINT64_C(2);
+        expected_returns = UINT64_C(2);
+        label = "state27-direct-text";
+        break;
+    case CASE_STATE27_SWAPPED_TEXT:
+        reference_cpu.registers[7] = 0u;
+        native_cpu.registers[7] = 0u;
+        reference_cpu.registers[8] = 27u;
+        native_cpu.registers[8] = 27u;
+        expected_steps = UINT64_C(130);
+        swapped = 1;
+        text_branch = 1;
+        expected_calls = UINT64_C(2);
+        expected_returns = UINT64_C(2);
+        label = "state27-swapped-text";
+        break;
+    case CASE_STATE16_SWAPPED_TEXT:
+        reference_cpu.registers[7] = 0u;
+        native_cpu.registers[7] = 0u;
+        reference_cpu.registers[8] = 16u;
+        native_cpu.registers[8] = 16u;
+        expected_steps = UINT64_C(129);
+        swapped = 1;
+        text_branch = 1;
+        expected_calls = UINT64_C(2);
+        expected_returns = UINT64_C(2);
+        label = "state16-swapped-text";
+        break;
+    case CASE_STATE16_BOTH_DIRECT_TEXT:
+        reference_cpu.registers[7] = 16u;
+        native_cpu.registers[7] = 16u;
+        reference_cpu.registers[8] = 16u;
+        native_cpu.registers[8] = 16u;
+        expected_steps = UINT64_C(128);
+        both16 = 1;
+        text_branch = 1;
+        expected_calls = UINT64_C(2);
+        expected_returns = UINT64_C(2);
+        label = "state16-both-direct-text";
+        break;
+    case CASE_STATE16_BOTH_SWAPPED_TEXT:
+        reference_cpu.registers[7] = 16u;
+        native_cpu.registers[7] = 16u;
+        reference_cpu.registers[8] = 16u;
+        native_cpu.registers[8] = 16u;
+        expected_steps = UINT64_C(132);
+        swapped = 1;
+        both16 = 1;
+        text_branch = 1;
+        expected_calls = UINT64_C(2);
+        expected_returns = UINT64_C(2);
+        label = "state16-both-swapped-text";
+        break;
+    case CASE_STATE16_DIRECT_SCALE_TEXT:
+        reference_cpu.registers[7] = 16u;
+        native_cpu.registers[7] = 16u;
+        reference_cpu.registers[8] = 0u;
+        native_cpu.registers[8] = 0u;
+        expected_steps = UINT64_C(129);
+        scale_first = 1;
+        text_branch = 1;
+        expected_calls = UINT64_C(2);
+        expected_returns = UINT64_C(2);
+        label = "state16-direct-scale-text";
+        break;
+    case CASE_STATE16_DIRECT_SECOND_GATE_TEXT:
+        reference_cpu.registers[7] = 16u;
+        native_cpu.registers[7] = 16u;
+        reference_cpu.registers[8] = 0u;
+        native_cpu.registers[8] = 0u;
+        expected_steps = UINT64_C(128);
+        second_gate = 1;
+        text_branch = 1;
+        expected_calls = UINT64_C(2);
+        expected_returns = UINT64_C(2);
+        label = "state16-direct-second-gate-text";
+        break;
+    case CASE_STATE16_DIRECT_LATER_SCALE_TEXT:
+        reference_cpu.registers[7] = 16u;
+        native_cpu.registers[7] = 16u;
+        reference_cpu.registers[8] = 0u;
+        native_cpu.registers[8] = 0u;
+        expected_steps = UINT64_C(131);
+        later_scale = 1;
+        text_branch = 1;
+        expected_calls = UINT64_C(2);
+        expected_returns = UINT64_C(2);
+        label = "state16-direct-later-scale-text";
         break;
     case CASE_STATE27_DIRECT_SCALE:
         reference_cpu.registers[7] = 27u;
@@ -782,6 +886,22 @@ static void run_rom_differential(const char *rom_directory)
                  CASE_STATE16_DIRECT_LATER_SCALE);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
                  CASE_STATE16_DIRECT_TEXT);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE27_DIRECT_TEXT);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE27_SWAPPED_TEXT);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_SWAPPED_TEXT);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_BOTH_DIRECT_TEXT);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_BOTH_SWAPPED_TEXT);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_DIRECT_SCALE_TEXT);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_DIRECT_SECOND_GATE_TEXT);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_DIRECT_LATER_SCALE_TEXT);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
                  CASE_STATE27_DIRECT_SCALE);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
