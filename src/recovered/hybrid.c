@@ -25115,7 +25115,45 @@ static vf2_status coli_225cc_long_body(
                         }
                         body += walk_child + UINT64_C(1);
                         if (walk_rec != 0u) {
-                            return VF2_ERROR_UNSUPPORTED;
+                            /* v0503: measured type-5 match at 0x227dc.
+                             * The callee leaves its record pointer in g0;
+                             * the short tail consumes record+1/+3 and
+                             * returns directly at 0x22804.  Keep the
+                             * measured selector/record pair exact. */
+                            if (idx848 != UINT32_C(1) ||
+                                walk_rec != UINT32_C(0x02014d75)) {
+                                return VF2_ERROR_UNSUPPORTED;
+                            }
+                            if (hybrid_read_u16(
+                                    machine, walk_rec + UINT32_C(1),
+                                    &tail_half) != VF2_OK ||
+                                hybrid_read_u8(
+                                    machine, walk_rec + UINT32_C(3),
+                                    &tail_byte) != VF2_OK) {
+                                return VF2_ERROR_UNSUPPORTED;
+                            }
+                            tail_field =
+                                (UINT32_C(17) << 24u) + (uint32_t)tail_half;
+                            if (vf2_model2a_write_u32(
+                                    machine, g7 + UINT32_C(0x198),
+                                    tail_field) != VF2_OK ||
+                                hybrid_write_u8(
+                                    machine, g7 + UINT32_C(0x822),
+                                    tail_byte) != VF2_OK) {
+                                return VF2_ERROR_UNSUPPORTED;
+                            }
+                            body += UINT64_C(6);
+                            if (cc_out != NULL) {
+                                *cc_out = VF2_I960_COMPARE_EQUAL;
+                            }
+                            if (g0_out != NULL) {
+                                *g0_out = walk_rec;
+                            }
+                            if (g1_out != NULL) {
+                                *g1_out = UINT32_C(5);
+                            }
+                            *body_out = body;
+                            return VF2_OK;
                         }
                         if (hybrid_read_u16(
                                 machine, UINT32_C(0x1),

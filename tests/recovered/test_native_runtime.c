@@ -5,6 +5,7 @@
 
 #include "vf2/fighter_candidate.h"
 #include "vf2/i960/executor.h"
+#include "vf2/i960/snapshot.h"
 #include "vf2/native_runtime.h"
 #include "vf2/rom.h"
 
@@ -5048,10 +5049,140 @@ static void test_coli_225cc_long(void) {
     free(main_data);
 }
 
-/* v0344-B: 0x502a4 digit-parse helper (both balx sites, direct unit).
- * Site A: link 0x22950, inline "d hit combo", 9 loop iters, 2-byte
- * copy, bx-out 0x22960, 140 steps. Site B: link 0x22e0c, inline
- * "d down hit", 10 iters, 7-byte copy, bx-out 0x22e20, 170 steps. */
+/* ROM-backed 0x227dc type-5 match sibling (v0503).  Main-data index 1 is
+ * changed only at its record type byte to make the measured record
+ * 0x02014d75 a type-5 match; reference/native snapshots are compared. */
+static void test_coli_227dc_match_probe(const char *rom_directory)
+{
+    uint8_t *rom = NULL;
+    uint8_t *main_data = NULL;
+    size_t rom_size = 0u;
+    size_t main_data_size = 0u;
+    vf2_model2a machine;
+    vf2_i960_cpu cpu;
+    vf2_i960_cpu reference_cpu;
+    vf2_i960_snapshot snapshot;
+    vf2_i960_snapshot reference_final;
+    vf2_i960_snapshot native_final;
+    vf2_i960_snapshot_diff diff;
+    vf2_status status = VF2_OK;
+    uint64_t steps = 0u;
+    uint32_t value = 0u;
+    const uint32_t fighter0 = UINT32_C(0x00510980);
+    const uint32_t fighter1 = UINT32_C(0x00512980);
+
+    memset(&machine, 0, sizeof(machine));
+    vf2_i960_snapshot_init(&snapshot);
+    vf2_i960_snapshot_init(&reference_final);
+    vf2_i960_snapshot_init(&native_final);
+    memset(&diff, 0, sizeof(diff));
+    if (rom_directory == NULL ||
+        vf2_romset_build_region(rom_directory, VF2_REGION_MAINCPU,
+                                 &rom, &rom_size) != VF2_OK ||
+        vf2_romset_build_region(rom_directory, VF2_REGION_MAIN_DATA,
+                                &main_data, &main_data_size) != VF2_OK ||
+        rom == NULL || main_data == NULL) {
+        free(rom);
+        free(main_data);
+        vf2_i960_snapshot_destroy(&snapshot);
+        vf2_i960_snapshot_destroy(&reference_final);
+        vf2_i960_snapshot_destroy(&native_final);
+        return;
+    }
+    write_u32_bytes(main_data, UINT32_C(0x0d350), UINT32_C(0x02014d6d));
+    main_data[0x14d75u] = UINT8_C(5);
+    CHECK(vf2_model2a_initialize(&machine));
+    CHECK(vf2_model2a_attach_main_rom(&machine, rom, rom_size) == VF2_OK);
+    CHECK(vf2_model2a_attach_main_data(&machine, main_data,
+                                       main_data_size) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(
+              &machine, fighter0 + UINT32_C(0x1a4),
+              UINT32_C(0x00010000)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(
+              &machine, fighter1 + UINT32_C(0x1a4),
+              UINT32_C(0x00002008)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(
+              &machine, fighter0 + UINT32_C(0x844),
+              UINT32_C(0x40000000)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x848),
+                                UINT32_C(1)) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x821),
+                            (const uint8_t *)"\x01", 1u) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x822),
+                            (const uint8_t *)"\x00", 1u) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x820),
+                            (const uint8_t *)"\x00", 1u) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x823),
+                            (const uint8_t *)"\x00", 1u) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x828),
+                            (const uint8_t *)"\x00\x00", 2u) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x843),
+                            (const uint8_t *)"\x00", 1u) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x1234),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter1 + UINT32_C(0x19f),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter1 + UINT32_C(0x1ac),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter1 + UINT32_C(0x5b8),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter1 + UINT32_C(0x6d4),
+                                UINT32_C(0xffff)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter1 + UINT32_C(0x6d8),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter1 + UINT32_C(0x700),
+                                UINT32_C(0)) == VF2_OK);
+    vf2_i960_cpu_reset(&cpu, 0u, 0u, UINT32_C(0x000225cc));
+    cpu.registers[VF2_I960_FP_REGISTER] = UINT32_C(0x005ff500);
+    cpu.registers[1] = UINT32_C(0x005ff580);
+    cpu.registers[VF2_I960_G0_REGISTER + 7u] = fighter0;
+    cpu.registers[VF2_I960_G0_REGISTER + 8u] = fighter1;
+    CHECK(vf2_i960_cpu_enter_procedure(&cpu, UINT32_C(0x000225cc),
+                                       UINT32_C(0x00022240)) == VF2_OK);
+    CHECK(vf2_i960_snapshot_capture(&snapshot, &cpu, &machine) == VF2_OK);
+    reference_cpu = cpu;
+    while (reference_cpu.ip != UINT32_C(0x00022240) && steps < 2000u) {
+        status = vf2_i960_step(&reference_cpu, &machine, NULL);
+        if (status != VF2_OK) {
+            break;
+        }
+        ++steps;
+    }
+    CHECK(status == VF2_OK);
+    CHECK(steps == UINT64_C(61));
+    CHECK(reference_cpu.ip == UINT32_C(0x00022240));
+    CHECK(reference_cpu.registers[VF2_I960_G0_REGISTER] ==
+          UINT32_C(0x02014d75));
+    CHECK(vf2_model2a_read_u32(
+              &machine, fighter0 + UINT32_C(0x198), &value) == VF2_OK);
+    CHECK(value == UINT32_C(0x1100000f));
+    CHECK(vf2_i960_snapshot_capture(
+              &reference_final, &reference_cpu, &machine) == VF2_OK);
+    CHECK(vf2_i960_snapshot_restore(&snapshot, &cpu, &machine) == VF2_OK);
+    status = vf2_hybrid_coli_225cc_execute(&machine, &cpu);
+    CHECK(status == VF2_OK);
+    CHECK(cpu.executed_instructions - snapshot.cpu.executed_instructions ==
+          UINT64_C(61));
+    CHECK(cpu.ip == UINT32_C(0x00022240));
+    CHECK(cpu.registers[VF2_I960_G0_REGISTER] == UINT32_C(0x02014d75));
+    CHECK(vf2_i960_snapshot_capture(&native_final, &cpu, &machine) == VF2_OK);
+    CHECK(vf2_i960_snapshot_compare(
+              &reference_final, &native_final, &diff) == VF2_OK);
+    if (!diff.equal) {
+        fprintf(stderr,
+                "227dc-match diff component=%s offset=%zu expected=0x%08x actual=0x%08x\n",
+                diff.component, diff.first_offset,
+                (unsigned)diff.expected_value, (unsigned)diff.actual_value);
+    }
+    CHECK(diff.equal);
+    vf2_model2a_shutdown(&machine);
+    vf2_i960_snapshot_destroy(&snapshot);
+    vf2_i960_snapshot_destroy(&reference_final);
+    vf2_i960_snapshot_destroy(&native_final);
+    free(rom);
+    free(main_data);
+}
+
 static void test_coli_502a4(void) {
     static const uint8_t site_a_inline[] = {
         0x25u, 0x64u, 0x20u, 0x68u, 0x69u, 0x74u, 0x20u, 0x63u, 0x6fu,
@@ -7506,6 +7637,9 @@ int main(int argc, char **argv) {
     test_coli_502a4();
     test_coli_7fc0();
     test_coli_225cc_long();
+    if (argc >= 2) {
+        test_coli_227dc_match_probe(argv[1]);
+    }
     test_coli_225cc_type22();
     test_coli_1ab34_walk();
     test_coli_23878_bit_remap();

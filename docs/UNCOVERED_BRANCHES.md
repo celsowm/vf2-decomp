@@ -1894,6 +1894,13 @@ Notably the wrapper had rejected scan!=0 since v0304, so the
 v0334/v0336 scan!=0 long-body code was unreachable until now.
 See `decomp/i960/notes/fa_coli_227dc_miss_v0340.md`.
 
+Status (v0503): the measured type-5 match sibling at `0x227dc` is native.
+With the existing bit-13/bit-3, scan-1 and bit-30 gates, table index 1 is
+changed to a type-5 record at `0x02014d75`; the reference and native paths
+return in 61 instructions with `g0 = 0x02014d75`, `g1 = 5`, equal condition
+state and complete captured-state equality. Other match compositions remain
+fail-closed. See `decomp/i960/notes/fa_coli_227dc_match_v0503.md`.
+
 Status (v0341, measurement): the `0x502a4` balx is deferred with
 evidence. Two ROM sites call it: `0x22948` (cascade, board bit 9
 only) and `0x22e04` (bit-14 `0x22dd4` path). The reference
