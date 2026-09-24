@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Recover the measured direct state-16 text tail of `0x14570` (v0420). With
+  board `0x508000` bit 9 clear, the native path calls the existing recovered
+  `0x7fc0` byte expander from source `0x1b970` to `0x010006e8`, matching the
+  ROM through `0x1463c` in 126 instructions with two calls/returns. The
+  `vf2_player_1453c_live` fixture now proves ten measured shapes with full
+  live-state equality; scaled/swapped text variants remain fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_text_v0420.md`.
+
 - Recover the measured direct state-16 later scaling arm of `0x14570` (v0419).
   With `+0x3351` bit 6 and the g8 word bit 29 set, the native path performs
   the measured second `shro`/`addo`, selects `0x1b982` and matches the ROM

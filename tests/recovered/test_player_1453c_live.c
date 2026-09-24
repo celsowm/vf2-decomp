@@ -56,6 +56,7 @@
 #define CASE_STATE16_DIRECT_SCALE 6
 #define CASE_STATE16_DIRECT_SECOND_GATE 7
 #define CASE_STATE16_DIRECT_LATER_SCALE 8
+#define CASE_STATE16_DIRECT_TEXT 9
 
 static int failures = 0;
 
@@ -198,6 +199,9 @@ static void run_rom_case(
     int scale_first = 0;
     int second_gate = 0;
     int later_scale = 0;
+    int text_branch = 0;
+    uint64_t expected_calls = REF_CALLS;
+    uint64_t expected_returns = REF_RETS;
     int ok = 0;
 
     memset(&reference_machine, 0, sizeof(reference_machine));
@@ -327,6 +331,17 @@ static void run_rom_case(
         later_scale = 1;
         label = "state16-direct-later-scale";
         break;
+    case CASE_STATE16_DIRECT_TEXT:
+        reference_cpu.registers[7] = 16u;
+        native_cpu.registers[7] = 16u;
+        reference_cpu.registers[8] = 0u;
+        native_cpu.registers[8] = 0u;
+        expected_steps = UINT64_C(126);
+        text_branch = 1;
+        expected_calls = UINT64_C(2);
+        expected_returns = UINT64_C(2);
+        label = "state16-direct-text";
+        break;
     default:
         CHECK(0);
         goto cleanup;
@@ -359,6 +374,10 @@ static void run_rom_case(
         write_u32(&reference_machine, fighter1, UINT32_C(0x20000000));
         write_u32(&native_machine, fighter1, UINT32_C(0x20000000));
     }
+    if (text_branch) {
+        write_u32(&reference_machine, UINT32_C(0x00508000), 0u);
+        write_u32(&native_machine, UINT32_C(0x00508000), 0u);
+    }
     if (both16) {
         const uint32_t board28 = swapped ? UINT32_C(1) : UINT32_C(0);
         write_u32(&reference_machine, UINT32_C(0x00500028), board28);
@@ -384,8 +403,8 @@ static void run_rom_case(
     reference_instructions =
         reference_cpu.executed_instructions - snap_instructions;
     CHECK(reference_instructions == expected_steps);
-    CHECK(reference_cpu.procedure_calls - snap_calls == REF_CALLS);
-    CHECK(reference_cpu.procedure_returns - snap_returns == REF_RETS);
+    CHECK(reference_cpu.procedure_calls - snap_calls == expected_calls);
+    CHECK(reference_cpu.procedure_returns - snap_returns == expected_returns);
 
     /* Native: the 0x1453c state-27 arm. */
     native_status = vf2_hybrid_player_1453c_execute_for_test(
@@ -395,8 +414,8 @@ static void run_rom_case(
     native_instructions =
         native_cpu.executed_instructions - snap_instructions;
     CHECK(native_instructions == expected_steps);
-    CHECK(native_cpu.procedure_calls - snap_calls == REF_CALLS);
-    CHECK(native_cpu.procedure_returns - snap_returns == REF_RETS);
+    CHECK(native_cpu.procedure_calls - snap_calls == expected_calls);
+    CHECK(native_cpu.procedure_returns - snap_returns == expected_returns);
 
     printf(
         "player-1453c-live %s ref=%llu native=%llu calls=%llu/%llu rets=%llu/%llu\n",
@@ -471,6 +490,8 @@ static void run_rom_differential(const char *rom_directory)
                  CASE_STATE16_DIRECT_SECOND_GATE);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
                  CASE_STATE16_DIRECT_LATER_SCALE);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_DIRECT_TEXT);
 
     free(main_rom);
     free(main_data);

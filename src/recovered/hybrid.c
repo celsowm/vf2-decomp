@@ -6386,8 +6386,9 @@ static vf2_status hybrid_execute_player_144b0(
  * set.  All measured paths have +1 call / +1 return when +0x194(g7) indexes
  * a valid type-5 chain.  The measured direct state-16 scaling and second-gate
  * variants are admitted below; unmeasured combinations (walker miss, scaled
- * swaps/state-27, bit 29 set on the second gate and bit 9 of 0x508000 clear)
- * stay fail-closed. */
+ * swaps/state-27, and other bit-29/text compositions) stay fail-closed. The
+ * direct short-tail text call is separately admitted only for board bit 9
+ * clear (v0420), with the recovered 0x7fc0 expander. */
 static vf2_status hybrid_execute_player_1453c(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu
@@ -6421,6 +6422,7 @@ static vf2_status hybrid_execute_player_1453c(
     uint64_t body = UINT64_C(6);
     bool bit6 = false;
     bool second_scale = false;
+    bool text_branch = false;
     bool swapped = false;
     bool state27 = false;
     uint64_t prefix_adjust = 0u;
@@ -6523,7 +6525,14 @@ static vf2_status hybrid_execute_player_1453c(
         }
     }
     if ((board & (UINT32_C(1) << 9u)) == 0u) {
-        return VF2_ERROR_UNSUPPORTED;
+        /* v0420 measures only the direct state-16 short-tail text call. */
+        if (!(r7 == 16u && r8 == 0u && !state27 && !swapped &&
+              (r1a4_g8 & UINT32_C(1)) == 0u &&
+              (b3351 & (UINT32_C(1) << 6u)) == 0u &&
+              (word_g8 & (UINT32_C(1) << 29u)) == 0u)) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        text_branch = true;
     }
 
     /* State-27 enters through 0x1453c and writes 16 before branching to
@@ -6594,6 +6603,23 @@ static vf2_status hybrid_execute_player_1453c(
          * later measured table. */
         r3 += r3 >> 2u;
         cpu->registers[VF2_I960_G0_REGISTER] = UINT32_C(0x0001b982);
+    }
+    if (text_branch) {
+        /* 0x145ec lda 0x010006e8,g9; 0x145f4 calls the recovered byte
+         * expander. Its ret returns directly to 0x145f8. */
+        cpu->registers[VF2_I960_G0_REGISTER + 9u] = UINT32_C(0x010006e8);
+        body += UINT64_C(1);
+        cpu->ip = UINT32_C(0x000145f4);
+        status = hybrid_execute_player_repeated_call(
+            cpu, UINT32_C(0x000145f4), UINT32_C(0x00007fc0),
+            UINT32_C(0x000145f8)
+        );
+        if (status == VF2_OK) {
+            status = vf2_hybrid_coli_7fc0_execute(machine, cpu);
+        }
+        if (status != VF2_OK) {
+            return status;
+        }
     }
     /* 0x145dc stob r3,+0x822(g8). */
     status = hybrid_write_u8(machine, g8 + UINT32_C(0x822), (uint8_t)r3);

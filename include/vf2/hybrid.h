@@ -398,7 +398,7 @@ vf2_status vf2_hybrid_player_144b0_execute_for_test(
     vf2_i960_cpu *cpu
 );
 
-/* v0404/v0415/v0416/v0419: test-only entry to the measured fa_rob state-27/state-16
+/* v0404/v0415/v0416/v0419/v0420: test-only entry to the measured fa_rob state-27/state-16
  * arms at 0x1453c/0x14570.
  * The CPU must be parked at 0x14528 with g7/g8 the fighter bases, r10/r11
  * their originals and a pushed frame. Either r7 == 27 (direct, 52 steps) or
@@ -408,12 +408,13 @@ vf2_status vf2_hybrid_player_144b0_execute_for_test(
  * must index a valid type-5 record chain; the direct (16,0) shape also has a
  * measured bit-0-set first-scaling variant at 55 steps. The remaining short
  * path requires bit 0 of +0x1a4(g8) clear, bit 6 of the 0x50016c+0x3351 byte
- * clear and bit 9 of 0x508000 set. All accepted paths have +1 call / +1
- * return and land at 0x1463c. The direct (16,0) shape also admits the
+ * clear and bit 9 of 0x508000 set. These short/scaling accepted paths have
+ * +1 call / +1 return and land at 0x1463c. The direct (16,0) shape also admits the
  * measured +0x3351 bit-6-set / g8 bit-29-clear second gate at 54 steps.
  * It also admits the measured direct (16,0) bit-29-set later scaling arm at
  * 57 steps, which selects the 0x1b982 table. The other scaling/text
- * compositions remain unsupported.
+ * compositions remain unsupported. The direct short tail also admits the
+ * measured board-bit-9-clear text call at 126 steps / +2 calls / +2 returns.
  * Anything else is VF2_ERROR_UNSUPPORTED. */
 vf2_status vf2_hybrid_player_1453c_execute_for_test(
     vf2_model2a *machine,

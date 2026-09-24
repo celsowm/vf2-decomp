@@ -942,6 +942,13 @@ the `0x145cc..0x145d4` `shro`/`addo`/table-select sequence and reaches
 proves this with full live-state equality; swapped/state-27 scaling and the
 text branch remain explicit boundaries. See
 `decomp/i960/notes/fa_player_1453c_later_scaling_v0419.md`.
+Status (v0420): the direct state-16 board-bit-9-clear text tail is native for
+the measured short composition. The ROM calls `0x7fc0` with source
+`0x1b970` and destination `0x010006e8`, writes eight glyph shorts, and reaches
+`0x1463c` in 126 instructions with two calls/returns. The ten-case
+`vf2_player_1453c_live` fixture proves this with full live-state equality;
+scaled/swapped text variants remain explicit boundaries. See
+`decomp/i960/notes/fa_player_1453c_text_v0420.md`.
 Status (v0405): the `0x14640` state-27 arm is now native as the standalone
 `hybrid_execute_player_14640_state27` (type-15 walk via `+0x194(g7)`,
 41 steps / +1 call / +1 return to the `0x146c4` ret).  It requires
