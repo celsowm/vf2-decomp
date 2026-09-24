@@ -22198,6 +22198,10 @@ static vf2_status coli_225cc_body(
                  ((flags_g8 & ~UINT32_C(0x00011800)) == 0u ||
                  flags_g8 == UINT32_C(0x00018000) ||
                  flags_g8 == UINT32_C(0x00018001) ||
+                 flags_g8 == UINT32_C(0x00018002) ||
+                 flags_g8 == UINT32_C(0x00018020) ||
+                 flags_g8 == UINT32_C(0x00018040) ||
+                 flags_g8 == UINT32_C(0x00018080) ||
                  flags_g8 == UINT32_C(0x00018004) ||
                  flags_g8 == UINT32_C(0x00018005) ||
                  flags_g8 == UINT32_C(0x00018010) ||
@@ -22220,6 +22224,8 @@ static vf2_status coli_225cc_body(
                  flags_g8 == UINT32_C(0x00019011) ||
                  flags_g8 == UINT32_C(0x00019014) ||
                  flags_g8 == UINT32_C(0x00019015) ||
+                 flags_g8 == UINT32_C(0x00018200) ||
+                 flags_g8 == UINT32_C(0x00018400) ||
                  flags_g8 == UINT32_C(0x00019800) ||
                  flags_g8 == UINT32_C(0x00019801) ||
                  flags_g8 == UINT32_C(0x00019804) ||
@@ -22227,7 +22233,9 @@ static vf2_status coli_225cc_body(
                  flags_g8 == UINT32_C(0x00019810) ||
                  flags_g8 == UINT32_C(0x00019811) ||
                  flags_g8 == UINT32_C(0x00019814) ||
-                 flags_g8 == UINT32_C(0x00019815));
+                 flags_g8 == UINT32_C(0x00019815) ||
+                 flags_g8 == UINT32_C(0x0001c000) ||
+                 flags_g8 == UINT32_C(0x00038000));
 
             if (!bit16_scan4 &&
                 (scan_byte != UINT8_C(1) ||
@@ -24071,6 +24079,10 @@ static vf2_status coli_225cc_long_body(
     } else if (scan821 == UINT8_C(4) &&
                (flags_g8 == UINT32_C(0x00018000) ||
                 flags_g8 == UINT32_C(0x00018001) ||
+                flags_g8 == UINT32_C(0x00018002) ||
+                flags_g8 == UINT32_C(0x00018020) ||
+                flags_g8 == UINT32_C(0x00018040) ||
+                flags_g8 == UINT32_C(0x00018080) ||
                 flags_g8 == UINT32_C(0x00018004) ||
                 flags_g8 == UINT32_C(0x00018005) ||
                 flags_g8 == UINT32_C(0x00018010) ||
@@ -24093,6 +24105,8 @@ static vf2_status coli_225cc_long_body(
                 flags_g8 == UINT32_C(0x00019011) ||
                 flags_g8 == UINT32_C(0x00019014) ||
                 flags_g8 == UINT32_C(0x00019015) ||
+                flags_g8 == UINT32_C(0x00018200) ||
+                flags_g8 == UINT32_C(0x00018400) ||
                 flags_g8 == UINT32_C(0x00019800) ||
                 flags_g8 == UINT32_C(0x00019801) ||
                 flags_g8 == UINT32_C(0x00019804) ||
@@ -24100,8 +24114,10 @@ static vf2_status coli_225cc_long_body(
                 flags_g8 == UINT32_C(0x00019810) ||
                 flags_g8 == UINT32_C(0x00019811) ||
                 flags_g8 == UINT32_C(0x00019814) ||
-                flags_g8 == UINT32_C(0x00019815))) {
-        /* v0456-v0458: bbs 15 skips the bbc-16 edge before the scan-4
+                flags_g8 == UINT32_C(0x00019815) ||
+                flags_g8 == UINT32_C(0x0001c000) ||
+                flags_g8 == UINT32_C(0x00038000))) {
+        /* v0456-v0460: bbs 15 skips the bbc-16 edge before the scan-4
          * compare. The exact words below are independently measured. */
         body += UINT64_C(3); /* cmpibne + bbs15 + cmpibne4 */
     } else {
@@ -25110,6 +25126,11 @@ bit13_skip:
                         /* v0457-v0459: the measured bit-4 selector makes
                          * this direct g0=5 tail two instructions shorter. */
                         body -= UINT64_C(2);
+                    }
+                    if (flags_g8 == UINT32_C(0x0001c000)) {
+                        /* v0460: the measured bit-14 selector adds three
+                         * instructions in this direct g0=5 tail. */
+                        body += UINT64_C(3);
                     }
                     *body_out = body;
                     return VF2_OK;

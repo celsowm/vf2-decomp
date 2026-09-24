@@ -1304,6 +1304,15 @@ instructions with full live-state equality; other compositions remain
 explicit boundaries (see
 `decomp/i960/notes/fa_coli_225cc_bit16_bit15_bit4_cross_v0459.md`).
 
+Status (v0460): eight additional compact selector words are now native:
+`0x00018002`, `0x00018020`, `0x00018040`, `0x00018080`, `0x00018200`,
+`0x00018400`, `0x0001c000` and `0x00038000`. They match the ROM at 107
+instructions with full live-state equality; `0x0001c000` uses the measured
+three-instruction correction. The bit-3 `0x00018008` sibling remains
+fail-closed because its downstream branch is not recovered, while bit-8 and
+bit-13 variants remain deferred (see
+`decomp/i960/notes/fa_coli_225cc_bit16_bit15_bit_selectors_v0460.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at
