@@ -92,6 +92,8 @@
 #define CASE_STATE16_DIRECT_FAMILY 39
 
 static int failures = 0;
+static uint16_t test_type5_index = TYPE5_INDEX;
+static uint64_t test_expected_steps_override = 0u;
 
 #define CHECK(expression)                                                     \
     do {                                                                      \
@@ -693,6 +695,9 @@ static void run_rom_case_with_text(
         expected_calls = UINT64_C(2);
         expected_returns = UINT64_C(2);
     }
+    if (test_expected_steps_override != 0u) {
+        expected_steps = test_expected_steps_override;
+    }
 
     /* Force the measured direct or swapped state shape on both machines. */
     reference_cpu.ip = STATE27_ENTRY;
@@ -705,8 +710,9 @@ static void run_rom_case_with_text(
     native_cpu.registers[14u] = (uint32_t)b19b_f1;
     type5_fighter = swapped ? fighter1 : fighter0;
     write_u16(&reference_machine,
-              type5_fighter + UINT32_C(0x194), TYPE5_INDEX);
-    write_u16(&native_machine, type5_fighter + UINT32_C(0x194), TYPE5_INDEX);
+              type5_fighter + UINT32_C(0x194), test_type5_index);
+    write_u16(&native_machine,
+              type5_fighter + UINT32_C(0x194), test_type5_index);
     if (scale_first) {
         scale_fighter = swapped ? fighter0 : fighter1;
         write_u32(&reference_machine, scale_fighter + UINT32_C(0x1a4), 1u);
@@ -810,6 +816,28 @@ static void run_rom_case(
     run_rom_case_with_text(
         main_rom, main_rom_size, main_data, main_data_size, shape, 0
     );
+}
+
+static void run_rom_case_with_type5_index(
+    const uint8_t *main_rom,
+    size_t main_rom_size,
+    const uint8_t *main_data,
+    size_t main_data_size,
+    int shape,
+    uint16_t type5_index,
+    uint64_t expected_steps
+)
+{
+    const uint16_t previous_index = test_type5_index;
+    const uint64_t previous_steps = test_expected_steps_override;
+
+    test_type5_index = type5_index;
+    test_expected_steps_override = expected_steps;
+    run_rom_case_with_text(
+        main_rom, main_rom_size, main_data, main_data_size, shape, 0
+    );
+    test_type5_index = previous_index;
+    test_expected_steps_override = previous_steps;
 }
 
 static void run_rom_differential(const char *rom_directory)
@@ -916,6 +944,14 @@ static void run_rom_differential(const char *rom_directory)
                  CASE_STATE26_NEUTRAL);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
                  CASE_STATE16_DIRECT_FAMILY);
+    run_rom_case_with_type5_index(
+        main_rom, main_rom_size, main_data, main_data_size,
+        CASE_STATE27_DIRECT, UINT16_C(1), UINT64_C(62)
+    );
+    run_rom_case_with_type5_index(
+        main_rom, main_rom_size, main_data, main_data_size,
+        CASE_STATE27_DIRECT, UINT16_C(2), UINT64_C(69)
+    );
 
     {
         static const int text_shapes[] = {

@@ -1417,6 +1417,13 @@ word-specific, and all cases compare equal in full live state. Other
 compositions remain explicit boundaries (see
 `decomp/i960/notes/fa_coli_bit16_bit13_high_v0473.md`).
 
+Status (v0474): the `fa_rob` `0x1453c/0x14570` type-5 walker now admits two
+measured miss continuations: fighter `+0x194 == 1` reaches the common return
+in 62 instructions and `+0x194 == 2` in 69 instructions. Both compare equal
+in full CPU/memory state with one nested call and return. Other walker misses
+remain explicit fail-closed boundaries (see
+`decomp/i960/notes/fa_player_1453c_type5_miss_v0474.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at
