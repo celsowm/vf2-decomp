@@ -1433,6 +1433,13 @@ for the short tail. Misses outside this bounded sweep remain explicit
 fail-closed boundaries (see
 `decomp/i960/notes/fa_player_1453c_type5_miss_v0475.md`).
 
+Status (v0476): the `fa_rob` `0x14640` state-27 type-15 walker now admits
+the complete measured miss sweep `+0x194 == 1..32`. Every selector reaches
+the `0x146c4` return through the zero-record arithmetic tail; all 32 cases
+compare equal in full CPU/memory state with one nested call and return.
+Unmeasured type-15 misses remain explicit fail-closed boundaries (see
+`decomp/i960/notes/fa_player_14640_type15_miss_v0476.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at

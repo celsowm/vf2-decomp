@@ -5122,8 +5122,9 @@ vf2_status vf2_hybrid_player_29414_execute(
  * measured live shape (bit 20 of 0x500068 clear, no shift) the span from
  * 0x14640 to the 0x146c4 ret is 41 instructions with +1 call / +1 return
  * (the type-15 walker).  The ret at 0x146c4 is not consumed here; the
- * caller continues at that instruction. Sibling shapes (bit 20 set, or a
- * walker miss) stay fail-closed here; equal compare values are routed by the
+ * caller continues at that instruction. v0476 admits the bounded measured
+ * miss selectors 1..32; other walker misses stay fail-closed here. Equal
+ * compare values are routed by the
  * generic dispatcher to the shared equality tail.
  * The walker restores the pre-call r0-r15 frame, so r3/r13/r14 are preserved
  * and only r4/r15/g0/g1 are left distinct; the final reference
@@ -5225,7 +5226,8 @@ static vf2_status hybrid_execute_player_14640_state27(
         return status;
     }
     walk_rec = cpu->registers[VF2_I960_G0_REGISTER];
-    if (walk_rec == 0u) {
+    if (walk_rec == 0u &&
+        (h194 < UINT16_C(0x0001) || h194 > UINT16_C(0x0020))) {
         return VF2_ERROR_UNSUPPORTED;
     }
 

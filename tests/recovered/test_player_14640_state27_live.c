@@ -49,6 +49,8 @@
 #define TYPE15_INDEX UINT16_C(0x0073)
 
 static int failures = 0;
+static uint16_t test_type15_index = TYPE15_INDEX;
+static uint64_t test_expected_steps_override = 0u;
 
 #define CHECK(expression)                                                     \
     do {                                                                      \
@@ -175,6 +177,7 @@ static void run_rom_case(
     uint64_t snap_instructions = 0u;
     uint64_t snap_calls = 0u;
     uint64_t snap_returns = 0u;
+    uint64_t expected_instructions = 0u;
     uint32_t fighter0 = 0u;
     uint32_t steps = 0u;
     int ok = 0;
@@ -243,8 +246,8 @@ static void run_rom_case(
               compare_shape == 2 ? UINT16_C(1) : UINT16_C(0));
     write_u8(&reference_machine, fighter0 + UINT32_C(0x197), 27u);
     write_u8(&native_machine, fighter0 + UINT32_C(0x197), 27u);
-    write_u16(&reference_machine, fighter0 + UINT32_C(0x194), TYPE15_INDEX);
-    write_u16(&native_machine, fighter0 + UINT32_C(0x194), TYPE15_INDEX);
+    write_u16(&reference_machine, fighter0 + UINT32_C(0x194), test_type15_index);
+    write_u16(&native_machine, fighter0 + UINT32_C(0x194), test_type15_index);
     if (compare_shape == 3) {
         write_u32(&reference_machine, UINT32_C(0x00500068),
                   UINT32_C(1) << 20u);
@@ -255,6 +258,11 @@ static void run_rom_case(
     snap_instructions = snap.cpu.executed_instructions;
     snap_calls = snap.cpu.procedure_calls;
     snap_returns = snap.cpu.procedure_returns;
+    expected_instructions = compare_shape == 3 ? REF_SHIFT_TOTAL :
+        compare_shape != 0 ? REF_COMPARE_PREFIX_TOTAL : REF_TOTAL;
+    if (test_expected_steps_override != 0u) {
+        expected_instructions = test_expected_steps_override;
+    }
 
     /* Reference: step the 0x14640 state-27 arm to its 0x146c4 ret
      * instruction (41 steps / +1 call / +1 return). */
@@ -271,9 +279,7 @@ static void run_rom_case(
     CHECK(reference_cpu.ip == STATE27_RETURN);
     reference_instructions =
         reference_cpu.executed_instructions - snap_instructions;
-    CHECK(reference_instructions ==
-          compare_shape == 3 ? REF_SHIFT_TOTAL :
-          compare_shape != 0 ? REF_COMPARE_PREFIX_TOTAL : REF_TOTAL);
+    CHECK(reference_instructions == expected_instructions);
     CHECK(reference_cpu.procedure_calls - snap_calls == REF_CALLS);
     CHECK(reference_cpu.procedure_returns - snap_returns == REF_RETS);
 
@@ -284,9 +290,7 @@ static void run_rom_case(
     CHECK(native_cpu.ip == STATE27_RETURN);
     native_instructions =
         native_cpu.executed_instructions - snap_instructions;
-    CHECK(native_instructions ==
-          compare_shape == 3 ? REF_SHIFT_TOTAL :
-          compare_shape != 0 ? REF_COMPARE_PREFIX_TOTAL : REF_TOTAL);
+    CHECK(native_instructions == expected_instructions);
     CHECK(native_cpu.procedure_calls - snap_calls == REF_CALLS);
     CHECK(native_cpu.procedure_returns - snap_returns == REF_RETS);
 
@@ -319,6 +323,27 @@ static void run_rom_case(
     vf2_i960_snapshot_destroy(&snap);
 }
 
+static void run_rom_case_with_type15_index(
+    const uint8_t *main_rom,
+    size_t main_rom_size,
+    const uint8_t *main_data,
+    size_t main_data_size,
+    uint16_t type15_index,
+    uint64_t expected_steps
+)
+{
+    const uint16_t previous_index = test_type15_index;
+    const uint64_t previous_steps = test_expected_steps_override;
+
+    test_type15_index = type15_index;
+    test_expected_steps_override = expected_steps;
+    run_rom_case(
+        main_rom, main_rom_size, main_data, main_data_size, 0
+    );
+    test_type15_index = previous_index;
+    test_expected_steps_override = previous_steps;
+}
+
 static void run_rom_differential(const char *rom_directory)
 {
     uint8_t *main_rom = NULL;
@@ -347,6 +372,58 @@ static void run_rom_differential(const char *rom_directory)
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 1);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 2);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 3);
+
+    {
+        static const struct {
+            uint16_t index;
+            uint64_t steps;
+        } type15_selector_cases[] = {
+            { UINT16_C(1), UINT64_C(44) },
+            { UINT16_C(2), UINT64_C(51) },
+            { UINT16_C(3), UINT64_C(44) },
+            { UINT16_C(4), UINT64_C(44) },
+            { UINT16_C(5), UINT64_C(44) },
+            { UINT16_C(6), UINT64_C(44) },
+            { UINT16_C(7), UINT64_C(43) },
+            { UINT16_C(8), UINT64_C(43) },
+            { UINT16_C(9), UINT64_C(43) },
+            { UINT16_C(10), UINT64_C(43) },
+            { UINT16_C(11), UINT64_C(44) },
+            { UINT16_C(12), UINT64_C(44) },
+            { UINT16_C(13), UINT64_C(51) },
+            { UINT16_C(14), UINT64_C(51) },
+            { UINT16_C(15), UINT64_C(51) },
+            { UINT16_C(16), UINT64_C(37) },
+            { UINT16_C(17), UINT64_C(51) },
+            { UINT16_C(18), UINT64_C(51) },
+            { UINT16_C(19), UINT64_C(51) },
+            { UINT16_C(20), UINT64_C(51) },
+            { UINT16_C(21), UINT64_C(37) },
+            { UINT16_C(22), UINT64_C(44) },
+            { UINT16_C(23), UINT64_C(51) },
+            { UINT16_C(24), UINT64_C(37) },
+            { UINT16_C(25), UINT64_C(44) },
+            { UINT16_C(26), UINT64_C(51) },
+            { UINT16_C(27), UINT64_C(44) },
+            { UINT16_C(28), UINT64_C(37) },
+            { UINT16_C(29), UINT64_C(44) },
+            { UINT16_C(30), UINT64_C(44) },
+            { UINT16_C(31), UINT64_C(44) },
+            { UINT16_C(32), UINT64_C(36) }
+        };
+        size_t case_index = 0u;
+
+        for (case_index = 0u;
+             case_index < sizeof(type15_selector_cases) /
+                 sizeof(type15_selector_cases[0]);
+             ++case_index) {
+            run_rom_case_with_type15_index(
+                main_rom, main_rom_size, main_data, main_data_size,
+                type15_selector_cases[case_index].index,
+                type15_selector_cases[case_index].steps
+            );
+        }
+    }
 
     free(main_rom);
     free(main_data);
