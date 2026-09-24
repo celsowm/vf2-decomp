@@ -1475,6 +1475,17 @@ fixture proves both shapes; other state/flag combinations remain explicit
 boundaries. See
 `decomp/i960/notes/fa_player_14640_compare_less_state13_v0413.md`.
 
+Status (v0414): the signed-greater compare-prefix now admits the measured
+tail variants previously left behind the bit-4 gate. Neutral bit 4 clear with
+zero `+0x194` reaches `0x146d8` in 14 instructions and leaves `+0x654`
+unchanged with EQUAL condition state; nonzero `+0x194` reaches the same return
+in 16 instructions after clearing `+0x654` with LESS condition state. State 13
+also reaches `0x146d8` with bit 4 clear (16 instructions) or set (17
+instructions), clearing `+0x654` in both cases. The four-case
+`vf2_player_14640_compare_tail_live` fixture proves full live-state equality;
+other compare-prefix state/flag compositions remain explicit boundaries. See
+`decomp/i960/notes/fa_player_14640_compare_tails_v0414.md`.
+
 The measured state-13 neutral tail at the same helper is also native when
 `+0x198 == 0`, `+0x654 == 0`, `+0x197 == 13` and bit 4 is set. It reaches
 `0x146d8` in 14 instructions, clears `+0x654` and preserves the final LESS

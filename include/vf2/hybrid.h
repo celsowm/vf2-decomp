@@ -456,13 +456,16 @@ vf2_status vf2_hybrid_player_14640_escape_execute_for_test(
     vf2_i960_cpu *cpu
 );
 
-/* v0409: test-only entry to the measured fa_rob compare-prefix arm 0x14640.
- * The CPU must be parked at 0x14640 with g7 the fighter base and a pushed
- * frame; +0x198 == 0, +0x654 != 0, s16(+0x1aa) > s16(+0x62a), +0x197 not
- * 27/28/13 and bit 4 of (g7) SET.  On success it lands at 0x146c4 after 15
- * steps / +0 call / +0 return (no walker), having run the +0x1aa/+0x62a
- * compare prefix and cleared +0x194(g7), leaving the 0x146c4 ret unconsumed.
- * Anything else is VF2_ERROR_UNSUPPORTED. */
+/* v0409/v0414: test-only entry to measured fa_rob compare-prefix greater
+ * tails at 0x14640.  The CPU must be parked at 0x14640 with g7 the fighter
+ * base and a pushed frame; +0x198 == 0, +0x654 != 0 and
+ * s16(+0x1aa) > s16(+0x62a).  The measured neutral bit-4-set shape lands at
+ * 0x146c4 after 15 steps and clears +0x194.  The measured neutral bit-4-clear
+ * shapes land at 0x146d8 after 14 steps when +0x194 == 0 (leaving +0x654
+ * unchanged), or 16 steps when +0x194 != 0 (clearing +0x654).  The measured
+ * state-13 shapes land at 0x146d8 after 16 steps with bit 4 clear or 17 steps
+ * with bit 4 set, and clear +0x654.  All returns remain unconsumed.  Anything
+ * else is VF2_ERROR_UNSUPPORTED. */
 vf2_status vf2_hybrid_player_14640_compare_execute_for_test(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu

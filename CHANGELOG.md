@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Recover the measured `fa_rob` `0x14640` signed-greater compare-prefix tails
+  (v0414).  The native path now covers neutral bit-4-clear cases with zero or
+  nonzero `+0x194` (14/16 instructions to `0x146d8`) and state 13 with bit 4
+  clear or set (16/17 instructions), preserving the observed EQUAL/LESS
+  condition state and `+0x654` effects.  The new
+  `vf2_player_14640_compare_tail_live` fixture proves all four shapes with
+  full live-state equality; unmeasured compositions remain fail-closed.  See
+  `decomp/i960/notes/fa_player_14640_compare_tails_v0414.md`.
+
 - Extend the `0x14640` compare-prefix less-than recovery for the measured
   state-13 sibling (v0413): bit 4 set, `+0x197 == 13` and nonzero `+0x194`
   reach `0x146d8` in 17 instructions, clear `+0x654` and finish LESS.  The
