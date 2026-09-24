@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Extend the measured bit-29 later-scaling arm across the state-27/state-16
+  matrix (v0423). With `+0x3351` bit 6 and the target g8 word bit 29 set,
+  direct/swapped state 27 reaches 57/61 instructions, swapped state 16
+  reaches 60, and both-state-16 direct/swapped reaches 59/63. The expanded
+  `vf2_player_1453c_live` fixture now proves 25 shapes with exact live-state
+  equality; mixed first/later scaling and scaled text remain fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_later_scaling_matrix_v0423.md`.
+
 - Extend the measured `0x145c0` second-gate arm across the state-27/state-16
   matrix (v0422). With `+0x3351` bit 6 set and g8 bit 29 clear, direct/
   swapped state 27 reaches 54/58 instructions, swapped state 16 reaches 57,

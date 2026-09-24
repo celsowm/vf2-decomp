@@ -67,6 +67,11 @@
 #define CASE_STATE16_SWAPPED_SECOND_GATE 17
 #define CASE_STATE16_BOTH_DIRECT_SECOND_GATE 18
 #define CASE_STATE16_BOTH_SWAPPED_SECOND_GATE 19
+#define CASE_STATE27_DIRECT_LATER_SCALE 20
+#define CASE_STATE27_SWAPPED_LATER_SCALE 21
+#define CASE_STATE16_SWAPPED_LATER_SCALE 22
+#define CASE_STATE16_BOTH_DIRECT_LATER_SCALE 23
+#define CASE_STATE16_BOTH_SWAPPED_LATER_SCALE 24
 
 static int failures = 0;
 
@@ -453,6 +458,56 @@ static void run_rom_case(
         second_gate = 1;
         label = "state16-both-swapped-second-gate";
         break;
+    case CASE_STATE27_DIRECT_LATER_SCALE:
+        reference_cpu.registers[7] = 27u;
+        native_cpu.registers[7] = 27u;
+        reference_cpu.registers[8] = (uint32_t)b197_f1;
+        native_cpu.registers[8] = (uint32_t)b197_f1;
+        expected_steps = UINT64_C(57);
+        later_scale = 1;
+        label = "state27-direct-later-scale";
+        break;
+    case CASE_STATE27_SWAPPED_LATER_SCALE:
+        reference_cpu.registers[7] = 0u;
+        native_cpu.registers[7] = 0u;
+        reference_cpu.registers[8] = 27u;
+        native_cpu.registers[8] = 27u;
+        expected_steps = UINT64_C(61);
+        swapped = 1;
+        later_scale = 1;
+        label = "state27-swapped-later-scale";
+        break;
+    case CASE_STATE16_SWAPPED_LATER_SCALE:
+        reference_cpu.registers[7] = 0u;
+        native_cpu.registers[7] = 0u;
+        reference_cpu.registers[8] = 16u;
+        native_cpu.registers[8] = 16u;
+        expected_steps = UINT64_C(60);
+        swapped = 1;
+        later_scale = 1;
+        label = "state16-swapped-later-scale";
+        break;
+    case CASE_STATE16_BOTH_DIRECT_LATER_SCALE:
+        reference_cpu.registers[7] = 16u;
+        native_cpu.registers[7] = 16u;
+        reference_cpu.registers[8] = 16u;
+        native_cpu.registers[8] = 16u;
+        expected_steps = UINT64_C(59);
+        both16 = 1;
+        later_scale = 1;
+        label = "state16-both-direct-later-scale";
+        break;
+    case CASE_STATE16_BOTH_SWAPPED_LATER_SCALE:
+        reference_cpu.registers[7] = 16u;
+        native_cpu.registers[7] = 16u;
+        reference_cpu.registers[8] = 16u;
+        native_cpu.registers[8] = 16u;
+        expected_steps = UINT64_C(63);
+        swapped = 1;
+        both16 = 1;
+        later_scale = 1;
+        label = "state16-both-swapped-later-scale";
+        break;
     default:
         CHECK(0);
         goto cleanup;
@@ -481,10 +536,13 @@ static void run_rom_case(
         write_u8(&native_machine, UINT32_C(0x0059c351), 0x40u);
     }
     if (later_scale) {
+        scale_fighter = swapped ? fighter0 : fighter1;
         write_u8(&reference_machine, UINT32_C(0x0059c351), 0x40u);
         write_u8(&native_machine, UINT32_C(0x0059c351), 0x40u);
-        write_u32(&reference_machine, fighter1, UINT32_C(0x20000000));
-        write_u32(&native_machine, fighter1, UINT32_C(0x20000000));
+        write_u32(&reference_machine, scale_fighter,
+                  UINT32_C(0x20000000));
+        write_u32(&native_machine, scale_fighter,
+                  UINT32_C(0x20000000));
     }
     if (text_branch) {
         write_u32(&reference_machine, UINT32_C(0x00508000), 0u);
@@ -624,6 +682,16 @@ static void run_rom_differential(const char *rom_directory)
                  CASE_STATE16_BOTH_DIRECT_SECOND_GATE);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
                  CASE_STATE16_BOTH_SWAPPED_SECOND_GATE);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE27_DIRECT_LATER_SCALE);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE27_SWAPPED_LATER_SCALE);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_SWAPPED_LATER_SCALE);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_BOTH_DIRECT_LATER_SCALE);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_BOTH_SWAPPED_LATER_SCALE);
 
     free(main_rom);
     free(main_data);

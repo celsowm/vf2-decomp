@@ -963,6 +963,13 @@ direct/swapped takes 56/60. The twenty-case `vf2_player_1453c_live` fixture
 proves these with full live-state equality and one call/return each;
 bit-29-set and mixed scaling combinations remain explicit boundaries. See
 `decomp/i960/notes/fa_player_1453c_second_gate_matrix_v0422.md`.
+Status (v0423): the bit-29 later-scaling arm is native across the measured
+state-27/state-16 matrix with `+0x3351` bit 6 set: direct/swapped state 27
+takes 57/61 instructions, swapped state 16 takes 60, and both-state-16
+direct/swapped takes 59/63. The 25-case `vf2_player_1453c_live` fixture
+proves these with full live-state equality and one call/return each; mixed
+first/later scaling and scaled text remain explicit boundaries. See
+`decomp/i960/notes/fa_player_1453c_later_scaling_matrix_v0423.md`.
 Status (v0405): the `0x14640` state-27 arm is now native as the standalone
 `hybrid_execute_player_14640_state27` (type-15 walk via `+0x194(g7)`,
 41 steps / +1 call / +1 return to the `0x146c4` ret).  It requires
