@@ -398,7 +398,7 @@ vf2_status vf2_hybrid_player_144b0_execute_for_test(
     vf2_i960_cpu *cpu
 );
 
-/* v0404/v0415/v0416/v0419/v0420/v0421/v0422/v0423: test-only entry to the measured fa_rob state-27/state-16
+/* v0404/v0415/v0416/v0419/v0420/v0421/v0422/v0423/v0424: test-only entry to the measured fa_rob state-27/state-16
  * arms at 0x1453c/0x14570.
  * The CPU must be parked at 0x14528 with g7/g8 the fighter bases, r10/r11
  * their originals and a pushed frame. Either r7 == 27 (direct, 52 steps) or
@@ -422,6 +422,8 @@ vf2_status vf2_hybrid_player_144b0_execute_for_test(
  * steps).
  * The bit-29 later scaling arm is also admitted for the measured direct/
  * swapped state-27/state-16 compositions (57/61/60/59/63 steps).
+ * The measured mixed first/later scaling compositions are also admitted at
+ * 57/60/61/64/60/63/59/62/63/66 steps in the same shape order.
  * Anything else is VF2_ERROR_UNSUPPORTED. */
 vf2_status vf2_hybrid_player_1453c_execute_for_test(
     vf2_model2a *machine,

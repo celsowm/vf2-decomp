@@ -72,6 +72,16 @@
 #define CASE_STATE16_SWAPPED_LATER_SCALE 22
 #define CASE_STATE16_BOTH_DIRECT_LATER_SCALE 23
 #define CASE_STATE16_BOTH_SWAPPED_LATER_SCALE 24
+#define CASE_STATE27_DIRECT_MIXED_SHORT 25
+#define CASE_STATE27_DIRECT_MIXED_LATER 26
+#define CASE_STATE27_SWAPPED_MIXED_SHORT 27
+#define CASE_STATE27_SWAPPED_MIXED_LATER 28
+#define CASE_STATE16_SWAPPED_MIXED_SHORT 29
+#define CASE_STATE16_SWAPPED_MIXED_LATER 30
+#define CASE_STATE16_BOTH_DIRECT_MIXED_SHORT 31
+#define CASE_STATE16_BOTH_DIRECT_MIXED_LATER 32
+#define CASE_STATE16_BOTH_SWAPPED_MIXED_SHORT 33
+#define CASE_STATE16_BOTH_SWAPPED_MIXED_LATER 34
 
 static int failures = 0;
 
@@ -508,6 +518,116 @@ static void run_rom_case(
         later_scale = 1;
         label = "state16-both-swapped-later-scale";
         break;
+    case CASE_STATE27_DIRECT_MIXED_SHORT:
+        reference_cpu.registers[7] = 27u;
+        native_cpu.registers[7] = 27u;
+        reference_cpu.registers[8] = (uint32_t)b197_f1;
+        native_cpu.registers[8] = (uint32_t)b197_f1;
+        expected_steps = UINT64_C(57);
+        scale_first = 1;
+        second_gate = 1;
+        label = "state27-direct-mixed-short";
+        break;
+    case CASE_STATE27_DIRECT_MIXED_LATER:
+        reference_cpu.registers[7] = 27u;
+        native_cpu.registers[7] = 27u;
+        reference_cpu.registers[8] = (uint32_t)b197_f1;
+        native_cpu.registers[8] = (uint32_t)b197_f1;
+        expected_steps = UINT64_C(60);
+        scale_first = 1;
+        later_scale = 1;
+        label = "state27-direct-mixed-later";
+        break;
+    case CASE_STATE27_SWAPPED_MIXED_SHORT:
+        reference_cpu.registers[7] = 0u;
+        native_cpu.registers[7] = 0u;
+        reference_cpu.registers[8] = 27u;
+        native_cpu.registers[8] = 27u;
+        expected_steps = UINT64_C(61);
+        swapped = 1;
+        scale_first = 1;
+        second_gate = 1;
+        label = "state27-swapped-mixed-short";
+        break;
+    case CASE_STATE27_SWAPPED_MIXED_LATER:
+        reference_cpu.registers[7] = 0u;
+        native_cpu.registers[7] = 0u;
+        reference_cpu.registers[8] = 27u;
+        native_cpu.registers[8] = 27u;
+        expected_steps = UINT64_C(64);
+        swapped = 1;
+        scale_first = 1;
+        later_scale = 1;
+        label = "state27-swapped-mixed-later";
+        break;
+    case CASE_STATE16_SWAPPED_MIXED_SHORT:
+        reference_cpu.registers[7] = 0u;
+        native_cpu.registers[7] = 0u;
+        reference_cpu.registers[8] = 16u;
+        native_cpu.registers[8] = 16u;
+        expected_steps = UINT64_C(60);
+        swapped = 1;
+        scale_first = 1;
+        second_gate = 1;
+        label = "state16-swapped-mixed-short";
+        break;
+    case CASE_STATE16_SWAPPED_MIXED_LATER:
+        reference_cpu.registers[7] = 0u;
+        native_cpu.registers[7] = 0u;
+        reference_cpu.registers[8] = 16u;
+        native_cpu.registers[8] = 16u;
+        expected_steps = UINT64_C(63);
+        swapped = 1;
+        scale_first = 1;
+        later_scale = 1;
+        label = "state16-swapped-mixed-later";
+        break;
+    case CASE_STATE16_BOTH_DIRECT_MIXED_SHORT:
+        reference_cpu.registers[7] = 16u;
+        native_cpu.registers[7] = 16u;
+        reference_cpu.registers[8] = 16u;
+        native_cpu.registers[8] = 16u;
+        expected_steps = UINT64_C(59);
+        both16 = 1;
+        scale_first = 1;
+        second_gate = 1;
+        label = "state16-both-direct-mixed-short";
+        break;
+    case CASE_STATE16_BOTH_DIRECT_MIXED_LATER:
+        reference_cpu.registers[7] = 16u;
+        native_cpu.registers[7] = 16u;
+        reference_cpu.registers[8] = 16u;
+        native_cpu.registers[8] = 16u;
+        expected_steps = UINT64_C(62);
+        both16 = 1;
+        scale_first = 1;
+        later_scale = 1;
+        label = "state16-both-direct-mixed-later";
+        break;
+    case CASE_STATE16_BOTH_SWAPPED_MIXED_SHORT:
+        reference_cpu.registers[7] = 16u;
+        native_cpu.registers[7] = 16u;
+        reference_cpu.registers[8] = 16u;
+        native_cpu.registers[8] = 16u;
+        expected_steps = UINT64_C(63);
+        swapped = 1;
+        both16 = 1;
+        scale_first = 1;
+        second_gate = 1;
+        label = "state16-both-swapped-mixed-short";
+        break;
+    case CASE_STATE16_BOTH_SWAPPED_MIXED_LATER:
+        reference_cpu.registers[7] = 16u;
+        native_cpu.registers[7] = 16u;
+        reference_cpu.registers[8] = 16u;
+        native_cpu.registers[8] = 16u;
+        expected_steps = UINT64_C(66);
+        swapped = 1;
+        both16 = 1;
+        scale_first = 1;
+        later_scale = 1;
+        label = "state16-both-swapped-mixed-later";
+        break;
     default:
         CHECK(0);
         goto cleanup;
@@ -692,6 +812,26 @@ static void run_rom_differential(const char *rom_directory)
                  CASE_STATE16_BOTH_DIRECT_LATER_SCALE);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
                  CASE_STATE16_BOTH_SWAPPED_LATER_SCALE);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE27_DIRECT_MIXED_SHORT);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE27_DIRECT_MIXED_LATER);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE27_SWAPPED_MIXED_SHORT);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE27_SWAPPED_MIXED_LATER);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_SWAPPED_MIXED_SHORT);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_SWAPPED_MIXED_LATER);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_BOTH_DIRECT_MIXED_SHORT);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_BOTH_DIRECT_MIXED_LATER);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_BOTH_SWAPPED_MIXED_SHORT);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_BOTH_SWAPPED_MIXED_LATER);
 
     free(main_rom);
     free(main_data);

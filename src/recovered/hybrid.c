@@ -6475,7 +6475,7 @@ static vf2_status hybrid_execute_player_1453c(
             machine, g8 + UINT32_C(0x1a4), &r1a4_g8
         );
     }
-    /* v0417/v0421 measure the first-scaling arm for every admitted state
+    /* v0417/v0421/v0424 measure the first-scaling arm for every admitted state
      * shape, including the observed swap prefixes. */
     if (status == VF2_OK) {
         status = vf2_model2a_read_u32(
@@ -6507,9 +6507,6 @@ static vf2_status hybrid_execute_player_1453c(
         return status;
     }
     if ((b3351 & (UINT32_C(1) << 6u)) != 0u) {
-        if ((r1a4_g8 & UINT32_C(1)) != 0u) {
-            return VF2_ERROR_UNSUPPORTED;
-        }
         /* 0x145c0 bbc is not taken; 0x145c4 loads (g8), and 0x145c8
          * selects either the common store or the measured later scaling
          * arm. */

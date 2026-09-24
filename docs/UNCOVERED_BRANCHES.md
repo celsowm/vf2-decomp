@@ -970,6 +970,13 @@ direct/swapped takes 59/63. The 25-case `vf2_player_1453c_live` fixture
 proves these with full live-state equality and one call/return each; mixed
 first/later scaling and scaled text remain explicit boundaries. See
 `decomp/i960/notes/fa_player_1453c_later_scaling_matrix_v0423.md`.
+Status (v0424): the mixed first/later scaling matrix is native. With first
+scaling enabled and the second gate taken, direct/swapped state 27 reaches
+57/60 (bit 29 clear) and 60/64 (bit 29 set), swapped state 16 reaches 60/63,
+and both-state-16 direct/swapped reaches 59/62 and 63/66. The 35-case
+`vf2_player_1453c_live` fixture proves these with full live-state equality;
+mixed scaled text remains an explicit boundary. See
+`decomp/i960/notes/fa_player_1453c_mixed_scaling_v0424.md`.
 Status (v0405): the `0x14640` state-27 arm is now native as the standalone
 `hybrid_execute_player_14640_state27` (type-15 walk via `+0x194(g7)`,
 41 steps / +1 call / +1 return to the `0x146c4` ret).  It requires

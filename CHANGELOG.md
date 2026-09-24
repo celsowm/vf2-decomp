@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Recover the measured mixed first/later scaling matrix (v0424). With
+  `+0x1a4(g8)` bit 0, `+0x3351` bit 6 and optionally target g8 bit 29 set,
+  direct/swapped state 27 reaches 57/60 and 61/64, swapped state 16 reaches
+  60/63, and both-state-16 direct/swapped reaches 59/62 and 63/66. The
+  expanded `vf2_player_1453c_live` fixture now proves 35 shapes with exact
+  live-state equality; mixed scaled text remains fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_mixed_scaling_v0424.md`.
+
 - Extend the measured bit-29 later-scaling arm across the state-27/state-16
   matrix (v0423). With `+0x3351` bit 6 and the target g8 word bit 29 set,
   direct/swapped state 27 reaches 57/61 instructions, swapped state 16
