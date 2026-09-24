@@ -1406,6 +1406,17 @@ propagation are retained only for the measured words. Other compositions
 remain explicit boundaries (see
 `decomp/i960/notes/fa_coli_bit16_bit13_high_v0472.md`).
 
+Status (v0473): sixteen additional selectors are now native on the same
+scan-4 route. `0x00014001`, `0x00014004`, `0x00014010`, `0x00014020`,
+`0x00014040` and `0x00014080` match 108 instructions; `0x00014808` and
+`0x00014810` match 110; `0x00015008` and `0x00015010` match 108;
+`0x00015808` and `0x00015810` match 110; `0x0001d008` and `0x0001d010`
+match 107; and `0x0001f008` and `0x0001f010` match 125 and 217.
+The measured three- and five-instruction direct-tail corrections are kept
+word-specific, and all cases compare equal in full live state. Other
+compositions remain explicit boundaries (see
+`decomp/i960/notes/fa_coli_bit16_bit13_high_v0473.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at
