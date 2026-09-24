@@ -22714,6 +22714,22 @@ static vf2_status coli_225cc_body(
                  flags_g8 == UINT32_C(0x0001f014) ||
                  flags_g8 == UINT32_C(0x0001f015) ||
                  flags_g8 == UINT32_C(0x0001f020) ||
+                 flags_g8 == UINT32_C(0x0001f002) ||
+                 flags_g8 == UINT32_C(0x0001f003) ||
+                 flags_g8 == UINT32_C(0x0001f006) ||
+                 flags_g8 == UINT32_C(0x0001f007) ||
+                 flags_g8 == UINT32_C(0x0001f00a) ||
+                 flags_g8 == UINT32_C(0x0001f00b) ||
+                 flags_g8 == UINT32_C(0x0001f00e) ||
+                 flags_g8 == UINT32_C(0x0001f00f) ||
+                 flags_g8 == UINT32_C(0x0001f012) ||
+                 flags_g8 == UINT32_C(0x0001f013) ||
+                 flags_g8 == UINT32_C(0x0001f016) ||
+                 flags_g8 == UINT32_C(0x0001f017) ||
+                 flags_g8 == UINT32_C(0x0001f018) ||
+                 flags_g8 == UINT32_C(0x0001f019) ||
+                 flags_g8 == UINT32_C(0x0001f01a) ||
+                 flags_g8 == UINT32_C(0x0001f01b) ||
                  flags_g8 == UINT32_C(0x0001f010) ||
                  flags_g8 == UINT32_C(0x00018000) ||
                  flags_g8 == UINT32_C(0x00018001) ||
@@ -22870,6 +22886,14 @@ static vf2_status coli_225cc_body(
           flags_g8 == UINT32_C(0x0001f008) ||
           flags_g8 == UINT32_C(0x0001f009) ||
           flags_g8 == UINT32_C(0x0001f00c) ||
+          flags_g8 == UINT32_C(0x0001f00a) ||
+          flags_g8 == UINT32_C(0x0001f00b) ||
+          flags_g8 == UINT32_C(0x0001f00e) ||
+          flags_g8 == UINT32_C(0x0001f00f) ||
+          flags_g8 == UINT32_C(0x0001f018) ||
+          flags_g8 == UINT32_C(0x0001f019) ||
+          flags_g8 == UINT32_C(0x0001f01a) ||
+          flags_g8 == UINT32_C(0x0001f01b) ||
           flags_g8 == UINT32_C(0x0001a009) ||
           flags_g8 == UINT32_C(0x0001a00c) ||
           flags_g8 == UINT32_C(0x0001a018) ||
@@ -24700,6 +24724,22 @@ static vf2_status coli_225cc_long_body(
                 flags_g8 == UINT32_C(0x0001f014) ||
                 flags_g8 == UINT32_C(0x0001f015) ||
                 flags_g8 == UINT32_C(0x0001f020) ||
+                flags_g8 == UINT32_C(0x0001f002) ||
+                flags_g8 == UINT32_C(0x0001f003) ||
+                flags_g8 == UINT32_C(0x0001f006) ||
+                flags_g8 == UINT32_C(0x0001f007) ||
+                flags_g8 == UINT32_C(0x0001f00a) ||
+                flags_g8 == UINT32_C(0x0001f00b) ||
+                flags_g8 == UINT32_C(0x0001f00e) ||
+                flags_g8 == UINT32_C(0x0001f00f) ||
+                flags_g8 == UINT32_C(0x0001f012) ||
+                flags_g8 == UINT32_C(0x0001f013) ||
+                flags_g8 == UINT32_C(0x0001f016) ||
+                flags_g8 == UINT32_C(0x0001f017) ||
+                flags_g8 == UINT32_C(0x0001f018) ||
+                flags_g8 == UINT32_C(0x0001f019) ||
+                flags_g8 == UINT32_C(0x0001f01a) ||
+                flags_g8 == UINT32_C(0x0001f01b) ||
                 flags_g8 == UINT32_C(0x0001f008) ||
                 flags_g8 == UINT32_C(0x0001f010) ||
                 flags_g8 == UINT32_C(0x0001a100) ||
@@ -25816,6 +25856,14 @@ coli_22bc0_common:
                         flags_g8 == UINT32_C(0x0001d008) ||
                         flags_g8 == UINT32_C(0x0001f009) ||
                         flags_g8 == UINT32_C(0x0001f00c) ||
+                        flags_g8 == UINT32_C(0x0001f00a) ||
+                        flags_g8 == UINT32_C(0x0001f00b) ||
+                        flags_g8 == UINT32_C(0x0001f00e) ||
+                        flags_g8 == UINT32_C(0x0001f00f) ||
+                        flags_g8 == UINT32_C(0x0001f018) ||
+                        flags_g8 == UINT32_C(0x0001f019) ||
+                        flags_g8 == UINT32_C(0x0001f01a) ||
+                        flags_g8 == UINT32_C(0x0001f01b) ||
                         flags_g8 == UINT32_C(0x0001f008)) {
                         /* v0472: these measured bit-14/bit-15 selector
                          * routes take a three-instruction direct-tail
@@ -25831,6 +25879,14 @@ coli_22bc0_common:
                          * two-instruction subtraction and add the measured
                          * five-instruction direct-tail detour. */
                         body += UINT64_C(5);
+                    }
+                    if (flags_g8 == UINT32_C(0x0001f018) ||
+                        flags_g8 == UINT32_C(0x0001f019) ||
+                        flags_g8 == UINT32_C(0x0001f01a) ||
+                        flags_g8 == UINT32_C(0x0001f01b)) {
+                        /* v0488: measured bit-4 high-selector siblings
+                         * retain two additional direct-tail instructions. */
+                        body += UINT64_C(2);
                     }
                     if (flags_g8 == UINT32_C(0x00018100) ||
                         flags_g8 == UINT32_C(0x0001a108)) {
@@ -26500,6 +26556,14 @@ coli_22bc0_common:
          flags_g8 == UINT32_C(0x0001f014) ||
          flags_g8 == UINT32_C(0x0001f015) ||
          flags_g8 == UINT32_C(0x0001f020) ||
+         flags_g8 == UINT32_C(0x0001f002) ||
+         flags_g8 == UINT32_C(0x0001f003) ||
+         flags_g8 == UINT32_C(0x0001f006) ||
+         flags_g8 == UINT32_C(0x0001f007) ||
+         flags_g8 == UINT32_C(0x0001f012) ||
+         flags_g8 == UINT32_C(0x0001f013) ||
+         flags_g8 == UINT32_C(0x0001f016) ||
+         flags_g8 == UINT32_C(0x0001f017) ||
          flags_g8 == UINT32_C(0x0001f010) ||
          flags_g8 == UINT32_C(0x00002000) ||
          flags_g8 == UINT32_C(0x00002001) ||

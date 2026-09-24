@@ -2703,6 +2703,14 @@ Only these exact words are admitted; other selector compositions remain
 fail-closed. See
 `decomp/i960/notes/fa_coli_bit16_bit13_high_v0487.md`.
 
+Status (v0488): sixteen further exact `0x0001fxxx` scan-4 selectors are
+native for `g7 + 0x1a4 = 0x00400100`: eight words match 217 instructions with
+the measured `g0 = 0xee` result, eight bit-3 words match 125 instructions,
+and `0x0001f018`, `0x0001f019`, `0x0001f01a` and `0x0001f01b` retain an
+additional measured two-instruction direct-tail correction. All cases compare
+equal in complete live state. Other selector compositions remain fail-closed.
+See `decomp/i960/notes/fa_coli_bit16_bit13_high_v0488.md`.
+
 ### v0291 measure `0x225cc` `g8+0x19f==22` shortcut (defer)
 
 Forcing `g8+0x19f = 22` takes the `call 0x18bd4` shortcut. That helper

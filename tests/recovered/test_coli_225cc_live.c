@@ -665,6 +665,54 @@ static void run_rom_case(
         } else if (bit16_scan4 == 137) {
             g7_flags = UINT32_C(0x00400100);
             g8_flags = UINT32_C(0x0001f020);
+        } else if (bit16_scan4 == 138) {
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x0001f002);
+        } else if (bit16_scan4 == 139) {
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x0001f003);
+        } else if (bit16_scan4 == 140) {
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x0001f006);
+        } else if (bit16_scan4 == 141) {
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x0001f007);
+        } else if (bit16_scan4 == 142) {
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x0001f00a);
+        } else if (bit16_scan4 == 143) {
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x0001f00b);
+        } else if (bit16_scan4 == 144) {
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x0001f00e);
+        } else if (bit16_scan4 == 145) {
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x0001f00f);
+        } else if (bit16_scan4 == 146) {
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x0001f012);
+        } else if (bit16_scan4 == 147) {
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x0001f013);
+        } else if (bit16_scan4 == 148) {
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x0001f016);
+        } else if (bit16_scan4 == 149) {
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x0001f017);
+        } else if (bit16_scan4 == 150) {
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x0001f018);
+        } else if (bit16_scan4 == 151) {
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x0001f019);
+        } else if (bit16_scan4 == 152) {
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x0001f01a);
+        } else if (bit16_scan4 == 153) {
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x0001f01b);
         }
         CHECK(vf2_model2a_write_u32(
                   &reference_machine, COLI_LIVE_FIGHTER0 + UINT32_C(0x1a4),
@@ -905,6 +953,22 @@ static void run_rom_differential(const char *rom_directory)
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 135);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 136);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 137);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 138);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 139);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 140);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 141);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 142);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 143);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 144);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 145);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 146);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 147);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 148);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 149);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 150);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 151);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 152);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 153);
 
     free(main_rom);
     free(main_data);
