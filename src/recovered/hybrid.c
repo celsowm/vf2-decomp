@@ -22649,6 +22649,9 @@ static vf2_status coli_225cc_body(
         if (rets_out != NULL) {
             *rets_out = UINT64_C(3);
         }
+        if (g1_out != NULL) {
+            *g1_out = UINT32_C(5); /* mov 5, g1 before the type-5 call */
+        }
         *body_out = UINT64_C(5) + UINT64_C(1) + shortcut +
                     UINT64_C(1) + UINT64_C(1);
         return VF2_OK;
@@ -24013,6 +24016,7 @@ static vf2_status coli_18bd4_body(
     uint32_t flags_g7 = 0u;
     uint8_t scale_b = 0u;
     uint8_t rec_b = 0u;
+    bool walker_miss = false;
 
     if (machine == NULL || body_out == NULL) {
         return VF2_ERROR_INVALID_ARGUMENT;
@@ -24028,10 +24032,18 @@ static vf2_status coli_18bd4_body(
     }
     body += child + UINT64_C(1);
     if (walk == 0u) {
-        return VF2_ERROR_UNSUPPORTED; /* miss unmeasured for type 5 */
-    }
-    if (hybrid_read_u16(machine, walk + UINT32_C(1), (uint16_t *)&field) !=
-        VF2_OK) {
+        /* v0493: the ROM index 1 miss reaches the same arithmetic tail as
+         * the first-hit shape.  The reference reads the zero-record fields
+         * at addresses 1 and 3; their measured values are both zero. Keep
+         * this exact index local until additional miss records are measured. */
+        if (index != UINT16_C(1)) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        walker_miss = true;
+        field = 0u;
+    } else if (hybrid_read_u16(
+                   machine, walk + UINT32_C(1), (uint16_t *)&field) !=
+               VF2_OK) {
         return VF2_ERROR_UNSUPPORTED;
     }
     /* ldos 0x1(g0), r3; bbc 15 → skip notbit; shlo 24,17; addi; st. */
@@ -24057,7 +24069,10 @@ static vf2_status coli_18bd4_body(
         return VF2_ERROR_UNSUPPORTED;
     }
     body += child + UINT64_C(1);
-    if (hybrid_read_u8(machine, g7 + UINT32_C(0x69c), &scale_b) != VF2_OK ||
+    if (hybrid_read_u8(machine, g7 + UINT32_C(0x69c), &scale_b) != VF2_OK) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    if (!walker_miss &&
         hybrid_read_u8(machine, walk + UINT32_C(3), &rec_b) != VF2_OK) {
         return VF2_ERROR_UNSUPPORTED;
     }
@@ -26601,12 +26616,21 @@ vf2_status vf2_hybrid_coli_225cc_execute(
     vf2_i960_compare_result final_cc = VF2_I960_COMPARE_NONE;
     uint32_t final_g1 = UINT32_C(0xffffffff);
     uint32_t final_g0 = UINT32_C(0xffffffff);
+    bool type22_shortcut = false;
+    uint8_t type_byte = 0u;
 
     if (machine == NULL || cpu == NULL ||
         cpu->ip != VF2_COLI_225CC_ENTRY ||
         cpu->local_frame_depth == 0u) {
         return VF2_ERROR_INVALID_ARGUMENT;
     }
+    if (hybrid_read_u8(
+            machine,
+            cpu->registers[VF2_I960_G0_REGISTER + 8u] + UINT32_C(0x19f),
+            &type_byte) != VF2_OK) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    type22_shortcut = type_byte == UINT8_C(22);
     if (coli_225cc_body(
             machine,
             cpu->registers[VF2_I960_G0_REGISTER + 7u],
@@ -26615,7 +26639,24 @@ vf2_status vf2_hybrid_coli_225cc_execute(
             &final_g1, &final_g0) != VF2_OK) {
         return VF2_ERROR_UNSUPPORTED;
     }
-    if (final_cc != VF2_I960_COMPARE_NONE) {
+    if (type22_shortcut) {
+        uint32_t flags_g8 = 0u;
+
+        if (vf2_model2a_read_u32(
+                machine,
+                cpu->registers[VF2_I960_G0_REGISTER + 8u],
+                &flags_g8) != VF2_OK) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        /* The final chkbit writes the condition field even when the bit is
+         * clear; preserve that architectural side effect for the measured
+         * type-22 shortcut. */
+        hybrid_set_compare_result(
+            cpu,
+            (flags_g8 & (UINT32_C(1) << 10u)) != 0u
+                ? VF2_I960_COMPARE_EQUAL
+                : VF2_I960_COMPARE_NONE);
+    } else if (final_cc != VF2_I960_COMPARE_NONE) {
         hybrid_set_compare_result(cpu, final_cc);
     }
     if (final_g1 != UINT32_C(0xffffffff)) {

@@ -792,6 +792,132 @@ static void run_rom_case(
     vf2_model2a_shutdown(&native_machine);
 }
 
+/* v0493: the measured type-22 shortcut with a type-5 walker miss at index 1.
+ * The parked entry snapshot already has the live 0x225cc frame and parent
+ * return chain. Reference probing with +0x19f=22 and +0x19c=1 reaches the
+ * parent boundary 0x10dcc in 71 instructions, +3 calls / +5 returns. */
+static void run_type22_miss_snapshot_case(
+    const uint8_t *main_rom,
+    size_t main_rom_size,
+    const uint8_t *main_data,
+    size_t main_data_size
+)
+{
+    vf2_model2a reference_machine;
+    vf2_model2a native_machine;
+    vf2_i960_cpu reference_cpu;
+    vf2_i960_cpu native_cpu;
+    vf2_i960_snapshot snap;
+    vf2_i960_snapshot_diff diff;
+    vf2_status reference_status = VF2_OK;
+    vf2_status native_status = VF2_OK;
+    vf2_status compare_status = VF2_OK;
+    uint64_t reference_instructions = 0u;
+    uint64_t native_instructions = 0u;
+    uint64_t snap_instructions = 0u;
+    uint64_t snap_calls = 0u;
+    uint64_t snap_returns = 0u;
+    uint32_t steps = 0u;
+    uint32_t g8 = 0u;
+    int ok = 0;
+
+    memset(&reference_machine, 0, sizeof(reference_machine));
+    memset(&native_machine, 0, sizeof(native_machine));
+    memset(&diff, 0, sizeof(diff));
+    vf2_i960_snapshot_init(&snap);
+    CHECK(vf2_model2a_initialize(&reference_machine));
+    CHECK(vf2_model2a_initialize(&native_machine));
+    ok = (vf2_i960_snapshot_read_file(
+              &snap,
+              "D:/ia/vf2-decomp/out/coli-225cc-entry.vf2snap") == VF2_OK ||
+          vf2_i960_snapshot_read_file(
+              &snap, "out/coli-225cc-entry.vf2snap") == VF2_OK);
+    CHECK(ok);
+    if (!ok) {
+        goto cleanup;
+    }
+    CHECK(vf2_i960_snapshot_restore(
+        &snap, &reference_cpu, &reference_machine) == VF2_OK);
+    CHECK(vf2_i960_snapshot_restore(
+        &snap, &native_cpu, &native_machine) == VF2_OK);
+    CHECK(vf2_model2a_attach_main_rom(
+        &reference_machine, main_rom, main_rom_size) == VF2_OK);
+    CHECK(vf2_model2a_attach_main_data(
+        &reference_machine, main_data, main_data_size) == VF2_OK);
+    CHECK(vf2_model2a_attach_main_rom(
+        &native_machine, main_rom, main_rom_size) == VF2_OK);
+    CHECK(vf2_model2a_attach_main_data(
+        &native_machine, main_data, main_data_size) == VF2_OK);
+
+    g8 = reference_cpu.registers[VF2_I960_G0_REGISTER + 8u];
+    CHECK(g8 == COLI_LIVE_FIGHTER1);
+    CHECK(write_seed_bytes(
+        &reference_machine, g8 + UINT32_C(0x19f), UINT32_C(22), 1u
+    ) == VF2_OK);
+    CHECK(write_seed_bytes(
+        &native_machine, g8 + UINT32_C(0x19f), UINT32_C(22), 1u
+    ) == VF2_OK);
+    CHECK(write_seed_bytes(
+        &reference_machine, g8 + UINT32_C(0x19c), UINT32_C(1), 2u
+    ) == VF2_OK);
+    CHECK(write_seed_bytes(
+        &native_machine, g8 + UINT32_C(0x19c), UINT32_C(1), 2u
+    ) == VF2_OK);
+
+    snap_instructions = snap.cpu.executed_instructions;
+    snap_calls = snap.cpu.procedure_calls;
+    snap_returns = snap.cpu.procedure_returns;
+    while (reference_cpu.ip != UINT32_C(0x00010dcc) && steps < 128u) {
+        reference_status = vf2_i960_step(
+            &reference_cpu, &reference_machine, NULL
+        );
+        CHECK(reference_status == VF2_OK);
+        ++steps;
+        if (reference_status != VF2_OK) {
+            break;
+        }
+    }
+    CHECK(reference_cpu.ip == UINT32_C(0x00010dcc));
+    reference_instructions =
+        reference_cpu.executed_instructions - snap_instructions;
+    CHECK(reference_instructions == UINT64_C(71));
+    CHECK(reference_cpu.procedure_calls - snap_calls == UINT64_C(3));
+    CHECK(reference_cpu.procedure_returns - snap_returns == UINT64_C(5));
+
+    native_instructions = native_cpu.executed_instructions;
+    native_status = vf2_hybrid_coli_225cc_execute(
+        &native_machine, &native_cpu
+    );
+    native_instructions =
+        native_cpu.executed_instructions - native_instructions;
+    CHECK(native_status == VF2_OK);
+    CHECK(native_cpu.ip == UINT32_C(0x00010dcc));
+    CHECK(native_instructions == reference_instructions);
+    CHECK(native_cpu.procedure_calls - snap_calls == UINT64_C(3));
+    CHECK(native_cpu.procedure_returns - snap_returns == UINT64_C(5));
+
+    compare_status = vf2_i960_compare_live_state(
+        &reference_cpu, &reference_machine,
+        &native_cpu, &native_machine, &diff
+    );
+    if (compare_status != VF2_OK || !diff.equal) {
+        fprintf(
+            stderr,
+            "coli-225cc-type22-miss ref=%d native=%d compare=%d "
+            "component=%s offset=%zu expected=0x%08x actual=0x%08x\n",
+            (int)reference_status, (int)native_status,
+            (int)compare_status, diff.component, diff.first_offset,
+            (unsigned)diff.expected_value, (unsigned)diff.actual_value);
+    }
+    CHECK(compare_status == VF2_OK);
+    CHECK(diff.equal);
+
+cleanup:
+    vf2_model2a_shutdown(&reference_machine);
+    vf2_model2a_shutdown(&native_machine);
+    vf2_i960_snapshot_destroy(&snap);
+}
+
 static void run_rom_differential(const char *rom_directory)
 {
     uint8_t *main_rom = NULL;
@@ -969,6 +1095,9 @@ static void run_rom_differential(const char *rom_directory)
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 151);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 152);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 153);
+    run_type22_miss_snapshot_case(
+        main_rom, main_rom_size, main_data, main_data_size
+    );
 
     free(main_rom);
     free(main_data);
