@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- Recover the fa_rob compare-prefix escape arm `0x14640` (v0410), reached
+  when fighter g7 has `+0x198 == 0` and `+0x654 != 0` (the `0x1464c
+  cmpobe 0, r3` not taken, running the `+0x1aa`/`+0x62a` compare prefix
+  `0x14650`..`0x14658`) with `s16(+0x1aa) == s16(+0x62a)` (the `0x14658
+  cmpobe r13, r14` IS taken to `0x146dc`).  It stores r3 (= the `+0x654`
+  value, distinct from the v0408 `+0x198` escape) to `+0x194(g7)`, clears
+  `+0x654(g7)` and leaves `r15 = 0`, `r3 = +0x654`,
+  `r13 = s16(+0x1aa)`, `r14 = s16(+0x62a)`.  No walker.  Measured path:
+  10 steps / +0 call / +0 return, leaving the `0x146e8` ret unconsumed.
+  Recovered as standalone `hybrid_execute_player_14640_compare_escape` +
+  `vf2_hybrid_player_14640_compare_escape_execute_for_test`, dispatched
+  from `hybrid_execute_player_14640` when `+0x654 != 0` and
+  `s16(+0x1aa) == s16(+0x62a)` (which then consumes the `0x146e8` ret to
+  return through the `0x14640` frame).  Final reference `compare_result`
+  is EQUAL.  ROM-backed
+  `vf2_player_14640_compare_escape_live_differential` proves the arm
+  byte-exact (10/+0/+0, full live state).  `ctest` 92/92. See
+  `decomp/i960/notes/fa_player_14640_compare_escape_v0410.md`.
+
 - Recover the fa_rob compare-prefix arm `0x14640` (v0409), reached when
   fighter g7 has `+0x198 == 0` and `+0x654 != 0` (the `0x1464c cmpobe 0,
   r3` not taken, running the `+0x1aa`/`+0x62a` compare prefix

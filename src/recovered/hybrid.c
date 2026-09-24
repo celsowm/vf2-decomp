@@ -5498,7 +5498,7 @@ vf2_status vf2_hybrid_player_14640_escape_execute_for_test(
  * r15 = 0, r3 = +0x197, r13 = s16(+0x1aa), r14 = s16(+0x62a).  No walker.
  * The span from 0x14640 to the 0x146c4 ret is 15 instructions with +0 call /
  * +0 return; the ret at 0x146c4 is not consumed here.  Sibling shapes (the
- * `s16(+0x1aa) <= s16(+0x62a)` escape jump, +0x197 == 27/28/13, bit 4 clear)
+ * `s16(+0x1aa) == s16(+0x62a)` escape jump, +0x197 == 27/28/13, bit 4 clear)
  * stay fail-closed.  The final reference `compare_result` is GREATER (the
  * `cmpobe 13, r3` at 0x146b8 with r3 < 13). */
 static vf2_status hybrid_execute_player_14640_compare(
@@ -5555,7 +5555,7 @@ static vf2_status hybrid_execute_player_14640_compare(
     }
     s1aa = (int16_t)h1aa;
     s62a = (int16_t)h62a;
-    if (s1aa <= s62a) {
+    if (s1aa == s62a) {
         /* `0x14658 cmpobe r13, r14` taken to the 0x146dc escape (separate
          * boundary: stores the +0x654 value, not +0x198).  Fail closed. */
         return VF2_ERROR_UNSUPPORTED;
@@ -5594,6 +5594,98 @@ vf2_status vf2_hybrid_player_14640_compare_execute_for_test(
 )
 {
     return hybrid_execute_player_14640_compare(machine, cpu);
+}
+
+/* Measured compare-prefix escape arm of the fa_rob fighter-exchange helper
+ * 0x14640 (v0410).  Entered at 0x14640 when fighter g7 has +0x198 == 0 and
+ * +0x654 != 0 (so the `0x1464c cmpobe 0, r3` is not taken and the arm runs
+ * the +0x1aa/+0x62a compare prefix 0x14650..0x14658), with
+ * s16(+0x1aa) == s16(+0x62a) (so the `0x14658 cmpobe r13, r14` IS taken
+ * to 0x146dc).  It stores r3 (= the +0x654 value, distinct from the v0408
+ * +0x198 escape) to +0x194(g7), clears +0x654(g7) and leaves r15 = 0,
+ * r3 = +0x654, r13 = s16(+0x1aa), r14 = s16(+0x62a).  No walker.  The span
+ * from 0x14640 to the 0x146e8 ret is 10 instructions with +0 call / +0
+ * return; the ret at 0x146e8 is not consumed here.  Sibling shapes
+ * (s16(+0x1aa) != s16(+0x62a), +0x198 != 0) stay fail-closed.  The final
+ * reference `compare_result` is EQUAL (the `cmpobe r13, r14` at 0x14658 with
+ * r13 == r14). */
+static vf2_status hybrid_execute_player_14640_compare_escape(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    const uint32_t g7 = cpu != NULL
+        ? cpu->registers[VF2_I960_G0_REGISTER + 7u] : 0u;
+    uint32_t r198 = 0u;
+    uint32_t r654 = 0u;
+    uint16_t h1aa = 0u;
+    uint16_t h62a = 0u;
+    int16_t s1aa = 0;
+    int16_t s62a = 0;
+    vf2_status status = VF2_OK;
+
+    if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x00014640) ||
+        cpu->local_frame_depth == 0u || g7 == 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    status = vf2_model2a_read_u32(machine, g7 + UINT32_C(0x198), &r198);
+    if (status == VF2_OK && r198 != 0u) {
+        status = VF2_ERROR_UNSUPPORTED;
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_read_u32(machine, g7 + UINT32_C(0x654), &r654);
+    }
+    if (status == VF2_OK && r654 == 0u) {
+        status = VF2_ERROR_UNSUPPORTED;
+    }
+    if (status == VF2_OK) {
+        status = hybrid_read_u16(machine, g7 + UINT32_C(0x1aa), &h1aa);
+    }
+    if (status == VF2_OK) {
+        status = hybrid_read_u16(machine, g7 + UINT32_C(0x62a), &h62a);
+    }
+    if (status != VF2_OK) {
+        return status;
+    }
+    s1aa = (int16_t)h1aa;
+    s62a = (int16_t)h62a;
+    if (s1aa != s62a) {
+        /* `0x14658 cmpobe r13, r14` not taken (falls into the shared path at
+         * 0x1465c, handled by the v0409 compare arm).  Fail closed here. */
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    /* Prefix 0x14640..0x14658 (7 instructions).  r3 = +0x654 (0x14648),
+     * then r13 = s16(+0x1aa), r14 = s16(+0x62a), CC = EQUAL
+     * (compare(s16(+0x1aa), s16(+0x62a))). */
+    cpu->registers[3] = r654;
+    cpu->registers[13u] = (uint32_t)(int32_t)s1aa;
+    cpu->registers[14u] = (uint32_t)(int32_t)s62a;
+    hybrid_set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
+    cpu->executed_instructions += UINT64_C(7);
+
+    /* 0x146dc st r3, +0x194(g7) ; 0x146e0 mov 0, r15 ;
+     * 0x146e4 st r15, +0x654(g7). */
+    status = vf2_model2a_write_u32(machine, g7 + UINT32_C(0x194), r654);
+    if (status != VF2_OK) {
+        return status;
+    }
+    cpu->registers[15] = 0u;
+    status = vf2_model2a_write_u32(machine, g7 + UINT32_C(0x654), 0u);
+    if (status != VF2_OK) {
+        return status;
+    }
+    cpu->executed_instructions += UINT64_C(3);
+    cpu->ip = UINT32_C(0x000146e8);
+    return VF2_OK;
+}
+
+vf2_status vf2_hybrid_player_14640_compare_escape_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_14640_compare_escape(machine, cpu);
 }
 
 /* Measured collision/state fast-paths of the fa_rob fighter-exchange
@@ -5648,13 +5740,30 @@ static vf2_status hybrid_execute_player_14640(
         );
     }
     if (status == VF2_OK && r654 != 0u) {
-        /* Compare-prefix arm (v0409): `0x1464c cmpobe 0, r3` not taken, the
-         * +0x1aa/+0x62a prefix 0x14650..0x14658 runs and (with
-         * s16(+0x1aa) > s16(+0x62a)) rejoins the shared path at 0x1465c.
-         * The arm leaves ip at the 0x146c4 ret; consume it to return through
-         * the 0x14640 frame to 0x14438.  The `s16(+0x1aa) <= s16(+0x62a)`
-         * escape jump stays fail-closed inside the arm. */
-        status = hybrid_execute_player_14640_compare(machine, cpu);
+        /* Compare-prefix arms (v0409/v0410): `0x1464c cmpobe 0, r3` not
+         * taken, the +0x1aa/+0x62a prefix 0x14650..0x14658 runs.  With
+         * s16(+0x1aa) == s16(+0x62a) the `0x14658 cmpobe r13, r14` is taken
+         * to the 0x146dc escape (v0410); otherwise it rejoins the shared path
+         * at 0x1465c (v0409, only the s16(+0x1aa) > s16(+0x62a) shape). */
+        uint16_t h1aa = 0u;
+        uint16_t h62a = 0u;
+        int16_t s1aa = 0;
+        int16_t s62a = 0;
+        status = hybrid_read_u16(machine, player + UINT32_C(0x1aa), &h1aa);
+        if (status == VF2_OK) {
+            status = hybrid_read_u16(machine, player + UINT32_C(0x62a),
+                                     &h62a);
+        }
+        if (status == VF2_OK) {
+            s1aa = (int16_t)h1aa;
+            s62a = (int16_t)h62a;
+            if (s1aa == s62a) {
+                status = hybrid_execute_player_14640_compare_escape(
+                    machine, cpu);
+            } else {
+                status = hybrid_execute_player_14640_compare(machine, cpu);
+            }
+        }
         if (status == VF2_OK) {
             status = vf2_i960_cpu_return_procedure(cpu, machine);
             if (status == VF2_OK) {

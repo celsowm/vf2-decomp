@@ -468,6 +468,18 @@ vf2_status vf2_hybrid_player_14640_compare_execute_for_test(
     vf2_i960_cpu *cpu
 );
 
+/* v0410: test-only entry to the measured fa_rob compare-prefix escape arm
+ * 0x14640.  The CPU must be parked at 0x14640 with g7 the fighter base and a
+ * pushed frame; +0x198 == 0, +0x654 != 0 and s16(+0x1aa) == s16(+0x62a).  On
+ * success it lands at 0x146e8 after 10 steps / +0 call / +0 return (no
+ * walker), having stored r3 (= the +0x654 value) to +0x194(g7) and cleared
+ * +0x654(g7), leaving the 0x146e8 ret unconsumed.  Anything else is
+ * VF2_ERROR_UNSUPPORTED. */
+vf2_status vf2_hybrid_player_14640_compare_escape_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 const char *vf2_hybrid_task_kind_name(vf2_hybrid_task_kind kind);
 
 /* Recover the measured fa_coli bit-mask helper at 0x22298.

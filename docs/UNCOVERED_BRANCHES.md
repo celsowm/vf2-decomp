@@ -964,6 +964,21 @@ by `vf2_player_14640_compare_live_differential`.  The
 `s16(+0x1aa) <= s16(+0x62a)` escape jump and the compare-prefix
 state-27/state-28/bit-4-clear siblings remain explicit boundaries (see
 `decomp/i960/notes/fa_player_14640_compare_v0409.md`).
+Status (v0410): the `0x14640` compare-prefix escape arm is now native as
+the standalone `hybrid_execute_player_14640_compare_escape` (no walker,
+10 steps / +0 call / +0 return to the `0x146e8` ret).  It requires
+`+0x198 == 0`, `+0x654 != 0` (the `0x1464c cmpobe 0, r3` not taken) and
+`s16(+0x1aa) == s16(+0x62a)` (the `0x14658 cmpobe r13, r14` taken to
+`0x146dc`) on fighter g7; it stores r3 (= the `+0x654` value, distinct
+from the v0408 `+0x198` escape) to `+0x194(g7)` and clears `+0x654(g7)`,
+leaving `r15 = 0`, `r3 = +0x654`, `r13 = s16(+0x1aa)`,
+`r14 = s16(+0x62a)`.  The arm is dispatched from `hybrid_execute_player_14640`
+when `+0x654 != 0` and `s16(+0x1aa) == s16(+0x62a)` and is then wired
+through the `0x146e8` ret.  Final reference `compare_result` is EQUAL.
+Pinned by `vf2_player_14640_compare_escape_live_differential`.  The
+`s16(+0x1aa) < s16(+0x62a)` fall-through and the compare-prefix
+state-27/state-28/bit-4-clear siblings remain explicit boundaries (see
+`decomp/i960/notes/fa_player_14640_compare_escape_v0410.md`).
 
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
