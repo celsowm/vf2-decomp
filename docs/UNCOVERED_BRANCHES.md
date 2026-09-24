@@ -1198,6 +1198,14 @@ state-26/state-1 witness with exact live-state equality. Values above 31 and
 dedicated 16/27 combinations remain explicit boundaries (see
 `decomp/i960/notes/fa_player_1453c_neutral_cross_product_v0444.md`).
 
+Status (v0445): the integrated `0x1442c` row with fighter 0 state 16 and
+fighter 1 state 26 now reaches the direct state-16 type-5 body in 98
+instructions with three calls/returns and exact live-state equality. Native C
+admits the measured bounded ordinary subset (`f1=0..31` excluding 16, 24, 25
+and 27); those special successors and unmeasured state-16 rows remain
+explicit boundaries (see
+`decomp/i960/notes/fa_player_1442c_state16_ordinary_v0445.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at

@@ -7262,6 +7262,18 @@ static vf2_status hybrid_execute_player_1442c(
         cpu->ip = UINT32_C(0x00014528);
         return hybrid_execute_player_1453c(machine, cpu);
     }
+    if (b197_f0 == 16u && b197_f1 <= 31u &&
+        b197_f1 != 16u && b197_f1 != 24u &&
+        b197_f1 != 25u && b197_f1 != 27u) {
+        /* v0445: the measured integrated row reaches the direct state-16
+         * 0x14570 body for the ordinary bounded state-byte family. */
+        cpu->registers[7] = (uint32_t)b197_f0;
+        cpu->registers[8] = (uint32_t)b197_f1;
+        cpu->registers[14u] = (uint32_t)b19b_f1;
+        cpu->executed_instructions += UINT64_C(10);
+        cpu->ip = UINT32_C(0x00014528);
+        return hybrid_execute_player_1453c(machine, cpu);
+    }
     if (b197_f0 == 16u || b197_f0 == 27u ||
         b197_f1 == 16u || b197_f1 == 25u ||
         b197_f1 == 27u) {

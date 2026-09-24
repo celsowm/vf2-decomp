@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Recover integrated state-16 ordinary joins (v0445). The live `0x1442c`
+  row with fighter 0 state 16 and fighter 1 state 26 now reaches the native
+  direct `0x14570` body in 98 instructions with three calls/returns and exact
+  live-state equality. Measured special state-24/25/27 successors remain
+  fail-closed. See
+  `decomp/i960/notes/fa_player_1442c_state16_ordinary_v0445.md`.
+
 - Generalize the bounded neutral `0x14528` family (v0444). A second full
   `r7=0..31` reference row at `r8 == 1` matches the same 9-instruction exit,
   with only the dedicated state-16/state-27 rows taking the type-5 paths.

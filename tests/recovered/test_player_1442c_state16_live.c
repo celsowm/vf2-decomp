@@ -45,7 +45,8 @@ static void write_u32(vf2_model2a *m, uint32_t a, uint32_t v)
 
 static void run_case(const uint8_t *rom, size_t rom_size,
                      const uint8_t *data, size_t data_size,
-                     uint32_t board28, uint64_t expected_steps)
+                     uint32_t board28, uint8_t state1,
+                     uint64_t expected_steps, uint64_t expected_calls)
 {
     vf2_model2a rm;
     vf2_model2a nm;
@@ -98,8 +99,8 @@ static void run_case(const uint8_t *rom, size_t rom_size,
     write_u32(&nm, f1 + UINT32_C(0x194), TYPE5_INDEX);
     write_u8(&rm, f0 + UINT32_C(0x197), 16u);
     write_u8(&nm, f0 + UINT32_C(0x197), 16u);
-    write_u8(&rm, f1 + UINT32_C(0x197), 16u);
-    write_u8(&nm, f1 + UINT32_C(0x197), 16u);
+    write_u8(&rm, f1 + UINT32_C(0x197), state1);
+    write_u8(&nm, f1 + UINT32_C(0x197), state1);
     write_u32(&rm, f0 + UINT32_C(0x198), 0u);
     write_u32(&nm, f0 + UINT32_C(0x198), 0u);
     write_u32(&rm, f1 + UINT32_C(0x198), 0u);
@@ -122,8 +123,8 @@ static void run_case(const uint8_t *rom, size_t rom_size,
     }
     CHECK(rc.ip == RETURN_IP);
     CHECK(rc.executed_instructions - base_steps == expected_steps);
-    CHECK(rc.procedure_calls - base_calls == UINT64_C(3));
-    CHECK(rc.procedure_returns - base_returns == UINT64_C(3));
+    CHECK(rc.procedure_calls - base_calls == expected_calls);
+    CHECK(rc.procedure_returns - base_returns == expected_calls);
 
     status = vf2_hybrid_player_1442c_execute_for_test(&nm, &nc);
     CHECK(status == VF2_OK);
@@ -134,8 +135,8 @@ static void run_case(const uint8_t *rom, size_t rom_size,
                 (unsigned long long)expected_steps, (unsigned)board28);
         ++failures;
     }
-    CHECK(nc.procedure_calls - base_calls == UINT64_C(3));
-    CHECK(nc.procedure_returns - base_returns == UINT64_C(3));
+    CHECK(nc.procedure_calls - base_calls == expected_calls);
+    CHECK(nc.procedure_returns - base_returns == expected_calls);
     CHECK(vf2_i960_compare_live_state(&rc, &rm, &nc, &nm, &diff) == VF2_OK);
     CHECK(diff.equal);
     if (!diff.equal) {
@@ -177,8 +178,12 @@ int main(int argc, char **argv)
         CHECK(vf2_romset_build_region(argv[1], VF2_REGION_MAIN_DATA,
                                       &data, &data_size) == VF2_OK);
         if (rom != NULL && data != NULL) {
-            run_case(rom, rom_size, data, data_size, 0u, UINT64_C(100));
-            run_case(rom, rom_size, data, data_size, 1u, UINT64_C(104));
+            run_case(rom, rom_size, data, data_size,
+                     0u, 16u, UINT64_C(100), UINT64_C(3));
+            run_case(rom, rom_size, data, data_size,
+                     1u, 16u, UINT64_C(104), UINT64_C(3));
+            run_case(rom, rom_size, data, data_size,
+                     0u, 26u, UINT64_C(98), UINT64_C(3));
         }
         free(rom);
         free(data);
