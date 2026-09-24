@@ -2524,6 +2524,39 @@ static void test_coli_bitmask_22298_early_path(void) {
     CHECK(read_test_u16(&machine, fighter0 + UINT32_C(0x6dc)) ==
           UINT16_C(0xffff));
 
+    /* v0485 also measured the second 16-trip loop at 0x2233c. */
+    CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x1a4),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter1 + UINT32_C(0x1a4),
+                                UINT32_C(1) << 8u) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x61c),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, fighter1 + UINT32_C(0x821),
+                            (const uint8_t *)"\x02", 1u) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x1f8),
+                                UINT32_C(0)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x6e4),
+                                UINT32_C(1)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x0050a178),
+                                UINT32_C(1)) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x6dc), poison,
+                            sizeof(poison)) == VF2_OK);
+    vf2_i960_cpu_reset(&cpu, 0u, 0u, UINT32_C(0x00022298));
+    cpu.registers[VF2_I960_FP_REGISTER] = UINT32_C(0x005ff500);
+    cpu.registers[1] = UINT32_C(0x005ff580);
+    cpu.registers[VF2_I960_G0_REGISTER + 7u] = fighter0;
+    cpu.registers[VF2_I960_G0_REGISTER + 8u] = fighter1;
+    CHECK(vf2_i960_cpu_enter_procedure(&cpu, UINT32_C(0x00022298),
+                                       UINT32_C(0x00022214)) == VF2_OK);
+    start_instructions = cpu.executed_instructions;
+    start_returns = cpu.procedure_returns;
+    CHECK(vf2_hybrid_coli_bitmask_execute(&machine, &cpu) == VF2_OK);
+    CHECK(cpu.ip == UINT32_C(0x00022214));
+    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(145));
+    CHECK(cpu.procedure_returns - start_returns == UINT64_C(1));
+    CHECK(read_test_u16(&machine, fighter0 + UINT32_C(0x6dc)) ==
+          UINT16_C(0xffff));
+
     /* Fail-closed: the measured bit-14 shape's 4-dispatch sibling. */
     CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x6dc), poison,
                             sizeof(poison)) == VF2_OK);
@@ -2562,12 +2595,14 @@ static void test_coli_bitmask_22298_early_path(void) {
     CHECK(read_test_u16(&machine, fighter0 + UINT32_C(0x6dc)) ==
           UINT16_C(0xbeef));
 
-    /* Fail-closed: g8+0x821 in {2,5,6} (unmeasured 0x22338/0x2233c).
-     * Scan byte is read from g8, not g7. */
+    /* Fail-closed: the second loop's ordering gate is not met. Scan byte is
+     * read from g8, not g7. */
     CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x61c),
                                 UINT32_C(0)) == VF2_OK);
     CHECK(vf2_model2a_write(&machine, fighter1 + UINT32_C(0x821),
                             (const uint8_t *)"\x02", 1u) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x6e4),
+                                UINT32_C(0)) == VF2_OK);
     CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x6dc), poison,
                             sizeof(poison)) == VF2_OK);
     vf2_i960_cpu_reset(&cpu, 0u, 0u, UINT32_C(0x00022298));
