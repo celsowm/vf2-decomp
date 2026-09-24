@@ -1388,6 +1388,14 @@ compare equal in full live state; other bit16+bit13 compositions remain
 explicit boundaries (see
 `decomp/i960/notes/fa_coli_225cc_bit16_bit13_v0470.md`).
 
+Status (v0471): nine additional bit16+bit13 high-selector words are now
+native: standard selectors `0x00012800`, `0x00013000`, `0x00016000`,
+`0x00012810`, `0x00013010` and `0x00016010` match 218 instructions; bit3
+siblings `0x00012808`, `0x00013008` and `0x00016008` match 128, 126 and 126
+instructions respectively. All use `g7 + 0x1a4 = 0x00400100` and compare
+equal in full live state. Other compositions remain explicit boundaries (see
+`decomp/i960/notes/fa_coli_bit16_bit13_high_v0471.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at
