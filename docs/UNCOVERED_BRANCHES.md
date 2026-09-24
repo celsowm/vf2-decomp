@@ -2382,6 +2382,16 @@ explicit unsupported boundaries; all six newly tested threshold-3 controls
 are `0/12`. See
 `decomp/i960/notes/game_info_18644_positive_bit8_bit357_unilateral_v0515.md`.
 
+Status (v0516): the no-bit-8 positive masks `0x00000028`, `0x00000088`,
+`0x000000a0` and `0x000000a8` (nonempty measured subsets of bits 3, 5 and 7)
+are native for the complete matrices of three fighter distributions, both
+countdown values, both mode-bit-6 values and thresholds `0..2`. Each mask is
+`36/36` exact, for `144/144` exact cases together. All four use the measured
+`+2` dispatcher correction, stale frame values and countdown-derived condition.
+Threshold-3 controls remain fail-closed at `0/12` for each mask; other positive
+compositions remain explicit unsupported boundaries. See
+`decomp/i960/notes/game_info_18644_positive_bit357_v0516.md`.
+
 ### v0221 high-26 8140 low cube
 
 * `0x04008140` (high-26 + bits 6+14+15) `1→8` low cube with `-5/-3` (v0221)
