@@ -1396,6 +1396,16 @@ instructions respectively. All use `g7 + 0x1a4 = 0x00400100` and compare
 equal in full live state. Other compositions remain explicit boundaries (see
 `decomp/i960/notes/fa_coli_bit16_bit13_high_v0471.md`).
 
+Status (v0472): ten further bit16 scan-4 selectors are now native:
+`0x00014000`, `0x00014008`, `0x00014800`, `0x00015000` and `0x00015800`
+match 108, 108, 110, 108 and 110 instructions; `0x00016800`,
+`0x00017000` and `0x00017800` match 218 instructions; and the bit-15
+siblings `0x0001d000` and `0x0001f000` match 107 and 217 instructions.
+The measured three-instruction direct-tail corrections and `g0 = 0xee`
+propagation are retained only for the measured words. Other compositions
+remain explicit boundaries (see
+`decomp/i960/notes/fa_coli_bit16_bit13_high_v0472.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at
