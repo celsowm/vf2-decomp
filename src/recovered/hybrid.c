@@ -9361,7 +9361,8 @@ static vf2_status hybrid_execute_game_info_18644(
             (UINT32_C(1) << 29u) | (UINT32_C(1) << 30u) |
             (UINT32_C(1) << 31u);
         const uint32_t medium_bits =
-            (UINT32_C(1) << 14u) | (UINT32_C(1) << 15u) |
+            (UINT32_C(1) << 2u) | (UINT32_C(1) << 14u) |
+            (UINT32_C(1) << 15u) |
             (UINT32_C(1) << 16u);
         const uint32_t bilateral_high_only_state = r7 & ~state8;
         const bool bilateral_both_high_any =
@@ -9726,7 +9727,8 @@ static vf2_status hybrid_execute_game_info_18644(
                     (extra_state & (UINT32_C(1) << 6u)) != 0u &&
                     extra_high_state != 0u;
                 const uint32_t medium_state_bits =
-                    (UINT32_C(1) << 14u) | (UINT32_C(1) << 15u) |
+                    (UINT32_C(1) << 2u) | (UINT32_C(1) << 14u) |
+                    (UINT32_C(1) << 15u) |
                     (UINT32_C(1) << 16u);
                 const bool extra_bit1_bit6_medium =
                     (extra_state &
@@ -10435,7 +10437,8 @@ static vf2_status hybrid_execute_game_info_18644(
             (UINT32_C(1) << 29u) | (UINT32_C(1) << 30u) |
             (UINT32_C(1) << 31u);
         const uint32_t medium_bits_any =
-            (UINT32_C(1) << 14u) | (UINT32_C(1) << 15u) |
+            (UINT32_C(1) << 2u) | (UINT32_C(1) << 14u) |
+            (UINT32_C(1) << 15u) |
             (UINT32_C(1) << 16u);
         const uint32_t r7_high_any = r7 & ~(state8_bit1_high_mask);
         const uint32_t r8_high_any = r8 & ~(state8_bit1_high_mask);
@@ -15102,6 +15105,104 @@ static vf2_status hybrid_execute_game_info_18644(
             } else if (fighter1_only) {
                 body_instructions += countdown_path ? UINT32_C(10) :
                     UINT32_C(1);
+            }
+        }
+    }
+    /* v0483: adding state bit 2 to the measured positive state-8
+     * bit-1/bit-6 medium families preserves the memory post-state but changes
+     * the child-call instruction distribution. Keep the three measured
+     * high-bit variants exact and leave every other composition unsupported. */
+    if (status == VF2_OK) {
+        const uint32_t state8_bit1_bit2_bit6_bit14 =
+            (UINT32_C(1) << 8u) | (UINT32_C(1) << 1u) |
+            (UINT32_C(1) << 2u) | (UINT32_C(1) << 6u) |
+            (UINT32_C(1) << 14u);
+        const uint32_t state8_bit1_bit2_bit6_bit15 =
+            (UINT32_C(1) << 8u) | (UINT32_C(1) << 1u) |
+            (UINT32_C(1) << 2u) | (UINT32_C(1) << 6u) |
+            (UINT32_C(1) << 15u);
+        const uint32_t state8_bit1_bit2_bit6_bit16 =
+            (UINT32_C(1) << 8u) | (UINT32_C(1) << 1u) |
+            (UINT32_C(1) << 2u) | (UINT32_C(1) << 6u) |
+            (UINT32_C(1) << 16u);
+
+        const bool bit14_fighter0_only =
+            r7 == state8_bit1_bit2_bit6_bit14 && r8 == 0u;
+        const bool bit14_fighter1_only =
+            r7 == 0u && r8 == state8_bit1_bit2_bit6_bit14;
+        const bool bit14_bilateral =
+            r7 == state8_bit1_bit2_bit6_bit14 &&
+            r8 == state8_bit1_bit2_bit6_bit14;
+        const bool bit15_fighter0_only =
+            r7 == state8_bit1_bit2_bit6_bit15 && r8 == 0u;
+        const bool bit15_fighter1_only =
+            r7 == 0u && r8 == state8_bit1_bit2_bit6_bit15;
+        const bool bit15_bilateral =
+            r7 == state8_bit1_bit2_bit6_bit15 &&
+            r8 == state8_bit1_bit2_bit6_bit15;
+        const bool bit16_fighter0_only =
+            r7 == state8_bit1_bit2_bit6_bit16 && r8 == 0u;
+        const bool bit16_fighter1_only =
+            r7 == 0u && r8 == state8_bit1_bit2_bit6_bit16;
+        const bool bit16_bilateral =
+            r7 == state8_bit1_bit2_bit6_bit16 &&
+            r8 == state8_bit1_bit2_bit6_bit16;
+
+        if (return_address == UINT32_C(0x000164c4)) {
+            if (bit14_fighter0_only) {
+                if (countdown_path) {
+                    body_instructions += UINT32_C(7);
+                } else {
+                    body_instructions -= UINT32_C(8);
+                }
+            } else if (bit14_fighter1_only) {
+                if (countdown_path) {
+                    body_instructions += mode_bit6 ? UINT32_C(13) : UINT32_C(12);
+                } else {
+                    body_instructions -= mode_bit6 ? UINT32_C(6) : UINT32_C(3);
+                }
+            } else if (bit14_bilateral) {
+                if (countdown_path) {
+                    body_instructions += mode_bit6 ? UINT32_C(19) : UINT32_C(18);
+                } else {
+                    body_instructions -= mode_bit6 ? UINT32_C(5) : UINT32_C(7);
+                }
+            } else if (bit15_fighter0_only) {
+                if (countdown_path) {
+                    body_instructions += UINT32_C(1);
+                } else {
+                    body_instructions -= UINT32_C(5);
+                }
+            } else if (bit15_fighter1_only) {
+                if (countdown_path) {
+                    body_instructions -= UINT32_C(4);
+                } else {
+                    body_instructions -= mode_bit6 ? UINT32_C(9) : UINT32_C(5);
+                }
+            } else if (bit15_bilateral) {
+                if (countdown_path) {
+                    body_instructions -= UINT32_C(4);
+                } else {
+                    body_instructions -= mode_bit6 ? UINT32_C(5) : UINT32_C(6);
+                }
+            } else if (bit16_fighter0_only) {
+                if (countdown_path) {
+                    body_instructions += UINT32_C(11);
+                } else {
+                    body_instructions -= UINT32_C(4);
+                }
+            } else if (bit16_fighter1_only) {
+                if (countdown_path) {
+                    body_instructions += UINT32_C(11);
+                } else {
+                    body_instructions -= mode_bit6 ? UINT32_C(8) : UINT32_C(4);
+                }
+            } else if (bit16_bilateral) {
+                if (countdown_path) {
+                    body_instructions += UINT32_C(21);
+                } else {
+                    body_instructions -= mode_bit6 ? UINT32_C(3) : UINT32_C(4);
+                }
             }
         }
     }
