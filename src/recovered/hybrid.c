@@ -16195,7 +16195,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
     bool native_state8_bit4_bit8_positive_path = false;
     bool native_state8_bit2_bit4_bit8_positive_path = false;
     bool native_state8_bit8_low_family_positive_path = false;
-    bool native_state8_bit3_bit8_positive_path = false;
+    bool native_state8_bit3_bit5_bit7_bit8_positive_path = false;
     bool native_state4_bit15_fighter_path = false;
     bool native_state4_bit15_bit16_fighter_path = false;
     bool native_state4_bit6_bit15_fighter_path = false;
@@ -16615,10 +16615,16 @@ static vf2_status hybrid_execute_game_info_bit31_native(
              combined_state8_flags == UINT32_C(0x00000112) ||
              combined_state8_flags == UINT32_C(0x00000116)) &&
             shared_fighter_threshold <= UINT32_C(2);
-        native_state8_bit3_bit8_positive_path =
+        native_state8_bit3_bit5_bit7_bit8_positive_path =
             fighter0_state == 8u && fighter1_state == 8u &&
             measured_matrix_distribution &&
-            combined_state8_flags == UINT32_C(0x00000108) &&
+            (combined_state8_flags == UINT32_C(0x00000108) ||
+             combined_state8_flags == UINT32_C(0x00000120) ||
+             combined_state8_flags == UINT32_C(0x00000128) ||
+             combined_state8_flags == UINT32_C(0x00000180) ||
+             combined_state8_flags == UINT32_C(0x00000188) ||
+             combined_state8_flags == UINT32_C(0x000001a0) ||
+             combined_state8_flags == UINT32_C(0x000001a8)) &&
             shared_fighter_threshold <= UINT32_C(2);
     }
     /* State-4 oracle fixtures set +0xa00 to 4 for both fighters.
@@ -17269,7 +17275,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
          native_state8_bit4_bit8_positive_path ||
          native_state8_bit2_bit4_bit8_positive_path ||
          native_state8_bit8_low_family_positive_path ||
-         native_state8_bit3_bit8_positive_path)) {
+         native_state8_bit3_bit5_bit7_bit8_positive_path)) {
         status = vf2_model2a_read_u32(
             machine, UINT32_C(0x0050016c), &mode_base
         );
@@ -20697,9 +20703,10 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             stale->registers[7] = UINT32_C(0x41000000);
         }
     }
-    if (native_state8_bit3_bit8_positive_path) {
-        /* v0514 probe: the unilateral, mode-bit-6-clear 0x108 cases are
-         * exact after a distribution-independent dispatcher correction.
+    if (native_state8_bit3_bit5_bit7_bit8_positive_path) {
+        /* v0514/v0515 probe: the unilateral, mode-bit-6-clear masks in the
+         * measured bit8 plus bit3/bit5/bit7 family are exact after a
+         * distribution-independent dispatcher correction.
          * Keep the mode-bit-6 and bilateral child branches fail-closed until
          * their separate ROM paths are measured. */
         const bool unilateral =

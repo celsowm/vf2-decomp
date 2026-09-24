@@ -2372,6 +2372,16 @@ and threshold-3 cases remain explicit unsupported controls (`0/12` for the
 threshold-3 matrix). See
 `decomp/i960/notes/game_info_18644_positive_bit3_bit8_unilateral_v0514.md`.
 
+Status (v0515): the measured unilateral, mode-bit-6-clear slice now covers
+the seven masks `0x00000108`, `0x00000120`, `0x00000128`, `0x00000180`,
+`0x00000188`, `0x000001a0` and `0x000001a8` (bit 8 plus any nonempty subset of
+bits 3, 5 and 7). Each mask is `12/12` exact for countdown `0/1` and
+thresholds `0..2`, for `84/84` exact cases together. The shared correction is
+−9 at zero countdown and +2 otherwise. Bilateral and mode-bit-6 cases remain
+explicit unsupported boundaries; all six newly tested threshold-3 controls
+are `0/12`. See
+`decomp/i960/notes/game_info_18644_positive_bit8_bit357_unilateral_v0515.md`.
+
 ### v0221 high-26 8140 low cube
 
 * `0x04008140` (high-26 + bits 6+14+15) `1→8` low cube with `-5/-3` (v0221)
