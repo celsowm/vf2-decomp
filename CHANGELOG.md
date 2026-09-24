@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Recover the measured `fa_rob` `0x14640` signed-less compare-prefix sibling
+  (v0412).  For `+0x198 == 0`, `+0x654 != 0`, signed
+  `+0x1aa < +0x62a`, neutral `+0x197`, bit 4 clear and `+0x194 == 0`, the
+  native path reaches `0x146d8` in 14 instructions, leaves `+0x654` intact
+  and matches the final EQUAL condition state.  The new
+  `vf2_player_14640_compare_less_live` fixture proves full live-state
+  equality, and dispatch now selects this sibling for the measured less-than
+  case.  Other less-than compositions remain fail-closed.  See
+  `decomp/i960/notes/fa_player_14640_compare_less_v0412.md`.
+
+- Recover the measured `fa_rob` state-13 neutral tail at `0x14640` (v0411),
+  including its 14-instruction path to `0x146d8`, `+0x654` clear and final
+  LESS condition state.  The ROM-backed
+  `vf2_player_14640_state13_live` fixture proves full live-state equality.
+  See `decomp/i960/notes/fa_player_14640_state13_v0411.md`.
+
 - Recover the fa_rob compare-prefix escape arm `0x14640` (v0410), reached
   when fighter g7 has `+0x198 == 0` and `+0x654 != 0` (the `0x1464c
   cmpobe 0, r3` not taken, running the `+0x1aa`/`+0x62a` compare prefix

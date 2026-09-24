@@ -1459,6 +1459,23 @@ continuation (`0x7fc0`, `0x9444`) is unrecovered, and wiring
 without it would strand the caller.
 See `decomp/i960/notes/fa_coli_dmovt_v0344A.md`.
 
+The `fa_rob` helper at `0x14640` now also admits the measured signed-less
+compare-prefix neutral tail: `+0x198 == 0`, `+0x654 != 0`,
+`s16(+0x1aa) < s16(+0x62a)`, neutral `+0x197`, bit 4 clear and
+`+0x194 == 0`. This path is exact through `0x146d8` (14 instructions,
+no calls/returns) and leaves the `+0x654` value unchanged. Other less-than
+compositions and the remaining `0x14640` state/flag siblings remain explicit
+boundaries. See
+`decomp/i960/notes/fa_player_14640_compare_less_v0412.md`.
+
+The measured state-13 neutral tail at the same helper is also native when
+`+0x198 == 0`, `+0x654 == 0`, `+0x197 == 13` and bit 4 is set. It reaches
+`0x146d8` in 14 instructions, clears `+0x654` and preserves the final LESS
+condition state. The ROM-backed `vf2_player_14640_state13_live` fixture pins
+the complete live state; other state-byte and flag siblings remain explicit
+boundaries. See
+`decomp/i960/notes/fa_player_14640_state13_v0411.md`.
+
 ## 3. Camera
 
 The startup and recurring camera corridor plus the validated optional viewport
@@ -2210,4 +2227,3 @@ unsupported pending COBR-CC recalibration (v0358). Endurance MATCH is
 observed through dispatch **10675** on this MSVC Debug build. See
 `decomp/i960/notes/close_open_v0352.md` and
 `decomp/i960/notes/player_270d4_slot_pin_v0358.md`.
-

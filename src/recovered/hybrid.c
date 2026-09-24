@@ -5688,6 +5688,170 @@ vf2_status vf2_hybrid_player_14640_compare_escape_execute_for_test(
     return hybrid_execute_player_14640_compare_escape(machine, cpu);
 }
 
+/* Measured less-than sibling of the fa_rob compare-prefix helper (v0412).
+ * The signed +0x1aa/+0x62a comparison falls through to the shared state tail.
+ * This admitted witness has a neutral state byte, bit 4 clear and a zero
+ * +0x194, so 0x146b4 branches to 0x146c8 and the final cmpobe 0,r14 takes
+ * the 0x146d8 return. */
+static vf2_status hybrid_execute_player_14640_compare_less(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    const uint32_t g7 = cpu != NULL
+        ? cpu->registers[VF2_I960_G0_REGISTER + 7u] : 0u;
+    uint32_t r198 = 0u;
+    uint32_t r654 = 0u;
+    uint32_t r194 = 0u;
+    uint32_t flags = 0u;
+    uint8_t r197 = 0u;
+    uint16_t h1aa = 0u;
+    uint16_t h62a = 0u;
+    vf2_status status = VF2_OK;
+
+    if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x00014640) ||
+        cpu->local_frame_depth == 0u || g7 == 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    status = vf2_model2a_read_u32(machine, g7 + UINT32_C(0x198), &r198);
+    if (status == VF2_OK) {
+        status = vf2_model2a_read_u32(machine, g7 + UINT32_C(0x654), &r654);
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_read_u32(machine, g7 + UINT32_C(0x194), &r194);
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_read_u32(machine, g7, &flags);
+    }
+    if (status == VF2_OK) {
+        status = hybrid_read_u8(machine, g7 + UINT32_C(0x197), &r197);
+    }
+    if (status == VF2_OK) {
+        status = hybrid_read_u16(machine, g7 + UINT32_C(0x1aa), &h1aa);
+    }
+    if (status == VF2_OK) {
+        status = hybrid_read_u16(machine, g7 + UINT32_C(0x62a), &h62a);
+    }
+    if (status != VF2_OK) {
+        return status;
+    }
+    if (r198 != 0u || r654 == 0u || r194 != 0u ||
+        r197 == 27u || r197 == 28u || r197 == 13u ||
+        (flags & (UINT32_C(1) << 4u)) != 0u ||
+        (int16_t)h1aa >= (int16_t)h62a) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    /* 0x14650/0x14654 loads, shared neutral tail, and 0x146c8 load. */
+    cpu->registers[13u] = (uint32_t)(int32_t)(int16_t)h1aa;
+    cpu->registers[14u] = 0u;
+    cpu->registers[3] = (uint32_t)r197;
+    cpu->registers[15u] = flags;
+    /* `cmpobe 0,r14` at 0x146cc is taken; it is the final condition writer. */
+    hybrid_set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
+    cpu->executed_instructions += UINT64_C(14);
+    cpu->ip = UINT32_C(0x000146d8);
+    return VF2_OK;
+}
+
+vf2_status vf2_hybrid_player_14640_compare_less_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_14640_compare_less(machine, cpu);
+}
+
+/* Measured state-13 neutral-tail arm of the fa_rob fighter-exchange helper
+ * 0x14640 (v0411).  Entered at 0x14640 when fighter g7 has +0x198 == 0,
+ * +0x654 == 0, +0x197 == 13 (so the `0x14660 cmpobne 27, r3` and the
+ * `0x1469c cmpobne 28, r3` are both taken, and the `0x146b8 cmpobe 13, r3`
+ * IS taken to 0x146c8) and bit 4 of (g7) SET (so the `0x146b4 bbc 4, r15`
+ * is not taken).  The 0x146c8 neutral tail then runs with +0x194(g7) != 0
+ * (because +0x197 == 13 forces the high byte of the +0x194 u32), so the
+ * `0x146cc cmpobe 0, r14` is not taken, and the sibling clears +0x654(g7):
+ * `0x146c8 ld +0x194(g7), r14 ; 0x146d0 mov 0, r15 ; 0x146d4 st r15,
+ * +0x654(g7)`.  Leaves r3 = +0x197 (13), r14 = +0x194 (unchanged), r15 = 0.
+ * No walker.  The span from 0x14640 to the 0x146d8 ret is 14 instructions
+ * with +0 call / +0 return; the ret at 0x146d8 is not consumed here.  Other
+ * +0x197 values or bit 4 clear stay fail-closed. */
+static vf2_status hybrid_execute_player_14640_state13(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    const uint32_t g7 = cpu != NULL
+        ? cpu->registers[VF2_I960_G0_REGISTER + 7u] : 0u;
+    uint32_t r198 = 0u;
+    uint32_t r654 = 0u;
+    uint32_t flags = 0u;
+    uint32_t r194 = 0u;
+    uint8_t r197 = 0u;
+    vf2_status status = VF2_OK;
+
+    if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x00014640) ||
+        cpu->local_frame_depth == 0u || g7 == 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    status = vf2_model2a_read_u32(machine, g7 + UINT32_C(0x198), &r198);
+    if (status == VF2_OK && r198 != 0u) {
+        status = VF2_ERROR_UNSUPPORTED;
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_read_u32(machine, g7 + UINT32_C(0x654), &r654);
+    }
+    if (status == VF2_OK && r654 != 0u) {
+        status = VF2_ERROR_UNSUPPORTED;
+    }
+    if (status == VF2_OK) {
+        status = hybrid_read_u8(machine, g7 + UINT32_C(0x197), &r197);
+    }
+    if (status == VF2_OK && r197 != 13u) {
+        status = VF2_ERROR_UNSUPPORTED;
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_read_u32(machine, g7, &flags);
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_read_u32(machine, g7 + UINT32_C(0x194), &r194);
+    }
+    if (status != VF2_OK) {
+        return status;
+    }
+    if ((flags & (UINT32_C(1) << 4u)) == 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    /* 0x1465c ldob +0x197(g7), r3 ; 0x14660/0x1469c cmpobne (not 27/28) ;
+     * 0x146b0 ld (g7), r15 ; 0x146b4 bbc 4 not taken ; 0x146b8 cmpobe 13, r3
+     * taken to 0x146c8.  r3 = +0x197 (13). */
+    cpu->registers[3] = (uint32_t)r197;
+    /* 0x146c8 ld +0x194(g7), r14. */
+    cpu->registers[14u] = r194;
+    /* 0x146cc cmpobe 0, r14 not taken (r14 != 0) ; 0x146d0 mov 0, r15 ;
+     * 0x146d4 st r15, +0x654(g7). */
+    cpu->registers[15] = 0u;
+    status = vf2_model2a_write_u32(machine, g7 + UINT32_C(0x654), 0u);
+    if (status != VF2_OK) {
+        return status;
+    }
+    /* The following `cmpobe 0, r14` at 0x146cc is not taken because the
+     * state-13-derived +0x194 value is non-zero; it is the final condition
+     * writer and compares 0 against r14, yielding LESS. */
+    hybrid_set_compare_result(cpu, VF2_I960_COMPARE_LESS);
+    cpu->executed_instructions += UINT64_C(14);
+    cpu->ip = UINT32_C(0x000146d8);
+    return VF2_OK;
+}
+
+vf2_status vf2_hybrid_player_14640_state13_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_14640_state13(machine, cpu);
+}
+
 /* Measured collision/state fast-paths of the fa_rob fighter-exchange
  * helper 0x14640 (v0393).  It is called twice from the 0x1442c body with
  * swapped g7/g8 (fighter0 then fighter1).  On the accepted live shape the
@@ -5760,6 +5924,8 @@ static vf2_status hybrid_execute_player_14640(
             if (s1aa == s62a) {
                 status = hybrid_execute_player_14640_compare_escape(
                     machine, cpu);
+            } else if (s1aa < s62a) {
+                status = hybrid_execute_player_14640_compare_less(machine, cpu);
             } else {
                 status = hybrid_execute_player_14640_compare(machine, cpu);
             }
@@ -5807,11 +5973,13 @@ static vf2_status hybrid_execute_player_14640(
     if (status == VF2_OK && (flags & (UINT32_C(1) << 4u)) != 0u) {
         /* Bit-4-set neutral arm (v0407): `0x146b0 bbc 4, r15` not taken.
          * With r3 (= +0x197) != 13 the arm clears +0x194(g7) and lands at
-         * the 0x146c4 ret.  r3 == 13 takes the 0x146c8 tail instead. */
+         * the 0x146c4 ret.  r3 == 13 takes the 0x146c8 neutral tail instead
+         * (v0411), clearing +0x654(g7) and landing at the 0x146d8 ret. */
         if (r197 == 13u) {
-            return VF2_ERROR_UNSUPPORTED;
+            status = hybrid_execute_player_14640_state13(machine, cpu);
+        } else {
+            status = hybrid_execute_player_14640_bit4set(machine, cpu);
         }
-        status = hybrid_execute_player_14640_bit4set(machine, cpu);
         if (status == VF2_OK) {
             status = vf2_i960_cpu_return_procedure(cpu, machine);
             if (status == VF2_OK) {
