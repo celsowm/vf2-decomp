@@ -1328,6 +1328,13 @@ matches 107 instructions with full live-state equality. Other bit-3 words
 remain explicit boundaries (see
 `decomp/i960/notes/fa_coli_225cc_bit16_bit15_bit3_v0462.md`).
 
+Status (v0463): the exact bit-13 sibling `g8 + 0x1a4 = 0x0001a000` is now
+native on scan 4 with `g7 + 0x1a4 = 0x00400100`. It follows the measured
+bit-13 `0x22744`/`0x22808`/`0x22848` route and matches 217 instructions with
+full live-state equality, including final `g0 = 0x000000ee`. Other bit-13
+compositions remain explicit boundaries (see
+`decomp/i960/notes/fa_coli_225cc_bit16_bit15_bit13_v0463.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at

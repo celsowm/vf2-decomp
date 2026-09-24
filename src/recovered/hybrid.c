@@ -22200,6 +22200,7 @@ static vf2_status coli_225cc_body(
                  flags_g8 == UINT32_C(0x00018001) ||
                  flags_g8 == UINT32_C(0x00018002) ||
                  flags_g8 == UINT32_C(0x00018008) ||
+                 flags_g8 == UINT32_C(0x0001a000) ||
                  flags_g8 == UINT32_C(0x00018020) ||
                  flags_g8 == UINT32_C(0x00018040) ||
                  flags_g8 == UINT32_C(0x00018080) ||
@@ -24087,6 +24088,7 @@ static vf2_status coli_225cc_long_body(
                 flags_g8 == UINT32_C(0x00018001) ||
                 flags_g8 == UINT32_C(0x00018002) ||
                 flags_g8 == UINT32_C(0x00018008) ||
+                flags_g8 == UINT32_C(0x0001a000) ||
                 flags_g8 == UINT32_C(0x00018020) ||
                 flags_g8 == UINT32_C(0x00018040) ||
                 flags_g8 == UINT32_C(0x00018080) ||
@@ -24125,7 +24127,7 @@ static vf2_status coli_225cc_long_body(
                 flags_g8 == UINT32_C(0x00019815) ||
                 flags_g8 == UINT32_C(0x0001c000) ||
                 flags_g8 == UINT32_C(0x00038000))) {
-        /* v0456-v0462: bbs 15 skips the bbc-16 edge before the scan-4
+        /* v0456-v0463: bbs 15 skips the bbc-16 edge before the scan-4
          * compare. The exact words below are independently measured. */
         body += UINT64_C(3); /* cmpibne + bbs15 + cmpibne4 */
     } else {
@@ -25796,6 +25798,11 @@ coli_22bc0_common:
          * accounting; full live-state equality and the 217-step reference
          * count pin this correction. */
         body -= UINT64_C(7);
+    }
+    if (g0_out != NULL && flags_g8 == UINT32_C(0x0001a000)) {
+        /* v0463: the bit-13 scan-4 route leaves the measured 0x230d4/
+         * 0x23238 result visible in g0 at the procedure return. */
+        *g0_out = g0;
     }
     *body_out = body;
     return VF2_OK;
