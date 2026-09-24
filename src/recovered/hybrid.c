@@ -22201,6 +22201,14 @@ static vf2_status coli_225cc_body(
                  flags_g8 == UINT32_C(0x00018002) ||
                  flags_g8 == UINT32_C(0x00018008) ||
                  flags_g8 == UINT32_C(0x0001a000) ||
+                 flags_g8 == UINT32_C(0x0001a001) ||
+                 flags_g8 == UINT32_C(0x0001a004) ||
+                 flags_g8 == UINT32_C(0x0001a010) ||
+                 flags_g8 == UINT32_C(0x0001a020) ||
+                 flags_g8 == UINT32_C(0x0001a040) ||
+                 flags_g8 == UINT32_C(0x0001a080) ||
+                 flags_g8 == UINT32_C(0x0001a200) ||
+                 flags_g8 == UINT32_C(0x0001a400) ||
                  flags_g8 == UINT32_C(0x00018020) ||
                  flags_g8 == UINT32_C(0x00018040) ||
                  flags_g8 == UINT32_C(0x00018080) ||
@@ -24089,6 +24097,14 @@ static vf2_status coli_225cc_long_body(
                 flags_g8 == UINT32_C(0x00018002) ||
                 flags_g8 == UINT32_C(0x00018008) ||
                 flags_g8 == UINT32_C(0x0001a000) ||
+                flags_g8 == UINT32_C(0x0001a001) ||
+                flags_g8 == UINT32_C(0x0001a004) ||
+                flags_g8 == UINT32_C(0x0001a010) ||
+                flags_g8 == UINT32_C(0x0001a020) ||
+                flags_g8 == UINT32_C(0x0001a040) ||
+                flags_g8 == UINT32_C(0x0001a080) ||
+                flags_g8 == UINT32_C(0x0001a200) ||
+                flags_g8 == UINT32_C(0x0001a400) ||
                 flags_g8 == UINT32_C(0x00018020) ||
                 flags_g8 == UINT32_C(0x00018040) ||
                 flags_g8 == UINT32_C(0x00018080) ||
@@ -24127,7 +24143,7 @@ static vf2_status coli_225cc_long_body(
                 flags_g8 == UINT32_C(0x00019815) ||
                 flags_g8 == UINT32_C(0x0001c000) ||
                 flags_g8 == UINT32_C(0x00038000))) {
-        /* v0456-v0463: bbs 15 skips the bbc-16 edge before the scan-4
+        /* v0456-v0464: bbs 15 skips the bbc-16 edge before the scan-4
          * compare. The exact words below are independently measured. */
         body += UINT64_C(3); /* cmpibne + bbs15 + cmpibne4 */
     } else {
@@ -25799,7 +25815,16 @@ coli_22bc0_common:
          * count pin this correction. */
         body -= UINT64_C(7);
     }
-    if (g0_out != NULL && flags_g8 == UINT32_C(0x0001a000)) {
+    if (g0_out != NULL &&
+        (flags_g8 == UINT32_C(0x0001a000) ||
+         flags_g8 == UINT32_C(0x0001a001) ||
+         flags_g8 == UINT32_C(0x0001a004) ||
+         flags_g8 == UINT32_C(0x0001a010) ||
+         flags_g8 == UINT32_C(0x0001a020) ||
+         flags_g8 == UINT32_C(0x0001a040) ||
+         flags_g8 == UINT32_C(0x0001a080) ||
+         flags_g8 == UINT32_C(0x0001a200) ||
+         flags_g8 == UINT32_C(0x0001a400))) {
         /* v0463: the bit-13 scan-4 route leaves the measured 0x230d4/
          * 0x23238 result visible in g0 at the procedure return. */
         *g0_out = g0;
