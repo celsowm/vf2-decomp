@@ -16188,6 +16188,8 @@ static vf2_status hybrid_execute_game_info_bit31_native(
     bool native_state8_bit1_bit2_positive_path = false;
     bool native_state8_bit4_positive_path = false;
     bool native_state8_bit8_positive_path = false;
+    bool native_state8_bit1_bit2_pair_positive_path = false;
+    bool native_state8_bit1_bit4_pair_positive_path = false;
     bool native_state4_bit15_fighter_path = false;
     bool native_state4_bit15_bit16_fighter_path = false;
     bool native_state4_bit6_bit15_fighter_path = false;
@@ -16569,6 +16571,16 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             fighter0_state == 8u && fighter1_state == 8u &&
             measured_matrix_distribution &&
             combined_state8_flags == (UINT32_C(1) << 8u) &&
+            shared_fighter_threshold <= UINT32_C(2);
+        native_state8_bit1_bit2_pair_positive_path =
+            fighter0_state == 8u && fighter1_state == 8u &&
+            measured_matrix_distribution &&
+            combined_state8_flags == UINT32_C(0x00000006) &&
+            shared_fighter_threshold <= UINT32_C(2);
+        native_state8_bit1_bit4_pair_positive_path =
+            fighter0_state == 8u && fighter1_state == 8u &&
+            measured_matrix_distribution &&
+            combined_state8_flags == UINT32_C(0x00000012) &&
             shared_fighter_threshold <= UINT32_C(2);
     }
     /* State-4 oracle fixtures set +0xa00 to 4 for both fighters.
@@ -17211,7 +17223,9 @@ static vf2_status hybrid_execute_game_info_bit31_native(
          native_state8_compound21_family_fighter_path ||
          native_state8_bit6_bit14_bit15_high21_fighter_path ||
          native_state8_bit4_positive_path ||
-         native_state8_bit8_positive_path)) {
+         native_state8_bit8_positive_path ||
+         native_state8_bit1_bit2_pair_positive_path ||
+         native_state8_bit1_bit4_pair_positive_path)) {
         status = vf2_model2a_read_u32(
             machine, UINT32_C(0x0050016c), &mode_base
         );
@@ -20392,6 +20406,33 @@ static vf2_status hybrid_execute_game_info_bit31_native(
                    (mode_value & (UINT8_C(1) << 6u)) != 0u &&
                    !countdown_was_nonzero) {
             native_instructions += UINT64_C(1);
+        } else {
+            native_instructions += UINT64_C(2);
+        }
+        hybrid_set_compare_result(
+            cpu, countdown_was_nonzero
+                ? VF2_I960_COMPARE_LESS : VF2_I960_COMPARE_EQUAL
+        );
+        if (cpu->local_frame_depth + 1u < VF2_I960_MAX_LOCAL_FRAMES) {
+            vf2_i960_local_frame *stale =
+                &cpu->local_frames[cpu->local_frame_depth + 1u];
+            stale->registers[3] = UINT32_C(0x41000000);
+            stale->registers[4] = UINT32_C(0x07800f0f);
+            stale->registers[7] = UINT32_C(0x41000000);
+        }
+    }
+    if (native_state8_bit1_bit2_pair_positive_path ||
+        native_state8_bit1_bit4_pair_positive_path) {
+        /* v0509: the measured low-bit pair joins share the stale frame and
+         * condition correction. Mask 0x6 is uniformly two instructions
+         * short; mask 0x12 is three short at zero countdown and two short
+         * otherwise. */
+        if (native_state8_bit1_bit4_pair_positive_path &&
+            !countdown_was_nonzero) {
+            if (native_instructions < UINT64_C(3)) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+            native_instructions -= UINT64_C(3);
         } else {
             native_instructions += UINT64_C(2);
         }
