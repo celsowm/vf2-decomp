@@ -22202,6 +22202,10 @@ static vf2_status coli_225cc_body(
                  flags_g8 == UINT32_C(0x00018008) ||
                  flags_g8 == UINT32_C(0x0001a000) ||
                  flags_g8 == UINT32_C(0x0001a008) ||
+                 flags_g8 == UINT32_C(0x0001a108) ||
+                 flags_g8 == UINT32_C(0x0001a808) ||
+                 flags_g8 == UINT32_C(0x0001b008) ||
+                 flags_g8 == UINT32_C(0x0001e008) ||
                  flags_g8 == UINT32_C(0x0001a100) ||
                  flags_g8 == UINT32_C(0x0001a800) ||
                  flags_g8 == UINT32_C(0x0001b000) ||
@@ -22322,8 +22326,12 @@ static vf2_status coli_225cc_body(
          (flags_g8 & ((UINT32_C(1) << 15u) | (UINT32_C(1) << 16u))) == 0u) ||
         (scan_byte == UINT8_C(4) &&
          (flags_g8 == UINT32_C(0x00018008) ||
-          flags_g8 == UINT32_C(0x0001a008)))) {
-        /* v0462/v0465: the measured bit-3 scan-4 words take the long body
+          flags_g8 == UINT32_C(0x0001a008) ||
+          flags_g8 == UINT32_C(0x0001a108) ||
+          flags_g8 == UINT32_C(0x0001a808) ||
+          flags_g8 == UINT32_C(0x0001b008) ||
+          flags_g8 == UINT32_C(0x0001e008)))) {
+        /* v0462/v0465/v0467: the measured bit-3 scan-4 words take the long body
          * through the same bbs-15/direct g0=5 route. */
         uint64_t long_body = 0u;
         uint64_t lcalls = UINT64_C(4);
@@ -24104,6 +24112,10 @@ static vf2_status coli_225cc_long_body(
                 flags_g8 == UINT32_C(0x00018008) ||
                 flags_g8 == UINT32_C(0x0001a000) ||
                 flags_g8 == UINT32_C(0x0001a008) ||
+                flags_g8 == UINT32_C(0x0001a108) ||
+                flags_g8 == UINT32_C(0x0001a808) ||
+                flags_g8 == UINT32_C(0x0001b008) ||
+                flags_g8 == UINT32_C(0x0001e008) ||
                 flags_g8 == UINT32_C(0x0001a100) ||
                 flags_g8 == UINT32_C(0x0001a800) ||
                 flags_g8 == UINT32_C(0x0001b000) ||
@@ -24154,7 +24166,7 @@ static vf2_status coli_225cc_long_body(
                 flags_g8 == UINT32_C(0x00019815) ||
                 flags_g8 == UINT32_C(0x0001c000) ||
                 flags_g8 == UINT32_C(0x00038000))) {
-        /* v0456-v0466: bbs 15 skips the bbc-16 edge before the scan-4
+        /* v0456-v0467: bbs 15 skips the bbc-16 edge before the scan-4
          * compare. The exact words below are independently measured. */
         body += UINT64_C(3); /* cmpibne + bbs15 + cmpibne4 */
     } else {
@@ -24905,12 +24917,13 @@ bit13_skip:
         body += UINT64_C(1); /* bbc 6 taken */
         /* 0x22a28: bbc 8, g8+0x1a4 → 0x22a54 when bit 8 clear. */
         if ((flags_g8 & (UINT32_C(1) << 8u)) != 0u) {
-            if (flags_g8 != UINT32_C(0x00018100)) {
+            if (flags_g8 != UINT32_C(0x00018100) &&
+                flags_g8 != UINT32_C(0x0001a108)) {
                 return VF2_ERROR_UNSUPPORTED;
             }
-            /* v0461: bit 8 selects the compact 0x22a28 -> 0x22bc0
-             * route. The measured word scales r11, selects r8=3 and
-             * stores 0x14000004 before joining the common 0x22bc0 tail. */
+            /* v0461/v0467: bit 8 selects the compact 0x22a28 -> 0x22bc0
+             * route. The measured words scale r11, select r8=3 and
+             * store 0x14000004 before joining the common 0x22bc0 tail. */
             r11 = (r11 * UINT32_C(3)) >> 1u;
             r8 = UINT32_C(3);
             g0 = UINT32_C(0x00023d62);
@@ -24979,7 +24992,11 @@ bit13_skip:
             }
             body += UINT64_C(1);
             if ((field & (UINT32_C(1) << 8u)) != 0u &&
-                flags_g8 != UINT32_C(0x00018008)) {
+                flags_g8 != UINT32_C(0x00018008) &&
+                flags_g8 != UINT32_C(0x0001a108) &&
+                flags_g8 != UINT32_C(0x0001a808) &&
+                flags_g8 != UINT32_C(0x0001b008) &&
+                flags_g8 != UINT32_C(0x0001e008)) {
                 return VF2_ERROR_UNSUPPORTED;
             }
             body += UINT64_C(1); /* bbc 8 taken */
@@ -25186,8 +25203,14 @@ coli_22bc0_common:
                          * instructions in this direct g0=5 tail. */
                         body += UINT64_C(3);
                     }
-                    if (flags_g8 == UINT32_C(0x00018100)) {
-                        /* v0461: the compact bit-8 route omits nine
+                    if (flags_g8 == UINT32_C(0x0001e008)) {
+                        /* v0467: bit-3 plus bit-14 takes the same
+                         * three-instruction direct-tail detour. */
+                        body += UINT64_C(3);
+                    }
+                    if (flags_g8 == UINT32_C(0x00018100) ||
+                        flags_g8 == UINT32_C(0x0001a108)) {
+                        /* v0461/v0467: the compact bit-8 routes omit nine
                          * instructions from the generic accounting. */
                         body += UINT64_C(9);
                     }
