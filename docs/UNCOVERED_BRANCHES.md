@@ -1468,6 +1468,13 @@ compositions and the remaining `0x14640` state/flag siblings remain explicit
 boundaries. See
 `decomp/i960/notes/fa_player_14640_compare_less_v0412.md`.
 
+The same signed-less prefix also covers the measured state-13 sibling with
+bit 4 set and nonzero `+0x194`: it reaches `0x146d8` in 17 instructions,
+clears `+0x654` and leaves LESS condition state. The combined compare-less
+fixture proves both shapes; other state/flag combinations remain explicit
+boundaries. See
+`decomp/i960/notes/fa_player_14640_compare_less_state13_v0413.md`.
+
 The measured state-13 neutral tail at the same helper is also native when
 `+0x198 == 0`, `+0x654 == 0`, `+0x197 == 13` and bit 4 is set. It reaches
 `0x146d8` in 14 instructions, clears `+0x654` and preserves the final LESS

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Extend the `0x14640` compare-prefix less-than recovery for the measured
+  state-13 sibling (v0413): bit 4 set, `+0x197 == 13` and nonzero `+0x194`
+  reach `0x146d8` in 17 instructions, clear `+0x654` and finish LESS.  The
+  existing ROM-backed compare-less fixture now proves both this shape and the
+  v0412 neutral shape with full live-state equality.  See
+  `decomp/i960/notes/fa_player_14640_compare_less_state13_v0413.md`.
+
 - Recover the measured `fa_rob` `0x14640` signed-less compare-prefix sibling
   (v0412).  For `+0x198 == 0`, `+0x654 != 0`, signed
   `+0x1aa < +0x62a`, neutral `+0x197`, bit 4 clear and `+0x194 == 0`, the

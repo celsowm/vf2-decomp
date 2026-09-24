@@ -57,7 +57,8 @@ static void test_unit_fail_closed(void)
 }
 
 static void run_case(const uint8_t *rom, size_t rom_size,
-                     const uint8_t *data, size_t data_size)
+                     const uint8_t *data, size_t data_size,
+                     int state13)
 {
     vf2_model2a rm;
     vf2_model2a nm;
@@ -105,10 +106,10 @@ static void run_case(const uint8_t *rom, size_t rom_size,
     write_u32(&nm, fighter + UINT32_C(0x654), 1u);
     write_u32(&rm, fighter + UINT32_C(0x194), 0u);
     write_u32(&nm, fighter + UINT32_C(0x194), 0u);
-    write_u32(&rm, fighter, 0u);
-    write_u32(&nm, fighter, 0u);
-    write_u8(&rm, fighter + UINT32_C(0x197), 0u);
-    write_u8(&nm, fighter + UINT32_C(0x197), 0u);
+    write_u32(&rm, fighter, state13 ? UINT32_C(0x10) : 0u);
+    write_u32(&nm, fighter, state13 ? UINT32_C(0x10) : 0u);
+    write_u8(&rm, fighter + UINT32_C(0x197), state13 ? 13u : 0u);
+    write_u8(&nm, fighter + UINT32_C(0x197), state13 ? 13u : 0u);
     write_u16(&rm, fighter + UINT32_C(0x1aa), 1u);
     write_u16(&nm, fighter + UINT32_C(0x1aa), 1u);
     write_u16(&rm, fighter + UINT32_C(0x62a), 2u);
@@ -122,12 +123,12 @@ static void run_case(const uint8_t *rom, size_t rom_size,
         if (status != VF2_OK) break;
     }
     CHECK(rc.ip == RETURN_IP);
-    CHECK(rc.executed_instructions - base_steps == TOTAL);
+    CHECK(rc.executed_instructions - base_steps == (state13 ? 17u : TOTAL));
 
     status = vf2_hybrid_player_14640_compare_less_execute_for_test(&nm, &nc);
     CHECK(status == VF2_OK);
     CHECK(nc.ip == RETURN_IP);
-    CHECK(nc.executed_instructions - base_steps == TOTAL);
+    CHECK(nc.executed_instructions - base_steps == (state13 ? 17u : TOTAL));
     CHECK(vf2_i960_compare_live_state(&rc, &rm, &nc, &nm, &diff) == VF2_OK);
     CHECK(diff.equal);
     if (!diff.equal) {
@@ -152,7 +153,10 @@ int main(int argc, char **argv)
                                       &rom, &rom_size) == VF2_OK);
         CHECK(vf2_romset_build_region(argv[1], VF2_REGION_MAIN_DATA,
                                       &data, &data_size) == VF2_OK);
-        if (rom != NULL && data != NULL) run_case(rom, rom_size, data, data_size);
+        if (rom != NULL && data != NULL) {
+            run_case(rom, rom_size, data, data_size, 0);
+            run_case(rom, rom_size, data, data_size, 1);
+        }
         free(rom);
         free(data);
     }

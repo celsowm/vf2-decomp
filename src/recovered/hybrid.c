@@ -5735,21 +5735,42 @@ static vf2_status hybrid_execute_player_14640_compare_less(
     if (status != VF2_OK) {
         return status;
     }
-    if (r198 != 0u || r654 == 0u || r194 != 0u ||
-        r197 == 27u || r197 == 28u || r197 == 13u ||
-        (flags & (UINT32_C(1) << 4u)) != 0u ||
+    if (r198 != 0u || r654 == 0u || r197 == 27u || r197 == 28u ||
         (int16_t)h1aa >= (int16_t)h62a) {
         return VF2_ERROR_UNSUPPORTED;
     }
 
-    /* 0x14650/0x14654 loads, shared neutral tail, and 0x146c8 load. */
+    if (r197 == 13u) {
+        /* Measured v0413 sibling: bit 4 set takes 0x146b8 to 0x146c8 and
+         * the state byte makes +0x194 nonzero. */
+        if ((flags & (UINT32_C(1) << 4u)) == 0u || r194 == 0u) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+    } else if ((flags & (UINT32_C(1) << 4u)) != 0u || r194 != 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    /* 0x14650/0x14654 loads, shared state tail, and 0x146c8 load. */
     cpu->registers[13u] = (uint32_t)(int32_t)(int16_t)h1aa;
-    cpu->registers[14u] = 0u;
     cpu->registers[3] = (uint32_t)r197;
-    cpu->registers[15u] = flags;
-    /* `cmpobe 0,r14` at 0x146cc is taken; it is the final condition writer. */
-    hybrid_set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
-    cpu->executed_instructions += UINT64_C(14);
+    if (r197 == 13u) {
+        cpu->registers[14u] = r194;
+        cpu->registers[15u] = 0u;
+        status = vf2_model2a_write_u32(machine, g7 + UINT32_C(0x654), 0u);
+        if (status != VF2_OK) {
+            return status;
+        }
+        /* `cmpobe 0,r14` at 0x146cc is not taken: compare 0 < r14. */
+        hybrid_set_compare_result(cpu, VF2_I960_COMPARE_LESS);
+        cpu->executed_instructions += UINT64_C(17);
+    } else {
+        cpu->registers[14u] = 0u;
+        cpu->registers[15u] = flags;
+        /* `cmpobe 0,r14` at 0x146cc is taken; it is the final condition
+         * writer for the neutral zero +0x194 shape. */
+        hybrid_set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
+        cpu->executed_instructions += UINT64_C(14);
+    }
     cpu->ip = UINT32_C(0x000146d8);
     return VF2_OK;
 }
