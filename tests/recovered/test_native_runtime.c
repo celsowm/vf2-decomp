@@ -2817,14 +2817,17 @@ static void test_coli_contact_query_22404_early_path(void) {
     CHECK(read_test_u16(&machine, registry + UINT32_C(0x90)) ==
           UINT16_C(0x0004));
 
-    /* Bit 8 set with unequal snapshots fails closed after the common
-     * snapshot store (the original always stores before the bit-8 check). */
+    /* Bit 8 set with unequal snapshots and an unmeasured table selector
+     * fails closed after the common snapshot store (the original always
+     * stores before the bit-8 check). */
     CHECK(vf2_model2a_write(&machine, registry + UINT32_C(0x8c), poison,
                             sizeof(poison)) == VF2_OK);
     CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x1a4),
                                 UINT32_C(1) << 8u) == VF2_OK);
     CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x1a8),
                                 UINT32_C(0x1234)) == VF2_OK);
+    CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x820),
+                            (const uint8_t *)"\x34", 1u) == VF2_OK);
     vf2_i960_cpu_reset(&cpu, 0u, 0u, UINT32_C(0x00022404));
     cpu.registers[VF2_I960_FP_REGISTER] = UINT32_C(0x005ff500);
     cpu.registers[1] = UINT32_C(0x005ff580);
@@ -2999,12 +3002,12 @@ static void test_coli_contact_query_22404_early_path(void) {
     CHECK(read_test_u16(&machine, UINT32_C(0x00512800) + UINT32_C(0x6d4)) ==
           UINT16_C(0x21e8));
 
-    /* v0359 negative: stale slot with an empty result (index 0, mask 0)
-     * is unmeasured and stays fail-closed. */
+    /* Negative: stale slot with an unmeasured table selector stays
+     * fail-closed. */
     CHECK(vf2_model2a_write_u32(&machine, registry + UINT32_C(0x8c),
                                 UINT32_C(0x0000ffff)) == VF2_OK);
     CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x820),
-                                UINT32_C(0)) == VF2_OK);
+                                UINT32_C(0x34)) == VF2_OK);
     CHECK(vf2_model2a_write_u32(&machine, registry + UINT32_C(0x90),
                                 UINT32_C(0)) == VF2_OK);
     vf2_i960_cpu_reset(&cpu, 0u, 0u, UINT32_C(0x00022404));

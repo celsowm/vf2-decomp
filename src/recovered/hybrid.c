@@ -22240,9 +22240,12 @@ static vf2_status coli_22404_body(
         if (result == 0u) {
             /* v0501/v0502: measured stale slot-0 empty tails.  The
              * table-index-0, -2 and -5 witnesses all reach this join with
-             * the computed result clear; keep other stale paths closed. */
+             * the computed result clear; keep other selectors closed. */
             if (old_snap != snap &&
-                !(slot == UINT8_C(0) && result == UINT16_C(0))) {
+                !(slot == UINT8_C(0) && result == UINT16_C(0) &&
+                  (field_820 == UINT8_C(0) ||
+                   field_820 == UINT8_C(2) ||
+                   field_820 == UINT8_C(5)))) {
                 return VF2_ERROR_UNSUPPORTED;
             }
             if (old_snap != snap) {
