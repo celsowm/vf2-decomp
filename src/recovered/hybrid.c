@@ -6279,9 +6279,9 @@ static vf2_status hybrid_execute_player_1453c(
  * 2) the collision/state-exchange body sets +0x1aa/0x61e/0x626/0x822 and
  *    computes +0x654/0x62a on fighter1,
  * 3) the branch chain (fighter1 state not 27/16) falls through to the
- *    0x14628 common exit clearing both fighters' +0x198.  The v0433
- *    state-16 successor takes the measured 0x14560 fall-through into the
- *    shared 0x14570 type-5 body.
+ *    0x14628 common exit clearing both fighters' +0x198.  The v0433/v0440
+ *    state-16/state-27 successors take the measured 0x14560/0x1452c
+ *    fall-through into the shared 0x14570 type-5 body.
  * Span 53 instructions from 0x144b0 to 0x1463c with +1 call / +1 return
  * (the 0x19ef8 call; the 0x1463c ret is not consumed).  The v0397 sibling
  * covers the `0x1450c cmpobl r13,r3` not-taken exit (`st r5,+0x194(g8)` at
@@ -6359,8 +6359,8 @@ static vf2_status hybrid_execute_player_144b0(
     r4 = (int32_t)((uint32_t)h808_f1 - (uint32_t)h858_f0);
     r13 = (uint32_t)h1aa_f1;
     r3 = (uint32_t)(r4 - 1);
-    if (g0 != 0u || b197_f0 != 25u ||
-        b197_f1 == 25u || b197_f1 == 27u) {
+    if (g0 != 0u || b197_f0 != 25u || b197_f1 == 25u ||
+        (b197_f1 == 27u && r13 >= r3)) {
         /* Not a measured state-25 shape (nonzero +0x194 or other fighter
          * states).  The cmpobl-equal point (r13 == r3) is now admitted
          * (v0401) on the same 0x14510 path with an EQUAL postcondition. */
@@ -6443,11 +6443,12 @@ static vf2_status hybrid_execute_player_144b0(
         }
     }
 
-    if (r13 < r3 && b197_f1 == 16u) {
-        /* v0433: the state-25 arm reaches the swapped state-16 body after
+    if (r13 < r3 && (b197_f1 == 16u || b197_f1 == 27u)) {
+        /* v0433/v0440: the state-25 arm reaches the swapped state-16 or
+         * state-27 body after
          * the 0x14518 stores.  The 0x14520/0x14524 register restore is part
-         * of the measured 44-instruction prefix; the shared 0x1453c
-         * recovery accounts for the remaining 55 instructions. */
+         * of the measured prefix; the shared 0x1453c recovery accounts for
+         * the remaining 55/56 instructions. */
         cpu->registers[7] = (uint32_t)b197_f0;
         cpu->registers[8] = (uint32_t)b197_f1;
         cpu->registers[3] = r3;

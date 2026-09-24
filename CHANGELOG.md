@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Recover the measured direct `0x144b0` state-25/state-27 successor (v0440).
+  The state-25 arm now reaches the recovered swapped state-27 type-5 body and
+  matches the ROM in 100 instructions with two calls/returns and exact
+  live-state equality. See
+  `decomp/i960/notes/fa_player_144b0_state27_v0440.md`.
+
 - Recover the measured `0x1453c` state-28/state-16 swapped join (v0439).
   The shared type-5 body now admits the `r7 == 28`, `r8 == 16` shape and
   matches the ROM in 55 instructions with one call/return; its board/text
