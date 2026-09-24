@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Recover the measured `0x1453c` state-28/state-16 swapped join (v0439).
+  The shared type-5 body now admits the `r7 == 28`, `r8 == 16` shape and
+  matches the ROM in 55 instructions with one call/return; its board/text
+  witness matches at 129 instructions with two calls/returns. See
+  `decomp/i960/notes/fa_player_1453c_state28_v0439.md`.
+
 - Recover the measured `0x1453c` state-24/state-16 swapped join (v0438).
   The shared type-5 body now admits the `r7 == 24`, `r8 == 16` shape and
   matches the ROM in 55 instructions with one call/return and exact

@@ -86,6 +86,7 @@
 #define CASE_STATE16_BOTH_SWAPPED_MIXED_SHORT 33
 #define CASE_STATE16_BOTH_SWAPPED_MIXED_LATER 34
 #define CASE_STATE24_SWAPPED 35
+#define CASE_STATE28_SWAPPED 36
 
 static int failures = 0;
 
@@ -642,6 +643,15 @@ static void run_rom_case_with_text(
         swapped = 1;
         label = "state24-swapped";
         break;
+    case CASE_STATE28_SWAPPED:
+        reference_cpu.registers[7] = 28u;
+        native_cpu.registers[7] = 28u;
+        reference_cpu.registers[8] = 16u;
+        native_cpu.registers[8] = 16u;
+        expected_steps = UINT64_C(55);
+        swapped = 1;
+        label = "state28-swapped";
+        break;
     default:
         CHECK(0);
         goto cleanup;
@@ -868,6 +878,8 @@ static void run_rom_differential(const char *rom_directory)
                  CASE_STATE16_BOTH_SWAPPED_MIXED_LATER);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
                  CASE_STATE24_SWAPPED);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE28_SWAPPED);
 
     {
         static const int text_shapes[] = {
@@ -905,7 +917,8 @@ static void run_rom_differential(const char *rom_directory)
             CASE_STATE16_BOTH_DIRECT_MIXED_LATER,
             CASE_STATE16_BOTH_SWAPPED_MIXED_SHORT,
             CASE_STATE16_BOTH_SWAPPED_MIXED_LATER,
-            CASE_STATE24_SWAPPED
+            CASE_STATE24_SWAPPED,
+            CASE_STATE28_SWAPPED
         };
         size_t i;
 
