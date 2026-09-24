@@ -22202,6 +22202,7 @@ static vf2_status coli_225cc_body(
                  flags_g8 == UINT32_C(0x00018020) ||
                  flags_g8 == UINT32_C(0x00018040) ||
                  flags_g8 == UINT32_C(0x00018080) ||
+                 flags_g8 == UINT32_C(0x00018100) ||
                  flags_g8 == UINT32_C(0x00018004) ||
                  flags_g8 == UINT32_C(0x00018005) ||
                  flags_g8 == UINT32_C(0x00018010) ||
@@ -24083,6 +24084,7 @@ static vf2_status coli_225cc_long_body(
                 flags_g8 == UINT32_C(0x00018020) ||
                 flags_g8 == UINT32_C(0x00018040) ||
                 flags_g8 == UINT32_C(0x00018080) ||
+                flags_g8 == UINT32_C(0x00018100) ||
                 flags_g8 == UINT32_C(0x00018004) ||
                 flags_g8 == UINT32_C(0x00018005) ||
                 flags_g8 == UINT32_C(0x00018010) ||
@@ -24868,7 +24870,22 @@ bit13_skip:
         body += UINT64_C(1); /* bbc 6 taken */
         /* 0x22a28: bbc 8, g8+0x1a4 → 0x22a54 when bit 8 clear. */
         if ((flags_g8 & (UINT32_C(1) << 8u)) != 0u) {
-            return VF2_ERROR_UNSUPPORTED;
+            if (flags_g8 != UINT32_C(0x00018100)) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+            /* v0461: bit 8 selects the compact 0x22a28 -> 0x22bc0
+             * route. The measured word scales r11, selects r8=3 and
+             * stores 0x14000004 before joining the common 0x22bc0 tail. */
+            r11 = (r11 * UINT32_C(3)) >> 1u;
+            r8 = UINT32_C(3);
+            g0 = UINT32_C(0x00023d62);
+            if (vf2_model2a_write_u32(
+                    machine, g7 + UINT32_C(0x194), UINT32_C(0x14000004)) !=
+                VF2_OK) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+            body += UINT64_C(8); /* bbc + lda + lda + shro + mov + lda + st + b */
+            goto coli_22bc0_common;
         }
         body += UINT64_C(2); /* ld + bbc 8 taken */
         if (vf2_model2a_read_u32(
@@ -24931,6 +24948,7 @@ bit13_skip:
             }
             body += UINT64_C(1); /* bbc 8 taken */
         }
+coli_22bc0_common:
         if (vf2_model2a_read_u32(
                 machine, UINT32_C(0x00508000), &board) != VF2_OK) {
             return VF2_ERROR_UNSUPPORTED;
@@ -25131,6 +25149,11 @@ bit13_skip:
                         /* v0460: the measured bit-14 selector adds three
                          * instructions in this direct g0=5 tail. */
                         body += UINT64_C(3);
+                    }
+                    if (flags_g8 == UINT32_C(0x00018100)) {
+                        /* v0461: the compact bit-8 route omits nine
+                         * instructions from the generic accounting. */
+                        body += UINT64_C(9);
                     }
                     *body_out = body;
                     return VF2_OK;

@@ -1313,6 +1313,13 @@ fail-closed because its downstream branch is not recovered, while bit-8 and
 bit-13 variants remain deferred (see
 `decomp/i960/notes/fa_coli_225cc_bit16_bit15_bit_selectors_v0460.md`).
 
+Status (v0461): the exact bit-8 sibling `g8 + 0x1a4 = 0x00018100` is now
+native on scan 4 with `g7 + 0x1a4 = 0x00400100`. Its compact `0x22a28`
+route writes `g7 + 0x194 = 0x14000004`, joins at `0x22bc0`, and matches the
+ROM at 103 instructions with full live-state equality. Other bit-8 and
+bit-13 compositions remain explicit boundaries (see
+`decomp/i960/notes/fa_coli_225cc_bit16_bit15_bit8_v0461.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at
