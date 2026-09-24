@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Recover the measured state-16/state-25 type-walker misses (v0450). Indices
+  `0x110` and `0x2cf` now preserve the `g0 == 0` type-8 terminator and match
+  the ROM in 161/147 instructions with four calls/returns and exact live-state
+  equality. Other walker misses remain fail-closed. See
+  `decomp/i960/notes/fa_player_1442c_state16_state25_walker_miss_v0450.md`.
+
 - Recover the integrated state-16/state-25 zero-selector join (v0449). The
   measured row now follows the swapped zero `0x19ef8` path into the existing
   direct state-16 type-5 tail for indices `0x6f`, `0x73` and `0x74`, matching

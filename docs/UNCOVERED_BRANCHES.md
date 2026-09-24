@@ -1232,6 +1232,13 @@ calls/returns and exact live-state equality. Nonzero selectors, other type
 indices and sibling compositions remain explicit fail-closed boundaries (see
 `decomp/i960/notes/fa_player_1442c_state16_state25_v0449.md`).
 
+Status (v0450): the same integrated row now admits the measured type-8
+terminator compositions at fighter 0 low-halfword indices `0x110` and
+`0x2cf`. The `0x1ab34` walker returns `g0 == 0`, and the recovered tail
+matches in 161/147 instructions with four calls/returns and exact live-state
+equality. Other walker misses remain explicit fail-closed boundaries (see
+`decomp/i960/notes/fa_player_1442c_state16_state25_walker_miss_v0450.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at

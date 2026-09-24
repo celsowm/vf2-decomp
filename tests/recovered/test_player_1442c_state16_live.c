@@ -211,6 +211,12 @@ int main(int argc, char **argv)
             run_case(rom, rom_size, data, data_size,
                      0u, 0u, 25u, UINT32_C(0x00000074), 0u,
                      UINT64_C(144), UINT64_C(4));
+            run_case(rom, rom_size, data, data_size,
+                     0u, 0u, 25u, UINT32_C(0x00000110), 0u,
+                     UINT64_C(161), UINT64_C(4));
+            run_case(rom, rom_size, data, data_size,
+                     0u, 0u, 25u, UINT32_C(0x000002cf), 0u,
+                     UINT64_C(147), UINT64_C(4));
         }
         free(rom);
         free(data);

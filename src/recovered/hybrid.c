@@ -6573,6 +6573,7 @@ static vf2_status hybrid_execute_player_1453c(
     uint32_t r13 = 0u;
     uint32_t r4 = 0u;
     uint64_t body = UINT64_C(6);
+    uint8_t walker_miss = 0u;
     bool bit6 = false;
     bool second_scale = false;
     bool text_branch = false;
@@ -6743,12 +6744,15 @@ static vf2_status hybrid_execute_player_1453c(
     }
     walk_rec = cpu->registers[VF2_I960_G0_REGISTER];
     if (walk_rec == 0u) {
-        return VF2_ERROR_UNSUPPORTED;
+        if (h194 != UINT16_C(0x0110) && h194 != UINT16_C(0x02cf)) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        walker_miss = 1u;
     }
     /* 0x1457c ldos +1(g0), r3 ; 0x14580 shlo 24,17,r13 ;
      * 0x14584 addi r13,r3,r15 ; 0x14588 st r15,+0x194(g8). */
     r3s = (int16_t)0u;
-    {
+    if (walker_miss == 0u) {
         uint16_t rec_half = 0u;
         status = hybrid_read_u16(machine, walk_rec + UINT32_C(1), &rec_half);
         if (status != VF2_OK) {
@@ -6764,9 +6768,11 @@ static vf2_status hybrid_execute_player_1453c(
     /* 0x1458c ldob +3(g0), r3 ; 0x14590 lda 0x1b970,g0 (short path).
      * When +0x1a4(g8) bit 0 is set, the measured 0x1459c fall-through runs
      * 0x145a0..0x145a8, scaling the byte and selecting 0x1b979 instead. */
-    status = hybrid_read_u8(machine, walk_rec + UINT32_C(3), &r3b);
-    if (status != VF2_OK) {
-        return status;
+    if (walker_miss == 0u) {
+        status = hybrid_read_u8(machine, walk_rec + UINT32_C(3), &r3b);
+        if (status != VF2_OK) {
+            return status;
+        }
     }
     r3 = (uint32_t)r3b;
     if ((r1a4_g8 & UINT32_C(1)) != 0u) {
@@ -7317,7 +7323,9 @@ static vf2_status hybrid_execute_player_1442c(
             if (status != VF2_OK ||
                 (type5_index != UINT32_C(0x0000006f) &&
                  type5_index != UINT32_C(0x00000073) &&
-                 type5_index != UINT32_C(0x00000074)) ||
+                 type5_index != UINT32_C(0x00000074) &&
+                 type5_index != UINT32_C(0x00000110) &&
+                 type5_index != UINT32_C(0x000002cf)) ||
                 (r194_f1 & UINT32_C(0x0000ffff)) != 0u) {
                 return VF2_ERROR_UNSUPPORTED;
             }
