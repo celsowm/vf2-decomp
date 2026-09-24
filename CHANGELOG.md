@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- Recover the fa_rob state-28 arm `0x14640` (v0406), the state-28 sibling
+  of the v0405 state-27 walk: when fighter g7 has `+0x198 == 0`,
+  `+0x654 == 0` and `+0x197 == 28`, the `0x1469c cmpobne 28, r3` falls
+  through, adds 3 to `s16(+0x1aa(g7))` and stores the u16 back to
+  `+0x1aa(g7)`, clears `+0x194(g7)`, leaves `r15 = 0` and `r3` the new
+  `+0x1aa` value.  No walker.  Measured path: 13 steps / +0 call / +0
+  return, leaving the `0x146c4` ret unconsumed.  Recovered as standalone
+  `hybrid_execute_player_14640_state28` +
+  `vf2_hybrid_player_14640_state28_execute_for_test`, dispatched from
+  `hybrid_execute_player_14640` when `+0x197 == 28` (which then consumes
+  the `0x146c4` ret to return through the `0x14640` frame).  The
+  `+0x654 != 0` `+0x1aa`/`+0x62a` compare arm and the `+0x197` not 27/28
+  neutral tail stay fail-closed.  Final reference `compare_result` is
+  EQUAL.  ROM-backed `vf2_player_14640_state28_live_differential` proves
+  the arm byte-exact (13/+0/+0, full live state).  `ctest` 84/84. See
+  `decomp/i960/notes/fa_player_14640_state28_v0406.md`.
+
 - Recover the fa_rob state-27 arm `0x14640` (v0405), the natural
   continuation of the f0==27 flow: when fighter g7 has `+0x198 == 0`,
   `+0x654 == 0` and `+0x197 == 27`, the `0x14664` walk indexes a type-15

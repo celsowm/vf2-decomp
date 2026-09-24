@@ -5258,6 +5258,92 @@ vf2_status vf2_hybrid_player_14640_state27_execute_for_test(
     return hybrid_execute_player_14640_state27(machine, cpu);
 }
 
+/* Measured state-28 arm of the fa_rob fighter-exchange helper 0x14640
+ * (v0406).  Entered at 0x14640 when fighter g7 has +0x198 == 0, +0x654 == 0
+ * and +0x197 == 28 (so `cmpobne 27, r3` jumps to 0x1469c and `cmpobne 28,
+ * r3` falls through).  It adds 3 to s16(+0x1aa(g7)) and stores the u16 back
+ * to +0x1aa(g7), clears +0x194(g7), leaves r15 = 0 and r3 = the new +0x1aa
+ * value.  No walker.  The span from 0x14640 to the 0x146c4 ret is 13
+ * instructions with +0 call / +0 return; the ret at 0x146c4 is not consumed
+ * here.  Sibling shapes (the +0x654 != 0 +0x1aa/+0x62a compare arm, the
+ * +0x197 == 27 walk, or the +0x197 not 27/28 neutral tail) stay fail-closed.
+ * Only r3/r15 are left distinct from entry; the final reference
+ * `compare_result` is EQUAL (the `cmpobne 28, r3` at 0x1469c). */
+static vf2_status hybrid_execute_player_14640_state28(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    const uint32_t g7 = cpu != NULL
+        ? cpu->registers[VF2_I960_G0_REGISTER + 7u] : 0u;
+    uint32_t r198 = 0u;
+    uint32_t r654 = 0u;
+    uint8_t r197 = 0u;
+    uint16_t h1aa = 0u;
+    uint32_t r3 = 0u;
+    vf2_status status = VF2_OK;
+
+    if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x00014640) ||
+        cpu->local_frame_depth == 0u || g7 == 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    status = vf2_model2a_read_u32(machine, g7 + UINT32_C(0x198), &r198);
+    if (status == VF2_OK && r198 != 0u) {
+        status = VF2_ERROR_UNSUPPORTED;
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_read_u32(
+            machine, g7 + UINT32_C(0x654), &r654
+        );
+    }
+    if (status == VF2_OK && r654 != 0u) {
+        status = VF2_ERROR_UNSUPPORTED;
+    }
+    if (status == VF2_OK) {
+        status = hybrid_read_u8(machine, g7 + UINT32_C(0x197), &r197);
+    }
+    if (status == VF2_OK && r197 != 28u) {
+        status = VF2_ERROR_UNSUPPORTED;
+    }
+    if (status == VF2_OK) {
+        status = hybrid_read_u16(machine, g7 + UINT32_C(0x1aa), &h1aa);
+    }
+    if (status != VF2_OK) {
+        return status;
+    }
+
+    /* 0x146a0 ldos +0x1aa(g7), r3 ; 0x146a4 addo 3, r3, r3 ;
+     * 0x146a8 stos r3, +0x1aa(g7). */
+    r3 = (uint32_t)(int32_t)(int16_t)h1aa + UINT32_C(3);
+    cpu->registers[3] = r3;
+    status = hybrid_write_u16(machine, g7 + UINT32_C(0x1aa), (uint16_t)r3);
+    if (status != VF2_OK) {
+        return status;
+    }
+    /* 0x146bc mov 0, r15 ; 0x146c0 st r15, +0x194(g7). */
+    cpu->registers[15] = 0u;
+    status = vf2_model2a_write_u32(machine, g7 + UINT32_C(0x194), 0u);
+    if (status != VF2_OK) {
+        return status;
+    }
+    /* Final CC: measured reference leaves compare_result = EQUAL (the
+     * `cmpobne 28, r3` at 0x1469c, not taken). */
+    cpu->compare_result = VF2_I960_COMPARE_EQUAL;
+    cpu->arithmetic_control =
+        (cpu->arithmetic_control & ~UINT32_C(7)) | UINT32_C(2);
+    cpu->executed_instructions += UINT64_C(13);
+    cpu->ip = UINT32_C(0x000146c4);
+    return VF2_OK;
+}
+
+vf2_status vf2_hybrid_player_14640_state28_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_14640_state28(machine, cpu);
+}
+
 /* Measured collision/state fast-paths of the fa_rob fighter-exchange
  * helper 0x14640 (v0393).  It is called twice from the 0x1442c body with
  * swapped g7/g8 (fighter0 then fighter1).  On the accepted live shape the
@@ -5319,7 +5405,17 @@ static vf2_status hybrid_execute_player_14640(
         return status;
     }
     if (status == VF2_OK && r197 == 28u) {
-        status = VF2_ERROR_UNSUPPORTED;
+        /* State-28 arm (v0406): `cmpobne 28, r3` at 0x1469c falls through
+         * when +0x197 == 28.  The arm leaves ip at the 0x146c4 ret; consume
+         * it to return through the 0x14640 frame to 0x14438. */
+        status = hybrid_execute_player_14640_state28(machine, cpu);
+        if (status == VF2_OK) {
+            status = vf2_i960_cpu_return_procedure(cpu, machine);
+            if (status == VF2_OK) {
+                ++cpu->executed_instructions;
+            }
+        }
+        return status;
     }
     if (status == VF2_OK) {
         status = vf2_model2a_read_u32(machine, player, &flags);

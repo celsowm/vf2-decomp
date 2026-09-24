@@ -913,6 +913,19 @@ is natively reachable.  Final reference `compare_result` is NONE.  Pinned
 by `vf2_player_14640_state27_live_differential`.  The state-28
 (`0x1469c`) sibling remains an explicit boundary (see
 `decomp/i960/notes/fa_player_14640_state27_v0405.md`).
+Status (v0406): the `0x14640` state-28 arm is now native as the standalone
+`hybrid_execute_player_14640_state28` (no walker, 13 steps / +0 call / +0
+return to the `0x146c4` ret).  It requires `+0x198 == 0`, `+0x654 == 0`
+and `+0x197 == 28` on fighter g7, adds 3 to `s16(+0x1aa(g7))` and stores
+the u16 back, clears `+0x194(g7)`, leaves `r15 = 0` and `r3` the new
+`+0x1aa` value.  The arm is dispatched from `hybrid_execute_player_14640`
+when `+0x197 == 28` and is then wired through the `0x146c4` ret, so both
+the state-27 and state-28 f0 flows are natively reachable.  Final
+reference `compare_result` is EQUAL.  Pinned by
+`vf2_player_14640_state28_live_differential`.  The `+0x654 != 0`
+`+0x1aa`/`+0x62a` compare arm and the `+0x197` not 27/28 neutral tail
+(`0x146b0`/`0x146c8`/`0x146dc`) remain explicit boundaries (see
+`decomp/i960/notes/fa_player_14640_state28_v0406.md`).
 
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
