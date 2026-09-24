@@ -22201,18 +22201,33 @@ static vf2_status coli_225cc_body(
                  flags_g8 == UINT32_C(0x00018004) ||
                  flags_g8 == UINT32_C(0x00018005) ||
                  flags_g8 == UINT32_C(0x00018010) ||
+                 flags_g8 == UINT32_C(0x00018011) ||
+                 flags_g8 == UINT32_C(0x00018014) ||
+                 flags_g8 == UINT32_C(0x00018015) ||
                  flags_g8 == UINT32_C(0x00018800) ||
                  flags_g8 == UINT32_C(0x00018801) ||
                  flags_g8 == UINT32_C(0x00018804) ||
                  flags_g8 == UINT32_C(0x00018805) ||
+                 flags_g8 == UINT32_C(0x00018810) ||
+                 flags_g8 == UINT32_C(0x00018811) ||
+                 flags_g8 == UINT32_C(0x00018814) ||
+                 flags_g8 == UINT32_C(0x00018815) ||
                  flags_g8 == UINT32_C(0x00019000) ||
                  flags_g8 == UINT32_C(0x00019001) ||
                  flags_g8 == UINT32_C(0x00019004) ||
                  flags_g8 == UINT32_C(0x00019005) ||
+                 flags_g8 == UINT32_C(0x00019010) ||
+                 flags_g8 == UINT32_C(0x00019011) ||
+                 flags_g8 == UINT32_C(0x00019014) ||
+                 flags_g8 == UINT32_C(0x00019015) ||
                  flags_g8 == UINT32_C(0x00019800) ||
                  flags_g8 == UINT32_C(0x00019801) ||
                  flags_g8 == UINT32_C(0x00019804) ||
-                 flags_g8 == UINT32_C(0x00019805));
+                 flags_g8 == UINT32_C(0x00019805) ||
+                 flags_g8 == UINT32_C(0x00019810) ||
+                 flags_g8 == UINT32_C(0x00019811) ||
+                 flags_g8 == UINT32_C(0x00019814) ||
+                 flags_g8 == UINT32_C(0x00019815));
 
             if (!bit16_scan4 &&
                 (scan_byte != UINT8_C(1) ||
@@ -24059,18 +24074,33 @@ static vf2_status coli_225cc_long_body(
                 flags_g8 == UINT32_C(0x00018004) ||
                 flags_g8 == UINT32_C(0x00018005) ||
                 flags_g8 == UINT32_C(0x00018010) ||
+                flags_g8 == UINT32_C(0x00018011) ||
+                flags_g8 == UINT32_C(0x00018014) ||
+                flags_g8 == UINT32_C(0x00018015) ||
                 flags_g8 == UINT32_C(0x00018800) ||
                 flags_g8 == UINT32_C(0x00018801) ||
                 flags_g8 == UINT32_C(0x00018804) ||
                 flags_g8 == UINT32_C(0x00018805) ||
+                flags_g8 == UINT32_C(0x00018810) ||
+                flags_g8 == UINT32_C(0x00018811) ||
+                flags_g8 == UINT32_C(0x00018814) ||
+                flags_g8 == UINT32_C(0x00018815) ||
                 flags_g8 == UINT32_C(0x00019000) ||
                 flags_g8 == UINT32_C(0x00019001) ||
                 flags_g8 == UINT32_C(0x00019004) ||
                 flags_g8 == UINT32_C(0x00019005) ||
+                flags_g8 == UINT32_C(0x00019010) ||
+                flags_g8 == UINT32_C(0x00019011) ||
+                flags_g8 == UINT32_C(0x00019014) ||
+                flags_g8 == UINT32_C(0x00019015) ||
                 flags_g8 == UINT32_C(0x00019800) ||
                 flags_g8 == UINT32_C(0x00019801) ||
                 flags_g8 == UINT32_C(0x00019804) ||
-                flags_g8 == UINT32_C(0x00019805))) {
+                flags_g8 == UINT32_C(0x00019805) ||
+                flags_g8 == UINT32_C(0x00019810) ||
+                flags_g8 == UINT32_C(0x00019811) ||
+                flags_g8 == UINT32_C(0x00019814) ||
+                flags_g8 == UINT32_C(0x00019815))) {
         /* v0456-v0458: bbs 15 skips the bbc-16 edge before the scan-4
          * compare. The exact words below are independently measured. */
         body += UINT64_C(3); /* cmpibne + bbs15 + cmpibne4 */
@@ -25076,9 +25106,9 @@ bit13_skip:
                     if (g0_out != NULL) {
                         *g0_out = g05_result;
                     }
-                    if (flags_g8 == UINT32_C(0x00018010)) {
-                        /* v0457: this direct g0=5 tail is two instructions
-                         * shorter for the measured bit-4 selector. */
+                    if ((flags_g8 & UINT32_C(0x00000010)) != 0u) {
+                        /* v0457-v0459: the measured bit-4 selector makes
+                         * this direct g0=5 tail two instructions shorter. */
                         body -= UINT64_C(2);
                     }
                     *body_out = body;

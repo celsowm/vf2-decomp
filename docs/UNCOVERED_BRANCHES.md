@@ -1295,6 +1295,15 @@ instructions with full live-state equality; unmeasured compositions remain
 explicit boundaries (see
 `decomp/i960/notes/fa_coli_225cc_bit16_bit15_low_cross_v0458.md`).
 
+Status (v0459): fifteen additional bit-4 selector words are now native:
+`0x00018011`, `0x00018014`, `0x00018015`, `0x00018810`, `0x00018811`,
+`0x00018814`, `0x00018815`, `0x00019010`, `0x00019011`, `0x00019014`,
+`0x00019015`, `0x00019810`, `0x00019811`, `0x00019814` and
+`0x00019815`. The 32-word measured set remains exact at 107 or 109
+instructions with full live-state equality; other compositions remain
+explicit boundaries (see
+`decomp/i960/notes/fa_coli_225cc_bit16_bit15_bit4_cross_v0459.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at
