@@ -412,11 +412,9 @@ vf2_status vf2_hybrid_player_144b0_execute_for_test(
  * +1 call / +1 return and land at 0x1463c. The direct (16,0) shape also admits the
  * measured +0x3351 bit-6-set / g8 bit-29-clear second gate at 54 steps.
  * It also admits the measured direct (16,0) bit-29-set later scaling arm at
- * 57 steps, which selects the 0x1b982 table. Mixed scaling/text
- * compositions remain unsupported. The direct short tail also admits the
- * measured board-bit-9-clear text tails for the unscaled state-27/state-16
- * joins and direct state-16 single-scaling variants (126/130/129/128/132/
- * 129/128/131 steps, +2 calls / +2 returns).
+ * 57 steps, which selects the 0x1b982 table. The measured board-bit-9-clear
+ * text tail is also admitted for all 35 accepted state/scaling shapes; it adds
+ * 74 instructions and one call/return to each corresponding short path.
  * The first-scaling bit-0 arm is also admitted for the measured direct and
  * swapped state-27/state-16 compositions (55/59/58/57/61 steps).
  * The bit-6 second gate with g8 bit 29 clear is also admitted for the

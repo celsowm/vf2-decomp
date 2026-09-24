@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Complete the measured 0x1453c/0x14570 board-bit-9-clear text matrix
+  (v0430). The recovered 0x7fc0 expander now covers all 35 accepted
+  state/scaling shapes, including swapped, both-state-16 and mixed
+  first/later-scaling paths. Each text variant matches the ROM with the
+  expected +74 instructions and one additional call/return; the expanded
+  fixture proves full live-state equality.
+
 - Extend the measured 0x1453c/0x14570 text tail (v0429). The board-bit-9-clear
   0x7fc0 path now covers unscaled state-27/state-16 direct, swapped and
   both-state-16 joins, plus direct state-16 first/second/later single-scaling

@@ -6470,11 +6470,10 @@ static vf2_status hybrid_execute_player_144b0(
  * first +0x1a4 scaling arm, 55 steps (r7=0,r8=16), or 54/58 steps for
  * r7=r8=16 with bit 0 of 0x500028 clear/set.
  * set.  All measured paths have +1 call / +1 return when +0x194(g7) indexes
- * a valid type-5 chain.  The measured direct state-16 scaling and second-gate
- * variants are admitted below; unmeasured combinations (walker miss, scaled
- * swaps/state-27, and other bit-29/text compositions) stay fail-closed. The
- * measured text tails are admitted for board bit 9 clear, with the recovered
- * 0x7fc0 expander; unmeasured mixed/scaled swaps remain fail-closed. */
+ * a valid type-5 chain. The measured state/scaling variants are admitted below;
+ * walker misses and unrecognized state/scaling shapes stay fail-closed. The
+ * measured text tails are admitted for board bit 9 clear across the complete
+ * accepted state/scaling matrix, with the recovered 0x7fc0 expander. */
 static vf2_status hybrid_execute_player_1453c(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu
@@ -6507,7 +6506,6 @@ static vf2_status hybrid_execute_player_1453c(
     uint32_t r4 = 0u;
     uint64_t body = UINT64_C(6);
     bool bit6 = false;
-    bool first_scale = false;
     bool second_scale = false;
     bool text_branch = false;
     bool swapped = false;
@@ -6593,7 +6591,6 @@ static vf2_status hybrid_execute_player_1453c(
     if (status != VF2_OK) {
         return status;
     }
-    first_scale = (r1a4_g8 & UINT32_C(1)) != 0u;
     if ((b3351 & (UINT32_C(1) << 6u)) != 0u) {
         /* 0x145c0 bbc is not taken; 0x145c4 loads (g8), and 0x145c8
          * selects either the common store or the measured later scaling
@@ -6607,21 +6604,8 @@ static vf2_status hybrid_execute_player_1453c(
         }
     }
     if ((board & (UINT32_C(1) << 9u)) == 0u) {
-        const bool baseline_text =
-            !first_scale && !second_scale &&
-            (state27 ||
-             (r7 == 16u && (r8 == 0u || r8 == 16u)) ||
-             (r7 == 0u && r8 == 16u));
-        const bool direct_single_scale_text =
-            r7 == 16u && r8 == 0u &&
-            ((first_scale && !second_scale) ||
-             (!first_scale && second_scale));
-
-        /* v0420/v0429 measure the unscaled state-27/state-16 joins and the
-         * three direct state-16 single-scaling text tails. */
-        if (!baseline_text && !direct_single_scale_text) {
-            return VF2_ERROR_UNSUPPORTED;
-        }
+        /* v0420/v0429/v0430 measure the text tail for every currently
+         * admitted state/scaling shape. */
         text_branch = true;
     }
 

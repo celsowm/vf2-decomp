@@ -981,9 +981,15 @@ Status (v0429): the board-bit-9-clear text tail now covers the measured
 unscaled state-27/state-16 direct, swapped and both-state-16 joins, plus
 direct state-16 first-scaling, second-gate and later-scaling variants. The
 expanded fixture proves 126/130/129/128/132/129/128/131-step shapes with two
-calls/returns and full live-state equality. Mixed scaling/text combinations
-and other text compositions remain explicit boundaries. See
+calls/returns and full live-state equality. Other text compositions remained
+explicit boundaries at that earlier checkpoint. See
 decomp/i960/notes/fa_player_1453c_text_matrix_v0429.md.
+Status (v0430): the board-bit-9-clear text tail now covers all 35 accepted
+0x1453c/0x14570 state/scaling shapes, including swapped, both-state-16 and
+mixed first/later-scaling paths. Every text variant adds 74 instructions and
+one call/return to its corresponding short path; the expanded fixture proves
+full live-state equality. Other 0x1453c walker misses and unrecognized state
+shapes remain explicit boundaries.
 Status (v0405): the `0x14640` state-27 arm is now native as the standalone
 `hybrid_execute_player_14640_state27` (type-15 walk via `+0x194(g7)`,
 41 steps / +1 call / +1 return to the `0x146c4` ret).  It requires

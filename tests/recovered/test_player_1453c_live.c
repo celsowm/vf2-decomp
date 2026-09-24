@@ -1,5 +1,5 @@
 /* ROM-backed differential fixture for the fa_rob state-27/state-16 arms
- * 0x1453c/0x14570 (v0404/v0415/v0416).
+ * 0x1453c/0x14570 (v0404/v0415/v0416/v0430).
  *
  * The 0x1453c arm is the fa_rob fighter-state exchange reached at 0x14528
  * when the state-27 fighter's +0x197 == 27.  The second-fighter shape first
@@ -17,7 +17,9 @@
  * (registers/CC/AC/frames/Work-RAM). The measured cases are 52/56 steps for
  * state 27, 52/55 steps for the asymmetric state-16 joins, 54/58 steps for
  * the board-controlled both-state-16 joins, and 55 steps for the measured
- * direct first-scaling state-16 variant.
+ * direct first-scaling state-16 variant. The board-bit-9-clear text tail is
+ * rerun for the 34 non-baseline state/scaling shapes and must add 74 steps
+ * plus one call/return with full live-state equality.
  *
  * Witness (measured, current build):
  *   vf2probe --rom-dir roms/vf2 --snapshot out/park-1442c.vf2snap \
@@ -57,14 +59,6 @@
 #define CASE_STATE16_DIRECT_SECOND_GATE 7
 #define CASE_STATE16_DIRECT_LATER_SCALE 8
 #define CASE_STATE16_DIRECT_TEXT 9
-#define CASE_STATE27_DIRECT_TEXT 35
-#define CASE_STATE27_SWAPPED_TEXT 36
-#define CASE_STATE16_SWAPPED_TEXT 37
-#define CASE_STATE16_BOTH_DIRECT_TEXT 38
-#define CASE_STATE16_BOTH_SWAPPED_TEXT 39
-#define CASE_STATE16_DIRECT_SCALE_TEXT 40
-#define CASE_STATE16_DIRECT_SECOND_GATE_TEXT 41
-#define CASE_STATE16_DIRECT_LATER_SCALE_TEXT 42
 #define CASE_STATE27_DIRECT_SCALE 10
 #define CASE_STATE27_SWAPPED_SCALE 11
 #define CASE_STATE16_SWAPPED_SCALE 12
@@ -197,12 +191,13 @@ static void write_u32(
     CHECK(vf2_model2a_write(machine, address, bytes, sizeof(bytes)) == VF2_OK);
 }
 
-static void run_rom_case(
+static void run_rom_case_with_text(
     const uint8_t *main_rom,
     size_t main_rom_size,
     const uint8_t *main_data,
     size_t main_data_size,
-    int shape
+    int shape,
+    int text_case
 )
 {
     vf2_model2a reference_machine;
@@ -375,102 +370,6 @@ static void run_rom_case(
         expected_calls = UINT64_C(2);
         expected_returns = UINT64_C(2);
         label = "state16-direct-text";
-        break;
-    case CASE_STATE27_DIRECT_TEXT:
-        reference_cpu.registers[7] = 27u;
-        native_cpu.registers[7] = 27u;
-        reference_cpu.registers[8] = (uint32_t)b197_f1;
-        native_cpu.registers[8] = (uint32_t)b197_f1;
-        expected_steps = UINT64_C(126);
-        text_branch = 1;
-        expected_calls = UINT64_C(2);
-        expected_returns = UINT64_C(2);
-        label = "state27-direct-text";
-        break;
-    case CASE_STATE27_SWAPPED_TEXT:
-        reference_cpu.registers[7] = 0u;
-        native_cpu.registers[7] = 0u;
-        reference_cpu.registers[8] = 27u;
-        native_cpu.registers[8] = 27u;
-        expected_steps = UINT64_C(130);
-        swapped = 1;
-        text_branch = 1;
-        expected_calls = UINT64_C(2);
-        expected_returns = UINT64_C(2);
-        label = "state27-swapped-text";
-        break;
-    case CASE_STATE16_SWAPPED_TEXT:
-        reference_cpu.registers[7] = 0u;
-        native_cpu.registers[7] = 0u;
-        reference_cpu.registers[8] = 16u;
-        native_cpu.registers[8] = 16u;
-        expected_steps = UINT64_C(129);
-        swapped = 1;
-        text_branch = 1;
-        expected_calls = UINT64_C(2);
-        expected_returns = UINT64_C(2);
-        label = "state16-swapped-text";
-        break;
-    case CASE_STATE16_BOTH_DIRECT_TEXT:
-        reference_cpu.registers[7] = 16u;
-        native_cpu.registers[7] = 16u;
-        reference_cpu.registers[8] = 16u;
-        native_cpu.registers[8] = 16u;
-        expected_steps = UINT64_C(128);
-        both16 = 1;
-        text_branch = 1;
-        expected_calls = UINT64_C(2);
-        expected_returns = UINT64_C(2);
-        label = "state16-both-direct-text";
-        break;
-    case CASE_STATE16_BOTH_SWAPPED_TEXT:
-        reference_cpu.registers[7] = 16u;
-        native_cpu.registers[7] = 16u;
-        reference_cpu.registers[8] = 16u;
-        native_cpu.registers[8] = 16u;
-        expected_steps = UINT64_C(132);
-        swapped = 1;
-        both16 = 1;
-        text_branch = 1;
-        expected_calls = UINT64_C(2);
-        expected_returns = UINT64_C(2);
-        label = "state16-both-swapped-text";
-        break;
-    case CASE_STATE16_DIRECT_SCALE_TEXT:
-        reference_cpu.registers[7] = 16u;
-        native_cpu.registers[7] = 16u;
-        reference_cpu.registers[8] = 0u;
-        native_cpu.registers[8] = 0u;
-        expected_steps = UINT64_C(129);
-        scale_first = 1;
-        text_branch = 1;
-        expected_calls = UINT64_C(2);
-        expected_returns = UINT64_C(2);
-        label = "state16-direct-scale-text";
-        break;
-    case CASE_STATE16_DIRECT_SECOND_GATE_TEXT:
-        reference_cpu.registers[7] = 16u;
-        native_cpu.registers[7] = 16u;
-        reference_cpu.registers[8] = 0u;
-        native_cpu.registers[8] = 0u;
-        expected_steps = UINT64_C(128);
-        second_gate = 1;
-        text_branch = 1;
-        expected_calls = UINT64_C(2);
-        expected_returns = UINT64_C(2);
-        label = "state16-direct-second-gate-text";
-        break;
-    case CASE_STATE16_DIRECT_LATER_SCALE_TEXT:
-        reference_cpu.registers[7] = 16u;
-        native_cpu.registers[7] = 16u;
-        reference_cpu.registers[8] = 0u;
-        native_cpu.registers[8] = 0u;
-        expected_steps = UINT64_C(131);
-        later_scale = 1;
-        text_branch = 1;
-        expected_calls = UINT64_C(2);
-        expected_returns = UINT64_C(2);
-        label = "state16-direct-later-scale-text";
         break;
     case CASE_STATE27_DIRECT_SCALE:
         reference_cpu.registers[7] = 27u;
@@ -737,6 +636,13 @@ static void run_rom_case(
         goto cleanup;
     }
 
+    if (text_case) {
+        text_branch = 1;
+        expected_steps += UINT64_C(74);
+        expected_calls = UINT64_C(2);
+        expected_returns = UINT64_C(2);
+    }
+
     /* Force the measured direct or swapped state shape on both machines. */
     reference_cpu.ip = STATE27_ENTRY;
     native_cpu.ip = STATE27_ENTRY;
@@ -842,6 +748,19 @@ cleanup:
     vf2_i960_snapshot_destroy(&snap);
 }
 
+static void run_rom_case(
+    const uint8_t *main_rom,
+    size_t main_rom_size,
+    const uint8_t *main_data,
+    size_t main_data_size,
+    int shape
+)
+{
+    run_rom_case_with_text(
+        main_rom, main_rom_size, main_data, main_data_size, shape, 0
+    );
+}
+
 static void run_rom_differential(const char *rom_directory)
 {
     uint8_t *main_rom = NULL;
@@ -886,22 +805,6 @@ static void run_rom_differential(const char *rom_directory)
                  CASE_STATE16_DIRECT_LATER_SCALE);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
                  CASE_STATE16_DIRECT_TEXT);
-    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
-                 CASE_STATE27_DIRECT_TEXT);
-    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
-                 CASE_STATE27_SWAPPED_TEXT);
-    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
-                 CASE_STATE16_SWAPPED_TEXT);
-    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
-                 CASE_STATE16_BOTH_DIRECT_TEXT);
-    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
-                 CASE_STATE16_BOTH_SWAPPED_TEXT);
-    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
-                 CASE_STATE16_DIRECT_SCALE_TEXT);
-    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
-                 CASE_STATE16_DIRECT_SECOND_GATE_TEXT);
-    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
-                 CASE_STATE16_DIRECT_LATER_SCALE_TEXT);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
                  CASE_STATE27_DIRECT_SCALE);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
@@ -952,6 +855,53 @@ static void run_rom_differential(const char *rom_directory)
                  CASE_STATE16_BOTH_SWAPPED_MIXED_SHORT);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
                  CASE_STATE16_BOTH_SWAPPED_MIXED_LATER);
+
+    {
+        static const int text_shapes[] = {
+            CASE_STATE27_DIRECT,
+            CASE_STATE27_SWAPPED,
+            CASE_STATE16_DIRECT,
+            CASE_STATE16_SWAPPED,
+            CASE_STATE16_BOTH_DIRECT,
+            CASE_STATE16_BOTH_SWAPPED,
+            CASE_STATE16_DIRECT_SCALE,
+            CASE_STATE16_DIRECT_SECOND_GATE,
+            CASE_STATE16_DIRECT_LATER_SCALE,
+            CASE_STATE27_DIRECT_SCALE,
+            CASE_STATE27_SWAPPED_SCALE,
+            CASE_STATE16_SWAPPED_SCALE,
+            CASE_STATE16_BOTH_DIRECT_SCALE,
+            CASE_STATE16_BOTH_SWAPPED_SCALE,
+            CASE_STATE27_DIRECT_SECOND_GATE,
+            CASE_STATE27_SWAPPED_SECOND_GATE,
+            CASE_STATE16_SWAPPED_SECOND_GATE,
+            CASE_STATE16_BOTH_DIRECT_SECOND_GATE,
+            CASE_STATE16_BOTH_SWAPPED_SECOND_GATE,
+            CASE_STATE27_DIRECT_LATER_SCALE,
+            CASE_STATE27_SWAPPED_LATER_SCALE,
+            CASE_STATE16_SWAPPED_LATER_SCALE,
+            CASE_STATE16_BOTH_DIRECT_LATER_SCALE,
+            CASE_STATE16_BOTH_SWAPPED_LATER_SCALE,
+            CASE_STATE27_DIRECT_MIXED_SHORT,
+            CASE_STATE27_DIRECT_MIXED_LATER,
+            CASE_STATE27_SWAPPED_MIXED_SHORT,
+            CASE_STATE27_SWAPPED_MIXED_LATER,
+            CASE_STATE16_SWAPPED_MIXED_SHORT,
+            CASE_STATE16_SWAPPED_MIXED_LATER,
+            CASE_STATE16_BOTH_DIRECT_MIXED_SHORT,
+            CASE_STATE16_BOTH_DIRECT_MIXED_LATER,
+            CASE_STATE16_BOTH_SWAPPED_MIXED_SHORT,
+            CASE_STATE16_BOTH_SWAPPED_MIXED_LATER
+        };
+        size_t i;
+
+        for (i = 0u; i < sizeof(text_shapes) / sizeof(text_shapes[0]); ++i) {
+            run_rom_case_with_text(
+                main_rom, main_rom_size, main_data, main_data_size,
+                text_shapes[i], 1
+            );
+        }
+    }
 
     free(main_rom);
     free(main_data);
