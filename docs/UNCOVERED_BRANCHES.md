@@ -2264,6 +2264,15 @@ limited to these two measured ordered combinations; neighboring mixed masks
 remain explicit `VF2_ERROR_UNSUPPORTED` boundaries. See
 `decomp/i960/notes/game_info_18644_mixed_bit2_pair_v0484.md`.
 
+Status (v0504): the positive state-8 bit-3 mask `0x00000008` is native for
+the complete measured matrix of three fighter distributions, both countdown
+values, both mode-bit-6 values and thresholds `0..2` (`36/36` exact). The
+child memory path was already exact; the recovery adds the measured two
+dispatcher instructions, countdown-derived EQUAL/LESS condition, and stale
+frame values. The adjacent `0x00000018` control and threshold `3` remain
+explicit fail-closed boundaries. See
+`decomp/i960/notes/game_info_18644_positive_bit3_v0504.md`.
+
 ### v0221 high-26 8140 low cube
 
 * `0x04008140` (high-26 + bits 6+14+15) `1→8` low cube with `-5/-3` (v0221)
