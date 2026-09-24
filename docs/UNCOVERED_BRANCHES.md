@@ -1010,6 +1010,12 @@ Status (v0435): the integrated state-25/state-24 arm also admits the measured
 59/60 instructions with two calls/returns and exact live-state equality;
 other state-24 compositions remain explicit boundaries (see
 `decomp/i960/notes/fa_player_1442c_state25_state24_1474_v0435.md`).
+Status (v0436): the integrated state-25/state-27 setup is native through the
+measured state-27 helper, which clears fighter1 `+0x194` before the state byte
+is re-read. The neutral continuation now proves 126 instructions with four
+calls/returns and exact live-state equality. Direct state-27 entry at
+`0x144b0` remains an explicit boundary (see
+`decomp/i960/notes/fa_player_1442c_state25_state27_v0436.md`).
 Status (v0405): the `0x14640` state-27 arm is now native as the standalone
 `hybrid_execute_player_14640_state27` (type-15 walk via `+0x194(g7)`,
 41 steps / +1 call / +1 return to the `0x146c4` ret).  It requires

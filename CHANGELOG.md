@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Recover the measured integrated state-25/state-27 neutral continuation
+  (v0436). The live state-27 helper clears fighter1 `+0x194`, after which the
+  state-25 arm reaches `0x144b0` and the common exit in 126 instructions with
+  four calls/returns and exact live-state equality. Direct state-27 entry at
+  `0x144b0` remains unsupported. See
+  `decomp/i960/notes/fa_player_1442c_state25_state27_v0436.md`.
+
 - Recover the measured integrated state-25/state-24 `0x14474` sibling
   (v0435). When fighter0 `+0x19f` is 25 or 22, the swapped arm now writes
   the original fighter0 `+0x194`/`+0x1a4` state and rejoins the common exit;

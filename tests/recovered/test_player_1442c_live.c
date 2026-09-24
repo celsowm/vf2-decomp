@@ -262,18 +262,21 @@ static void run_rom_case(
     reference_instructions =
         reference_cpu.executed_instructions - snap_instructions;
     CHECK(reference_instructions ==
-          state25_successor == 16 ? UINT64_C(144) :
-          state25_successor == 24 && state25_f0_19f == 25u ? UINT64_C(59) :
-          state25_successor == 24 && state25_f0_19f == 22u ? UINT64_C(60) :
-          state25_successor == 24 ? UINT64_C(105) : REF_TOTAL);
+          (state25_successor == 16 ? UINT64_C(144) :
+           state25_successor == 24 && state25_f0_19f == 25u ? UINT64_C(59) :
+           state25_successor == 24 && state25_f0_19f == 22u ? UINT64_C(60) :
+           state25_successor == 24 ? UINT64_C(105) :
+           state25_successor == 27 ? UINT64_C(126) : REF_TOTAL));
     CHECK(reference_cpu.procedure_calls - snap_calls ==
-          state25_successor == 16 ? UINT64_C(4) :
-          state25_successor == 24 && state25_f0_19f != 0u ? UINT64_C(2) :
-          state25_successor == 24 ? UINT64_C(3) : REF_CALLS);
+          (state25_successor == 16 ? UINT64_C(4) :
+           state25_successor == 24 && state25_f0_19f != 0u ? UINT64_C(2) :
+           state25_successor == 24 ? UINT64_C(3) :
+           state25_successor == 27 ? UINT64_C(4) : REF_CALLS));
     CHECK(reference_cpu.procedure_returns - snap_returns ==
-          state25_successor == 16 ? UINT64_C(4) :
-          state25_successor == 24 && state25_f0_19f != 0u ? UINT64_C(2) :
-          state25_successor == 24 ? UINT64_C(3) : REF_RETS);
+          (state25_successor == 16 ? UINT64_C(4) :
+           state25_successor == 24 && state25_f0_19f != 0u ? UINT64_C(2) :
+           state25_successor == 24 ? UINT64_C(3) :
+           state25_successor == 27 ? UINT64_C(4) : REF_RETS));
 
     /* Native: the 0x1442c body (including the two 0x14640 helper calls). */
     native_status = vf2_hybrid_player_1442c_execute_for_test(
@@ -283,25 +286,29 @@ static void run_rom_case(
     native_instructions =
         native_cpu.executed_instructions - snap_instructions;
     CHECK(native_instructions ==
-          state25_successor == 16 ? UINT64_C(144) :
-          state25_successor == 24 && state25_f0_19f == 25u ? UINT64_C(59) :
-          state25_successor == 24 && state25_f0_19f == 22u ? UINT64_C(60) :
-          state25_successor == 24 ? UINT64_C(105) : REF_TOTAL);
+          (state25_successor == 16 ? UINT64_C(144) :
+           state25_successor == 24 && state25_f0_19f == 25u ? UINT64_C(59) :
+           state25_successor == 24 && state25_f0_19f == 22u ? UINT64_C(60) :
+           state25_successor == 24 ? UINT64_C(105) :
+           state25_successor == 27 ? UINT64_C(126) : REF_TOTAL));
     CHECK(native_cpu.procedure_calls - snap_calls ==
-          state25_successor == 16 ? UINT64_C(4) :
-          state25_successor == 24 && state25_f0_19f != 0u ? UINT64_C(2) :
-          state25_successor == 24 ? UINT64_C(3) : REF_CALLS);
+          (state25_successor == 16 ? UINT64_C(4) :
+           state25_successor == 24 && state25_f0_19f != 0u ? UINT64_C(2) :
+           state25_successor == 24 ? UINT64_C(3) :
+           state25_successor == 27 ? UINT64_C(4) : REF_CALLS));
     CHECK(native_cpu.procedure_returns - snap_returns ==
-          state25_successor == 16 ? UINT64_C(4) :
-          state25_successor == 24 && state25_f0_19f != 0u ? UINT64_C(2) :
-          state25_successor == 24 ? UINT64_C(3) : REF_RETS);
+          (state25_successor == 16 ? UINT64_C(4) :
+           state25_successor == 24 && state25_f0_19f != 0u ? UINT64_C(2) :
+           state25_successor == 24 ? UINT64_C(3) :
+           state25_successor == 27 ? UINT64_C(4) : REF_RETS));
 
     printf(
         "player-1442c-live%s ref=%llu native=%llu calls=%llu/%llu rets=%llu/%llu\n",
         state25_successor == 16 ? "-25-16" :
         state25_successor == 24 && state25_f0_19f == 25u ? "-25-24-19f25" :
         state25_successor == 24 && state25_f0_19f == 22u ? "-25-24-19f22" :
-        state25_successor == 24 ? "-25-24" : "",
+        state25_successor == 24 ? "-25-24" :
+        state25_successor == 27 ? "-25-27" : "",
         (unsigned long long)reference_instructions,
         (unsigned long long)native_instructions,
         (unsigned long long)(reference_cpu.procedure_calls - snap_calls),
@@ -1310,6 +1317,7 @@ static void run_rom_differential(const char *rom_directory)
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 24, 0u);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 24, 25u);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 24, 22u);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 27, 0u);
     run_sibling_case(main_rom, main_rom_size, main_data, main_data_size);
     run_s25_case(main_rom, main_rom_size, main_data, main_data_size, 0);
     run_s25_case(main_rom, main_rom_size, main_data, main_data_size, 16);

@@ -7000,9 +7000,12 @@ static vf2_status hybrid_execute_player_1442c(
         cpu->registers[7] = (uint32_t)b197_f0;   /* 0x1445c ldob +0x197(g7) */
         cpu->registers[8] = (uint32_t)b197_f1;   /* 0x14460 ldob +0x197(g8) */
         cpu->registers[14u] = (uint32_t)b19b_f1; /* 0x14454 ldob +0x19b(g8) */
+        /* v0436: an integrated f1 == 27 helper clears +0x194, so the
+         * reloaded state byte is neutral and the 0x144a0 -> 0x144b0 prefix
+         * is the nine-instruction fall-through (the same count as f1 == 16). */
         cpu->executed_instructions +=
             b197_f1 == 16u ? UINT64_C(9) :
-            b197_f1 == 24u ? UINT64_C(16) : UINT64_C(11);
+            b197_f1 == 24u ? UINT64_C(16) : UINT64_C(9);
         cpu->ip = UINT32_C(0x000144b0);
         return hybrid_execute_player_144b0(machine, cpu);
     }
