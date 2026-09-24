@@ -21730,6 +21730,18 @@ static vf2_status coli_22298_body(
                 (int32_t)r4 >= (int32_t)r5) {
                 second_loop_candidate = false;
             }
+            if (!second_loop_candidate && half_61c == UINT16_C(0) &&
+                scan_821 == UINT8_C(2)) {
+                /* v0495: the measured ordering-fail sibling selects the
+                 * 0xffff common tail before the second 16-trip loop. */
+                if (hybrid_write_u16(
+                        machine, g7 + VF2_COLI_BITMASK_RESULT_OFFSET,
+                        UINT16_C(0xffff)) != VF2_OK) {
+                    return VF2_ERROR_UNSUPPORTED;
+                }
+                *body_out = UINT64_C(21);
+                return VF2_OK;
+            }
             if (second_loop_candidate &&
                 (vf2_model2a_read_u32(
                     machine, g7 + UINT32_C(0x1f4), &r4) != VF2_OK ||

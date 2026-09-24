@@ -2729,6 +2729,13 @@ shape and other alternate bit-14 branches remain explicit fail-closed
 boundaries. See
 `decomp/i960/notes/fa_coli_bit14_scan5_v0494.md`.
 
+Status (v0495): the measured scan-2 ordering-fail sibling now selects the
+`0x223a8` `0xffff` tail natively: zero `g7+0x1a4`, bit-8 `g8+0x1a4`,
+`g7+0x61c == 0`, `g8+0x821 == 2`, and equal `g7+0x1f8`/`g7+0x6e4` values.
+It stores `0xffff` at `g7+0x6dc` and returns in 22 instructions. Other
+scan-2 and alternate bit-14 compositions remain explicitly fail-closed. See
+`decomp/i960/notes/fa_coli_bit14_ordering_fail_v0495.md`.
+
 Status (v0486): the measured `0x225cc` scan-4 selector
 `g8 + 0x1a4 = 0x0001f004` is now native for `g7 + 0x1a4 = 0x00400100`.
 The reference and native runs both return in 217 instructions with complete
