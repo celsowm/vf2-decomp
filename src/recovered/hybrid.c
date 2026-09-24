@@ -6475,11 +6475,8 @@ static vf2_status hybrid_execute_player_1453c(
             machine, g8 + UINT32_C(0x1a4), &r1a4_g8
         );
     }
-    if (status == VF2_OK && (r1a4_g8 & UINT32_C(1)) != 0u &&
-        !(r7 == 16u && r8 == 0u && !state27 && !swapped)) {
-        /* v0417 measures only the direct state-16 first-scaling arm. */
-        status = VF2_ERROR_UNSUPPORTED;
-    }
+    /* v0417/v0421 measure the first-scaling arm for every admitted state
+     * shape, including the observed swap prefixes. */
     if (status == VF2_OK) {
         status = vf2_model2a_read_u32(
             machine, g7 + UINT32_C(0x1a4), &r1a4_g7

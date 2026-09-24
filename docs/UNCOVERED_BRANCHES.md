@@ -949,6 +949,13 @@ the measured short composition. The ROM calls `0x7fc0` with source
 `vf2_player_1453c_live` fixture proves this with full live-state equality;
 scaled/swapped text variants remain explicit boundaries. See
 `decomp/i960/notes/fa_player_1453c_text_v0420.md`.
+Status (v0421): the first-scaling bit-0 arm is native across the measured
+state-27/state-16 matrix: direct/swapped state 27 takes 55/59 instructions,
+swapped state 16 takes 58, and both-state-16 direct/swapped takes 57/61.
+The fifteen-case `vf2_player_1453c_live` fixture proves these with full
+live-state equality and one call/return each. Other scaling compositions and
+scaled text variants remain explicit boundaries. See
+`decomp/i960/notes/fa_player_1453c_scaling_matrix_v0421.md`.
 Status (v0405): the `0x14640` state-27 arm is now native as the standalone
 `hybrid_execute_player_14640_state27` (type-15 walk via `+0x194(g7)`,
 41 steps / +1 call / +1 return to the `0x146c4` ret).  It requires

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Extend the measured first-scaling arm across the state-27/state-16 swap
+  matrix (v0421). The native helper now proves direct/swapped state 27 at
+  55/59 instructions, swapped state 16 at 58, and both-state-16 direct/
+  swapped at 57/61, with exact live-state equality and one call/return in
+  each case. Other scaling compositions remain fail-closed. See the expanded
+  `vf2_player_1453c_live` fixture and
+  `decomp/i960/notes/fa_player_1453c_scaling_matrix_v0421.md`.
+
 - Recover the measured direct state-16 text tail of `0x14570` (v0420). With
   board `0x508000` bit 9 clear, the native path calls the existing recovered
   `0x7fc0` byte expander from source `0x1b970` to `0x010006e8`, matching the

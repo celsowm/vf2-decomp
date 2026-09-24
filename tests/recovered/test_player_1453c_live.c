@@ -57,6 +57,11 @@
 #define CASE_STATE16_DIRECT_SECOND_GATE 7
 #define CASE_STATE16_DIRECT_LATER_SCALE 8
 #define CASE_STATE16_DIRECT_TEXT 9
+#define CASE_STATE27_DIRECT_SCALE 10
+#define CASE_STATE27_SWAPPED_SCALE 11
+#define CASE_STATE16_SWAPPED_SCALE 12
+#define CASE_STATE16_BOTH_DIRECT_SCALE 13
+#define CASE_STATE16_BOTH_SWAPPED_SCALE 14
 
 static int failures = 0;
 
@@ -200,6 +205,7 @@ static void run_rom_case(
     int second_gate = 0;
     int later_scale = 0;
     int text_branch = 0;
+    uint32_t scale_fighter = 0u;
     uint64_t expected_calls = REF_CALLS;
     uint64_t expected_returns = REF_RETS;
     int ok = 0;
@@ -342,6 +348,56 @@ static void run_rom_case(
         expected_returns = UINT64_C(2);
         label = "state16-direct-text";
         break;
+    case CASE_STATE27_DIRECT_SCALE:
+        reference_cpu.registers[7] = 27u;
+        native_cpu.registers[7] = 27u;
+        reference_cpu.registers[8] = (uint32_t)b197_f1;
+        native_cpu.registers[8] = (uint32_t)b197_f1;
+        expected_steps = UINT64_C(55);
+        scale_first = 1;
+        label = "state27-direct-scale";
+        break;
+    case CASE_STATE27_SWAPPED_SCALE:
+        reference_cpu.registers[7] = 0u;
+        native_cpu.registers[7] = 0u;
+        reference_cpu.registers[8] = 27u;
+        native_cpu.registers[8] = 27u;
+        expected_steps = UINT64_C(59);
+        swapped = 1;
+        scale_first = 1;
+        label = "state27-swapped-scale";
+        break;
+    case CASE_STATE16_SWAPPED_SCALE:
+        reference_cpu.registers[7] = 0u;
+        native_cpu.registers[7] = 0u;
+        reference_cpu.registers[8] = 16u;
+        native_cpu.registers[8] = 16u;
+        expected_steps = UINT64_C(58);
+        swapped = 1;
+        scale_first = 1;
+        label = "state16-swapped-scale";
+        break;
+    case CASE_STATE16_BOTH_DIRECT_SCALE:
+        reference_cpu.registers[7] = 16u;
+        native_cpu.registers[7] = 16u;
+        reference_cpu.registers[8] = 16u;
+        native_cpu.registers[8] = 16u;
+        expected_steps = UINT64_C(57);
+        both16 = 1;
+        scale_first = 1;
+        label = "state16-both-direct-scale";
+        break;
+    case CASE_STATE16_BOTH_SWAPPED_SCALE:
+        reference_cpu.registers[7] = 16u;
+        native_cpu.registers[7] = 16u;
+        reference_cpu.registers[8] = 16u;
+        native_cpu.registers[8] = 16u;
+        expected_steps = UINT64_C(61);
+        swapped = 1;
+        both16 = 1;
+        scale_first = 1;
+        label = "state16-both-swapped-scale";
+        break;
     default:
         CHECK(0);
         goto cleanup;
@@ -361,8 +417,9 @@ static void run_rom_case(
               type5_fighter + UINT32_C(0x194), TYPE5_INDEX);
     write_u16(&native_machine, type5_fighter + UINT32_C(0x194), TYPE5_INDEX);
     if (scale_first) {
-        write_u32(&reference_machine, fighter1 + UINT32_C(0x1a4), 1u);
-        write_u32(&native_machine, fighter1 + UINT32_C(0x1a4), 1u);
+        scale_fighter = swapped ? fighter0 : fighter1;
+        write_u32(&reference_machine, scale_fighter + UINT32_C(0x1a4), 1u);
+        write_u32(&native_machine, scale_fighter + UINT32_C(0x1a4), 1u);
     }
     if (second_gate) {
         write_u8(&reference_machine, UINT32_C(0x0059c351), 0x40u);
@@ -492,6 +549,16 @@ static void run_rom_differential(const char *rom_directory)
                  CASE_STATE16_DIRECT_LATER_SCALE);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
                  CASE_STATE16_DIRECT_TEXT);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE27_DIRECT_SCALE);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE27_SWAPPED_SCALE);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_SWAPPED_SCALE);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_BOTH_DIRECT_SCALE);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_BOTH_SWAPPED_SCALE);
 
     free(main_rom);
     free(main_data);
