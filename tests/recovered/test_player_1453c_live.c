@@ -62,6 +62,11 @@
 #define CASE_STATE16_SWAPPED_SCALE 12
 #define CASE_STATE16_BOTH_DIRECT_SCALE 13
 #define CASE_STATE16_BOTH_SWAPPED_SCALE 14
+#define CASE_STATE27_DIRECT_SECOND_GATE 15
+#define CASE_STATE27_SWAPPED_SECOND_GATE 16
+#define CASE_STATE16_SWAPPED_SECOND_GATE 17
+#define CASE_STATE16_BOTH_DIRECT_SECOND_GATE 18
+#define CASE_STATE16_BOTH_SWAPPED_SECOND_GATE 19
 
 static int failures = 0;
 
@@ -398,6 +403,56 @@ static void run_rom_case(
         scale_first = 1;
         label = "state16-both-swapped-scale";
         break;
+    case CASE_STATE27_DIRECT_SECOND_GATE:
+        reference_cpu.registers[7] = 27u;
+        native_cpu.registers[7] = 27u;
+        reference_cpu.registers[8] = (uint32_t)b197_f1;
+        native_cpu.registers[8] = (uint32_t)b197_f1;
+        expected_steps = UINT64_C(54);
+        second_gate = 1;
+        label = "state27-direct-second-gate";
+        break;
+    case CASE_STATE27_SWAPPED_SECOND_GATE:
+        reference_cpu.registers[7] = 0u;
+        native_cpu.registers[7] = 0u;
+        reference_cpu.registers[8] = 27u;
+        native_cpu.registers[8] = 27u;
+        expected_steps = UINT64_C(58);
+        swapped = 1;
+        second_gate = 1;
+        label = "state27-swapped-second-gate";
+        break;
+    case CASE_STATE16_SWAPPED_SECOND_GATE:
+        reference_cpu.registers[7] = 0u;
+        native_cpu.registers[7] = 0u;
+        reference_cpu.registers[8] = 16u;
+        native_cpu.registers[8] = 16u;
+        expected_steps = UINT64_C(57);
+        swapped = 1;
+        second_gate = 1;
+        label = "state16-swapped-second-gate";
+        break;
+    case CASE_STATE16_BOTH_DIRECT_SECOND_GATE:
+        reference_cpu.registers[7] = 16u;
+        native_cpu.registers[7] = 16u;
+        reference_cpu.registers[8] = 16u;
+        native_cpu.registers[8] = 16u;
+        expected_steps = UINT64_C(56);
+        both16 = 1;
+        second_gate = 1;
+        label = "state16-both-direct-second-gate";
+        break;
+    case CASE_STATE16_BOTH_SWAPPED_SECOND_GATE:
+        reference_cpu.registers[7] = 16u;
+        native_cpu.registers[7] = 16u;
+        reference_cpu.registers[8] = 16u;
+        native_cpu.registers[8] = 16u;
+        expected_steps = UINT64_C(60);
+        swapped = 1;
+        both16 = 1;
+        second_gate = 1;
+        label = "state16-both-swapped-second-gate";
+        break;
     default:
         CHECK(0);
         goto cleanup;
@@ -559,6 +614,16 @@ static void run_rom_differential(const char *rom_directory)
                  CASE_STATE16_BOTH_DIRECT_SCALE);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
                  CASE_STATE16_BOTH_SWAPPED_SCALE);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE27_DIRECT_SECOND_GATE);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE27_SWAPPED_SECOND_GATE);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_SWAPPED_SECOND_GATE);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_BOTH_DIRECT_SECOND_GATE);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 CASE_STATE16_BOTH_SWAPPED_SECOND_GATE);
 
     free(main_rom);
     free(main_data);

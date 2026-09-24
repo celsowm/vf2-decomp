@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Extend the measured `0x145c0` second-gate arm across the state-27/state-16
+  matrix (v0422). With `+0x3351` bit 6 set and g8 bit 29 clear, direct/
+  swapped state 27 reaches 54/58 instructions, swapped state 16 reaches 57,
+  and both-state-16 direct/swapped reaches 56/60. The expanded
+  `vf2_player_1453c_live` fixture now proves 20 shapes with exact live-state
+  equality; bit-29-set and mixed scaling combinations remain fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_second_gate_matrix_v0422.md`.
+
 - Extend the measured first-scaling arm across the state-27/state-16 swap
   matrix (v0421). The native helper now proves direct/swapped state 27 at
   55/59 instructions, swapped state 16 at 58, and both-state-16 direct/

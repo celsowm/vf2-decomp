@@ -6507,8 +6507,7 @@ static vf2_status hybrid_execute_player_1453c(
         return status;
     }
     if ((b3351 & (UINT32_C(1) << 6u)) != 0u) {
-        if (!(r7 == 16u && r8 == 0u && !state27 && !swapped &&
-              (r1a4_g8 & UINT32_C(1)) == 0u)) {
+        if ((r1a4_g8 & UINT32_C(1)) != 0u) {
             return VF2_ERROR_UNSUPPORTED;
         }
         /* 0x145c0 bbc is not taken; 0x145c4 loads (g8), and 0x145c8
@@ -6516,7 +6515,8 @@ static vf2_status hybrid_execute_player_1453c(
          * arm. */
         body += UINT64_C(2);
         if ((word_g8 & (UINT32_C(1) << 29u)) != 0u) {
-            /* v0419 measures the direct state-16 0x145cc arm only. */
+            /* v0419/v0422 measure this later arm for the admitted state
+             * shapes when the first scaling gate is clear. */
             second_scale = true;
             body += UINT64_C(3);
         }

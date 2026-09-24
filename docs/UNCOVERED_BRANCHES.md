@@ -956,6 +956,13 @@ The fifteen-case `vf2_player_1453c_live` fixture proves these with full
 live-state equality and one call/return each. Other scaling compositions and
 scaled text variants remain explicit boundaries. See
 `decomp/i960/notes/fa_player_1453c_scaling_matrix_v0421.md`.
+Status (v0422): the `0x145c0` bit-6 second gate is native across the measured
+state-27/state-16 matrix when g8 bit 29 is clear: direct/swapped state 27
+takes 54/58 instructions, swapped state 16 takes 57, and both-state-16
+direct/swapped takes 56/60. The twenty-case `vf2_player_1453c_live` fixture
+proves these with full live-state equality and one call/return each;
+bit-29-set and mixed scaling combinations remain explicit boundaries. See
+`decomp/i960/notes/fa_player_1453c_second_gate_matrix_v0422.md`.
 Status (v0405): the `0x14640` state-27 arm is now native as the standalone
 `hybrid_execute_player_14640_state27` (type-15 walk via `+0x194(g7)`,
 41 steps / +1 call / +1 return to the `0x146c4` ret).  It requires
