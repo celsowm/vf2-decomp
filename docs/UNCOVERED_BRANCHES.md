@@ -2321,6 +2321,15 @@ correction. Other positive compositions remain explicit fail-closed
 boundaries. See
 `decomp/i960/notes/game_info_18644_positive_bit1_bit2_pairs_v0509.md`.
 
+Status (v0510): the positive state-8 bit-1+bit-8 mask `0x00000102` is native
+for the complete measured matrix of three fighter distributions, both
+countdown values, both mode-bit-6 values and thresholds `0..2` (`36/36`
+exact). Unilateral distributions reuse the measured bit-8 corrections;
+bilateral joins use −2 at zero countdown and +3 at nonzero countdown. The
+stale frame and countdown-derived condition also match. Other positive
+compositions remain explicit fail-closed boundaries. See
+`decomp/i960/notes/game_info_18644_positive_bit1_bit8_v0510.md`.
+
 ### v0221 high-26 8140 low cube
 
 * `0x04008140` (high-26 + bits 6+14+15) `1→8` low cube with `-5/-3` (v0221)
