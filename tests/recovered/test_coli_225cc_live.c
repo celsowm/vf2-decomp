@@ -637,6 +637,10 @@ static void run_rom_case(
         } else if (bit16_scan4 == 128) {
             g7_flags = UINT32_C(0x00400100);
             g8_flags = UINT32_C(0x0001f010);
+        } else if (bit16_scan4 == 129) {
+            /* v0486: measured bit-2 sibling of the high selector words. */
+            g7_flags = UINT32_C(0x00400100);
+            g8_flags = UINT32_C(0x0001f004);
         }
         CHECK(vf2_model2a_write_u32(
                   &reference_machine, COLI_LIVE_FIGHTER0 + UINT32_C(0x1a4),
@@ -868,6 +872,7 @@ static void run_rom_differential(const char *rom_directory)
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 126);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 127);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 128);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 129);
 
     free(main_rom);
     free(main_data);

@@ -22705,6 +22705,7 @@ static vf2_status coli_225cc_body(
                  flags_g8 == UINT32_C(0x0001d000) ||
                  flags_g8 == UINT32_C(0x0001d010) ||
                  flags_g8 == UINT32_C(0x0001f000) ||
+                 flags_g8 == UINT32_C(0x0001f004) ||
                  flags_g8 == UINT32_C(0x0001f010) ||
                  flags_g8 == UINT32_C(0x00018000) ||
                  flags_g8 == UINT32_C(0x00018001) ||
@@ -24680,6 +24681,7 @@ static vf2_status coli_225cc_long_body(
                 flags_g8 == UINT32_C(0x0001d008) ||
                 flags_g8 == UINT32_C(0x0001d010) ||
                 flags_g8 == UINT32_C(0x0001f000) ||
+                flags_g8 == UINT32_C(0x0001f004) ||
                 flags_g8 == UINT32_C(0x0001f008) ||
                 flags_g8 == UINT32_C(0x0001f010) ||
                 flags_g8 == UINT32_C(0x0001a100) ||
@@ -26471,6 +26473,7 @@ coli_22bc0_common:
          flags_g8 == UINT32_C(0x00017800) ||
          flags_g8 == UINT32_C(0x0001d000) ||
          flags_g8 == UINT32_C(0x0001f000) ||
+         flags_g8 == UINT32_C(0x0001f004) ||
          flags_g8 == UINT32_C(0x0001f010) ||
          flags_g8 == UINT32_C(0x00002000) ||
          flags_g8 == UINT32_C(0x00002001) ||

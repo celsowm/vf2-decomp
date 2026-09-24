@@ -2685,6 +2685,14 @@ body counts, pinned by `vf2_native_runtime`; all other bit-14 loop shapes
 remain fail-closed. See
 `decomp/i960/notes/fa_coli_bit14_loop_v0485.md`.
 
+Status (v0486): the measured `0x225cc` scan-4 selector
+`g8 + 0x1a4 = 0x0001f004` is now native for `g7 + 0x1a4 = 0x00400100`.
+The reference and native runs both return in 217 instructions with complete
+CPU, condition, procedure, call/return and mutable-memory equality. Only this
+exact bit-2 sibling is admitted; other unmeasured selector compositions
+remain fail-closed. See
+`decomp/i960/notes/fa_coli_bit16_bit13_high_v0486.md`.
+
 ### v0291 measure `0x225cc` `g8+0x19f==22` shortcut (defer)
 
 Forcing `g8+0x19f = 22` takes the `call 0x18bd4` shortcut. That helper
