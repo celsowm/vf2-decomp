@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Extend the measured `fa_rob` `0x1453c` state-27 recovery for the f1 == 27
+  swap path (v0415). When `r7 != 27` and `r8 == 27`, the native helper now
+  models the `0x14530..0x14538` g7/g8 swap and matches the ROM through
+  `0x1463c` in 56 instructions with one type-5 walker call/return. The
+  existing ROM-backed fixture now proves both direct and swapped shapes with
+  full live-state equality; unmeasured scaling, text and broader dispatch
+  variants remain fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_swap_v0415.md`.
+
 - Recover the measured `fa_rob` `0x14640` signed-greater compare-prefix tails
   (v0414).  The native path now covers neutral bit-4-clear cases with zero or
   nonzero `+0x194` (14/16 instructions to `0x146d8`) and state 13 with bit 4

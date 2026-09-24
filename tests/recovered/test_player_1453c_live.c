@@ -1,8 +1,9 @@
 /* ROM-backed differential fixture for the fa_rob state-27 arm 0x1453c
- * (v0404).
+ * (v0404/v0415).
  *
  * The 0x1453c arm is the fa_rob fighter-state exchange reached at 0x14528
- * when the state-27 fighter's +0x197 == 27.  It sets that fighter's +0x197
+ * when the state-27 fighter's +0x197 == 27.  The second-fighter shape first
+ * swaps g7/g8 at 0x14530..0x14538. Both paths set that fighter's +0x197
  * to 16, walks a type-5 record chain via +0x194(g7) (0x1ab34, g1 == 5),
  * stores the computed +0x194(g8) and +0x822(g8), clears bit 21 of
  * +0x1a4(g8), flips bit 6 of (g8), then rejoins the 0x14628 common exit.
@@ -13,7 +14,8 @@
  * and a measured +0x194 that indexes a valid type-5 chain (0x73), then runs
  * the reference interpreter and the native helper to ip == 0x1463c and
  * asserts exact step/call/ret lockstep plus full live-state equality
- * (registers/CC/AC/frames/Work-RAM).
+ * (registers/CC/AC/frames/Work-RAM). The direct case is 52 steps; the
+ * measured swapped case is 56 steps.
  *
  * Witness (measured, current build):
  *   vf2probe --rom-dir roms/vf2 --snapshot out/park-1442c.vf2snap \
@@ -130,7 +132,8 @@ static void run_rom_case(
     const uint8_t *main_rom,
     size_t main_rom_size,
     const uint8_t *main_data,
-    size_t main_data_size
+    size_t main_data_size,
+    int swapped
 )
 {
     vf2_model2a reference_machine;
@@ -200,28 +203,31 @@ static void run_rom_case(
     CHECK(vf2_model2a_read(&reference_machine, fighter1 + UINT32_C(0x197),
                            &b197_f1, 1u) == VF2_OK);
 
-    /* Force the measured state-27 shape on both machines. */
+    /* Force the measured direct or swapped state-27 shape on both machines. */
     reference_cpu.ip = STATE27_ENTRY;
     native_cpu.ip = STATE27_ENTRY;
-    reference_cpu.registers[7] = 27u;
-    native_cpu.registers[7] = 27u;
-    reference_cpu.registers[8] = (uint32_t)b197_f1;
-    native_cpu.registers[8] = (uint32_t)b197_f1;
+    reference_cpu.registers[7] = swapped ? 0u : 27u;
+    native_cpu.registers[7] = swapped ? 0u : 27u;
+    reference_cpu.registers[8] = swapped ? 27u : (uint32_t)b197_f1;
+    native_cpu.registers[8] = swapped ? 27u : (uint32_t)b197_f1;
     reference_cpu.registers[10] = fighter0;
     native_cpu.registers[10] = fighter0;
     reference_cpu.registers[11] = fighter1;
     native_cpu.registers[11] = fighter1;
     reference_cpu.registers[14u] = (uint32_t)b19b_f1;
     native_cpu.registers[14u] = (uint32_t)b19b_f1;
-    write_u16(&reference_machine, fighter0 + UINT32_C(0x194), TYPE5_INDEX);
-    write_u16(&native_machine, fighter0 + UINT32_C(0x194), TYPE5_INDEX);
+    write_u16(
+        &reference_machine,
+        (swapped ? fighter1 : fighter0) + UINT32_C(0x194), TYPE5_INDEX);
+    write_u16(
+        &native_machine,
+        (swapped ? fighter1 : fighter0) + UINT32_C(0x194), TYPE5_INDEX);
 
     snap_instructions = snap.cpu.executed_instructions;
     snap_calls = snap.cpu.procedure_calls;
     snap_returns = snap.cpu.procedure_returns;
 
-    /* Reference: step the 0x1453c arm to its 0x1463c ret instruction
-     * (52 steps / +1 call / +1 return). */
+    /* Reference: step the 0x1453c arm to its 0x1463c ret instruction. */
     steps = 0u;
     while (reference_cpu.ip != STATE27_RETURN && steps < 1024u) {
         reference_status =
@@ -235,7 +241,7 @@ static void run_rom_case(
     CHECK(reference_cpu.ip == STATE27_RETURN);
     reference_instructions =
         reference_cpu.executed_instructions - snap_instructions;
-    CHECK(reference_instructions == REF_TOTAL);
+    CHECK(reference_instructions == (swapped ? UINT64_C(56) : REF_TOTAL));
     CHECK(reference_cpu.procedure_calls - snap_calls == REF_CALLS);
     CHECK(reference_cpu.procedure_returns - snap_returns == REF_RETS);
 
@@ -246,12 +252,13 @@ static void run_rom_case(
     CHECK(native_cpu.ip == STATE27_RETURN);
     native_instructions =
         native_cpu.executed_instructions - snap_instructions;
-    CHECK(native_instructions == REF_TOTAL);
+    CHECK(native_instructions == (swapped ? UINT64_C(56) : REF_TOTAL));
     CHECK(native_cpu.procedure_calls - snap_calls == REF_CALLS);
     CHECK(native_cpu.procedure_returns - snap_returns == REF_RETS);
 
     printf(
-        "player-1453c-live ref=%llu native=%llu calls=%llu/%llu rets=%llu/%llu\n",
+        "player-1453c-live %s ref=%llu native=%llu calls=%llu/%llu rets=%llu/%llu\n",
+        swapped ? "swapped" : "direct",
         (unsigned long long)reference_instructions,
         (unsigned long long)native_instructions,
         (unsigned long long)(reference_cpu.procedure_calls - snap_calls),
@@ -303,7 +310,8 @@ static void run_rom_differential(const char *rom_directory)
         return;
     }
 
-    run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 0);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 1);
 
     free(main_rom);
     free(main_data);

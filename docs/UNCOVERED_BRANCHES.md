@@ -900,6 +900,16 @@ the `0x14528` synthetic entry and is not yet wired into the `0x1442c`
 body dispatch (see reachability note); the separate `0x14640` state-27
 type-15 walk and the f1 == 27 swap path remain explicit boundaries (see
 `decomp/i960/notes/fa_player_1453c_state27_v0404.md`).
+Status (v0415): the measured f1 == 27 swap path at `0x14530..0x14538` is
+now native too. From the `0x14528` head with `r7 != 27`, `r8 == 27`, and a
+valid type-5 index in the second fighter's `+0x194`, the recovery performs
+the three-register swap and matches the ROM through `0x1463c` in 56
+instructions / +1 call / +1 return. The expanded
+`vf2_player_1453c_live` fixture proves both direct (52-step) and swapped
+shapes with full live-state equality. Other `0x1453c` scaling/text/walker
+variants and the broader `0x1442c` heavy-arm dispatch remain explicit
+boundaries. See
+`decomp/i960/notes/fa_player_1453c_swap_v0415.md`.
 Status (v0405): the `0x14640` state-27 arm is now native as the standalone
 `hybrid_execute_player_14640_state27` (type-15 walk via `+0x194(g7)`,
 41 steps / +1 call / +1 return to the `0x146c4` ret).  It requires

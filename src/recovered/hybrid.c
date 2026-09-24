@@ -6377,9 +6377,9 @@ static vf2_status hybrid_execute_player_144b0(
  * record chain via +0x194(g7) (0x1ab34, g1 == 5), stores the computed
  * +0x194(g8) and +0x822(g8), clears bit 21 of +0x1a4(g8), flips bit 6 of
  * (g8), then rejoins the 0x14628 common exit clearing both fighters'
- * +0x198.  Measured short path (both scaling branches taken, text
- * skipped) spans 52 steps from 0x14528 to 0x1463c with +1 call / +1
- * return (the 0x1ab34 walker), when +0x194(g7) indexes a valid type-5
+ * +0x198.  The direct r7 == 27 shape spans 52 steps; the measured r7 != 27,
+ * r8 == 27 shape executes the 0x14530..0x14538 swap and spans 56 steps.
+ * Both have +1 call / +1 return when +0x194(g7) indexes a valid type-5
  * chain.  Unmeasured variants (walker miss, bit 0 of +0x1a4(g8) set, bit
  * 6 of the 0x50016c+0x3351 byte set, bit 9 of 0x508000 clear) stay
  * fail-closed. */
@@ -6388,9 +6388,9 @@ static vf2_status hybrid_execute_player_1453c(
     vf2_i960_cpu *cpu
 )
 {
-    const uint32_t g7 = cpu != NULL
+    uint32_t g7 = cpu != NULL
         ? cpu->registers[VF2_I960_G0_REGISTER + 7u] : 0u;
-    const uint32_t g8 = cpu != NULL
+    uint32_t g8 = cpu != NULL
         ? cpu->registers[VF2_I960_G0_REGISTER + 8u] : 0u;
     const uint32_t r10 = cpu != NULL ? cpu->registers[10] : 0u;
     const uint32_t r11 = cpu != NULL ? cpu->registers[11] : 0u;
@@ -6414,12 +6414,24 @@ static vf2_status hybrid_execute_player_1453c(
     uint32_t r4 = 0u;
     uint64_t body = UINT64_C(6);
     bool bit6 = false;
+    bool swapped = false;
     vf2_status status = VF2_OK;
 
     if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x00014528) ||
         cpu->local_frame_depth == 0u || g7 == 0u || g8 == 0u ||
-        r10 == 0u || r11 == 0u || r7 != 27u) {
+        r10 == 0u || r11 == 0u || (r7 != 27u && r8 != 27u)) {
         return VF2_ERROR_UNSUPPORTED;
+    }
+    swapped = r7 != 27u;
+    if (swapped) {
+        /* 0x14530 mov g8,r15 ; 0x14534 mov g7,g8 ; 0x14538 mov r15,g7.
+         * The preceding 0x1452c comparison established r8 == 27. */
+        cpu->registers[15] = g8;
+        g8 = g7;
+        g7 = cpu->registers[15];
+        cpu->registers[VF2_I960_G0_REGISTER + 7u] = g7;
+        cpu->registers[VF2_I960_G0_REGISTER + 8u] = g8;
+        body += UINT64_C(4);
     }
     status = hybrid_read_u16(machine, g7 + UINT32_C(0x194), &h194);
     if (status == VF2_OK) {

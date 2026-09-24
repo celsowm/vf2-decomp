@@ -398,13 +398,14 @@ vf2_status vf2_hybrid_player_144b0_execute_for_test(
     vf2_i960_cpu *cpu
 );
 
-/* v0404: test-only entry to the measured fa_rob state-27 arm 0x1453c.
- * The CPU must be parked at 0x14528 with g7 the state-27 fighter base
- * (r7 == 27), g8 the other fighter base, r10/r11 their originals and a
- * pushed frame; +0x194(g7) must index a valid type-5 record chain and the
- * measured short path must hold (bit 0 of +0x1a4(g8) clear, bit 6 of the
- * 0x50016c+0x3351 byte clear, bit 9 of 0x508000 set).  On success it lands
- * at 0x1463c after 52 steps / +1 call / +1 return.  Anything else is
+/* v0404/v0415: test-only entry to the measured fa_rob state-27 arm 0x1453c.
+ * The CPU must be parked at 0x14528 with g7/g8 the fighter bases, r10/r11
+ * their originals and a pushed frame. Either r7 == 27 (direct, 52 steps) or
+ * r7 != 27 with r8 == 27 (the measured g7/g8 swap, 56 steps) is accepted;
+ * +0x194(g7) must index a valid type-5 record chain and the measured short
+ * path must hold (bit 0 of +0x1a4(g8) clear, bit 6 of the
+ * 0x50016c+0x3351 byte clear, bit 9 of 0x508000 set). Both paths have +1
+ * call / +1 return and land at 0x1463c. Anything else is
  * VF2_ERROR_UNSUPPORTED. */
 vf2_status vf2_hybrid_player_1453c_execute_for_test(
     vf2_model2a *machine,
