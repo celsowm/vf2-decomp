@@ -1349,6 +1349,13 @@ instructions with full live-state equality; other bit-3/bit-13 compositions
 remain explicit boundaries (see
 `decomp/i960/notes/fa_coli_225cc_bit16_bit15_bit13_bit3_v0465.md`).
 
+Status (v0466): four exact bit-13 selector siblings are now native:
+`0x0001a100`, `0x0001a800`, `0x0001b000` and `0x0001e000`. They follow the
+v0463 route and each matches 217 instructions with full live-state equality,
+including final `g0 = 0x000000ee`; other bit-13 compositions remain explicit
+boundaries (see
+`decomp/i960/notes/fa_coli_225cc_bit16_bit15_bit13_more_selectors_v0466.md`).
+
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
 bit-19-clear float tail and the measured bit-19-set siblings. The
 `+0x1aa` window uses unsigned compares (`r12 > 20` → path B at

@@ -22202,6 +22202,10 @@ static vf2_status coli_225cc_body(
                  flags_g8 == UINT32_C(0x00018008) ||
                  flags_g8 == UINT32_C(0x0001a000) ||
                  flags_g8 == UINT32_C(0x0001a008) ||
+                 flags_g8 == UINT32_C(0x0001a100) ||
+                 flags_g8 == UINT32_C(0x0001a800) ||
+                 flags_g8 == UINT32_C(0x0001b000) ||
+                 flags_g8 == UINT32_C(0x0001e000) ||
                  flags_g8 == UINT32_C(0x0001a001) ||
                  flags_g8 == UINT32_C(0x0001a004) ||
                  flags_g8 == UINT32_C(0x0001a010) ||
@@ -24100,6 +24104,10 @@ static vf2_status coli_225cc_long_body(
                 flags_g8 == UINT32_C(0x00018008) ||
                 flags_g8 == UINT32_C(0x0001a000) ||
                 flags_g8 == UINT32_C(0x0001a008) ||
+                flags_g8 == UINT32_C(0x0001a100) ||
+                flags_g8 == UINT32_C(0x0001a800) ||
+                flags_g8 == UINT32_C(0x0001b000) ||
+                flags_g8 == UINT32_C(0x0001e000) ||
                 flags_g8 == UINT32_C(0x0001a001) ||
                 flags_g8 == UINT32_C(0x0001a004) ||
                 flags_g8 == UINT32_C(0x0001a010) ||
@@ -24146,7 +24154,7 @@ static vf2_status coli_225cc_long_body(
                 flags_g8 == UINT32_C(0x00019815) ||
                 flags_g8 == UINT32_C(0x0001c000) ||
                 flags_g8 == UINT32_C(0x00038000))) {
-        /* v0456-v0464: bbs 15 skips the bbc-16 edge before the scan-4
+        /* v0456-v0466: bbs 15 skips the bbc-16 edge before the scan-4
          * compare. The exact words below are independently measured. */
         body += UINT64_C(3); /* cmpibne + bbs15 + cmpibne4 */
     } else {
@@ -25820,6 +25828,10 @@ coli_22bc0_common:
     }
     if (g0_out != NULL &&
         (flags_g8 == UINT32_C(0x0001a000) ||
+         flags_g8 == UINT32_C(0x0001a100) ||
+         flags_g8 == UINT32_C(0x0001a800) ||
+         flags_g8 == UINT32_C(0x0001b000) ||
+         flags_g8 == UINT32_C(0x0001e000) ||
          flags_g8 == UINT32_C(0x0001a001) ||
          flags_g8 == UINT32_C(0x0001a004) ||
          flags_g8 == UINT32_C(0x0001a010) ||
