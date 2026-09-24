@@ -21856,8 +21856,8 @@ static vf2_status coli_22298_body(
  * fail-closed. Slot 1 scan loop and
  * g8+0x26 != 0 FIFO cursor is native (v0308). Stale slot 1 with a
  * non-empty scan is native on the measured v0499 shape. The measured
- * table-index-0 stale+empty slot-1 tail is native in v0500; other stale-empty
- * shapes remain fail-closed. */
+ * table-index-0 stale+empty slot-0/slot-1 tails are native in v0500/v0501;
+ * other stale-empty shapes remain fail-closed. */
 static uint32_t coli_scanbit_msb(uint32_t value)
 {
     int bit = 31;
@@ -21979,6 +21979,11 @@ static vf2_status coli_22404_body(
     if (hybrid_read_u8(
             machine, g7 + UINT32_C(0x820), &field_820) != VF2_OK) {
         return VF2_ERROR_UNSUPPORTED;
+    }
+    if (old_snap != snap && slot == UINT8_C(0) &&
+        field_820 == UINT8_C(0)) {
+        /* v0501: the measured stale slot-0 empty tail also returns equal. */
+        hybrid_set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
     }
     /* ROM bit-mask table at 0x02007aca[index]; measured index 1 = 8. */
     g8 = cpu->registers[VF2_I960_G0_REGISTER + 8u];
@@ -22230,9 +22235,9 @@ static vf2_status coli_22404_body(
         }
         body += UINT64_C(4); /* ldos, andnot, stos, cmpobe */
         if (result == 0u) {
-            /* Stale+empty is unmeasured (live stale shape is non-empty):
-             * fail closed. */
-            if (old_snap != snap) {
+            /* v0501: measured stale slot-0 + table-index-0 empty tail. */
+            if (old_snap != snap &&
+                !(slot == UINT8_C(0) && field_820 == UINT8_C(0))) {
                 return VF2_ERROR_UNSUPPORTED;
             }
             cpu->registers[VF2_I960_G0_REGISTER] = 0u;

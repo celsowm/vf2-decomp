@@ -1652,6 +1652,12 @@ matches complete CPU, condition, procedure and memory state. Other stale-empty
 combinations remain explicitly fail-closed. See
 `decomp/i960/notes/fa_coli_22404_stale_slot1_empty_v0500.md`.
 
+Status (v0501): the corresponding stale slot-0 table-index-0 empty tail is
+native with the same 35-instruction return, `g0 = 0`, equal condition state,
+and complete live-state equality. Other stale-empty combinations remain
+explicitly fail-closed. See
+`decomp/i960/notes/fa_coli_22404_stale_slot0_empty_v0501.md`.
+
 Status (v0383): coli mid-body tail whole-tail live (first-hit-second-warm
 long) is native (371 steps, 9 calls / 10 rets, final CC + `g1` pinned;
 new ROM-backed `vf2_coli_midbody_tail_live` fixture via the measured

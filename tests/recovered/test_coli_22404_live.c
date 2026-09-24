@@ -359,6 +359,10 @@ static void run_rom_differential(const char *rom_directory)
         main_rom, main_rom_size, main_data, main_data_size,
         UINT8_C(1), UINT8_C(0), UINT32_C(35), UINT32_C(0)
     );
+    run_rom_case(
+        main_rom, main_rom_size, main_data, main_data_size,
+        UINT8_C(0), UINT8_C(0), UINT32_C(35), UINT32_C(0)
+    );
 
     free(main_rom);
     free(main_data);
