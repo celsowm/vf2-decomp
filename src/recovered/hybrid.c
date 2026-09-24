@@ -7300,8 +7300,9 @@ static vf2_status hybrid_execute_player_1442c(
         /* v0449: the state-16/state-25 row takes the 0x1446c swap into
          * 0x144b0.  The swapped 0x19ef8 call sees fighter1's zero
          * +0x194, while the restored state-16 tail walks fighter0's
-         * measured type-5 index 0x73.  Other selector/index compositions
-         * remain outside the measured contract. */
+         * measured type-5 record.  Only the measured indices below are
+         * admitted; other selector/index compositions remain outside the
+         * contract. */
         status = vf2_model2a_read_u32(
             machine, player0 + UINT32_C(0x194), &r194_f0
         );
@@ -7310,10 +7311,16 @@ static vf2_status hybrid_execute_player_1442c(
                 machine, player1 + UINT32_C(0x194), &r194_f1
             );
         }
-        if (status != VF2_OK ||
-            (r194_f0 & UINT32_C(0x0000ffff)) != UINT32_C(0x00000073) ||
-            (r194_f1 & UINT32_C(0x0000ffff)) != 0u) {
-            return VF2_ERROR_UNSUPPORTED;
+        {
+            const uint32_t type5_index =
+                r194_f0 & UINT32_C(0x0000ffff);
+            if (status != VF2_OK ||
+                (type5_index != UINT32_C(0x0000006f) &&
+                 type5_index != UINT32_C(0x00000073) &&
+                 type5_index != UINT32_C(0x00000074)) ||
+                (r194_f1 & UINT32_C(0x0000ffff)) != 0u) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
         }
         cpu->registers[7] = UINT32_C(16);
         cpu->registers[8] = UINT32_C(25);

@@ -1225,11 +1225,11 @@ write compositions remain explicit fail-closed boundaries (see
 `decomp/i960/notes/fa_player_1442c_state16_state24_writes_v0448.md`).
 
 Status (v0449): the integrated state-16/state-25 row now admits the measured
-zero-selector composition: fighter 0 `+0x194` low halfword `0x73`, fighter 1
-`+0x194` low halfword zero. The swapped `0x19ef8` zero path and direct state-16
-type-5 tail match in 144 instructions with four calls/returns and exact
-live-state equality. Nonzero selectors, other type indices and sibling
-compositions remain explicit fail-closed boundaries (see
+zero-selector composition: fighter 0 `+0x194` low halfword `0x6f`, `0x73` or
+`0x74`, fighter 1 `+0x194` low halfword zero. The swapped `0x19ef8` zero path
+and direct state-16 type-5 tail match in 144 instructions with four
+calls/returns and exact live-state equality. Nonzero selectors, other type
+indices and sibling compositions remain explicit fail-closed boundaries (see
 `decomp/i960/notes/fa_player_1442c_state16_state25_v0449.md`).
 
 Status (v0298): `0x29414` types 6/8/10 are now native for both the
