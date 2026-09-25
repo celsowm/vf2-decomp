@@ -18,7 +18,7 @@ Larger unmeasured combinations remain fail-closed. Evidence is recorded in
 `decomp/i960/notes/fa_player_19ef8_mask_100059f_v0579.md` plus
 `decomp/i960/notes/fa_player_19ef8_high_masks_v0580.md`.
 
-## Latest measured game-info extension (v0581/v0582/v0583/v0584/v0585/v0586/v0587/v0588/v0589/v0590/v0591)
+## Latest measured game-info extension (v0581/v0582/v0583/v0584/v0585/v0586/v0587/v0588/v0589/v0590/v0591/v0611)
 
 The positive state-8 `fa_game_info` compositions `0x0000000e` (bits 1+2+3),
 `0x0000001a` (bits 1+3+4), `0x00000018` (bits 3+4) and `0x0000001e`
@@ -43,6 +43,13 @@ See
 `decomp/i960/notes/game_info_18644_positive_mask1c_threshold9_v0589.md` and
 `decomp/i960/notes/game_info_18644_positive_mask34_threshold9_v0590.md` and
 `decomp/i960/notes/game_info_18644_positive_mask94_threshold9_v0591.md`.
+
+The existing bit-6/bit-14 positive corridors `0x0142`, `0x4142`, `0x8142`,
+`0x10142` and `0x4146` were revalidated through threshold `9` without source
+changes: each completes the historical thresholds `0..2` to `120/120` exact.
+The already-admitted high-family predicate therefore remains unchanged; this
+is a measured frontier correction, not a speculative widening. See
+`decomp/i960/notes/game_info_18644_positive_high_family_threshold9_v0611.md`.
 
 The isolated positive state-8 mask `0x00000008` (bit 3) is now also native
 through threshold `3`. Its complete 48-case matrix remains exact with the
