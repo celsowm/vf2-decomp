@@ -712,6 +712,9 @@ int main(int argc, char **argv)
     } else if (argc == 3 && strcmp(argv[2], "--mask-802059f") == 0) {
         test_quadruple_only = 1;
         test_quadruple_mask = UINT32_C(0x0802059f);
+    } else if (argc == 3 && strcmp(argv[2], "--mask-810059f") == 0) {
+        test_quadruple_only = 1;
+        test_quadruple_mask = UINT32_C(0x0810059f);
     } else if (argc == 3 && strcmp(argv[2], "--mask-1002059f") == 0) {
         test_quadruple_only = 1;
         test_quadruple_mask = UINT32_C(0x1002059f);
