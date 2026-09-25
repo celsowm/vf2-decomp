@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Align the bounded TGP Model 2A bank window and `atan` table index with the
+  MAME reference: low bank-register bits are ignored by the external window,
+  and the implicit `0x800000` atan mantissa bit is included before shifting.
+  Regression coverage now distinguishes both corrected behaviors.
+
 - Extend the measured `fa_player` `0x19ef8` corridor to non-branch mask
   `0x0000000f` (v0566). All 16 compositions with branch bits 5/6/21/23
   match full live state and exact 4-call/4-return accounting; other

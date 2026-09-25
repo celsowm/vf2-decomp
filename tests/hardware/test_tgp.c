@@ -73,12 +73,13 @@ static void test_tgp_tables_and_scalar_services(void)
     CHECK(value == UINT32_C(0x5f000000));
 
     write_le32(tables + 0x4000u * 4u, UINT32_C(0x12345678));
+    write_le32(tables + 0x4080u * 4u, UINT32_C(0x56780000));
     CHECK(vf2_tgp_write_atan_word(&tgp, 0u, 0u) == VF2_OK);
     CHECK(vf2_tgp_write_atan_word(&tgp, 1u, 0u) == VF2_OK);
     CHECK(vf2_tgp_write_atan_word(&tgp, 2u, 0u) == VF2_OK);
-    CHECK(vf2_tgp_write_atan_word(&tgp, 3u, 0u) == VF2_OK);
+    CHECK(vf2_tgp_write_atan_word(&tgp, 3u, UINT32_C(0x3c000000)) == VF2_OK);
     CHECK(vf2_tgp_read_atan(&tgp, &value) == VF2_OK);
-    CHECK(value == UINT32_C(0x5234));
+    CHECK(value == UINT32_C(0x9678));
 }
 
 static void test_tgp_fifos_and_banked_memory(void)
@@ -124,11 +125,19 @@ static void test_tgp_fifos_and_banked_memory(void)
     CHECK(vf2_tgp_set_bank(&tgp, UINT32_C(0x400000)) == VF2_OK);
     CHECK(
         vf2_tgp_write_banked_memory(
+            &tgp, machine, 0u, UINT32_C(0xaabbccdd)
+        ) == VF2_OK
+    );
+    CHECK(
+        vf2_tgp_write_banked_memory(
             &tgp, machine, 3u, UINT32_C(0x11223344)
         ) == VF2_OK
     );
     CHECK(vf2_tgp_read_banked_memory(&tgp, machine, 3u, &value) == VF2_OK);
     CHECK(value == UINT32_C(0x11223344));
+    CHECK(vf2_tgp_set_bank(&tgp, UINT32_C(0x400003)) == VF2_OK);
+    CHECK(vf2_tgp_read_banked_memory(&tgp, machine, 0u, &value) == VF2_OK);
+    CHECK(value == UINT32_C(0xaabbccdd));
 
     CHECK(vf2_tgp_set_bank(&tgp, UINT32_C(0x800000)) == VF2_OK);
     CHECK(vf2_tgp_read_banked_memory(&tgp, machine, 2u, &value) == VF2_OK);
