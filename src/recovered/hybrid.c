@@ -1014,8 +1014,10 @@ static vf2_status hybrid_execute_player_prefix(
 }
 
 /* Recover the accepted 0x14288 -> 0x19ef8 corridor.  The live profile
- * selector is 0x505 (loaded by ROM `ldos (g6), g0` at 0x14280; bit 14 is
- * clear so the `bbc 14` at 0x19f2c skips the clrbit-6/5/21 prologue).
+ * selector is 0x505 on the primary live park (loaded by ROM `ldos (g6), g0`
+ * at 0x14280; bit 14 is clear so the `bbc 14` at 0x19f2c skips the
+ * clrbit-6/5/21 prologue). The measured selector-0x284 sibling uses the
+ * same corridor with a distinct setup stream and census shape.
  * Live corridor 0x14288→0x1428c is 1622 steps / 4 calls / 4 rets on all
  * measured parks (punch10, boot, natres): setup `call 0x1a1e4`, scratch
  * `call 0x26ef0`, clear/return `call 0x27130`, tail `ret 0x1428c`.
@@ -1060,10 +1062,10 @@ static vf2_status hybrid_execute_player_19ef8(
     size_t index = 0u;
     vf2_status status = VF2_OK;
 
-    /* v0389: the live ROM selector at this corridor is 0x505 (loaded by
-     * `ldos (g6), g0` at 0x14280; bit 14 clear).  A forced 0x4505 value
-     * never occurs live and diverges into the 0x27048 cvtri fault, so it
-     * stays fail-closed. */
+    /* v0389: the primary live ROM selector at this corridor is 0x505
+     * (loaded by `ldos (g6), g0` at 0x14280; bit 14 clear). The measured
+     * 0x284 sibling is admitted separately below; a forced 0x4505 value
+     * diverges into the 0x27048 cvtri fault and stays fail-closed. */
     {
         const int selector_ok =
             selector == UINT32_C(0x00000505) ||
@@ -1071,7 +1073,8 @@ static vf2_status hybrid_execute_player_19ef8(
         if (machine == NULL || cpu == NULL ||
             cpu->ip != UINT32_C(0x00014288) ||
             (cpu->local_frame_depth == 0u &&
-             !(selector == UINT32_C(0x00000505) &&
+             !((selector == UINT32_C(0x00000505) ||
+                selector == UINT32_C(0x00000284)) &&
                player == UINT32_C(0x00510980))) ||
             player == 0u || !selector_ok) {
             return VF2_ERROR_UNSUPPORTED;
@@ -1220,9 +1223,8 @@ static vf2_status hybrid_execute_player_19ef8(
      * 0x1a408 inline path: two ldib/stib to +0x802/+0x803, r11 += 3)
      * then opcode 8 at 0x200e8b2 (via the 0x1a398 path: `addo 1,r11`
      * then stores r11 to +0x82c/+0x6d0 = 0x200e8b3).  The shared
-     * helper walks opcode 1 (size 3) then opcode 8 (size 1, cursor
-     * advances to 0x200e8b3); only that measured plan is admitted,
-     * and the stored cursor is the same 0x200e8b3. */
+     * helper walks the measured 0x505 opcode-1/8 plan or the 0x284
+     * opcode-1/0 plan; only those plans are admitted. */
     if (status == VF2_OK) {
         vf2_player_selector_setup_plan setup_plan;
         status = player_selector_execute_setup(
@@ -1232,19 +1234,26 @@ static vf2_status hybrid_execute_player_19ef8(
          * the 0x1a408 inline path) then opcode 8 at 0x200e8b2 (via
          * the 0x1a398 addo-1/store path). */
         if (status == VF2_OK &&
-            (setup_plan.terminator != 8u ||
-             setup_plan.final_cursor != UINT32_C(0x0200e8b3))) {
+            ((selector == UINT32_C(0x00000284)
+                  ? (setup_plan.terminator != 0u ||
+                     setup_plan.final_cursor != data_pointer + UINT32_C(11))
+                  : (setup_plan.terminator != 8u ||
+                     setup_plan.final_cursor != UINT32_C(0x0200e8b3))))) {
             status = VF2_ERROR_UNSUPPORTED;
         }
         if (status == VF2_OK) {
             status = vf2_model2a_write_u32(
                 machine, player + UINT32_C(0x82c),
-                UINT32_C(0x0200e8b3)
+                selector == UINT32_C(0x00000284)
+                    ? data_pointer + UINT32_C(11)
+                    : UINT32_C(0x0200e8b3)
             );
             if (status == VF2_OK) {
                 status = vf2_model2a_write_u32(
                     machine, player + UINT32_C(0x6d0),
-                    UINT32_C(0x0200e8b3)
+                    selector == UINT32_C(0x00000284)
+                        ? data_pointer + UINT32_C(11)
+                        : UINT32_C(0x0200e8b3)
                 );
             }
         }
@@ -1307,7 +1316,8 @@ static vf2_status hybrid_execute_player_19ef8(
             machine, player + UINT32_C(0xbd8), &scratch_base
         );
         if (status == VF2_OK && scratch_base == 0u) {
-            if (selector == UINT32_C(0x00000505) &&
+            if ((selector == UINT32_C(0x00000505) ||
+                 selector == UINT32_C(0x00000284)) &&
                 player == UINT32_C(0x00510980) &&
                 cpu->local_frame_depth == 0u) {
                 /* Boot park: the ROM receives the scratch base in the
@@ -1325,9 +1335,9 @@ static vf2_status hybrid_execute_player_19ef8(
      * (`mov 20,r8; addo r9,r8,r8`); the 0x26f20 loop runs 20 outer
      * iterations x 3 inner passes = 60 expansion bytes.  The mode
      * dispatch is per inner pass on the status byte's top two bits
-     * (see loop comment).  Only the measured stream (expansion 5/52/3
-     * histogram with the three 0x01 markers) is admitted
-     * downstream. */
+     * (see loop comment). Only the two measured selector streams are
+     * admitted downstream: 0x505 has a 5/52/3 histogram and 0x284 has
+     * 33/24/3, both with three 0x01 markers. */
     for (index = 0u; status == VF2_OK && index < 20u; ++index) {
         uint32_t shift = 0u;
         uint8_t raw = 0u;
@@ -1397,8 +1407,8 @@ static vf2_status hybrid_execute_player_19ef8(
             machine, player + UINT32_C(0xbdc), "\0", 1u
         );
     }
-    /* ROM 0x26fa4..0x270cc census tail (v0389 live 0x505: only the
-     * measured histogram sibling is admitted).  The census reads the
+    /* ROM 0x26fa4..0x270cc census tail: only the two measured selector
+     * histograms are admitted. The census reads the
      * 60 expansion bytes; bytes that compare `>= 5` take the long
      * `be 0x270ac` arm (measured 5x, each `ldob (g2)` advancing g2,
      * final g2 = table_pointer + 27 = 0x217d0c3), `>= 3` the
@@ -1439,10 +1449,15 @@ static vf2_status hybrid_execute_player_19ef8(
                 }
             }
         }
-        if (status == VF2_OK &&
-            (census_long != 5u || census_mid != 52u ||
-             census_mark != 3u)) {
-            status = VF2_ERROR_UNSUPPORTED;
+        {
+            const int selector_284 = selector == UINT32_C(0x00000284);
+            const uint32_t expected_long = selector_284 ? 33u : 5u;
+            const uint32_t expected_mid = selector_284 ? 24u : 52u;
+            if (status == VF2_OK &&
+                (census_long != expected_long ||
+                 census_mid != expected_mid || census_mark != 3u)) {
+                status = VF2_ERROR_UNSUPPORTED;
+            }
         }
         if (status == VF2_OK) {
             uint32_t jump_word = 0u;
@@ -1452,6 +1467,15 @@ static vf2_status hybrid_execute_player_19ef8(
             uint32_t float_cursor = scratch_r7;
             uint32_t long_index = 0u;
             uint8_t long_byte = 0u;
+            static const uint8_t selector_284_long_bytes[] = {
+                0x05u, 0x04u, 0x04u, 0x07u, 0x05u, 0x07u, 0x07u,
+                0x08u, 0x06u, 0x05u, 0x04u, 0x04u, 0x07u, 0x07u,
+                0x07u, 0x06u, 0x08u, 0x08u, 0x09u, 0x05u, 0x07u,
+                0x06u, 0x08u, 0x06u, 0x07u, 0x08u, 0x07u, 0x05u,
+                0x06u, 0x06u, 0x05u, 0x07u, 0x09u
+            };
+            const int selector_284 = selector == UINT32_C(0x00000284);
+            const uint32_t expected_long = selector_284 ? 33u : 5u;
             /* ROM 0x26fe4 `subo 12,r3 -> r4`: the float arm fires on
              * census-outer 17 (the three 0x01 markers sit at expansion
              * [51..53], i.e. census-outer 17), so r4 = 17 - 12 = 5;
@@ -1482,22 +1506,27 @@ static vf2_status hybrid_execute_player_19ef8(
              * expansion cursor (table_pointer + 22 .. + 26, all
              * 0x05).  The full replay (5x60 + 28x4 past 0x217d128)
              * overshoots the measured float triple at 0x217d2ac, so
-             * the cursor split stays open; gate directly on the
-             * measured triple address.  Only the all-0x05 stream
-             * sibling is admitted. */
+             * the cursor split stays open; gate directly on the measured
+             * triple address. The 0x505 stream is all 0x05; the 0x284
+             * stream is checked against its exact measured 33-byte sequence. */
             for (long_index = 0u;
-                 status == VF2_OK && long_index < 5u; ++long_index) {
+                 status == VF2_OK && long_index < expected_long; ++long_index) {
                 status = hybrid_read_u8(
                     machine,
                     table_pointer + UINT32_C(22) + long_index,
                     &long_byte
                 );
-                if (status == VF2_OK && long_byte != UINT8_C(5)) {
+                if (status == VF2_OK &&
+                    ((selector_284 &&
+                      long_byte != selector_284_long_bytes[long_index]) ||
+                     (!selector_284 && long_byte != UINT8_C(5)))) {
                     status = VF2_ERROR_UNSUPPORTED;
                 }
             }
             if (status == VF2_OK) {
-                float_cursor = UINT32_C(0x0217d2ac);
+                float_cursor = selector_284
+                    ? table_pointer + UINT32_C(0xbcc)
+                    : UINT32_C(0x0217d2ac);
             }
             /* Live scratch r7 points at the float table window
              * (0x217d128 region is the table base; r7 itself is the
@@ -1585,10 +1614,12 @@ static vf2_status hybrid_execute_player_19ef8(
     /* ROM 0x26fa0 `mov r9, g2`: g2 is the post-loop r9 (table_pointer +
      * 22 on the live 20-iteration shape) plus one per census `ldob
      * (g2)` at 0x27090 (v0389: 5 occurrences on the live 0x505 shape,
-     * measured final g2 = 0x217d0c3 = table_pointer + 27).  The census
-     * long count above is that occurrence count, so only the measured
-     * +5 advance is admitted; anything else stays fail-closed. */
-    if (status == VF2_OK && scratch_count != 5u) {
+     * measured final g2 = table_pointer + 27; selector 0x284 has 33
+     * occurrences and ends at table_pointer + 0x37). The census long count
+     * above is that occurrence count, so only the measured advances are
+     * admitted; anything else stays fail-closed. */
+    if (status == VF2_OK &&
+        scratch_count != (selector == UINT32_C(0x00000284) ? 33u : 5u)) {
         status = VF2_ERROR_UNSUPPORTED;
     }
     if (status != VF2_OK) {
@@ -1605,7 +1636,7 @@ static vf2_status hybrid_execute_player_19ef8(
     if (selector == UINT32_C(0x00000284)) {
         cpu->arithmetic_control &= ~UINT32_C(7);
         cpu->compare_result = VF2_I960_COMPARE_NONE;
-        cpu->executed_instructions += UINT64_C(1805);
+        cpu->executed_instructions += UINT64_C(1804);
     } else {
         /* v0389: live corridor 0x14288→0x1428c, selector 0x505, is
          * 1622 steps / 4 calls / 4 rets on punch10, boot and natres

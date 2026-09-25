@@ -66,6 +66,7 @@
 static int failures = 0;
 static const char *test_snapshot_path = NULL;
 static uint32_t test_initial_state_flags = 0u;
+static uint32_t test_selector = UINT32_C(0x00000505);
 static int test_corridor_only = 0;
 static int test_expect_unsupported = 0;
 
@@ -86,6 +87,13 @@ static uint64_t expected_corridor_delta(void)
         delta += UINT64_C(2);
     }
     return delta;
+}
+
+static uint64_t expected_corridor_instructions(void)
+{
+    return test_selector == UINT32_C(0x00000284)
+        ? UINT64_C(1804)
+        : UINT64_C(1622) + expected_corridor_delta();
 }
 
 #define CHECK(expression)                                                     \
@@ -180,6 +188,8 @@ static void run_rom_case(
               &snap, &reference_cpu, &reference_machine) == VF2_OK);
     CHECK(vf2_i960_snapshot_restore(
               &snap, &native_cpu, &native_machine) == VF2_OK);
+    reference_cpu.registers[VF2_I960_G0_REGISTER] = test_selector;
+    native_cpu.registers[VF2_I960_G0_REGISTER] = test_selector;
     /* Attach order matches the probe harness (ROM images first); the
      * machine borrows the buffers, freed once at the end. */
     CHECK(
@@ -225,7 +235,7 @@ static void run_rom_case(
     CHECK(reference_cpu.ip == PLAYER_4505_RETURN);
     reference_instructions =
         reference_cpu.executed_instructions - snap_instructions;
-    CHECK(reference_instructions == UINT64_C(1622) + expected_corridor_delta());
+    CHECK(reference_instructions == expected_corridor_instructions());
     CHECK(reference_cpu.procedure_calls - snap_calls == UINT64_C(4));
     CHECK(reference_cpu.procedure_returns - snap_returns == UINT64_C(4));
 
@@ -268,7 +278,7 @@ static void run_rom_case(
         (unsigned long long)(
             native_cpu.procedure_returns - snap_returns));
     CHECK(native_instructions == reference_instructions);
-    CHECK(native_instructions == UINT64_C(1622) + expected_corridor_delta());
+    CHECK(native_instructions == expected_corridor_instructions());
     CHECK(native_cpu.procedure_calls - snap_calls == UINT64_C(4));
     CHECK(native_cpu.procedure_returns - snap_returns == UINT64_C(4));
 
@@ -392,12 +402,18 @@ static void run_rom_differential(const char *rom_directory)
     test_snapshot_path = NULL;
     test_initial_state_flags = 0u;
     test_corridor_only = 0;
+    test_selector = UINT32_C(0x00000505);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
     test_snapshot_path = "D:/ia/vf2-decomp/out/pre14288-natres.vf2snap";
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
     test_snapshot_path = "D:/ia/vf2-decomp/out/pre14288-boot.vf2snap";
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
     test_snapshot_path = NULL;
+    test_selector = UINT32_C(0x00000284);
+    test_corridor_only = 1;
+    test_initial_state_flags = 0u;
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
+    test_selector = UINT32_C(0x00000505);
     test_corridor_only = 1;
     {
         const uint32_t measured_state_masks[] = {
@@ -538,6 +554,7 @@ static void run_rom_differential(const char *rom_directory)
         test_expect_unsupported = 0;
     }
     test_initial_state_flags = 0u;
+    test_selector = UINT32_C(0x00000505);
     test_corridor_only = 0;
     test_expect_unsupported = 0;
     test_snapshot_path = NULL;

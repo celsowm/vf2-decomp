@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Recover the measured `fa_player` `0x19ef8` selector-`0x284` sibling (v0560).
+  The depth-zero `0x00510980` park now matches the selector's opcode-1 plus
+  terminator-0 setup stream, 33/24/3 expansion census, exact long-arm byte
+  stream, `table+0xbcc` float window and 1804-instruction corridor. Other
+  selector and stream shapes remain fail-closed. See
+  `decomp/i960/notes/fa_player_19ef8_selector284_v0560.md`.
+
 - Extend the measured `fa_rob` `0x14640` type-15 miss interval to
   `+0x194=1..1359` (v0554). The focused fixture compares the added
   `1025..1359` cases against the reference; selector `1360` remains a

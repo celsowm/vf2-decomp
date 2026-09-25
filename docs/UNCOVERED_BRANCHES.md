@@ -852,6 +852,16 @@ across every subset of branch bits 5/6/21/23. Words with four or more
 non-branch bits remain fail-closed. See
 `decomp/i960/notes/fa_player_19ef8_state_flags_v0550.md`.
 
+Status (v0560): the measured selector `0x284` sibling of the same
+`0x19ef8` corridor is now native for the depth-zero `0x00510980` park. Its
+setup stream is opcode 1 followed by terminator 0 at `data+0x0b`; the
+expansion census is `33×06, 15×04, 9×03, 3×01`, with the measured 33-byte
+long-arm stream and float cursor `table+0xbcc`. The corridor reaches
+`0x1428c` in 1804 instructions with 4 calls/returns and full live-state
+equality. Other selector values, entry shapes and unmeasured stream siblings
+remain fail-closed. See
+`decomp/i960/notes/fa_player_19ef8_selector284_v0560.md`.
+
 Status (v0551): the measured positive state-8 `fa_game_info` composition
 `0x0000000e` (bits 1+2+3) is now native through threshold `8`. Its complete
 three-distribution/countdown/mode/threshold matrix is `108/108` exact, with a
