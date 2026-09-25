@@ -2392,6 +2392,17 @@ Threshold-3 controls remain fail-closed at `0/12` for each mask; other positive
 compositions remain explicit unsupported boundaries. See
 `decomp/i960/notes/game_info_18644_positive_bit357_v0516.md`.
 
+Status (v0517): the measured positive masks `0x00000014` (bits 2+4) and
+`0x0000001a` (bits 1+3+4) are native for the complete matrices of three
+fighter distributions, both countdown values, both mode-bit-6 values and
+thresholds `0..2`. Each mask is `36/36` exact, for `72/72` exact cases
+together. Both use the distribution-independent dispatcher correction −3 at
+zero countdown and +2 at nonzero countdown, with the measured stale frame and
+countdown-derived condition. Threshold-3 controls remain fail-closed at
+`0/12` for each mask; other positive compositions remain explicit unsupported
+boundaries. See
+`decomp/i960/notes/game_info_18644_positive_bit2_bit4_mixed_v0517.md`.
+
 ### v0221 high-26 8140 low cube
 
 * `0x04008140` (high-26 + bits 6+14+15) `1→8` low cube with `-5/-3` (v0221)
