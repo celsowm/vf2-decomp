@@ -16345,16 +16345,18 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             combined_state8_flags == UINT32_C(0x00000018) ||
             combined_state8_flags == UINT32_C(0x0000001e) ||
             combined_state8_flags == UINT32_C(0x00000016) ||
+            combined_state8_flags == UINT32_C(0x0000000a) ||
             combined_state8_flags == UINT32_C(0x0000001c) ||
             combined_state8_flags == UINT32_C(0x00000034) ||
             combined_state8_flags == UINT32_C(0x00000094);
         const bool v0517_threshold_ok =
-            /* v0518-v0525 extend the measured masks through threshold 8. */
+            /* v0518-v0526 extend the measured masks through threshold 8. */
             (combined_state8_flags == UINT32_C(0x00000014) ||
              combined_state8_flags == UINT32_C(0x0000001a) ||
              combined_state8_flags == UINT32_C(0x00000018) ||
              combined_state8_flags == UINT32_C(0x0000001e) ||
              combined_state8_flags == UINT32_C(0x00000016) ||
+             combined_state8_flags == UINT32_C(0x0000000a) ||
              combined_state8_flags == UINT32_C(0x0000001c) ||
              combined_state8_flags == UINT32_C(0x00000034) ||
              combined_state8_flags == UINT32_C(0x00000094))
@@ -16693,6 +16695,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             (combined_state8_flags == UINT32_C(0x00000018) ||
              combined_state8_flags == UINT32_C(0x0000001e) ||
              combined_state8_flags == UINT32_C(0x00000016) ||
+             combined_state8_flags == UINT32_C(0x0000000a) ||
              combined_state8_flags == UINT32_C(0x00000014) ||
              combined_state8_flags == UINT32_C(0x0000001c) ||
              combined_state8_flags == UINT32_C(0x00000034) ||
@@ -20830,27 +20833,34 @@ static vf2_status hybrid_execute_game_info_bit31_native(
     }
     if (native_state8_mixed_low_positive_path ||
         native_state8_bit1_bit3_bit4_positive_path) {
-        /* v0517-v0525: measured mixed masks overcount the
+        /* v0517-v0526: measured mixed masks overcount the
          * zero-countdown dispatcher by three instructions and undercount the
          * nonzero path by two. The threshold extensions were measured
          * against the same join and do not widen the mask/distribution
          * admission above. */
         if (!countdown_was_nonzero) {
-            if (native_instructions < UINT64_C(3)) {
-                return VF2_ERROR_UNSUPPORTED;
-            }
-            native_instructions -= UINT64_C(3);
             if ((fighter0_state_flags | fighter1_state_flags) ==
-                    UINT32_C(0x00000018) &&
-                fighter0_state_flags == UINT32_C(0x00000018) &&
-                fighter1_state_flags == UINT32_C(0x00000018) &&
-                !initial_mode_bit6) {
-                /* v0523: bilateral 0x18 has a second three-instruction
-                 * dispatcher overcount at zero countdown. */
+                    UINT32_C(0x0000000a)) {
+                /* v0526: mask 0x0a takes the measured sibling with a
+                 * two-instruction native deficit correction at zero. */
+                native_instructions += UINT64_C(2);
+            } else {
                 if (native_instructions < UINT64_C(3)) {
                     return VF2_ERROR_UNSUPPORTED;
                 }
                 native_instructions -= UINT64_C(3);
+                if ((fighter0_state_flags | fighter1_state_flags) ==
+                        UINT32_C(0x00000018) &&
+                    fighter0_state_flags == UINT32_C(0x00000018) &&
+                    fighter1_state_flags == UINT32_C(0x00000018) &&
+                    !initial_mode_bit6) {
+                    /* v0523: bilateral 0x18 has a second three-instruction
+                     * dispatcher overcount at zero countdown. */
+                    if (native_instructions < UINT64_C(3)) {
+                        return VF2_ERROR_UNSUPPORTED;
+                    }
+                    native_instructions -= UINT64_C(3);
+                }
             }
         } else {
             native_instructions += UINT64_C(2);
