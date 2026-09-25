@@ -16343,14 +16343,18 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             combined_state8_flags == UINT32_C(0x00000014) ||
             combined_state8_flags == UINT32_C(0x0000001a) ||
             combined_state8_flags == UINT32_C(0x00000018) ||
+            combined_state8_flags == UINT32_C(0x0000001e) ||
+            combined_state8_flags == UINT32_C(0x00000016) ||
             combined_state8_flags == UINT32_C(0x0000001c) ||
             combined_state8_flags == UINT32_C(0x00000034) ||
             combined_state8_flags == UINT32_C(0x00000094);
         const bool v0517_threshold_ok =
-            /* v0518-v0522 extend the measured masks through threshold 8. */
+            /* v0518-v0525 extend the measured masks through threshold 8. */
             (combined_state8_flags == UINT32_C(0x00000014) ||
              combined_state8_flags == UINT32_C(0x0000001a) ||
              combined_state8_flags == UINT32_C(0x00000018) ||
+             combined_state8_flags == UINT32_C(0x0000001e) ||
+             combined_state8_flags == UINT32_C(0x00000016) ||
              combined_state8_flags == UINT32_C(0x0000001c) ||
              combined_state8_flags == UINT32_C(0x00000034) ||
              combined_state8_flags == UINT32_C(0x00000094))
@@ -16687,6 +16691,8 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             fighter0_state == 8u && fighter1_state == 8u &&
             measured_matrix_distribution &&
             (combined_state8_flags == UINT32_C(0x00000018) ||
+             combined_state8_flags == UINT32_C(0x0000001e) ||
+             combined_state8_flags == UINT32_C(0x00000016) ||
              combined_state8_flags == UINT32_C(0x00000014) ||
              combined_state8_flags == UINT32_C(0x0000001c) ||
              combined_state8_flags == UINT32_C(0x00000034) ||
@@ -20824,7 +20830,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
     }
     if (native_state8_mixed_low_positive_path ||
         native_state8_bit1_bit3_bit4_positive_path) {
-        /* v0517-v0523: measured mixed masks overcount the
+        /* v0517-v0525: measured mixed masks overcount the
          * zero-countdown dispatcher by three instructions and undercount the
          * nonzero path by two. The threshold extensions were measured
          * against the same join and do not widen the mask/distribution

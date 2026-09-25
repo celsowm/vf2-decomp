@@ -2451,6 +2451,22 @@ unmeasured positive compositions remain explicit `VF2_ERROR_UNSUPPORTED`
 boundaries. See
 `decomp/i960/notes/game_info_18644_positive_mask18_v0523.md`.
 
+Status (v0524): the measured positive composition `0x0000001e` (bits 1+2+3+4)
+is now native through threshold `8`. Its complete three-distribution,
+countdown, mode and threshold matrix is `108/108` exact, using the same −3/+2
+dispatcher correction. Threshold `9+`, other flag distributions and
+unmeasured positive compositions remain explicit `VF2_ERROR_UNSUPPORTED`
+boundaries. See
+`decomp/i960/notes/game_info_18644_positive_mask1e_v0524.md`.
+
+Status (v0525): the measured positive composition `0x00000016` (bits 1+2+4)
+is now native through threshold `8`. Its complete three-distribution,
+countdown, mode and threshold matrix is `108/108` exact, using the same −3/+2
+dispatcher correction. Threshold `9+`, other flag distributions and
+unmeasured positive compositions remain explicit `VF2_ERROR_UNSUPPORTED`
+boundaries. See
+`decomp/i960/notes/game_info_18644_positive_mask16_v0525.md`.
+
 ### v0221 high-26 8140 low cube
 
 * `0x04008140` (high-26 + bits 6+14+15) `1→8` low cube with `-5/-3` (v0221)

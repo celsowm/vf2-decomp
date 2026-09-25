@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Recover the measured positive state-8 mask `0x16` through threshold `8`
+  (v0525). Its complete 108-case dispatcher matrix now matches the reference
+  exactly; threshold `9+`, other distributions and unmeasured compositions
+  remain fail-closed. See
+  `decomp/i960/notes/game_info_18644_positive_mask16_v0525.md`.
+
+- Recover the measured positive state-8 mask `0x1e` through threshold `8`
+  (v0524). Its complete 108-case dispatcher matrix now matches the reference
+  exactly; threshold `9+`, other distributions and unmeasured compositions
+  remain fail-closed. See
+  `decomp/i960/notes/game_info_18644_positive_mask1e_v0524.md`.
+
 - Recover the measured positive state-8 mask `0x18` through threshold `8`
   (v0523). Its complete 108-case dispatcher matrix now matches the reference
   exactly; threshold `9+`, other distributions and unmeasured compositions
