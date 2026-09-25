@@ -26,6 +26,10 @@
   5 (v0557). All 3276 branch-free triples and their 3276 bit-5 compositions
   match the reference; other branch-bit triple compositions remain closed.
 
+- Extend the measured `fa_player` `0x19ef8` triple family through branch bit
+  6 (v0558). All 3276 bit-6 compositions match the reference; branch bits 21
+  and 23 remain closed for triple combinations.
+
 - Extend the measured `fa_player` `0x19ef8` entry-state corridor (v0552).
   Every one of the 28 non-branch `fighter+0x1a4` singleton bits now matches
   the reference when composed with all 16 subsets of branch bits 5/6/21/23:

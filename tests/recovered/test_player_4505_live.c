@@ -437,9 +437,9 @@ static void run_rom_differential(const char *rom_directory)
             test_initial_state_flags = UINT32_C(1) << index;
             run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
         }
-        /* v0557: every measured non-branch pair also composes with every
-         * subset of the four branch bits.  The branch-free and bit-5 triple
-         * families are measured below; larger combinations remain outside. */
+        /* v0558: every measured non-branch pair also composes with every
+         * subset of the four branch bits.  The branch-free, bit-5 and bit-6
+         * triple families are measured below; larger combinations remain. */
         for (index = 0u; index < 32u; ++index) {
             size_t branch_index = 0u;
             uint32_t non_branch_bit = UINT32_C(1) << index;
@@ -513,6 +513,16 @@ static void run_rom_differential(const char *rom_directory)
                     run_rom_case(
                         main_rom, main_rom_size, main_data, main_data_size
                     );
+                    test_initial_state_flags |= UINT32_C(1) << 5u;
+                    run_rom_case(
+                        main_rom, main_rom_size, main_data, main_data_size
+                    );
+                    test_initial_state_flags =
+                        first_bit | second_bit | (UINT32_C(1) << third_index) |
+                        (UINT32_C(1) << 6u);
+                    run_rom_case(
+                        main_rom, main_rom_size, main_data, main_data_size
+                    );
                 }
             }
         }
@@ -523,7 +533,7 @@ static void run_rom_differential(const char *rom_directory)
         run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
         test_initial_state_flags =
             (UINT32_C(1) << 0u) | (UINT32_C(1) << 1u) |
-            (UINT32_C(1) << 2u) | (UINT32_C(1) << 6u);
+            (UINT32_C(1) << 2u) | (UINT32_C(1) << 21u);
         run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
         test_expect_unsupported = 0;
     }
