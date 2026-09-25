@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Recover the measured `fa_coli` whole-task both-bit-8/scan-5 sibling
+  (v0565). The new parked witness reaches `0x10dcc` at `9526/18/19` with
+  complete live-state equality; the fixture now covers four whole-task
+  shapes. The `0x238a4` table-bit test follows the original `bbc r7,r3`
+  operand order, while unmeasured collision siblings remain fail-closed.
+  See `decomp/i960/notes/fa_coli_whole_task_both_high_v0565.md`.
+
 - Prove the complete bounded `fa_rob` `0x1442c` state-25 successor-byte sweep
   (v0564). For fighter1 `+0x197 = 1..31`, all integrated cases match full
   live state; counts are 144 (16), 105 (24), 126 (27), 92 (28), and 98 for

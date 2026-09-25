@@ -1826,6 +1826,17 @@ and `+2` counted compares. Fixture `vf2_coli_whole_task_live`
 extended to three modes via `coli-parked-221e8`. See
 `decomp/i960/notes/fa_coli_whole_task_both_live_v0386.md`.
 
+Status (v0565): the measured both-bit-8/scan-5 sibling is native with full
+live-state equality at `9526/18/19`. Fighter0 `+0x821=5`, `+0x822=0` and
+`+0x804=0` select the `0x22298 -> 0x22338` ordering-miss arm, which stores
+`0xffff` at the second fighter's `+0x6dc`; both `0x22404` contacts then take
+their empty exits. The `0x238a4` generic scan now tests the table bit indexed
+by each `0x23284` byte, matching the original `bbc r7,r3` operand order.
+The fixture now covers four whole-task modes; unmeasured scan/flag shapes,
+non-empty contacts and the remaining cascade/resolver arms remain
+fail-closed. See
+`decomp/i960/notes/fa_coli_whole_task_both_high_v0565.md`.
+
 Status (v0315): mid-body `0x2227c` tie-break is native (double
 `0x225cc`, compact-both 282/7/8). `0x18bd4` shortcut remains DEFER
 (v0291). Unmeasured long-body flag siblings remain fail-closed (see

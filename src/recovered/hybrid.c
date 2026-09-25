@@ -22376,7 +22376,9 @@ vf2_status vf2_hybrid_coli_contact_query_execute(
 /* Body-only recovery of 0x22298: no CPU frame, no ret accounting.
  * Warm (bit 8 clear): body 6. Sibling (bit 8 and bit 1 set): body 7.
  * Live v0351 (bit 8 set, bit 1 clear + measured gates): body 13.
- * All three store 0 into g7+0x6dc. Other siblings fail closed. */
+ * The measured both-bit-8/scan-5 ordering miss stores 0xffff with body 20.
+ * All accepted shapes store their measured result into g7+0x6dc; other
+ * siblings fail closed. */
 static vf2_status coli_22298_body(
     vf2_model2a *machine,
     uint32_t g7,
@@ -22520,7 +22522,8 @@ static vf2_status coli_22298_body(
             }
             return VF2_ERROR_UNSUPPORTED;
         }
-        if (flags_g7 == 0u && flags_g8 == (UINT32_C(1) << 8u)) {
+        if (flags_g8 == (UINT32_C(1) << 8u) &&
+            (flags_g7 == 0u || flags_g7 == (UINT32_C(1) << 8u))) {
             uint32_t r4 = 0u;
             uint32_t r5 = 0u;
             uint32_t r6 = 0u;
@@ -22539,7 +22542,10 @@ static vf2_status coli_22298_body(
                 return VF2_ERROR_UNSUPPORTED;
             }
             second_loop_candidate = half_61c == UINT16_C(0) &&
-                (scan_821 == UINT8_C(2) || scan_821 == UINT8_C(6));
+                (scan_821 == UINT8_C(2) || scan_821 == UINT8_C(6) ||
+                 (flags_g7 == (UINT32_C(1) << 8u) &&
+                  flags_g8 == (UINT32_C(1) << 8u) &&
+                  scan_821 == UINT8_C(5)));
             if (second_loop_candidate &&
                 vf2_model2a_read_u32(
                     machine, g7 + UINT32_C(0x1f8), &r4) != VF2_OK ||
@@ -22553,7 +22559,10 @@ static vf2_status coli_22298_body(
                 second_loop_candidate = false;
             }
             if (!second_loop_candidate && half_61c == UINT16_C(0) &&
-                scan_821 == UINT8_C(2)) {
+                (scan_821 == UINT8_C(2) ||
+                 (flags_g7 == (UINT32_C(1) << 8u) &&
+                  flags_g8 == (UINT32_C(1) << 8u) &&
+                  scan_821 == UINT8_C(5)))) {
                 /* v0495: the measured ordering-fail sibling selects the
                  * 0xffff common tail before the second 16-trip loop. */
                 if (hybrid_write_u16(
@@ -22561,7 +22570,11 @@ static vf2_status coli_22298_body(
                         UINT16_C(0xffff)) != VF2_OK) {
                     return VF2_ERROR_UNSUPPORTED;
                 }
-                *body_out = UINT64_C(21);
+                *body_out =
+                    (flags_g7 == (UINT32_C(1) << 8u) &&
+                     flags_g8 == (UINT32_C(1) << 8u) &&
+                     scan_821 == UINT8_C(5))
+                        ? UINT64_C(20) : UINT64_C(21);
                 return VF2_OK;
             }
             if (second_loop_candidate &&
@@ -29073,7 +29086,8 @@ static vf2_status coli_238a4_body(
      * (first g3-scan live, second warm, etc).  The ROM does:
      *   ldos 0x1aa, ldos 0x808, cmpobl, ldob 0x820, addo 31+10,
      *   cmpobe, ld table[0x2007aca], then 30-trip setbit loop
-     *   over 0x23284. */
+     *   over 0x23284. The original bbc tests the table bit indexed by
+     *   each 0x23284 byte, not the reverse relation. */
     {
         uint64_t body = UINT64_C(4); /* mov,mov,ld,bbc */
         if (hybrid_read_u16(machine, g7 + UINT32_C(0x1aa), &half_1aa) != VF2_OK ||
@@ -29134,7 +29148,8 @@ static vf2_status coli_238a4_body(
                 }
                 body += 1u; /* ldob */
                 body += 1u; /* bbc */
-                if (((r7 >> (table_value & 31u)) & 1u) != 0u) {
+                if ((table_value &
+                     (UINT32_C(1) << (r7 & UINT8_C(31)))) != 0u) {
                     g3 |= (UINT32_C(1) << (r6 & 31u));
                     body += 1u; /* setbit */
                 }
@@ -29791,7 +29806,23 @@ static vf2_status hybrid_execute_coli_body(
         if (g6 == (UINT32_C(1) << 1u)) {
             cpu->executed_instructions += UINT64_C(1);
         } else if (g6 == (UINT32_C(1) << 2u)) {
-            cpu->executed_instructions += UINT64_C(2);
+            uint32_t fighter0 = 0u;
+            uint8_t scan_821 = 0u;
+            uint8_t field_820 = 0u;
+            if (vf2_model2a_read_u32(
+                    machine, VF2_COLI_SHELL_FIGHTER_PTR0, &fighter0) !=
+                    VF2_OK ||
+                hybrid_read_u8(
+                    machine, fighter0 + UINT32_C(0x821), &scan_821) !=
+                    VF2_OK ||
+                hybrid_read_u8(
+                    machine, fighter0 + UINT32_C(0x820), &field_820) !=
+                    VF2_OK) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+            if (scan_821 != UINT8_C(5) || field_820 != UINT8_C(0)) {
+                cpu->executed_instructions += UINT64_C(2);
+            }
         }
     }
     return status;
@@ -30353,6 +30384,9 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
                   * 22404 hit 78 + warm 14, 225cc long 249 to 0x22294.
                   * Whole-task prefix+380 is not C-pinned. */
                 if (!(coli_instructions == UINT64_C(9528) &&
+                      coli_calls == UINT64_C(18) &&
+                      coli_returns == UINT64_C(19)) &&
+                    !(coli_instructions == UINT64_C(9526) &&
                       coli_calls == UINT64_C(18) &&
                       coli_returns == UINT64_C(19)) &&
                     !(coli_instructions == UINT64_C(9393) &&
