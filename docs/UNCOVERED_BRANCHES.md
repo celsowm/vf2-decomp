@@ -1932,6 +1932,14 @@ return in 61 instructions with `g0 = 0x02014d75`, `g1 = 5`, equal condition
 state and complete captured-state equality. Other match compositions remain
 fail-closed. See `decomp/i960/notes/fa_coli_227dc_match_v0503.md`.
 
+Status (v0532): the same measured record is now proven through the controlled
+selector interval `g7+0x848 == 1..64`, with each main-data selector entry
+pointing to `0x02014d6d` and its type byte changed to 5. All 64 cases return
+in 61 instructions with exact `g0`, `g1`, condition, procedure and Model 2A
+state equality. Selector 0, other records and unmeasured flag/scan
+compositions remain fail-closed. See
+`decomp/i960/notes/fa_coli_227dc_match_v0532.md`.
+
 Status (v0341, measurement): the `0x502a4` balx is deferred with
 evidence. Two ROM sites call it: `0x22948` (cascade, board bit 9
 only) and `0x22e04` (bit-14 `0x22dd4` path). The reference

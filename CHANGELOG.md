@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Extend the measured `fa_coli` `0x227dc` type-5 match tail through the
+  controlled selector interval `g7+0x848 == 1..64` (v0532). All selectors
+  resolve to the measured `0x02014d75` record and match the reference in 61
+  instructions with complete live-state equality; selector 0, other records
+  and unmeasured compositions remain fail-closed. See
+  `decomp/i960/notes/fa_coli_227dc_match_v0532.md`.
+
 - Preserve the measured resolver `g0` on the `fa_coli` `0x225cc` type-22
   shortcut (v0531). The nine type-5 hits in selector range `1..64` now carry
   their `0x1ab34` record pointers through `0x18bd4`; the complete 64-selector

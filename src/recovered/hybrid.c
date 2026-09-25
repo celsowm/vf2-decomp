@@ -25762,12 +25762,14 @@ static vf2_status coli_225cc_long_body(
                         }
                         body += walk_child + UINT64_C(1);
                         if (walk_rec != 0u) {
-                            /* v0503: measured type-5 match at 0x227dc.
-                             * The callee leaves its record pointer in g0;
-                             * the short tail consumes record+1/+3 and
-                             * returns directly at 0x22804.  Keep the
-                             * measured selector/record pair exact. */
-                            if (idx848 != UINT32_C(1) ||
+                            /* v0503/v0532: measured type-5 matches at
+                             * 0x227dc. The callee leaves its record pointer
+                             * in g0; the short tail consumes record+1/+3 and
+                             * returns directly at 0x22804. Any nonzero
+                             * selector that resolves to the measured record
+                             * has the same proven tail; selector zero remains
+                             * fail-closed in the walker. */
+                            if (idx848 == 0u ||
                                 walk_rec != UINT32_C(0x02014d75)) {
                                 return VF2_ERROR_UNSUPPORTED;
                             }

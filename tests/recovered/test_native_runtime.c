@@ -5123,10 +5123,13 @@ static void test_coli_225cc_long(void) {
     free(main_data);
 }
 
-/* ROM-backed 0x227dc type-5 match sibling (v0503).  Main-data index 1 is
- * changed only at its record type byte to make the measured record
- * 0x02014d75 a type-5 match; reference/native snapshots are compared. */
-static void test_coli_227dc_match_probe(const char *rom_directory)
+/* ROM-backed 0x227dc type-5 match sibling (v0503/v0532). Main-data selector
+ * entries are pointed at the measured record 0x02014d6d, whose type byte is
+ * changed to type 5; the selector sweep compares reference/native snapshots. */
+static void test_coli_227dc_match_probe(
+    const char *rom_directory,
+    uint32_t selector
+)
 {
     uint8_t *rom = NULL;
     uint8_t *main_data = NULL;
@@ -5163,7 +5166,10 @@ static void test_coli_227dc_match_probe(const char *rom_directory)
         vf2_i960_snapshot_destroy(&native_final);
         return;
     }
-    write_u32_bytes(main_data, UINT32_C(0x0d350), UINT32_C(0x02014d6d));
+    write_u32_bytes(
+        main_data, UINT32_C(0x0d34c) + selector * UINT32_C(4),
+        UINT32_C(0x02014d6d)
+    );
     main_data[0x14d75u] = UINT8_C(5);
     CHECK(vf2_model2a_initialize(&machine));
     CHECK(vf2_model2a_attach_main_rom(&machine, rom, rom_size) == VF2_OK);
@@ -5179,7 +5185,7 @@ static void test_coli_227dc_match_probe(const char *rom_directory)
               &machine, fighter0 + UINT32_C(0x844),
               UINT32_C(0x40000000)) == VF2_OK);
     CHECK(vf2_model2a_write_u32(&machine, fighter0 + UINT32_C(0x848),
-                                UINT32_C(1)) == VF2_OK);
+                                selector) == VF2_OK);
     CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x821),
                             (const uint8_t *)"\x01", 1u) == VF2_OK);
     CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x822),
@@ -7713,7 +7719,10 @@ int main(int argc, char **argv) {
     test_coli_7fc0();
     test_coli_225cc_long();
     if (argc >= 2) {
-        test_coli_227dc_match_probe(argv[1]);
+        for (uint32_t selector = UINT32_C(1);
+             selector <= UINT32_C(64); ++selector) {
+            test_coli_227dc_match_probe(argv[1], selector);
+        }
     }
     test_coli_225cc_type22();
     test_coli_1ab34_walk();
