@@ -16794,7 +16794,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             measured_matrix_distribution &&
             (combined_state8_flags == (UINT32_C(1) << 5u) ||
              combined_state8_flags == (UINT32_C(1) << 7u)) &&
-            shared_fighter_threshold <= UINT32_C(2);
+            shared_fighter_threshold <= UINT32_C(3);
         native_state8_bit1_bit2_positive_path =
             fighter0_state == 8u && fighter1_state == 8u &&
             measured_matrix_distribution &&
@@ -20646,9 +20646,9 @@ static vf2_status hybrid_execute_game_info_bit31_native(
         }
     }
     if (native_state8_bit20_bit80_positive_path) {
-        /* v0505: positive state-8 bits 5 and 7 are uniform measured
+        /* v0505-v0593: positive state-8 bits 5 and 7 are uniform measured
          * 2-instruction dispatcher corrections for all three distributions,
-         * both countdown values, both mode-bit-6 values and thresholds 0..2.
+         * both countdown values, both mode-bit-6 values and thresholds 0..3.
          * The child state/memory path is already exact. */
         native_instructions += UINT64_C(2);
         hybrid_set_compare_result(

@@ -50,6 +50,12 @@ existing two-instruction dispatcher correction; threshold `4+` and other
 simple positive masks remain fail-closed. See
 `decomp/i960/notes/game_info_18644_positive_mask08_threshold3_v0592.md`.
 
+The uniform positive state-8 masks `0x00000020` (bit 5) and `0x00000080`
+(bit 7) are now native through threshold `3` as well. Their combined 96-case
+matrix is exact with the measured two-instruction correction; threshold `4+`
+remains fail-closed. See
+`decomp/i960/notes/game_info_18644_positive_masks20_80_threshold3_v0593.md`.
+
 The v0168 boundary audit removed the two remaining single-instruction oracle
 handoffs in `native-second-dispatch`: the `ret` stubs at `0x0004bab4` and
 `0x000020ec` are now recovered bridges. The strict post-scheduler corridor is
