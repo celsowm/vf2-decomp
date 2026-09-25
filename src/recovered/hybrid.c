@@ -1159,7 +1159,7 @@ static vf2_status hybrid_execute_player_19ef8(
      * 0x9f, 0x19f, 0x59f, 0x1059f, 0x5059f, 0x8059f, 0x18059f,
      * 0x0002059f, 0x0006059f, 0x000a059f, 0x0012059f, 0x0042059f,
      * 0x0004059f, 0x000c059f, 0x0014059f, 0x0048059f, 0x0050059f, 0x0108059f, 0x0110059f, 0x0102059f, 0x0402059f, 0x0410059f, 0x0802059f, 0x0810059f, 0x1002059f,
-     * 0x4002059f, 0x8002059f, 0x1010059f, 0x8010059f, 0x0140059f, 0x0440059f, 0x1040059f, 0x0500059f, 0x0900059f and
+     * 0x4002059f, 0x8002059f, 0x1010059f, 0x8010059f, 0x0140059f, 0x0440059f, 0x1040059f, 0x0500059f, 0x0900059f, 0x0550059f and
      * 0x0040059f, 0x0100059f, 0x0200059f, 0x0400059f, 0x0800059f,
      * 0x1000059f, 0x4000059f and 0x8000059f with their branch-bit
      * matrices; other larger combinations remain closed. */
@@ -1215,6 +1215,7 @@ static vf2_status hybrid_execute_player_19ef8(
             non_branch_state_flags == UINT32_C(0x1040059f) ||
             non_branch_state_flags == UINT32_C(0x0500059f) ||
             non_branch_state_flags == UINT32_C(0x0900059f) ||
+            non_branch_state_flags == UINT32_C(0x0550059f) ||
             non_branch_state_flags == UINT32_C(0x4002059f) ||
             non_branch_state_flags == UINT32_C(0x8002059f) ||
             non_branch_state_flags == UINT32_C(0x0040059f) ||
