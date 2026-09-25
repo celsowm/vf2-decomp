@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Extend the measured positive state-8 `fa_game_info` mask `0x1a` through
+  threshold `3` (v0519). Its complete 12-case dispatcher matrix now matches
+  the reference exactly; adjacent and unmeasured compositions remain
+  fail-closed. See
+  `decomp/i960/notes/game_info_18644_positive_bit1_bit3_bit4_v0519.md`.
+
 - Close the measured positive state-8 `fa_game_info` mask `0x14` corridor
   through threshold `3` (v0518). The complete 48-case dispatcher matrix now
   matches the reference exactly; threshold `4+`, adjacent mask `0x18`, other

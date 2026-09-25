@@ -2413,6 +2413,14 @@ state. Threshold `4+`, mask `0x00000018`, the other v0517 masks at threshold
 `3`, and non-distribution flag splits remain explicit fail-closed controls.
 See `decomp/i960/notes/game_info_18644_positive_bit2_bit4_v0518.md`.
 
+Status (v0519): the positive state-8 mask `0x0000001a` (bits 1+3+4) is now
+native through threshold `3`. Its three-distribution/countdown/mode matrix is
+`12/12` exact, reusing the v0517 dispatcher correction (−3 at countdown zero,
++2 at nonzero countdown). The adjacent `0x18`, thresholds `4+`, other flag
+distributions and unmeasured positive compositions remain explicit
+`VF2_ERROR_UNSUPPORTED` boundaries. See
+`decomp/i960/notes/game_info_18644_positive_bit1_bit3_bit4_v0519.md`.
+
 ### v0221 high-26 8140 low cube
 
 * `0x04008140` (high-26 + bits 6+14+15) `1→8` low cube with `-5/-3` (v0221)
