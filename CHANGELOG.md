@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Extend all five measured positive state-8 `fa_game_info` mixed masks through
+  threshold `8` (v0522). Their combined complete 240-case dispatcher matrix
+  now matches the reference exactly; threshold `9+`, adjacent `0x18`, other
+  distributions and unmeasured compositions remain fail-closed. See
+  `decomp/i960/notes/game_info_18644_positive_bit2_bit4_threshold8_v0522.md`.
+
+- Extend all five measured positive state-8 `fa_game_info` mixed masks through
+  threshold `4` (v0521). Their combined complete 60-case dispatcher matrix
+  now matches the reference exactly; threshold `5+`, adjacent `0x18`, other
+  distributions and unmeasured compositions remain fail-closed. See
+  `decomp/i960/notes/game_info_18644_positive_bit2_bit4_threshold4_v0521.md`.
+
 - Extend the remaining measured positive state-8 `fa_game_info` masks `0x1c`,
   `0x34` and `0x94` through threshold `3` (v0520). Their combined complete
   36-case dispatcher matrix now matches the reference exactly; thresholds

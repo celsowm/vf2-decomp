@@ -2429,6 +2429,20 @@ adjacent `0x18`, other flag distributions and unmeasured positive compositions
 remain explicit `VF2_ERROR_UNSUPPORTED` boundaries. See
 `decomp/i960/notes/game_info_18644_positive_bit2_bit4_threshold3_v0520.md`.
 
+Status (v0521): all five measured mixed masks are now native through threshold
+`4`. The combined three-distribution/countdown/mode matrix is `60/60` exact,
+reusing the same −3/+2 dispatcher correction. Threshold `5+`, the adjacent
+`0x18`, other flag distributions and unmeasured positive compositions remain
+explicit `VF2_ERROR_UNSUPPORTED` boundaries. See
+`decomp/i960/notes/game_info_18644_positive_bit2_bit4_threshold4_v0521.md`.
+
+Status (v0522): all five measured mixed masks are now native through threshold
+`8`. The combined three-distribution/countdown/mode matrix is `240/240` exact,
+reusing the same −3/+2 dispatcher correction. Threshold `9+`, the adjacent
+`0x18`, other flag distributions and unmeasured positive compositions remain
+explicit `VF2_ERROR_UNSUPPORTED` boundaries. See
+`decomp/i960/notes/game_info_18644_positive_bit2_bit4_threshold8_v0522.md`.
+
 ### v0221 high-26 8140 low cube
 
 * `0x04008140` (high-26 + bits 6+14+15) `1→8` low cube with `-5/-3` (v0221)

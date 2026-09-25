@@ -16333,13 +16333,13 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             combined_state8_flags == UINT32_C(0x00000034) ||
             combined_state8_flags == UINT32_C(0x00000094);
         const bool v0517_threshold_ok =
-            /* v0518-v0520 extend the measured masks through threshold 3. */
+            /* v0518-v0522 extend the measured masks through threshold 8. */
             (combined_state8_flags == UINT32_C(0x00000014) ||
              combined_state8_flags == UINT32_C(0x0000001a) ||
              combined_state8_flags == UINT32_C(0x0000001c) ||
              combined_state8_flags == UINT32_C(0x00000034) ||
              combined_state8_flags == UINT32_C(0x00000094))
-                ? shared_fighter_threshold <= UINT32_C(3)
+                ? shared_fighter_threshold <= UINT32_C(8)
                 : shared_fighter_threshold <= UINT32_C(2);
         /* The generic child has measured straight-line behavior for these
          * records, but the dispatcher admission is still evidence-bounded.
@@ -16676,12 +16676,12 @@ static vf2_status hybrid_execute_game_info_bit31_native(
              combined_state8_flags == UINT32_C(0x0000001c) ||
              combined_state8_flags == UINT32_C(0x00000034) ||
              combined_state8_flags == UINT32_C(0x00000094)) &&
-            shared_fighter_threshold <= UINT32_C(3);
+            shared_fighter_threshold <= UINT32_C(8);
         native_state8_bit1_bit3_bit4_positive_path =
             fighter0_state == 8u && fighter1_state == 8u &&
             measured_matrix_distribution &&
             combined_state8_flags == UINT32_C(0x0000001a) &&
-            shared_fighter_threshold <= UINT32_C(3);
+            shared_fighter_threshold <= UINT32_C(8);
     }
     /* State-4 oracle fixtures set +0xa00 to 4 for both fighters.
      * Keep native state-4 admissions inside that measured bilateral domain;
