@@ -848,6 +848,14 @@ unmeasured bit with a branch-sensitive bit remain closed. Bit 5 sets final
 entry-state bits remain fail-closed. See
 `decomp/i960/notes/fa_player_19ef8_state_flags_v0550.md`.
 
+Status (v0551): the measured positive state-8 `fa_game_info` composition
+`0x0000000e` (bits 1+2+3) is now native through threshold `8`. Its complete
+three-distribution/countdown/mode/threshold matrix is `108/108` exact, with a
+measured two-instruction positive correction at zero countdown. Threshold `9+`,
+unmeasured flag distributions and other positive compositions remain explicit
+`VF2_ERROR_UNSUPPORTED` boundaries. See
+`decomp/i960/notes/game_info_18644_positive_mask0e_v0551.md`.
+
 Status (v0392): the `0x142c0` body now has a focused ROM-backed
 differential fixture (`vf2_player_142c0_live_differential`) restoring
 `out/pre14288.vf2snap`, stepping the reference through the full

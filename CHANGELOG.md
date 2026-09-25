@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Recover the measured `fa_game_info` positive state-8 composition `0x0e`
+  (v0551). The three-distribution matrix through threshold `8` is now exact
+  for both countdown values and both mode-bit-6 settings: `108/108` full
+  dispatcher cases match CPU state, condition state, frames, procedure state,
+  counters and mutable Model 2A memory. The zero-countdown dispatcher uses
+  the measured two-instruction positive correction; threshold `9+`, unmeasured
+  distributions and neighboring compositions remain fail-closed. See
+  `decomp/i960/notes/game_info_18644_positive_mask0e_v0551.md`.
+
 - Recover the measured `fa_player` `0x19ef8` entry-state siblings (v0550).
   The live `0x505` corridor now accepts the bounded `fighter+0x1a4` bits
   5/6/21/23, including all 15 nonzero combinations, with exact instruction

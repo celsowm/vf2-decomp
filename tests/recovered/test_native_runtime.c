@@ -2033,6 +2033,7 @@ static void test_game_info_positive_admission_controls(void) {
         {UINT32_C(0x00000014), UINT32_C(0x00000000), UINT32_C(4)},
         {UINT32_C(0x00000018), UINT32_C(0x00000000), UINT32_C(0)},
         {UINT32_C(0x0000001c), UINT32_C(0x00000000), UINT32_C(3)},
+        {UINT32_C(0x0000000e), UINT32_C(0x00000000), UINT32_C(9)},
         {UINT32_C(0x00000004), UINT32_C(0x00000010), UINT32_C(0)}
     };
     const uint32_t fighter0 = UINT32_C(0x00502000);
