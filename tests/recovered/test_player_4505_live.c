@@ -344,7 +344,7 @@ static void run_rom_differential(const char *rom_directory)
 
     test_snapshot_path = NULL;
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
-    test_snapshot_path = "out/pre14288-natres.vf2snap";
+    test_snapshot_path = "D:/ia/vf2-decomp/out/pre14288-natres.vf2snap";
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
     test_snapshot_path = NULL;
 
