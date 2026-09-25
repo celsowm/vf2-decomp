@@ -2651,15 +2651,17 @@ Each `36/36 exact`. Other positive bases (e.g. `0x8140` high combos,
 are measured. Compact forms now use `& ~0x16` or `& ~0x10016` and share
 `hybrid_set_stale_low()` (v0220).
 
-Status (v0483): the positive state-8 bit-1+bit-6 families `0x0142`, `0x4142`
+Status (v0483/v0612): the positive state-8 bit-1+bit-6 families `0x0142`, `0x4142`
 (bit 14), `0x8142` (bit 15) and `0x10142` (bit 16), together with their
 measured bit-2 variants `0x0146`, `0x4146`, `0x8146` and `0x10146`, are admitted
 for all three fighter distributions, countdown and mode-bit-6 settings, and
 thresholds `0..2`. Each family is `36/36` exact through the full dispatcher
-(`288/288` total). The measured bit-4 neighbor `0x414e` remains an explicit
-`VF2_ERROR_UNSUPPORTED` boundary. The measured rules and counter corrections
+(`288/288` total). The previously documented bit-4 neighbor `0x414e` is now
+also measured through threshold `9`, with `120/120` exact full-dispatch cases
+and no source change. The measured rules and counter corrections
 are recorded in
 `decomp/i960/notes/game_info_18644_positive_bit1_bit6_medium_v0481.md`.
+See also `decomp/i960/notes/game_info_18644_positive_mask414e_threshold9_v0612.md`.
 
 Status (v0484): the ordered mixed pair `(0x0146, 0x0142)` and its reverse
 are now admitted at `0x18644`. Both call orders, countdown clear/set and mode
