@@ -141,6 +141,11 @@ dispatcher correction. The combined 192-case matrix is exact; threshold `4+`
 remains fail-closed. See
 `decomp/i960/notes/game_info_18644_positive_masks28_88_a0_a8_threshold3_v0609.md`.
 
+The measured threshold-3 unilateral, mode-bit-6-clear slice of mask
+`0x00000108` (bits 3+8) is now native: `4/4` exact with the `−9/+2`
+correction. Bilateral and mode-bit-6-set cases remain fail-closed. See
+`decomp/i960/notes/game_info_18644_positive_mask108_threshold3_unilateral_v0610.md`.
+
 The v0168 boundary audit removed the two remaining single-instruction oracle
 handoffs in `native-second-dispatch`: the `ret` stubs at `0x0004bab4` and
 `0x000020ec` are now recovered bridges. The strict post-scheduler corridor is
