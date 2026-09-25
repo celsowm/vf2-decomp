@@ -1150,14 +1150,18 @@ static vf2_status hybrid_execute_player_19ef8(
         const uint32_t table_selector = selector & UINT32_C(0x1fff);
     /* v0550: the ROM preserves the incoming state word in +0xbd4 and
      * consumes the measured low flag siblings before the selector setup.
-     * Bits 5/6/21/23 are the only nonzero +0x1a4 entry combinations
-     * admitted here; all other state bits remain fail-closed. */
+     * The branch-sensitive bits are handled below. Every state singleton
+     * has been measured; mixed words containing any other bit remain closed
+     * unless they are composed solely of the four measured branch bits. */
     initial_state_flags = player_state_flags;
-    const int state_ok =
-        (player_state_flags & ~((UINT32_C(1) << 5u) |
-                                (UINT32_C(1) << 6u) |
-                                (UINT32_C(1) << 21u) |
-                                (UINT32_C(1) << 23u))) == 0u;
+    {
+        const uint32_t branch_state_mask =
+            (UINT32_C(1) << 5u) | (UINT32_C(1) << 6u) |
+            (UINT32_C(1) << 21u) | (UINT32_C(1) << 23u);
+        const int state_ok =
+            player_state_flags == 0u ||
+            (player_state_flags & ~branch_state_mask) == 0u ||
+            (player_state_flags & (player_state_flags - 1u)) == 0u;
         const int flags_ok =
             ((player_flags & (
                 (UINT32_C(1) << 6u) | (UINT32_C(1) << 5u) |
@@ -1178,6 +1182,7 @@ static vf2_status hybrid_execute_player_19ef8(
             (branch_byte & (UINT8_C(1) << 6u)) != 0u) {
             return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
         }
+    }
     }
 
     /* 0x19ef8 prologue. */

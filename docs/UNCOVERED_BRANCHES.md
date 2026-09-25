@@ -840,8 +840,9 @@ fail-closed. See `decomp/i960/notes/fa_player_14640_bit4clear_state13_v0540.md`.
 Status (v0550): the live `0x505` `fa_player` `0x19ef8` corridor now admits
 the measured nonzero entry-state bits 5, 6, 21 and 23 in `fighter+0x1a4`.
 Singletons reach `0x1428c` in 1631/1627/1634/1624 instructions respectively
-(the zero-state baseline is 1622); all 15 nonzero combinations are also exact.
-Bit 5 sets final
+(the zero-state baseline is 1622); all 15 nonzero combinations are also exact,
+as are all 28 remaining state-bit singletons. Mixed words combining an
+unmeasured bit with a branch-sensitive bit remain closed. Bit 5 sets final
 `+0x1a4` bit 7, bit 21 toggles the player-word bit 6, and bit 23 copies
 `0x0050a010` to player `+0x1c`. All cases match full live state; unmeasured
 entry-state bits remain fail-closed. See

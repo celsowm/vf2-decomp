@@ -5,7 +5,9 @@
 - Recover the measured `fa_player` `0x19ef8` entry-state siblings (v0550).
   The live `0x505` corridor now accepts the bounded `fighter+0x1a4` bits
   5/6/21/23, including all 15 nonzero combinations, with exact instruction
-  deltas and full CPU/condition/frame/procedure/Model 2A equality. Bit 5
+  deltas and full CPU/condition/frame/procedure/Model 2A equality. All 32
+  state-bit singletons are covered; mixed words combining an unmeasured bit
+  with a branch-sensitive bit remain closed. Bit 5
   produces the ROM's post-selector `+0x1a4` bit-7 update, bit 21 toggles the
   player-word bit 6, and bit 23 copies `0x0050a010` to `+0x1c`. Other entry
   state bits remain fail-closed. See

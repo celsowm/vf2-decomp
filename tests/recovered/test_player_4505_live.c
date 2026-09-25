@@ -418,6 +418,13 @@ static void run_rom_differential(const char *rom_directory)
             test_initial_state_flags = measured_state_masks[index];
             run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
         }
+        for (index = 0u; index < 32u; ++index) {
+            if (index == 5u || index == 6u || index == 21u || index == 23u) {
+                continue;
+            }
+            test_initial_state_flags = UINT32_C(1) << index;
+            run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
+        }
     }
     test_initial_state_flags = 0u;
     test_corridor_only = 0;

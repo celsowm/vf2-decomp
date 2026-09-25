@@ -14,13 +14,14 @@ Measured singleton deltas to the existing `1622`-instruction corridor:
 | 21 | 1634 | final player word toggles bit 6 (`0x800` → `0x840`) |
 | 23 | 1624 | global `0x0050a010` is copied to player `+0x1c` |
 
-All 15 nonzero combinations of these four bits were also run.  Their
-instruction deltas are additive and all reference/native CPU, condition,
-frame, procedure-counter and Model 2A state comparisons are byte-exact.  The
-focused fixture runs 18 cases in total, including the three existing
-zero-state ROM parks.
+All 15 nonzero combinations of these four bits were also run.  In addition,
+each of the other 28 individual state bits was measured as a singleton; each
+took the unchanged 1622-instruction corridor and matched full state.  The
+focused fixture therefore runs 46 cases in total, including the three
+existing zero-state ROM parks.
 
-The native corridor admits only bits 5, 6, 21 and 23 in the incoming state
-word.  Every other nonzero state bit remains `VF2_ERROR_UNSUPPORTED`; the
-measured live selector, table stream and downstream scratch/census guards are
-unchanged.
+The native corridor admits every measured singleton and any combination made
+solely from bits 5, 6, 21 and 23.  Mixed words that combine one of those
+branch-sensitive bits with another state bit remain
+`VF2_ERROR_UNSUPPORTED`.  The measured live selector, table stream and
+downstream scratch/census guards are unchanged.
