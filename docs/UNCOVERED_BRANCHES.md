@@ -18,7 +18,7 @@ Larger unmeasured combinations remain fail-closed. Evidence is recorded in
 `decomp/i960/notes/fa_player_19ef8_mask_100059f_v0579.md` plus
 `decomp/i960/notes/fa_player_19ef8_high_masks_v0580.md`.
 
-## Latest measured game-info extension (v0581/v0582/v0583/v0584/v0585/v0586/v0587/v0588/v0589/v0590/v0591/v0611)
+## Latest measured game-info extension (v0581/v0582/v0583/v0584/v0585/v0586/v0587/v0588/v0589/v0590/v0591/v0611/v0617)
 
 The positive state-8 `fa_game_info` compositions `0x0000000e` (bits 1+2+3),
 `0x0000001a` (bits 1+3+4), `0x00000018` (bits 3+4) and `0x0000001e`
@@ -2646,9 +2646,10 @@ were expanded from 1–2 masks to 8 masks each (low 1,2,4), `16` masks
 * `0x00004140`/`0x00014140` (bits 6+14 with/without 16) `2→16` low cubes
   with `+4/+2` (v0211, compacted v0219 to `& ~0x10016`)
 
-Each `36/36 exact`. Other positive bases (e.g. `0x8140` high combos,
-`0xC140` high combos) remain explicit boundaries until their low cubes
-are measured. Compact forms now use `& ~0x16` or `& ~0x10016` and share
+Each `36/36 exact`. The specific `0x8140`, `0x10140` and `0xc140` bases are
+now also revalidated through threshold `9` (v0617); other unlisted positive
+high-bit compositions remain explicit boundaries until their low cubes are
+measured. Compact forms now use `& ~0x16` or `& ~0x10016` and share
 `hybrid_set_stale_low()` (v0220).
 
 Status (v0483/v0612): the positive state-8 bit-1+bit-6 families `0x0142`, `0x4142`
@@ -2673,6 +2674,10 @@ see `decomp/i960/notes/game_info_18644_positive_maskc14e_threshold9_v0615.md`.
 The composed high-base `0x1814e` is likewise `120/120` exact through
 threshold `9`; see
 `decomp/i960/notes/game_info_18644_positive_mask1814e_threshold9_v0616.md`.
+The adjacent positive masks `0x8140`, `0x10140` and `0xc140` were likewise
+revalidated through threshold `9`, each with `120/120` exact full-dispatch
+cases and no runtime source change. See
+`decomp/i960/notes/game_info_18644_positive_masks_8140_10140_c140_threshold9_v0617.md`.
 
 Status (v0484): the ordered mixed pair `(0x0146, 0x0142)` and its reverse
 are now admitted at `0x18644`. Both call orders, countdown clear/set and mode
