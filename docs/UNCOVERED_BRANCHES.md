@@ -877,6 +877,14 @@ final `0x14560` compare is LESS. No additional state family is inferred from
 this single witness. See
 `decomp/i960/notes/fa_player_1442c_state25_state22_v0562.md`.
 
+Status (v0563): the measured state-25 successor sweep now covers
+`17..23,25..26,28..31` in the integrated `0x1442c` fixture. Every case
+matches full live state and 3 calls/returns; all cases take the LESS compare
+tail, with 98 instructions except successor 28 at 92. Successors 24 and 27
+retain their separately recovered 105/126-instruction arms. States outside
+this measured family remain fail-closed. See
+`decomp/i960/notes/fa_player_1442c_state25_successor_family_v0563.md`.
+
 Status (v0551): the measured positive state-8 `fa_game_info` composition
 `0x0000000e` (bits 1+2+3) is now native through threshold `8`. Its complete
 three-distribution/countdown/mode/threshold matrix is `108/108` exact, with a

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Extend the measured `fa_rob` `0x1442c` state-25 successor family (v0563).
+  Oracle sweeps prove successors `17..23,25..26,28..31` with exact live state;
+  the neutral tail is 98 instructions except the 92-instruction successor 28
+  arm. Other state values remain fail-closed.
+
 - Recover the measured `fa_rob` `0x1442c` state-25/state-22 successor (v0562).
   The integrated witness matches the existing neutral tail in 98 instructions
   with 3 calls/returns and exact live-state equality; the final compare is
