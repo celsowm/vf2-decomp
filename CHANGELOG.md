@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Extend `fa_player` `0x19ef8` to the measured five-bit low mask `0x0000001f`
+  (v0569). All 16 branch-bit compositions match full live state and exact
+  4-call/4-return accounting; the `0x9f` bit-7 extension remains fail-closed.
+  See `decomp/i960/notes/fa_player_19ef8_five_low_v0569.md`.
+
 - Complete the measured four-bit family for `fa_player` `0x19ef8` (v0568):
   non-branch masks `0x0000001b`, `0x0000001d` and `0x0000001e` now match all
   16 branch-bit compositions with exact live state and 4-call/4-return

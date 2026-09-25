@@ -621,6 +621,9 @@ int main(int argc, char **argv)
     } else if (argc == 3 && strcmp(argv[2], "--quadruple-1e") == 0) {
         test_quadruple_only = 1;
         test_quadruple_mask = UINT32_C(0x0000001e);
+    } else if (argc == 3 && strcmp(argv[2], "--five-low") == 0) {
+        test_quadruple_only = 1;
+        test_quadruple_mask = UINT32_C(0x0000001f);
     } else if (argc == 3) {
         return EXIT_SUCCESS;
     }
