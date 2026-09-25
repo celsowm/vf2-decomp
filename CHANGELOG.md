@@ -40,8 +40,14 @@
 
 - Extend the same corridor to non-branch mask `0x0008059f` (v0575). All 16
   branch-bit compositions match full live state and exact 4-call/4-return
-  accounting; bit 16 (`0x18059f`) remains fail-closed. See
+  accounting; the then-unmeasured bit-16 extension remained fail-closed at
+  that revision. See
   `decomp/i960/notes/fa_player_19ef8_mask_8059f_v0575.md`.
+
+- Extend the same corridor to non-branch mask `0x0018059f` (v0576). All 16
+  branch-bit compositions match full live state and exact 4-call/4-return
+  accounting; bit 17 (`0x20059f`) remains fail-closed. See
+  `decomp/i960/notes/fa_player_19ef8_mask_18059f_v0576.md`.
 
 - Complete the measured four-bit family for `fa_player` `0x19ef8` (v0568):
   non-branch masks `0x0000001b`, `0x0000001d` and `0x0000001e` now match all

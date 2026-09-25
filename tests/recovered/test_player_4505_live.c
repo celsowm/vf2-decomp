@@ -423,7 +423,9 @@ static void run_rom_differential(const char *rom_directory)
                         ? ((test_quadruple_mask & (UINT32_C(1) << 12u)) != 0u
                                ? ((test_quadruple_mask & (UINT32_C(1) << 14u)) != 0u
                                ? ((test_quadruple_mask & (UINT32_C(1) << 15u)) != 0u
-                                      ? (UINT32_C(1) << 16u)
+                                      ? ((test_quadruple_mask & (UINT32_C(1) << 16u)) != 0u
+                                             ? (UINT32_C(1) << 17u)
+                                             : (UINT32_C(1) << 16u))
                                       : (UINT32_C(1) << 15u))
                                       : (UINT32_C(1) << 14u))
                                : (UINT32_C(1) << 12u))
@@ -650,6 +652,9 @@ int main(int argc, char **argv)
     } else if (argc == 3 && strcmp(argv[2], "--eleven-low") == 0) {
         test_quadruple_only = 1;
         test_quadruple_mask = UINT32_C(0x0008059f);
+    } else if (argc == 3 && strcmp(argv[2], "--twelve-low") == 0) {
+        test_quadruple_only = 1;
+        test_quadruple_mask = UINT32_C(0x0018059f);
     } else if (argc == 3) {
         return EXIT_SUCCESS;
     }
