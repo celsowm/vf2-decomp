@@ -943,8 +943,14 @@ Status (v0572): the measured extension `fighter+0x1a4 = 0x0000059f` (bits
 Status (v0573): the measured extension `fighter+0x1a4 = 0x0001059f` (bits
 0..4, 7, 8, 10 and 12) is now native across all 16 subsets of branch bits
 5,6,21,23. Every case matches full live state and four calls/returns; bit 14
-(`0x5059f`) remains an explicit unsupported control. See
+(`0x5059f`) was an explicit unsupported control at that revision. See
 `decomp/i960/notes/fa_player_19ef8_mask_1059f_v0573.md`.
+
+Status (v0574): the measured extension `fighter+0x1a4 = 0x0005059f` (bits
+0..4, 7, 8, 10, 12 and 14) is now native across all 16 subsets of branch
+bits 5,6,21,23. Every case matches full live state and four calls/returns; bit
+15 (`0x8059f`) remains an explicit unsupported control. See
+`decomp/i960/notes/fa_player_19ef8_mask_5059f_v0574.md`.
 
 Status (v0551): the measured positive state-8 `fa_game_info` composition
 `0x0000000e` (bits 1+2+3) is now native through threshold `8`. Its complete

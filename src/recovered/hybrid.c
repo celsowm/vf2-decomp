@@ -1156,8 +1156,8 @@ static vf2_status hybrid_execute_player_19ef8(
      * The branch-sensitive bits are handled below. The bounded matrix now
      * admits up to three non-branch bits with any branch subset, plus the
      * measured non-branch masks 0x0f, 0x17, 0x1b, 0x1d, 0x1e, 0x1f and
-     * 0x9f, 0x19f, 0x59f and 0x1059f with their branch-bit matrices; other
-     * larger combinations remain closed. */
+     * 0x9f, 0x19f, 0x59f, 0x1059f and 0x5059f with their branch-bit
+     * matrices; other larger combinations remain closed. */
     initial_state_flags = player_state_flags;
     {
         const uint32_t branch_state_mask =
@@ -1167,7 +1167,7 @@ static vf2_status hybrid_execute_player_19ef8(
             player_state_flags & ~branch_state_mask;
         uint32_t remaining_non_branch = non_branch_state_flags;
         unsigned non_branch_count = 0u;
-        while (remaining_non_branch != 0u && non_branch_count <= 9u) {
+        while (remaining_non_branch != 0u && non_branch_count <= 10u) {
             remaining_non_branch &= remaining_non_branch - 1u;
             ++non_branch_count;
         }
@@ -1181,7 +1181,8 @@ static vf2_status hybrid_execute_player_19ef8(
             non_branch_state_flags == UINT32_C(0x0000009f) ||
             non_branch_state_flags == UINT32_C(0x0000019f) ||
             non_branch_state_flags == UINT32_C(0x0000059f) ||
-            non_branch_state_flags == UINT32_C(0x0001059f);
+            non_branch_state_flags == UINT32_C(0x0001059f) ||
+            non_branch_state_flags == UINT32_C(0x0005059f);
         const int flags_ok =
             ((player_flags & (
                 (UINT32_C(1) << 6u) | (UINT32_C(1) << 5u) |

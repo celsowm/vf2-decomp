@@ -8,6 +8,6 @@ procedure state and mutable Model 2A memory. Counts are `1622` with no branch
 bits and the exact measured corrections through `1650`; every case has four
 calls and four returns.
 
-The control `0x0005059f`, which adds non-branch bit 14, remains unsupported.
-The guard therefore admits the measured mask only and does not generalize to
-arbitrary nine-bit or larger combinations.
+At v0573 the control `0x0005059f`, which adds non-branch bit 14, remained
+unsupported. It was measured and admitted in the subsequent v0574 slice; the
+then-unmeasured bit-15 extension remains outside this note's evidence.
