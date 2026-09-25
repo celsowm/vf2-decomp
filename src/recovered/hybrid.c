@@ -16788,7 +16788,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             fighter0_state == 8u && fighter1_state == 8u &&
             measured_matrix_distribution &&
             combined_state8_flags == (UINT32_C(1) << 3u) &&
-            shared_fighter_threshold <= UINT32_C(2);
+            shared_fighter_threshold <= UINT32_C(3);
         native_state8_bit20_bit80_positive_path =
             fighter0_state == 8u && fighter1_state == 8u &&
             measured_matrix_distribution &&
@@ -20627,9 +20627,9 @@ static vf2_status hybrid_execute_game_info_bit31_native(
         }
     }
     if (native_state8_bit3_positive_path) {
-        /* v0504: positive state-8 bit 3 is a uniform measured 2-instruction
-         * dispatcher correction for all three distributions, both countdown
-         * values, both mode-bit-6 values and thresholds 0..2.  The child
+        /* v0504-v0592: positive state-8 bit 3 is a uniform measured
+         * 2-instruction dispatcher correction for all three distributions,
+         * both countdown values, both mode-bit-6 values and thresholds 0..3.  The child
          * state/memory path is already exact; the final compare follows the
          * countdown byte. */
         native_instructions += UINT64_C(2);
