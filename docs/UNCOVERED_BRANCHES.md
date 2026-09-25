@@ -169,11 +169,12 @@ boundary: with fighter0 `+0x194 = 1`, the reference reaches the first
 ROM-backed and is not admitted by the recovery. See
 `decomp/i960/notes/fa_player_144b0_nonzero_prefix_v0670.md`.
 
-The selector-setup subcall itself is now measured as a separate 167-step
-boundary: `0x1a044 -> 0x1a048` returns with `+0x1a4 = 0x163`, `+0x1a8 = 1`
-and `+0x1aa = 1`. This selector-1 result is distinct from the live `0x505`
-setup and remains ROM-backed pending a native implementation. See
-`decomp/i960/notes/fa_player_selector1_setup_v0671.md`.
+The selector-setup subcall is now native for the measured selector-1 shape:
+`0x1a044 -> 0x1a048` returns after 167 instructions with `+0x1a4 = 0x163`,
+`+0x1a8 = 1` and `+0x1aa = 1`, with full live-state equality. The generic
+selector bytecode handler supplies the selector-specific state-bit update;
+unmeasured selector shapes remain fail-closed. See
+`decomp/i960/notes/fa_player_selector1_native_setup_v0673.md`.
 
 The correct downstream endpoint for this nonzero `fa_rob` flow is `0x1463c`,
 not the player-corridor return `0x1428c`: from the `0x1a048` snapshot the

@@ -1743,6 +1743,54 @@ vf2_status vf2_hybrid_player_19ef8_execute_for_test(
     return hybrid_execute_player_19ef8(machine, cpu);
 }
 
+vf2_status vf2_hybrid_player_selector1_setup_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    const uint32_t player = cpu != NULL
+        ? cpu->registers[VF2_I960_G0_REGISTER + 7u] : 0u;
+    vf2_player_selector_setup_plan plan;
+    uint32_t final_state = 0u;
+    vf2_status status = VF2_OK;
+
+    if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x0001a044) ||
+        player == 0u || cpu->registers[VF2_I960_G0_REGISTER] != 1u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    status = vf2_i960_cpu_enter_procedure(
+        cpu, UINT32_C(0x0001a1e4), UINT32_C(0x0001a048)
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+    status = player_selector_prepare_setup(
+        machine, player, UINT32_C(1), &plan
+    );
+    if (status == VF2_OK) {
+        status = player_selector_apply_setup(machine, &plan, 0u);
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_read_u32(
+            machine, player + UINT32_C(0x1a4), &final_state
+        );
+    }
+    if (status == VF2_OK && final_state != UINT32_C(0x00000163)) {
+        status = VF2_ERROR_UNSUPPORTED;
+    }
+    if (status == VF2_OK) {
+        status = vf2_i960_cpu_return_procedure(cpu, machine);
+    }
+    if (status != VF2_OK) {
+        return status;
+    }
+    cpu->ip = UINT32_C(0x0001a048);
+    cpu->compare_result = VF2_I960_COMPARE_NONE;
+    cpu->arithmetic_control &= ~UINT32_C(7);
+    cpu->executed_instructions += UINT64_C(167);
+    return VF2_OK;
+}
+
 /* v0390 test-only entry to the measured 0x1428c head (see hybrid.h). */
 vf2_status vf2_hybrid_player_1428c_execute_for_test(
     vf2_model2a *machine,
