@@ -16805,7 +16805,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             fighter0_state == 8u && fighter1_state == 8u &&
             measured_matrix_distribution &&
             combined_state8_flags == (UINT32_C(1) << 4u) &&
-            shared_fighter_threshold <= UINT32_C(3);
+            shared_fighter_threshold <= UINT32_C(9);
         native_state8_bit8_positive_path =
             fighter0_state == 8u && fighter1_state == 8u &&
             measured_matrix_distribution &&
@@ -20692,11 +20692,11 @@ static vf2_status hybrid_execute_game_info_bit31_native(
         }
     }
     if (native_state8_bit4_positive_path) {
-        /* v0506-v0594: positive state-8 bit 4 follows the measured split at the
+        /* v0506-v0594/v0628: positive state-8 bit 4 follows the measured split at the
          * dispatcher join. Mode bit 6 with a zero countdown is three
          * instructions shorter; the other accepted cases are two longer.
          * All accepted cases share the measured stale frame and condition,
-         * now proven through threshold 3. */
+         * now proven through threshold 9. */
         if ((mode_value & (UINT8_C(1) << 6u)) != 0u &&
             !countdown_was_nonzero) {
             if (native_instructions < UINT64_C(3)) {
