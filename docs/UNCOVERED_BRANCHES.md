@@ -102,6 +102,12 @@ threshold `3`, retaining its measured unilateral/bilateral joins. Its complete
 48-case matrix is exact; threshold `4+` remains fail-closed. See
 `decomp/i960/notes/game_info_18644_positive_mask114_threshold3_v0602.md`.
 
+The positive state-8 masks `0x00000106`, `0x00000112` and `0x00000116` are now
+native through threshold `3`, retaining their shared distribution-independent
+joins. The combined 144-case matrix is exact; threshold `4+` remains
+fail-closed. See
+`decomp/i960/notes/game_info_18644_positive_masks106_112_116_threshold3_v0603.md`.
+
 The v0168 boundary audit removed the two remaining single-instruction oracle
 handoffs in `native-second-dispatch`: the `ret` stubs at `0x0004bab4` and
 `0x000020ec` are now recovered bridges. The strict post-scheduler corridor is

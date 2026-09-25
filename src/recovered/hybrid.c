@@ -16847,7 +16847,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             (combined_state8_flags == UINT32_C(0x00000106) ||
              combined_state8_flags == UINT32_C(0x00000112) ||
              combined_state8_flags == UINT32_C(0x00000116)) &&
-            shared_fighter_threshold <= UINT32_C(2);
+            shared_fighter_threshold <= UINT32_C(3);
         native_state8_bit3_bit5_bit7_bit8_positive_path =
             fighter0_state == 8u && fighter1_state == 8u &&
             measured_matrix_distribution &&
@@ -20954,8 +20954,9 @@ static vf2_status hybrid_execute_game_info_bit31_native(
         }
     }
     if (native_state8_bit8_low_family_positive_path) {
-        /* v0513: the measured 0x106, 0x112 and 0x116 compositions share the
-         * v0512 distribution-independent dispatcher join. */
+        /* v0513-v0603: the measured 0x106, 0x112 and 0x116 compositions share
+         * the v0512 distribution-independent dispatcher join, now proven
+         * through threshold 3. */
         const bool unilateral =
             fighter1_state_flags == 0u || fighter0_state_flags == 0u;
         const bool bilateral =
