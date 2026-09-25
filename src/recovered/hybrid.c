@@ -1148,11 +1148,10 @@ static vf2_status hybrid_execute_player_19ef8(
                    ((uint32_t)source_bytes[3] << 24u);
     {
         const uint32_t table_selector = selector & UINT32_C(0x1fff);
-    /* v0558: the ROM preserves the incoming state word in +0xbd4 and
+    /* v0559: the ROM preserves the incoming state word in +0xbd4 and
      * consumes the measured low flag siblings before the selector setup.
      * The branch-sensitive bits are handled below. The bounded matrix now
-     * admits up to two non-branch bits with any branch subset, plus the
-     * measured branch-free, bit-5 and bit-6 triple families; larger
+     * admits up to three non-branch bits with any branch subset; larger
      * combinations remain closed. */
     initial_state_flags = player_state_flags;
     {
@@ -1167,12 +1166,7 @@ static vf2_status hybrid_execute_player_19ef8(
             remaining_non_branch &= remaining_non_branch - 1u;
             ++non_branch_count;
         }
-        const int state_ok =
-            non_branch_count <= 2u ||
-            (non_branch_count == 3u &&
-             ((player_state_flags & branch_state_mask) == 0u ||
-              (player_state_flags & branch_state_mask) == (UINT32_C(1) << 5u) ||
-              (player_state_flags & branch_state_mask) == (UINT32_C(1) << 6u)));
+        const int state_ok = non_branch_count <= 3u;
         const int flags_ok =
             ((player_flags & (
                 (UINT32_C(1) << 6u) | (UINT32_C(1) << 5u) |
