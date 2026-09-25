@@ -16640,7 +16640,10 @@ static vf2_status hybrid_execute_game_info_bit31_native(
         native_state8_bit2_bit4_positive_path =
             fighter0_state == 8u && fighter1_state == 8u &&
             measured_matrix_distribution &&
-            combined_state8_flags == UINT32_C(0x00000014) &&
+            (combined_state8_flags == UINT32_C(0x00000014) ||
+             combined_state8_flags == UINT32_C(0x0000001c) ||
+             combined_state8_flags == UINT32_C(0x00000034) ||
+             combined_state8_flags == UINT32_C(0x00000094)) &&
             shared_fighter_threshold <= UINT32_C(2);
         native_state8_bit1_bit3_bit4_positive_path =
             fighter0_state == 8u && fighter1_state == 8u &&
