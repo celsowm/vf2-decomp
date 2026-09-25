@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Recover the measured `fa_rob` `0x14640` bit-4-clear greater sibling
+  (v0539). With `+0x654 != 0`, neutral state byte, `+0x1aa=2` and
+  `+0x62a=1`, the generic dispatcher now reaches the `0x146c8` tail and
+  returns through `0x146d8` with exact reference/native state equality;
+  the direct tail is 14 instructions and the consumed caller return is 15.
+  Other greater relations and unmeasured flag/state compositions remain
+  fail-closed. See `decomp/i960/notes/fa_player_14640_bit4clear_greater_v0539.md`.
+
 - Recover the measured `pre14288-boot` player shape through the `0x14288`
   corridor and `0x1428c` geometry head (v0538). The boot park now matches the
   reference at `1622/+4/+4` and `10869/+10/+10` with full CPU, condition,

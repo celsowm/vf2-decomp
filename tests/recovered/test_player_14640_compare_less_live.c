@@ -1,5 +1,6 @@
 /* Differential pin for the measured fa_rob 0x14640 signed-less compare
- * prefix siblings (v0412/v0427). */
+ * prefix siblings (v0412/v0427). Shape 5 additionally proves the v0539
+ * bit-4-clear greater witness through the generic dispatcher. */
 
 #include <stdint.h>
 #include <stdio.h>
@@ -69,10 +70,16 @@ static void run_case(const uint8_t *rom, size_t rom_size,
     vf2_i960_snapshot_diff diff;
     vf2_status status;
     uint32_t fighter;
+    uint32_t fighter_flags = 0u;
     const int variant = shape >= 5 ? shape - 5 : shape;
     const int greater = shape >= 5;
-    const uint32_t return_ip = variant >= 3
-        ? UINT32_C(0x000146c4) : RETURN_IP;
+    /* Shape 5 is the newly measured bit-4-clear greater sibling.  It takes
+     * the generic dispatcher, consumes the 0x146d8 ret and returns to the
+     * parked 0x1438c caller; the other shapes exercise the direct helper. */
+    const int dispatch = shape == 5;
+    const uint32_t return_ip = dispatch
+        ? UINT32_C(0x0001438c)
+        : variant >= 3 ? UINT32_C(0x000146c4) : RETURN_IP;
     uint64_t base_steps;
     uint32_t steps = 0u;
     int ok;
@@ -113,10 +120,17 @@ static void run_case(const uint8_t *rom, size_t rom_size,
               (variant == 2 || variant == 4) ? UINT32_C(1) : UINT32_C(0));
     write_u32(&nm, fighter + UINT32_C(0x194),
               (variant == 2 || variant == 4) ? UINT32_C(1) : UINT32_C(0));
-    write_u32(&rm, fighter,
-              (variant == 1 || variant >= 3) ? UINT32_C(0x10) : 0u);
-    write_u32(&nm, fighter,
-              (variant == 1 || variant >= 3) ? UINT32_C(0x10) : 0u);
+    if (dispatch) {
+        CHECK(vf2_model2a_read_u32(&rm, fighter, &fighter_flags) == VF2_OK);
+        fighter_flags &= ~(UINT32_C(1) << 4u);
+        write_u32(&rm, fighter, fighter_flags);
+        write_u32(&nm, fighter, fighter_flags);
+    } else {
+        write_u32(&rm, fighter,
+                  (variant == 1 || variant >= 3) ? UINT32_C(0x10) : 0u);
+        write_u32(&nm, fighter,
+                  (variant == 1 || variant >= 3) ? UINT32_C(0x10) : 0u);
+    }
     write_u8(&rm, fighter + UINT32_C(0x197), variant == 1 ? 13u : 0u);
     write_u8(&nm, fighter + UINT32_C(0x197), variant == 1 ? 13u : 0u);
     write_u16(&rm, fighter + UINT32_C(0x1aa), greater ? 2u : 1u);
@@ -133,14 +147,18 @@ static void run_case(const uint8_t *rom, size_t rom_size,
     }
     CHECK(rc.ip == return_ip);
     CHECK(rc.executed_instructions - base_steps ==
-          (variant == 1 ? 17u : variant >= 3 ? 15u :
+          (dispatch ? UINT64_C(15) :
+           variant == 1 ? UINT64_C(17) : variant >= 3 ? UINT64_C(15) :
            variant == 2 ? NONZERO_TOTAL : TOTAL));
 
-    status = vf2_hybrid_player_14640_compare_less_execute_for_test(&nm, &nc);
+    status = dispatch
+        ? vf2_hybrid_player_14640_execute_for_test(&nm, &nc)
+        : vf2_hybrid_player_14640_compare_less_execute_for_test(&nm, &nc);
     CHECK(status == VF2_OK);
     CHECK(nc.ip == return_ip);
     CHECK(nc.executed_instructions - base_steps ==
-          (variant == 1 ? 17u : variant >= 3 ? 15u :
+          (dispatch ? UINT64_C(15) :
+           variant == 1 ? UINT64_C(17) : variant >= 3 ? UINT64_C(15) :
            variant == 2 ? NONZERO_TOTAL : TOTAL));
     CHECK(vf2_i960_compare_live_state(&rc, &rm, &nc, &nm, &diff) == VF2_OK);
     CHECK(diff.equal);

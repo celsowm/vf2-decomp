@@ -6130,12 +6130,21 @@ static vf2_status hybrid_execute_player_14640(
             status = hybrid_read_u16(machine, player + UINT32_C(0x62a), &h62a);
         }
         if (status == VF2_OK) {
+            status = vf2_model2a_read_u32(machine, player, &flags);
+        }
+        if (status == VF2_OK) {
             s1aa = (int16_t)h1aa;
             s62a = (int16_t)h62a;
             if (s1aa == s62a) {
                 status = hybrid_execute_player_14640_compare_escape(
                     machine, cpu);
-            } else if (s1aa < s62a) {
+            } else if (s1aa < s62a ||
+                       ((flags & (UINT32_C(1) << 4u)) == 0u &&
+                        s1aa == 2 && s62a == 1)) {
+                /* The direct helper already models the bit-4-clear
+                 * 0x146d8 exits.  Route the one measured greater witness
+                 * (s16(+0x1aa),s16(+0x62a)) == (2,1) through it too; other
+                 * greater compositions remain fail-closed. */
                 status = hybrid_execute_player_14640_compare_less(machine, cpu);
             } else {
                 status = hybrid_execute_player_14640_compare(machine, cpu);

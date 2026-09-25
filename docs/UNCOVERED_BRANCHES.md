@@ -823,6 +823,14 @@ measured transient scratch base is `0x520000`, with record
 compositions remain fail-closed. See
 `decomp/i960/notes/player_boot_142c0_v0538.md`.
 
+Status (v0539): the `fa_rob` `0x14640` compare-prefix now admits the measured
+bit-4-clear greater sibling. With `+0x654 != 0`, neutral state byte,
+`+0x1aa=2`, `+0x62a=1` and flags `0x04200000`, the generic dispatcher reaches
+the `0x146d8` return in 15 instructions including the consumed ret (14 in
+the direct tail), with full live-state equality. Other greater relations and
+unmeasured bit/state compositions remain fail-closed. See
+`decomp/i960/notes/fa_player_14640_bit4clear_greater_v0539.md`.
+
 Status (v0392): the `0x142c0` body now has a focused ROM-backed
 differential fixture (`vf2_player_142c0_live_differential`) restoring
 `out/pre14288.vf2snap`, stepping the reference through the full
