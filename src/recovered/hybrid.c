@@ -1157,7 +1157,7 @@ static vf2_status hybrid_execute_player_19ef8(
      * admits up to three non-branch bits with any branch subset, plus the
      * measured non-branch masks 0x0f, 0x17, 0x1b, 0x1d, 0x1e, 0x1f and
      * 0x9f, 0x19f, 0x59f, 0x1059f, 0x5059f, 0x8059f, 0x18059f and
-     * 0x00020059f, 0x0040059f, 0x0100059f, 0x0200059f, 0x0400059f, 0x0800059f,
+     * 0x00020059f, 0x00060059f, 0x0040059f, 0x0100059f, 0x0200059f, 0x0400059f, 0x0800059f,
      * 0x1000059f, 0x4000059f and 0x8000059f with their branch-bit
      * matrices; other larger combinations remain closed. */
     initial_state_flags = player_state_flags;
@@ -1188,6 +1188,7 @@ static vf2_status hybrid_execute_player_19ef8(
             non_branch_state_flags == UINT32_C(0x0008059f) ||
             non_branch_state_flags == UINT32_C(0x0018059f) ||
             non_branch_state_flags == UINT32_C(0x00020059f) ||
+            non_branch_state_flags == UINT32_C(0x00060059f) ||
             non_branch_state_flags == UINT32_C(0x0040059f) ||
             non_branch_state_flags == UINT32_C(0x0100059f) ||
             non_branch_state_flags == UINT32_C(0x0200059f) ||
