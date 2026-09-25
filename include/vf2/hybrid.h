@@ -368,6 +368,13 @@ vf2_status vf2_hybrid_player_selector1_return_tail_execute_for_test(
     vf2_i960_cpu *cpu
 );
 
+/* v0676: test-only selector-1 continuation from 0x1a048 through the
+ * measured 0x26ef0/0x27130 calls, stopping at 0x144b8. */
+vf2_status vf2_hybrid_player_selector1_continuation_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 /* v0390: test-only entry to the measured 0x1428c head
  * (setbit-26 + `call 0x270d4` five-slot wrapper + 0x1429c tail).
  * The CPU must be parked at 0x1428c with g7 the player base,

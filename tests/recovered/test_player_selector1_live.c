@@ -79,7 +79,37 @@ static void run_case(const char *rom_directory)
                 diff.component, diff.first_offset, (unsigned)diff.expected_value,
                 (unsigned)diff.actual_value, diff.differing_bytes);
     }
-    puts("player-selector1-live ref=167 native=167 calls=1/1 rets=1/1");
+    start_instructions = ref_cpu.executed_instructions;
+    start_calls = ref_cpu.procedure_calls;
+    start_returns = ref_cpu.procedure_returns;
+    while (ref_cpu.ip != UINT32_C(0x000144b8)) {
+        CHECK(vf2_i960_step(&ref_cpu, &ref_machine, NULL) == VF2_OK);
+        if (ref_cpu.executed_instructions - start_instructions > 4096u) break;
+    }
+    CHECK(ref_cpu.ip == UINT32_C(0x000144b8));
+    CHECK(ref_cpu.executed_instructions - start_instructions == UINT64_C(3932));
+    CHECK(ref_cpu.procedure_calls - start_calls == UINT64_C(3));
+    CHECK(ref_cpu.procedure_returns - start_returns == UINT64_C(4));
+    {
+        const vf2_status continuation_status =
+            vf2_hybrid_player_selector1_continuation_execute_for_test(
+                &native_machine, &native_cpu);
+        CHECK(continuation_status == VF2_OK);
+    }
+    CHECK(native_cpu.ip == UINT32_C(0x000144b8));
+    CHECK(native_cpu.executed_instructions - start_instructions == UINT64_C(3932));
+    CHECK(native_cpu.procedure_calls - start_calls == UINT64_C(3));
+    CHECK(native_cpu.procedure_returns - start_returns == UINT64_C(4));
+    memset(&diff, 0, sizeof(diff));
+    CHECK(vf2_i960_compare_live_state(&ref_cpu, &ref_machine,
+                                      &native_cpu, &native_machine, &diff) == VF2_OK);
+    CHECK(diff.equal);
+    if (!diff.equal) {
+        fprintf(stderr, "selector1-cont diff component=%s offset=%zu expected=0x%08x actual=0x%08x bytes=%zu\n",
+                diff.component, diff.first_offset, (unsigned)diff.expected_value,
+                (unsigned)diff.actual_value, diff.differing_bytes);
+    }
+    puts("player-selector1-live ref=167+3932 native=167+3932 calls=4/4 rets=5/5");
     vf2_i960_snapshot_destroy(&snap);
     vf2_model2a_shutdown(&ref_machine);
     vf2_model2a_shutdown(&native_machine);

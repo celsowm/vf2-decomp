@@ -6,7 +6,7 @@ runs through the eleventh-dispatch validation corridor, but it remains one evide
 sequence rather than a complete game implementation. Unsupported paths return
 `VF2_ERROR_UNSUPPORTED` instead of falling back to i960 interpretation.
 
-## Latest measured player extension (v0579/v0641/v0642/v0643/v0644/v0645/v0646/v0647/v0648/v0649/v0650/v0651/v0652/v0653/v0654/v0655/v0656/v0657/v0658/v0659/v0660)
+## Latest measured player extension (v0579/v0641/v0642/v0643/v0644/v0645/v0646/v0647/v0648/v0649/v0650/v0651/v0652/v0653/v0654/v0655/v0656/v0657/v0658/v0659/v0660/v0676)
 
 The live `fa_player` `0x19ef8` corridor now admits the measured
 `+0x1a4` masks `0x0040059f`, `0x0100059f`, `0x0200059f`, `0x0400059f`,
@@ -179,8 +179,12 @@ unmeasured selector shapes remain fail-closed. See
 The correct downstream endpoint for this nonzero `fa_rob` flow is `0x1463c`,
 not the player-corridor return `0x1428c`: from the `0x1a048` snapshot the
 reference reaches `0x1463c` after 3,967 additional instructions, with three
-calls and four returns. The complete selector-1 continuation remains
-ROM-backed. See `decomp/i960/notes/fa_player_selector1_continuation_v0672.md`.
+calls and four returns. The measured continuation from `0x1a048` through the
+shared expansion/coprocessor corridor to `0x144b8` is now native for the exact
+selector-1 live shape: 3,932 instructions, three calls and four returns,
+followed by the already recovered 35-instruction return tail. Neighboring
+selector-1 shapes and later successor arms remain ROM-backed. See
+`decomp/i960/notes/fa_player_selector1_continuation_v0676.md`.
 
 The measured return tail after those calls is now native: a checkpoint parked
 at `0x144b8` reaches `0x1463c` in 35 instructions with full CPU and mutable

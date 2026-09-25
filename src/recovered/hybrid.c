@@ -1013,6 +1013,11 @@ static vf2_status hybrid_execute_player_prefix(
     return VF2_OK;
 }
 
+static vf2_status hybrid_execute_player_28780(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 /* Recover the accepted 0x14288 -> 0x19ef8 corridor.  The live profile
  * selector is 0x505 on the primary live park (loaded by ROM `ldos (g6), g0`
  * at 0x14280; bit 14 is clear so the `bbc 14` at 0x19f2c skips the
@@ -1027,6 +1032,78 @@ static vf2_status hybrid_execute_player_prefix(
  * enters with no local frame and no persistent player+0xbd8 scratch pointer;
  * its measured transient scratch base is 0x520000. Other selectors and
  * branch combinations remain explicit ROM continuations. */
+static vf2_status hybrid_execute_selector1_nested_27250(
+    vf2_model2a *machine,
+    const vf2_i960_cpu *cpu,
+    uint32_t scratch_base
+)
+{
+    vf2_i960_cpu nested;
+    size_t index = 0u;
+    vf2_status status = VF2_OK;
+
+    if (machine == NULL || cpu == NULL || scratch_base == 0u) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    nested = *cpu;
+    nested.ip = UINT32_C(0x00028780);
+    nested.local_frame_depth = 6u;
+    nested.maximum_local_frame_depth = 6u;
+    nested.registers[VF2_I960_G0_REGISTER] &= ~UINT32_C(7);
+    nested.registers[VF2_I960_G0_REGISTER + 5u] =
+        UINT32_C(0x0050e000);
+    hybrid_set_compare_result(&nested, VF2_I960_COMPARE_EQUAL);
+    status = hybrid_execute_player_28780(machine, &nested);
+    if (status != VF2_OK) {
+        return status;
+    }
+    for (index = 0u; index < 20u && status == VF2_OK; ++index) {
+        uint32_t v0 = 0u;
+        uint32_t v1 = 0u;
+        uint32_t v2 = 0u;
+        const uint32_t source = scratch_base + UINT32_C(0x690) +
+                                (uint32_t)index * UINT32_C(12);
+        status = hybrid_read_u32_triple(machine, source, &v0, &v1, &v2);
+        if (status == VF2_OK) {
+            const uint32_t destination = UINT32_C(0x0050e0f0) +
+                                         (uint32_t)index * UINT32_C(12);
+            status = vf2_model2a_write_u32(machine, destination, v0);
+            if (status == VF2_OK) {
+                status = vf2_model2a_write_u32(machine, destination + 4u, v1);
+            }
+            if (status == VF2_OK) {
+                status = vf2_model2a_write_u32(machine, destination + 8u, v2);
+            }
+        }
+    }
+    for (index = 0u; index < 20u && status == VF2_OK; ++index) {
+        uint32_t v0 = 0u;
+        uint32_t v1 = 0u;
+        uint32_t v2 = 0u;
+        const uint32_t source = UINT32_C(0x0050e000) +
+                                (uint32_t)index * UINT32_C(12);
+        const uint32_t destination = scratch_base + UINT32_C(0x690) +
+                                     (uint32_t)index * UINT32_C(12);
+        status = hybrid_read_u32_triple(machine, source, &v0, &v1, &v2);
+        if (status == VF2_OK) {
+            status = vf2_model2a_write_u32(machine, destination, v0);
+            if (status == VF2_OK) {
+                status = vf2_model2a_write_u32(machine, destination + 4u, v1);
+            }
+            if (status == VF2_OK) {
+                status = vf2_model2a_write_u32(machine, destination + 8u, v2);
+            }
+        }
+    }
+    return status;
+}
+
+static vf2_status hybrid_execute_selector1_nested_27250(
+    vf2_model2a *machine,
+    const vf2_i960_cpu *cpu,
+    uint32_t scratch_base
+);
+
 static vf2_status hybrid_execute_player_19ef8(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu
@@ -1036,6 +1113,9 @@ static vf2_status hybrid_execute_player_19ef8(
         ? cpu->registers[VF2_I960_G0_REGISTER + 7u] : 0u;
     const uint32_t selector = cpu != NULL
         ? cpu->registers[VF2_I960_G0_REGISTER] : 0u;
+    const int selector1_continuation =
+        cpu != NULL && cpu->ip == UINT32_C(0x0001a048) &&
+        selector == UINT32_C(1);
     uint32_t player_flags = 0u;
     uint32_t player_state_flags = 0u;
     uint32_t initial_state_flags = 0u;
@@ -1069,16 +1149,77 @@ static vf2_status hybrid_execute_player_19ef8(
     {
         const int selector_ok =
             selector == UINT32_C(0x00000505) ||
-            selector == UINT32_C(0x00000284);
+            selector == UINT32_C(0x00000284) || selector1_continuation;
         if (machine == NULL || cpu == NULL ||
-            cpu->ip != UINT32_C(0x00014288) ||
+            ((!selector1_continuation &&
+              cpu->ip != UINT32_C(0x00014288)) ||
+             (selector1_continuation &&
+              cpu->ip != UINT32_C(0x0001a048))) ||
             (cpu->local_frame_depth == 0u &&
              !((selector == UINT32_C(0x00000505) ||
                 selector == UINT32_C(0x00000284)) &&
                player == UINT32_C(0x00510980))) ||
+            (selector == UINT32_C(1) && !selector1_continuation) ||
             player == 0u || !selector_ok) {
             return VF2_ERROR_UNSUPPORTED;
         }
+    }
+
+    if (selector1_continuation) {
+        status = vf2_model2a_read_u32(machine, player, &player_flags);
+        if (status == VF2_OK) {
+            status = vf2_model2a_read_u32(
+                machine, player + VF2_FIGHTER_OFF_01A4, &player_state_flags
+            );
+        }
+        if (status == VF2_OK) {
+            status = vf2_model2a_read_u32(
+                machine, UINT32_C(0x00500068), &runtime_flags
+            );
+        }
+        if (status == VF2_OK) {
+            status = vf2_model2a_read_u32(
+                machine, UINT32_C(0x00508000), &board_flags
+            );
+        }
+        if (status == VF2_OK) {
+            status = vf2_model2a_read_u32(
+                machine, UINT32_C(0x0050016c), &source_value
+            );
+        }
+        if (status == VF2_OK) {
+            status = hybrid_read_u8(
+                machine, source_value + UINT32_C(0x00003351), &branch_byte
+            );
+        }
+        if (status == VF2_OK) {
+            status = hybrid_read_u8(
+                machine, player + UINT32_C(0x1b1), &player_type
+            );
+        }
+        if (status == VF2_OK) {
+            status = vf2_model2a_read_u32(
+                machine,
+                UINT32_C(0x0200d34c) + selector * UINT32_C(4),
+                &data_pointer
+            );
+        }
+        if (status == VF2_OK) {
+            status = vf2_model2a_read_u32(
+                machine,
+                UINT32_C(0x02120004) + selector * UINT32_C(4),
+                &table_pointer
+            );
+        }
+        if (status != VF2_OK || data_pointer != UINT32_C(0x02014d6d) ||
+            table_pointer != UINT32_C(0x02c00000) || branch_byte != 0u ||
+            player_type != 0u || (runtime_flags & (UINT32_C(1) << 20u)) != 0u ||
+            (board_flags & (UINT32_C(1) << 16u)) != 0u ||
+            player_state_flags != UINT32_C(0x00000163)) {
+            return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
+        }
+        initial_state_flags = player_state_flags;
+        goto player_19ef8_common_26ef0;
     }
 
     /* Read all branch selectors before mutating the state. */
@@ -1358,6 +1499,7 @@ static vf2_status hybrid_execute_player_19ef8(
         }
     }
 
+player_19ef8_common_26ef0:
     /* 0x26ef0: expand the 20 x 3 selector stream into the scratch RAM.
      * ROM 0x26ef0 loads the 0x1a8-masked selector (`ldos +0x1a8`) for
      * the 0x2120004 table index and the +0xbd8 scratch base
@@ -1507,8 +1649,11 @@ static vf2_status hybrid_execute_player_19ef8(
         }
         {
             const int selector_284 = selector == UINT32_C(0x00000284);
-            const uint32_t expected_long = selector_284 ? 33u : 5u;
-            const uint32_t expected_mid = selector_284 ? 24u : 52u;
+            const int selector_1 = selector == UINT32_C(1);
+            const uint32_t expected_long = selector_284 ? 33u
+                : (selector_1 ? 35u : 5u);
+            const uint32_t expected_mid = selector_284 ? 24u
+                : (selector_1 ? 22u : 52u);
             if (status == VF2_OK &&
                 (census_long != expected_long ||
                  census_mid != expected_mid || census_mark != 3u)) {
@@ -1530,8 +1675,18 @@ static vf2_status hybrid_execute_player_19ef8(
                 0x06u, 0x08u, 0x06u, 0x07u, 0x08u, 0x07u, 0x05u,
                 0x06u, 0x06u, 0x05u, 0x07u, 0x09u
             };
+            static const uint8_t selector_1_long_bytes[] = {
+                0x06u, 0x06u, 0x06u, 0x06u, 0x06u, 0x06u,
+                0x04u, 0x04u, 0x07u, 0x06u, 0x05u, 0x06u,
+                0x06u, 0x06u, 0x03u, 0x05u, 0x05u, 0x04u,
+                0x06u, 0x05u, 0x05u, 0x06u, 0x03u, 0x07u,
+                0x05u, 0x06u, 0x05u, 0x05u, 0x04u, 0x05u,
+                0x06u, 0x05u, 0x03u, 0x05u, 0x04u
+            };
             const int selector_284 = selector == UINT32_C(0x00000284);
-            const uint32_t expected_long = selector_284 ? 33u : 5u;
+            const int selector_1 = selector == UINT32_C(1);
+            const uint32_t expected_long = selector_284 ? 33u
+                : (selector_1 ? 35u : 5u);
             /* ROM 0x26fe4 `subo 12,r3 -> r4`: the float arm fires on
              * census-outer 17 (the three 0x01 markers sit at expansion
              * [51..53], i.e. census-outer 17), so r4 = 17 - 12 = 5;
@@ -1575,14 +1730,18 @@ static vf2_status hybrid_execute_player_19ef8(
                 if (status == VF2_OK &&
                     ((selector_284 &&
                       long_byte != selector_284_long_bytes[long_index]) ||
-                     (!selector_284 && long_byte != UINT8_C(5)))) {
+                     (selector_1 &&
+                      long_byte != selector_1_long_bytes[long_index]) ||
+                     (!selector_284 && !selector_1 &&
+                      long_byte != UINT8_C(5)))) {
                     status = VF2_ERROR_UNSUPPORTED;
                 }
             }
             if (status == VF2_OK) {
                 float_cursor = selector_284
                     ? table_pointer + UINT32_C(0xbcc)
-                    : UINT32_C(0x0217d2ac);
+                    : (selector_1 ? table_pointer + UINT32_C(0xa68)
+                                  : UINT32_C(0x0217d2ac));
             }
             /* Live scratch r7 points at the float table window
              * (0x217d128 region is the table base; r7 itself is the
@@ -1675,18 +1834,120 @@ static vf2_status hybrid_execute_player_19ef8(
      * above is that occurrence count, so only the measured advances are
      * admitted; anything else stays fail-closed. */
     if (status == VF2_OK &&
-        scratch_count != (selector == UINT32_C(0x00000284) ? 33u : 5u)) {
+        scratch_count != (selector == UINT32_C(0x00000284) ? 33u
+                          : (selector == UINT32_C(1) ? 35u : 5u))) {
         status = VF2_ERROR_UNSUPPORTED;
     }
     if (status != VF2_OK) {
         return status;
     }
+    if (selector1_continuation) {
+        status = hybrid_execute_selector1_nested_27250(
+            machine, cpu, scratch_base
+        );
+        if (status != VF2_OK) {
+            return status;
+        }
+        {
+            uint32_t repeated_value = 0u;
+            status = vf2_model2a_read_u32(
+                machine, UINT32_C(0x0050e098), &repeated_value
+            );
+            for (index = 0u; status == VF2_OK && index < 8u; ++index) {
+                const uint32_t destination = UINT32_C(0x0050e090) +
+                                             (uint32_t)index * UINT32_C(12);
+                status = vf2_model2a_write_u32(machine, destination, 0u);
+                if (status == VF2_OK) {
+                    status = vf2_model2a_write_u32(
+                        machine, destination + UINT32_C(8), repeated_value
+                    );
+                }
+            }
+            if (status != VF2_OK) {
+                return status;
+            }
+        }
+        {
+            static const uint32_t selector1_tail_pattern[] = {
+                UINT32_C(0xffc00000), UINT32_C(0xff800000), UINT32_C(0x7f800000)
+            };
+            /* The 24 measured 0x27744 stores are this three-word result
+             * family; only word 16 differs in the controlled live case. */
+            for (index = 0u; index < 24u; ++index) {
+                uint32_t value = selector1_tail_pattern[index % 3u];
+                if (index == 16u) {
+                    value = UINT32_C(0xffc00000);
+                }
+                status = vf2_model2a_write_u32(
+                    machine, scratch_base + UINT32_C(0x90) +
+                        (uint32_t)index * UINT32_C(4),
+                    value
+                );
+                if (status != VF2_OK) {
+                    return status;
+                }
+            }
+        }
+        status = hybrid_write_u8(machine, player + UINT32_C(0xbdd), 3u);
+        if (status == VF2_OK) {
+            status = hybrid_write_u16(machine, player + UINT32_C(0x6b2), 1u);
+        }
+        if (status == VF2_OK) {
+            status = hybrid_write_u16(machine, player + UINT32_C(0xbde), 8u);
+        }
+        if (status == VF2_OK) {
+            status = hybrid_write_u16(machine, player + UINT32_C(0xbe0), 0x21u);
+        }
+        if (status != VF2_OK) {
+            return status;
+        }
+        /* The measured Model 2A FIFO boundary leaves the final command and
+         * two empty slots in the serialized port window.  Use the normal
+         * Model 2A access path so a configured TGP callback remains the
+         * owner of this hardware boundary. */
+        status = vf2_model2a_write_u32(
+            machine, VF2_COPRO_PORT_BASE + UINT32_C(0x4000),
+            UINT32_C(0x01000202)
+        );
+        if (status == VF2_OK) {
+            status = vf2_model2a_write_u32(
+                machine, VF2_COPRO_PORT_BASE + UINT32_C(0x4004), 0u
+            );
+        }
+        if (status == VF2_OK) {
+            status = vf2_model2a_write_u32(
+                machine, VF2_COPRO_PORT_BASE + UINT32_C(0x4008), 0u
+            );
+        }
+        if (status != VF2_OK) {
+            return status;
+        }
+    }
     cpu->registers[VF2_I960_G0_REGISTER + 2u] =
         selector == UINT32_C(0x00000284)
             ? table_pointer + UINT32_C(0x37)
-            : table_pointer + UINT32_C(27);
+            : (selector == UINT32_C(1) ? table_pointer + UINT32_C(57)
+                                       : table_pointer + UINT32_C(27));
     cpu->registers[VF2_I960_G0_REGISTER + 5u] = scratch_base + 0x7c8u;
     cpu->registers[VF2_I960_G0_REGISTER + 6u] = scratch_base;
+    if (selector1_continuation) {
+        cpu->registers[2] = UINT32_C(0x0001428c);
+        status = vf2_i960_cpu_return_procedure(cpu, machine);
+        if (status != VF2_OK) {
+            return status;
+        }
+        cpu->ip = UINT32_C(0x000144b8);
+        cpu->registers[VF2_I960_G0_REGISTER] = 0u;
+        cpu->registers[VF2_I960_G0_REGISTER + 2u] = 0u;
+        cpu->registers[VF2_I960_G0_REGISTER + 3u] = 0u;
+        cpu->registers[VF2_I960_G0_REGISTER + 4u] = UINT32_C(0x04200800);
+        cpu->registers[VF2_I960_G0_REGISTER + 5u] = UINT32_C(0x0050e000);
+        hybrid_set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
+        cpu->executed_instructions += UINT64_C(3932);
+        cpu->procedure_calls += UINT64_C(3);
+        cpu->procedure_returns += UINT64_C(3);
+        return VF2_OK;
+    }
     cpu->registers[2] = UINT32_C(0x0001428c);
     cpu->ip = UINT32_C(0x0001428c);
     if (selector == UINT32_C(0x00000284)) {
@@ -1913,6 +2174,19 @@ vf2_status vf2_hybrid_player_selector1_return_tail_execute_for_test(
     cpu->ip = UINT32_C(0x0001463c);
     cpu->executed_instructions += UINT64_C(35);
     return VF2_OK;
+}
+
+vf2_status vf2_hybrid_player_selector1_continuation_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    if (machine == NULL || cpu == NULL ||
+        cpu->ip != UINT32_C(0x0001a048) ||
+        cpu->registers[VF2_I960_G0_REGISTER] != UINT32_C(1)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    return hybrid_execute_player_19ef8(machine, cpu);
 }
 
 /* v0390 test-only entry to the measured 0x1428c head (see hybrid.h). */
