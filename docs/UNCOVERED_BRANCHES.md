@@ -161,6 +161,14 @@ equality and four calls/returns. Other unmeasured four-high combinations
 remain fail-closed. See
 `decomp/i960/notes/fa_player_19ef8_mask_550059f_v0669.md`.
 
+The nonzero `fa_rob` `0x144b0` experiment now has a reproducible compact
+boundary: with fighter0 `+0x194 = 1`, the reference reaches the first
+`0x1a1e4` call at `0x1a044` after 31 instructions, setting `+0x5cc` and
+`+0x60c` to zero, setting the player flag word bit 11, and storing selector
+`1` to `+0x1a8`/window `+0x1aa`. The continuation after that call remains
+ROM-backed and is not admitted by the recovery. See
+`decomp/i960/notes/fa_player_144b0_nonzero_prefix_v0670.md`.
+
 ## Latest measured game-info extension (v0581/v0582/v0583/v0584/v0585/v0586/v0587/v0588/v0589/v0590/v0591/v0611/v0617/v0618/v0619/v0620/v0621/v0622/v0623/v0624/v0625/v0626/v0627/v0628/v0629/v0630/v0631/v0632/v0633/v0634/v0635/v0636/v0637/v0638)
 
 The latest low-family measurements extend the threshold-3 native slice to
