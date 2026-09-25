@@ -16810,7 +16810,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             fighter0_state == 8u && fighter1_state == 8u &&
             measured_matrix_distribution &&
             combined_state8_flags == (UINT32_C(1) << 8u) &&
-            shared_fighter_threshold <= UINT32_C(2);
+            shared_fighter_threshold <= UINT32_C(3);
         native_state8_bit1_bit2_pair_positive_path =
             fighter0_state == 8u && fighter1_state == 8u &&
             measured_matrix_distribution &&
@@ -20708,13 +20708,13 @@ static vf2_status hybrid_execute_game_info_bit31_native(
         }
     }
     if (native_state8_bit8_positive_path) {
-        /* v0508: positive state-8 bit 8 has measured distribution-specific
+        /* v0508-v0596: positive state-8 bit 8 has measured distribution-specific
          * dispatcher joins. Bilateral records are three instructions short
          * except for mode bit 6 plus zero countdown, where they are two
          * short; fighter-0-only is three
          * long only for mode bit 6 plus zero countdown; fighter-1-only is one
          * instruction short in that same case. All other accepted joins are
-         * two short. */
+         * two short; the same rule is proven here through threshold 3. */
         const uint32_t bit8 = UINT32_C(1) << 8u;
         const bool fighter0_only =
             fighter0_state_flags == bit8 && fighter1_state_flags == 0u;
