@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Recover the measured `fa_rob` `0x1442c` state-25/state-22 successor (v0562).
+  The integrated witness matches the existing neutral tail in 98 instructions
+  with 3 calls/returns and exact live-state equality; the final compare is
+  LESS. No unmeasured state family is admitted. See
+  `decomp/i960/notes/fa_player_1442c_state25_state22_v0562.md`.
+
 - Recover the measured `fa_rob` `0x1442c` state-25/state-25 successor (v0561).
   The integrated witness now reaches the existing `0x144b0` neutral tail in
   98 instructions with 3 calls/returns and exact live-state equality. The

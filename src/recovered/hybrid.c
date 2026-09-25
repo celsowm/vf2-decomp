@@ -6650,10 +6650,10 @@ static vf2_status hybrid_execute_player_144b0_with_states(
         /* 0x14528/0x1452c/0x14548/0x14560 branch chain (measured: fighter1
          * state not 27/16) ends at 0x14628.  Last compare `0x14560 cmpobne
          * 16, r8` is GREATER for the neutral state and LESS for the measured
-         * state-24/state-25 successors. */
+         * state-22/state-24/state-25 successors. */
         hybrid_set_compare_result(
             cpu,
-            (b197_f1 == 24u || b197_f1 == 25u)
+            (b197_f1 == 22u || b197_f1 == 24u || b197_f1 == 25u)
                 ? VF2_I960_COMPARE_LESS
                 : VF2_I960_COMPARE_GREATER);
         cpu->executed_instructions += UINT64_C(35);
