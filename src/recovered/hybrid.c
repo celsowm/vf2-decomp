@@ -16800,7 +16800,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             measured_matrix_distribution &&
             (combined_state8_flags == (UINT32_C(1) << 1u) ||
              combined_state8_flags == (UINT32_C(1) << 2u)) &&
-            shared_fighter_threshold <= UINT32_C(2);
+            shared_fighter_threshold <= UINT32_C(3);
         native_state8_bit4_positive_path =
             fighter0_state == 8u && fighter1_state == 8u &&
             measured_matrix_distribution &&
@@ -20664,9 +20664,9 @@ static vf2_status hybrid_execute_game_info_bit31_native(
         }
     }
     if (native_state8_bit1_bit2_positive_path) {
-        /* v0507: positive state-8 bits 1 and 2 have the same uniform
+        /* v0507-v0595: positive state-8 bits 1 and 2 have the same uniform
          * measured 2-instruction dispatcher correction as the isolated
-         * bit-3/bit-5/bit-7 family. */
+         * bit-3/bit-5/bit-7 family, now proven through threshold 3. */
         native_instructions += UINT64_C(2);
         hybrid_set_compare_result(
             cpu, countdown_was_nonzero
