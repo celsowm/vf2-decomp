@@ -6649,8 +6649,8 @@ static vf2_status hybrid_execute_player_144b0_with_states(
     } else {
         /* 0x14528/0x1452c/0x14548/0x14560 branch chain (measured: fighter1
          * state not 27/16) ends at 0x14628.  Last compare `0x14560 cmpobne
-         * 16, r8` is GREATER for the neutral state and LESS for the measured
-         * state-17..26/state-28..31 successors. */
+         * 16, r8` is GREATER for the measured state-1..15 successors and
+         * LESS for the measured state-17..26/state-28..31 successors. */
         hybrid_set_compare_result(
             cpu,
             (b197_f1 >= 17u && b197_f1 <= 31u && b197_f1 != 27u)

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Prove the complete bounded `fa_rob` `0x1442c` state-25 successor-byte sweep
+  (v0564). For fighter1 `+0x197 = 1..31`, all integrated cases match full
+  live state; counts are 144 (16), 105 (24), 126 (27), 92 (28), and 98 for
+  the remaining values.
+
 - Extend the measured `fa_rob` `0x1442c` state-25 successor family (v0563).
   Oracle sweeps prove successors `17..23,25..26,28..31` with exact live state;
   the neutral tail is 98 instructions except the 92-instruction successor 28

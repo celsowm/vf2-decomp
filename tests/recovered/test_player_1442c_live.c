@@ -264,8 +264,9 @@ static void run_rom_case(
     CHECK(reference_instructions ==
           (state25_successor == 16 ? UINT64_C(144) :
            state25_successor == 28 ? UINT64_C(92) :
-           (state25_successor >= 17 && state25_successor <= 31 &&
-            state25_successor != 24 && state25_successor != 27) ? UINT64_C(98) :
+           (state25_successor >= 1 && state25_successor <= 31 &&
+            state25_successor != 16 && state25_successor != 24 &&
+            state25_successor != 27) ? UINT64_C(98) :
            state25_successor == 24 && state25_f0_19f == 25u ? UINT64_C(59) :
            state25_successor == 24 && state25_f0_19f == 22u ? UINT64_C(60) :
            state25_successor == 24 ? UINT64_C(105) :
@@ -273,16 +274,18 @@ static void run_rom_case(
     CHECK(reference_cpu.procedure_calls - snap_calls ==
           (state25_successor == 16 ? UINT64_C(4) :
            state25_successor == 28 ? UINT64_C(3) :
-           (state25_successor >= 17 && state25_successor <= 31 &&
-            state25_successor != 24 && state25_successor != 27) ? UINT64_C(3) :
+           (state25_successor >= 1 && state25_successor <= 31 &&
+            state25_successor != 16 && state25_successor != 24 &&
+            state25_successor != 27) ? UINT64_C(3) :
            state25_successor == 24 && state25_f0_19f != 0u ? UINT64_C(2) :
            state25_successor == 24 ? UINT64_C(3) :
            state25_successor == 27 ? UINT64_C(4) : REF_CALLS));
     CHECK(reference_cpu.procedure_returns - snap_returns ==
           (state25_successor == 16 ? UINT64_C(4) :
            state25_successor == 28 ? UINT64_C(3) :
-           (state25_successor >= 17 && state25_successor <= 31 &&
-            state25_successor != 24 && state25_successor != 27) ? UINT64_C(3) :
+           (state25_successor >= 1 && state25_successor <= 31 &&
+            state25_successor != 16 && state25_successor != 24 &&
+            state25_successor != 27) ? UINT64_C(3) :
            state25_successor == 24 && state25_f0_19f != 0u ? UINT64_C(2) :
            state25_successor == 24 ? UINT64_C(3) :
            state25_successor == 27 ? UINT64_C(4) : REF_RETS));
@@ -297,8 +300,9 @@ static void run_rom_case(
     CHECK(native_instructions ==
           (state25_successor == 16 ? UINT64_C(144) :
            state25_successor == 28 ? UINT64_C(92) :
-           (state25_successor >= 17 && state25_successor <= 31 &&
-            state25_successor != 24 && state25_successor != 27) ? UINT64_C(98) :
+           (state25_successor >= 1 && state25_successor <= 31 &&
+            state25_successor != 16 && state25_successor != 24 &&
+            state25_successor != 27) ? UINT64_C(98) :
            state25_successor == 24 && state25_f0_19f == 25u ? UINT64_C(59) :
            state25_successor == 24 && state25_f0_19f == 22u ? UINT64_C(60) :
            state25_successor == 24 ? UINT64_C(105) :
@@ -306,16 +310,18 @@ static void run_rom_case(
     CHECK(native_cpu.procedure_calls - snap_calls ==
           (state25_successor == 16 ? UINT64_C(4) :
            state25_successor == 28 ? UINT64_C(3) :
-           (state25_successor >= 17 && state25_successor <= 31 &&
-            state25_successor != 24 && state25_successor != 27) ? UINT64_C(3) :
+           (state25_successor >= 1 && state25_successor <= 31 &&
+            state25_successor != 16 && state25_successor != 24 &&
+            state25_successor != 27) ? UINT64_C(3) :
            state25_successor == 24 && state25_f0_19f != 0u ? UINT64_C(2) :
            state25_successor == 24 ? UINT64_C(3) :
            state25_successor == 27 ? UINT64_C(4) : REF_CALLS));
     CHECK(native_cpu.procedure_returns - snap_returns ==
           (state25_successor == 16 ? UINT64_C(4) :
            state25_successor == 28 ? UINT64_C(3) :
-           (state25_successor >= 17 && state25_successor <= 31 &&
-            state25_successor != 24 && state25_successor != 27) ? UINT64_C(3) :
+           (state25_successor >= 1 && state25_successor <= 31 &&
+            state25_successor != 16 && state25_successor != 24 &&
+            state25_successor != 27) ? UINT64_C(3) :
            state25_successor == 24 && state25_f0_19f != 0u ? UINT64_C(2) :
            state25_successor == 24 ? UINT64_C(3) :
            state25_successor == 27 ? UINT64_C(4) : REF_RETS));
@@ -327,8 +333,9 @@ static void run_rom_case(
         state25_successor == 22 ? "-25-22" :
         state25_successor == 25 ? "-25-25" :
         state25_successor == 28 ? "-25-28" :
-        (state25_successor >= 17 && state25_successor <= 31 &&
-         state25_successor != 24 && state25_successor != 27) ? "-25-neutral" :
+        (state25_successor >= 1 && state25_successor <= 31 &&
+         state25_successor != 16 && state25_successor != 24 &&
+         state25_successor != 27) ? "-25-neutral" :
         state25_successor == 24 && state25_f0_19f == 25u ? "-25-24-19f25" :
         state25_successor == 24 && state25_f0_19f == 22u ? "-25-24-19f22" :
         state25_successor == 24 ? "-25-24" :
@@ -1348,9 +1355,10 @@ static void run_rom_differential(const char *rom_directory)
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 24, 0u);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 24, 25u);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 24, 22u);
-    for (int state25_successor = 17; state25_successor <= 31;
+    for (int state25_successor = 1; state25_successor <= 31;
          ++state25_successor) {
-        if (state25_successor != 24 && state25_successor != 27) {
+        if (state25_successor != 16 && state25_successor != 24 &&
+            state25_successor != 27) {
             run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
                          state25_successor, 0u);
         }

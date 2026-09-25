@@ -885,6 +885,14 @@ retain their separately recovered 105/126-instruction arms. States outside
 this measured family remain fail-closed. See
 `decomp/i960/notes/fa_player_1442c_state25_successor_family_v0563.md`.
 
+Status (v0564): the same integrated fixture now proves the complete bounded
+successor-byte sweep `fighter1 +0x197 = 1..31` for `fighter0 +0x197 = 25`.
+Successor 16 takes 144 instructions, 24 takes 105, 27 takes 126, and 28
+takes 92; every other measured successor takes 98. All 31 cases match full
+CPU/condition/procedure/Model 2A state at `0x1463c`. Values outside this
+bounded sweep and other fighter fields remain fail-closed. See
+`decomp/i960/notes/fa_player_1442c_state25_successor_sweep_v0564.md`.
+
 Status (v0551): the measured positive state-8 `fa_game_info` composition
 `0x0000000e` (bits 1+2+3) is now native through threshold `8`. Its complete
 three-distribution/countdown/mode/threshold matrix is `108/108` exact, with a
