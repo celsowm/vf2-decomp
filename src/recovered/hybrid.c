@@ -16522,15 +16522,16 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             combined_state8_flags == UINT32_C(0x00000094);
         const bool v0517_threshold_ok =
             /* v0518-v0526 extend the measured masks through threshold 8;
-             * v0581-v0586 extend masks 0x0e, 0x1a, 0x18, 0x1e, 0x0a and
-             * 0x0c
+             * v0581-v0587 extend masks 0x0e, 0x1a, 0x18, 0x1e, 0x0a,
+             * 0x0c and 0x14
              * through threshold 9. */
             (combined_state8_flags == UINT32_C(0x0000000e) ||
              combined_state8_flags == UINT32_C(0x0000001a) ||
              combined_state8_flags == UINT32_C(0x00000018) ||
              combined_state8_flags == UINT32_C(0x0000001e) ||
              combined_state8_flags == UINT32_C(0x0000000a) ||
-             combined_state8_flags == UINT32_C(0x0000000c))
+             combined_state8_flags == UINT32_C(0x0000000c) ||
+             combined_state8_flags == UINT32_C(0x00000014))
                 ? shared_fighter_threshold <= UINT32_C(9)
                 : (v0517_low_mask
                        ? shared_fighter_threshold <= UINT32_C(8)
@@ -16879,13 +16880,15 @@ static vf2_status hybrid_execute_game_info_bit31_native(
                combined_state8_flags == UINT32_C(0x00000018) ||
                combined_state8_flags == UINT32_C(0x0000001e) ||
                combined_state8_flags == UINT32_C(0x0000000a) ||
-               combined_state8_flags == UINT32_C(0x0000000c)) &&
+               combined_state8_flags == UINT32_C(0x0000000c) ||
+               combined_state8_flags == UINT32_C(0x00000014)) &&
               shared_fighter_threshold <= UINT32_C(9)) ||
              (combined_state8_flags != UINT32_C(0x0000000e) &&
               combined_state8_flags != UINT32_C(0x00000018) &&
               combined_state8_flags != UINT32_C(0x0000001e) &&
               combined_state8_flags != UINT32_C(0x0000000a) &&
               combined_state8_flags != UINT32_C(0x0000000c) &&
+              combined_state8_flags != UINT32_C(0x00000014) &&
               shared_fighter_threshold <= UINT32_C(8)));
         native_state8_bit1_bit3_bit4_positive_path =
             fighter0_state == 8u && fighter1_state == 8u &&
@@ -21019,7 +21022,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
     }
     if (native_state8_mixed_low_positive_path ||
         native_state8_bit1_bit3_bit4_positive_path) {
-        /* v0517-v0551/v0582-v0586: measured mixed masks overcount the
+        /* v0517-v0551/v0582-v0587: measured mixed masks overcount the
          * zero-countdown dispatcher by three instructions and undercount the
          * nonzero path by two. The threshold extensions were measured
          * against the same join; masks 0x0e, 0x1a, 0x18 and 0x1e are proven
