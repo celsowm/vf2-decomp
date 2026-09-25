@@ -16866,7 +16866,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
                combined_state8_flags == UINT32_C(0x00000188) ||
                combined_state8_flags == UINT32_C(0x000001a0) ||
                combined_state8_flags == UINT32_C(0x000001a8)) &&
-              shared_fighter_threshold == UINT32_C(3) &&
+              shared_fighter_threshold <= UINT32_C(9) &&
               (mode_value & (UINT8_C(1) << 6u)) == 0u &&
               (fighter0_state_flags == combined_state8_flags ||
                fighter1_state_flags == combined_state8_flags)));
