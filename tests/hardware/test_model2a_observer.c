@@ -102,6 +102,27 @@ int main(void)
     ) == VF2_OK);
     EXPECT_TRUE(observed.count == before);
 
+    /* Explicit board reset uses the MAME Model 2 reset seed without changing
+     * initialize()'s zeroed test/oracle construction contract. */
+    EXPECT_TRUE(vf2_model2a_write_u32(
+        &machine, VF2_BUFFER_RAM_BASE, UINT32_C(0xaabbccdd)
+    ) == VF2_OK);
+    EXPECT_TRUE(vf2_model2a_reset(&machine) == VF2_OK);
+    EXPECT_TRUE(vf2_model2a_read_u32(
+        &machine, VF2_BUFFER_RAM_BASE, &value
+    ) == VF2_OK);
+    EXPECT_TRUE(value == UINT32_C(0x07800f0f));
+    EXPECT_TRUE(vf2_model2a_read_u32(
+        &machine, VF2_BUFFER_RAM_BASE + UINT32_C(0x1fffc), &value
+    ) == VF2_OK);
+    EXPECT_TRUE(value == UINT32_C(0x07800f0f));
+    EXPECT_TRUE(vf2_model2a_read_u32(
+        &machine, VF2_BUFFER_RAM_BASE + UINT32_C(0x20000), &value
+    ) == VF2_OK);
+    EXPECT_TRUE(value == 0u);
+    EXPECT_TRUE(vf2_model2a_get_frame_number(&machine, &value) == VF2_OK);
+    EXPECT_TRUE(value == 0u);
+
     /* Model 2 timers are one-shot 25 MHz down-counters, not ordinary RAM. */
     EXPECT_TRUE(vf2_model2a_read_u32(
         &machine, VF2_TIMER_BASE, &value

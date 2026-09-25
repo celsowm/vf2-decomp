@@ -150,6 +150,11 @@ typedef struct vf2_model2a {
 int vf2_model2a_initialize(vf2_model2a *machine);
 void vf2_model2a_shutdown(vf2_model2a *machine);
 
+/* Apply the measured Model 2A board reset to an initialized machine.  This
+ * preserves attached ROM and host input, resets device-visible state, and
+ * seeds the active geometry buffer with the board's reset sentinel. */
+vf2_status vf2_model2a_reset(vf2_model2a *machine);
+
 vf2_status vf2_model2a_attach_main_rom(
     vf2_model2a *machine,
     const uint8_t *main_rom,

@@ -511,6 +511,35 @@ int vf2_model2a_initialize(vf2_model2a *machine)
     return 1;
 }
 
+vf2_status vf2_model2a_reset(vf2_model2a *machine)
+{
+    size_t timer = 0u;
+    size_t offset = 0u;
+
+    if (machine == NULL || machine->buffer_ram == NULL ||
+        machine->buffer_ram_size < UINT32_C(0x20000) ||
+        machine->video_control == NULL || machine->interrupt_control == NULL ||
+        machine->timers == NULL || machine->copro_control == NULL) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    memset(machine->video_control, 0, machine->video_control_size);
+    memset(machine->interrupt_control, 0, machine->interrupt_control_size);
+    memset(machine->copro_control, 0, machine->copro_control_size);
+    for (timer = 0u; timer < 4u; ++timer) {
+        model2a_set_timer_value(machine, timer, VF2_MODEL2A_TIMER_RELOAD);
+        model2a_set_timer_running(machine, timer, 0);
+    }
+    for (offset = 0u; offset < UINT32_C(0x20000); offset += 4u) {
+        write_le32(machine->buffer_ram + offset, UINT32_C(0x07800f0f));
+    }
+    machine->geometry_write_start = 0u;
+    machine->geometry_read_start = 0u;
+    machine->geometry_control = 0u;
+    machine->geometry_program_count = 0u;
+    model2a_set_frame_number(machine, 0u);
+    return VF2_OK;
+}
+
 void vf2_model2a_shutdown(vf2_model2a *machine)
 {
     if (machine != NULL) {
