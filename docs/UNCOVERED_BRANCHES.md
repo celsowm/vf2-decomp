@@ -2668,6 +2668,8 @@ threshold `9`; see
 The corresponding `0x1014e` composition is also `120/120` exact through
 threshold `9`; see
 `decomp/i960/notes/game_info_18644_positive_mask1014e_threshold9_v0614.md`.
+The `0x000c14e` composition is also `120/120` exact through threshold `9`;
+see `decomp/i960/notes/game_info_18644_positive_maskc14e_threshold9_v0615.md`.
 
 Status (v0484): the ordered mixed pair `(0x0146, 0x0142)` and its reverse
 are now admitted at `0x18644`. Both call orders, countdown clear/set and mode
