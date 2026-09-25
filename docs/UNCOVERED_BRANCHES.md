@@ -18,7 +18,7 @@ Larger unmeasured combinations remain fail-closed. Evidence is recorded in
 `decomp/i960/notes/fa_player_19ef8_mask_100059f_v0579.md` plus
 `decomp/i960/notes/fa_player_19ef8_high_masks_v0580.md`.
 
-## Latest measured game-info extension (v0581/v0582/v0583/v0584/v0585/v0586/v0587/v0588/v0589/v0590/v0591/v0611/v0617/v0618/v0619/v0620)
+## Latest measured game-info extension (v0581/v0582/v0583/v0584/v0585/v0586/v0587/v0588/v0589/v0590/v0591/v0611/v0617/v0618/v0619/v0620/v0621)
 
 The positive state-8 `fa_game_info` compositions `0x0000000e` (bits 1+2+3),
 `0x0000001a` (bits 1+3+4), `0x00000018` (bits 3+4) and `0x0000001e`
@@ -2690,6 +2690,10 @@ The neighboring low positive pair `0x12` (bits 1+4) is also native through
 threshold `9`; its complete matrix is `120/120` exact using the measured
 `-3/+2` dispatcher correction. See
 `decomp/i960/notes/game_info_18644_positive_mask12_threshold9_v0620.md`.
+The low positive pair `0x102` (bits 1+8) is now native through threshold `9`;
+its complete matrix is `120/120` exact with the existing
+distribution-specific unilateral/bilateral accounting. See
+`decomp/i960/notes/game_info_18644_positive_mask102_threshold9_v0621.md`.
 
 Status (v0484): the ordered mixed pair `(0x0146, 0x0142)` and its reverse
 are now admitted at `0x18644`. Both call orders, countdown clear/set and mode
