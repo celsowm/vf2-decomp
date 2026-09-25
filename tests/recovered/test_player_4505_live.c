@@ -65,6 +65,27 @@
 
 static int failures = 0;
 static const char *test_snapshot_path = NULL;
+static uint32_t test_initial_state_flags = 0u;
+static int test_corridor_only = 0;
+
+static uint64_t expected_corridor_delta(void)
+{
+    uint64_t delta = 0u;
+
+    if ((test_initial_state_flags & (UINT32_C(1) << 5u)) != 0u) {
+        delta += UINT64_C(9);
+    }
+    if ((test_initial_state_flags & (UINT32_C(1) << 6u)) != 0u) {
+        delta += UINT64_C(5);
+    }
+    if ((test_initial_state_flags & (UINT32_C(1) << 21u)) != 0u) {
+        delta += UINT64_C(12);
+    }
+    if ((test_initial_state_flags & (UINT32_C(1) << 23u)) != 0u) {
+        delta += UINT64_C(2);
+    }
+    return delta;
+}
 
 #define CHECK(expression)                                                     \
     do {                                                                      \
@@ -176,6 +197,12 @@ static void run_rom_case(
         vf2_model2a_attach_main_data(&native_machine, main_data,
                                       main_data_size) == VF2_OK
     );
+    CHECK(vf2_model2a_write_u32(
+              &reference_machine, UINT32_C(0x00510b24),
+              test_initial_state_flags) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(
+              &native_machine, UINT32_C(0x00510b24),
+              test_initial_state_flags) == VF2_OK);
     CHECK(reference_cpu.ip == PLAYER_4505_ENTRY);
     CHECK(native_cpu.ip == PLAYER_4505_ENTRY);
     snap_instructions = snap.cpu.executed_instructions;
@@ -197,7 +224,7 @@ static void run_rom_case(
     CHECK(reference_cpu.ip == PLAYER_4505_RETURN);
     reference_instructions =
         reference_cpu.executed_instructions - snap_instructions;
-    CHECK(reference_instructions == UINT64_C(1622));
+    CHECK(reference_instructions == UINT64_C(1622) + expected_corridor_delta());
     CHECK(reference_cpu.procedure_calls - snap_calls == UINT64_C(4));
     CHECK(reference_cpu.procedure_returns - snap_returns == UINT64_C(4));
 
@@ -229,7 +256,7 @@ static void run_rom_case(
         (unsigned long long)(
             native_cpu.procedure_returns - snap_returns));
     CHECK(native_instructions == reference_instructions);
-    CHECK(native_instructions == UINT64_C(1622));
+    CHECK(native_instructions == UINT64_C(1622) + expected_corridor_delta());
     CHECK(native_cpu.procedure_calls - snap_calls == UINT64_C(4));
     CHECK(native_cpu.procedure_returns - snap_returns == UINT64_C(4));
 
@@ -240,14 +267,22 @@ static void run_rom_case(
     if (compare_status != VF2_OK || !diff.equal) {
         fprintf(
             stderr,
-            "player-4505-live ref=%d native=%d compare=%d "
+            "player-4505-live flags=0x%08x ref=%d native=%d compare=%d "
             "component=%s offset=%zu expected=0x%08x actual=0x%08x\n",
+            (unsigned)test_initial_state_flags,
             (int)reference_status, (int)native_status,
             (int)compare_status, diff.component, diff.first_offset,
             (unsigned)diff.expected_value, (unsigned)diff.actual_value);
     }
     CHECK(compare_status == VF2_OK);
     CHECK(diff.equal);
+
+    if (test_corridor_only) {
+        vf2_model2a_shutdown(&reference_machine);
+        vf2_model2a_shutdown(&native_machine);
+        vf2_i960_snapshot_destroy(&snap);
+        return;
+    }
 
     /* v0390: extend the same parked machines through the measured
      * 0x1428c head to 0x142c0.  The reference runs the real head
@@ -343,11 +378,49 @@ static void run_rom_differential(const char *rom_directory)
     }
 
     test_snapshot_path = NULL;
+    test_initial_state_flags = 0u;
+    test_corridor_only = 0;
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
     test_snapshot_path = "D:/ia/vf2-decomp/out/pre14288-natres.vf2snap";
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
     test_snapshot_path = "D:/ia/vf2-decomp/out/pre14288-boot.vf2snap";
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
+    test_snapshot_path = NULL;
+    test_corridor_only = 1;
+    {
+        const uint32_t measured_state_masks[] = {
+            UINT32_C(1) << 5u,
+            UINT32_C(1) << 6u,
+            UINT32_C(1) << 21u,
+            UINT32_C(1) << 23u,
+            (UINT32_C(1) << 5u) | (UINT32_C(1) << 6u),
+            (UINT32_C(1) << 5u) | (UINT32_C(1) << 21u),
+            (UINT32_C(1) << 6u) | (UINT32_C(1) << 21u),
+            (UINT32_C(1) << 5u) | (UINT32_C(1) << 6u) |
+                (UINT32_C(1) << 21u),
+            (UINT32_C(1) << 5u) | (UINT32_C(1) << 23u),
+            (UINT32_C(1) << 6u) | (UINT32_C(1) << 23u),
+            (UINT32_C(1) << 5u) | (UINT32_C(1) << 6u) |
+                (UINT32_C(1) << 23u),
+            (UINT32_C(1) << 21u) | (UINT32_C(1) << 23u),
+            (UINT32_C(1) << 5u) | (UINT32_C(1) << 21u) |
+                (UINT32_C(1) << 23u),
+            (UINT32_C(1) << 6u) | (UINT32_C(1) << 21u) |
+                (UINT32_C(1) << 23u),
+            (UINT32_C(1) << 5u) | (UINT32_C(1) << 6u) |
+                (UINT32_C(1) << 21u) | (UINT32_C(1) << 23u)
+        };
+        size_t index = 0u;
+        for (index = 0u;
+             index < sizeof(measured_state_masks) /
+                         sizeof(measured_state_masks[0]);
+             ++index) {
+            test_initial_state_flags = measured_state_masks[index];
+            run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
+        }
+    }
+    test_initial_state_flags = 0u;
+    test_corridor_only = 0;
     test_snapshot_path = NULL;
 
     free(main_rom);

@@ -1036,6 +1036,7 @@ static vf2_status hybrid_execute_player_19ef8(
         ? cpu->registers[VF2_I960_G0_REGISTER] : 0u;
     uint32_t player_flags = 0u;
     uint32_t player_state_flags = 0u;
+    uint32_t initial_state_flags = 0u;
     uint32_t data_pointer = 0u;
     uint32_t table_pointer = 0u;
     uint32_t scratch_base = 0u;
@@ -1147,13 +1148,16 @@ static vf2_status hybrid_execute_player_19ef8(
                    ((uint32_t)source_bytes[3] << 24u);
     {
         const uint32_t table_selector = selector & UINT32_C(0x1fff);
-    /* v0389: live entry carries +0x1a4 == 0 on the ROM-backed probe
-     * (pre14288 park, measured read 0 at step 14330565); the corridor
-     * itself stores the +0x1a8-masked setup result (final +0x1a4 ==
-     * 0x200).  Earlier {0, 0x20} readings came from the forced-g0
-     * 0x4505 park that never occurs live; that selector is closed
-     * above. */
-    const int state_ok = (player_state_flags == 0u);
+    /* v0550: the ROM preserves the incoming state word in +0xbd4 and
+     * consumes the measured low flag siblings before the selector setup.
+     * Bits 5/6/21/23 are the only nonzero +0x1a4 entry combinations
+     * admitted here; all other state bits remain fail-closed. */
+    initial_state_flags = player_state_flags;
+    const int state_ok =
+        (player_state_flags & ~((UINT32_C(1) << 5u) |
+                                (UINT32_C(1) << 6u) |
+                                (UINT32_C(1) << 21u) |
+                                (UINT32_C(1) << 23u))) == 0u;
         const int flags_ok =
             ((player_flags & (
                 (UINT32_C(1) << 6u) | (UINT32_C(1) << 5u) |
@@ -1187,6 +1191,16 @@ static vf2_status hybrid_execute_player_19ef8(
     player_flags |= UINT32_C(1) << 11u;
     if (status == VF2_OK) {
         status = vf2_model2a_write_u32(machine, player, player_flags);
+    }
+    if (status == VF2_OK &&
+        (initial_state_flags & (UINT32_C(1) << 21u)) != 0u) {
+        /* ROM 0x1a008..0x1a014 executes `notbit 6` on the player word
+         * when the incoming +0x1a4 bit 21 is set. */
+        status = vf2_model2a_read_u32(machine, player, &player_flags);
+        if (status == VF2_OK) {
+            player_flags ^= UINT32_C(1) << 6u;
+            status = vf2_model2a_write_u32(machine, player, player_flags);
+        }
     }
 
     /* 0x1a1e4 selector-setup interpreter. ROM masks the selector at
@@ -1234,6 +1248,39 @@ static vf2_status hybrid_execute_player_19ef8(
     }
     if (status == VF2_OK) {
         status = hybrid_write_u16(machine, player + UINT32_C(0x1aa), 1u);
+    }
+
+    /* v0550: measured 0x19ef8 pre/post-selector siblings.  The selector
+     * setup has already replaced +0x1a4 with the live 0x505 base word
+     * (0x200).  The original r7 entry word is still used by the outer
+     * prologue: bit 5 sets +0x1a4 bit 7 after setup, while bit 23 copies
+     * the measured global word at 0x50a010 into +0x1c.  Bits 6 and 21
+     * take their measured branch arms but leave no additional memory
+     * change on this live table shape. */
+    if (status == VF2_OK &&
+        (initial_state_flags & (UINT32_C(1) << 5u)) != 0u) {
+        uint32_t state_after_setup = 0u;
+        status = vf2_model2a_read_u32(
+            machine, player + UINT32_C(0x1a4), &state_after_setup
+        );
+        if (status == VF2_OK) {
+            status = vf2_model2a_write_u32(
+                machine, player + UINT32_C(0x1a4),
+                state_after_setup | (UINT32_C(1) << 7u)
+            );
+        }
+    }
+    if (status == VF2_OK &&
+        (initial_state_flags & (UINT32_C(1) << 23u)) != 0u) {
+        uint32_t profile_word = 0u;
+        status = vf2_model2a_read_u32(
+            machine, UINT32_C(0x0050a010), &profile_word
+        );
+        if (status == VF2_OK) {
+            status = vf2_model2a_write_u32(
+                machine, player + UINT32_C(0x1c), profile_word
+            );
+        }
     }
 
     /* 0x26ef0: expand the 20 x 3 selector stream into the scratch RAM.
@@ -1561,6 +1608,18 @@ static vf2_status hybrid_execute_player_19ef8(
         cpu->compare_result = VF2_I960_COMPARE_NONE;
         cpu->arithmetic_control &= ~UINT32_C(7);
         cpu->executed_instructions += UINT64_C(1622);
+        if ((initial_state_flags & (UINT32_C(1) << 5u)) != 0u) {
+            cpu->executed_instructions += UINT64_C(9);
+        }
+        if ((initial_state_flags & (UINT32_C(1) << 6u)) != 0u) {
+            cpu->executed_instructions += UINT64_C(5);
+        }
+        if ((initial_state_flags & (UINT32_C(1) << 21u)) != 0u) {
+            cpu->executed_instructions += UINT64_C(12);
+        }
+        if ((initial_state_flags & (UINT32_C(1) << 23u)) != 0u) {
+            cpu->executed_instructions += UINT64_C(2);
+        }
     }
     cpu->procedure_calls += UINT64_C(4);
     cpu->procedure_returns += UINT64_C(4);
