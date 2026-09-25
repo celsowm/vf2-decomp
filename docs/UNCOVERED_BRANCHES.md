@@ -812,6 +812,17 @@ existing base shape `0x00000800` remains covered. Other F0 words, zero
 record/scratch and unmeasured slot selectors remain fail-closed. See
 `decomp/i960/notes/player_natres_142c0_v0537.md`.
 
+Status (v0538): the measured `pre14288-boot` shape is now native through the
+same boundary. It reaches `0x1428c` in `1622/+4/+4` and `0x142c0` in
+`10869/+10/+10` with full state equality. This shape enters with local-frame
+depth zero, `player+0xbd8 == 0` and selector branch base zero; the oracle's
+measured transient scratch base is `0x520000`, with record
+`0x0201c2fc`, selectors `0x0505/0x0039/0x00f1/0x00e7/0x00af` and head F0
+`0x00000800`. These exceptions are gated to the measured `0x505` /
+`0x00510980` shape. Other zero-frame, zero-scratch, branch-base and selector
+compositions remain fail-closed. See
+`decomp/i960/notes/player_boot_142c0_v0538.md`.
+
 Status (v0392): the `0x142c0` body now has a focused ROM-backed
 differential fixture (`vf2_player_142c0_live_differential`) restoring
 `out/pre14288.vf2snap`, stepping the reference through the full

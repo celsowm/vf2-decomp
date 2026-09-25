@@ -1021,8 +1021,10 @@ static vf2_status hybrid_execute_player_prefix(
  * `call 0x26ef0`, clear/return `call 0x27130`, tail `ret 0x1428c`.
  * Its nested 0x1a1e4 setup consumes ROM data, 0x26ef0 expands the
  * corresponding 60-byte scratch stream, and 0x27130 takes the early
- * clear/return path.  Other selectors and branch combinations remain
- * explicit ROM continuations. */
+ * clear/return path.  The boot park is the same selector/data shape but
+ * enters with no local frame and no persistent player+0xbd8 scratch pointer;
+ * its measured transient scratch base is 0x520000. Other selectors and
+ * branch combinations remain explicit ROM continuations. */
 static vf2_status hybrid_execute_player_19ef8(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu
@@ -1067,7 +1069,10 @@ static vf2_status hybrid_execute_player_19ef8(
             selector == UINT32_C(0x00000284);
         if (machine == NULL || cpu == NULL ||
             cpu->ip != UINT32_C(0x00014288) ||
-            cpu->local_frame_depth == 0u || player == 0u || !selector_ok) {
+            (cpu->local_frame_depth == 0u &&
+             !(selector == UINT32_C(0x00000505) &&
+               player == UINT32_C(0x00510980))) ||
+            player == 0u || !selector_ok) {
             return VF2_ERROR_UNSUPPORTED;
         }
     }
@@ -1245,7 +1250,16 @@ static vf2_status hybrid_execute_player_19ef8(
             machine, player + UINT32_C(0xbd8), &scratch_base
         );
         if (status == VF2_OK && scratch_base == 0u) {
-            status = VF2_ERROR_UNSUPPORTED;
+            if (selector == UINT32_C(0x00000505) &&
+                player == UINT32_C(0x00510980) &&
+                cpu->local_frame_depth == 0u) {
+                /* Boot park: the ROM receives the scratch base in the
+                 * transient call state rather than in player+0xbd8.  The
+                 * measured bus trace writes the expansion at 0x52078c. */
+                scratch_base = UINT32_C(0x00520000);
+            } else {
+                status = VF2_ERROR_UNSUPPORTED;
+            }
         }
     }
     scratch_r9 = table_pointer + 2u;
@@ -2001,10 +2015,14 @@ static vf2_status hybrid_execute_player_1428c(
      * player base, record 0x0201c2fc + scratch nonzero (the five-slot
      * wrapper's measured shape), entry F0 carrying only the corridor's
      * own +0x800 bit (F0 bit 11; bit 26 is what this head sets) and a
-     * pushed frame.  The zero record/scratch shape is the measured
+     * pushed frame. The boot park is additionally measured at local-frame
+     * depth zero, with F0 0x00000800 and a transient 0x520000 scratch base.
+     * The zero record/scratch shape is the measured
      * cvtri-fault sibling (v0357) and stays fail-closed. */
     if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x0001428c) ||
-        player == 0u || cpu->local_frame_depth == 0u) {
+        player == 0u ||
+        (cpu->local_frame_depth == 0u &&
+         player != UINT32_C(0x00510980))) {
         return VF2_ERROR_UNSUPPORTED;
     }
     status = vf2_model2a_read_u32(machine, player, &player_flags);
@@ -2024,9 +2042,11 @@ static vf2_status hybrid_execute_player_1428c(
     /* v0357 fail-closed: zero record/scratch is the measured cvtri-fault
      * shape (sixth/punch parks). Do not expand from address 0.
      * v0390/v0537: the measured head shape is record 0x0201c2fc with
-     * selectors 0x0505/0x0039/0x00f1/0x00e7/0x00af.  The original corridor
+     * selectors 0x0505/0x0039/0x00f1/0x00e7/0x00af. The original corridor
      * enters with F0 0x00000800 on the base park; the measured natres
-     * corridor enters with F0 0x80000882.  No other flag word is admitted. */
+     * corridor enters with F0 0x80000882; the boot corridor enters with
+     * F0 0x00000800 and no persistent scratch pointer. No other flag word
+     * is admitted. */
     if (record_pointer != UINT32_C(0x0201c2fc) || scratch_base == 0u ||
         (player_flags != UINT32_C(0x00000800) &&
          player_flags != UINT32_C(0x80000882))) {

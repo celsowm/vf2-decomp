@@ -225,7 +225,10 @@ static vf2_status player_selector_prepare_setup(
         );
     }
     if (status != VF2_OK || plan->data_pointer == 0u ||
-        plan->table_pointer == 0u || branch_base == 0u) {
+        plan->table_pointer == 0u ||
+        (branch_base == 0u &&
+         !(player == UINT32_C(0x00510980) &&
+           selector == UINT32_C(0x00000505)))) {
         return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
     }
     (void)old_state;

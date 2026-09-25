@@ -39,10 +39,10 @@
  *   (+0x10 = 0x501500, +0x0c = 0x142f4, g0 = +0x640, g1 = +0x04,
  *   g2 = +0x1b0; 7 steps, no calls, no CC write) -> 0x142c0.
  *
- * The fixture restores both measured live snapshots
- * out/pre14288.vf2snap and out/pre14288-natres.vf2snap (entry +0x1a4 == 0,
- * CC=NONE) into both machines and runs the reference interpreter against
- * the native corridor; no synthetic work-RAM seed is constructed.
+ * The fixture restores the measured base, natres and boot snapshots
+ * (entry +0x1a4 == 0, CC=NONE) into both machines and runs the reference
+ * interpreter against the native corridor; no synthetic work-RAM seed is
+ * constructed.
  * ROM/main_data differences versus the frozen snapshots are served by the
  * attached real images.
  */
@@ -345,6 +345,8 @@ static void run_rom_differential(const char *rom_directory)
     test_snapshot_path = NULL;
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
     test_snapshot_path = "D:/ia/vf2-decomp/out/pre14288-natres.vf2snap";
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
+    test_snapshot_path = "D:/ia/vf2-decomp/out/pre14288-boot.vf2snap";
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
     test_snapshot_path = NULL;
 
