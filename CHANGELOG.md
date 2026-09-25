@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Extend the measured `fa_rob` `0x14640` type-15 miss interval to
+  `+0x194=1..1359` (v0554). The focused fixture compares the added
+  `1025..1359` cases against the reference; selector `1360` remains a
+  fail-closed negative control.
+
 - Extend the measured `fa_rob` `0x1453c/0x14570` type-5 miss interval to
   `+0x194=1..1359` (v0553). The focused fixture compares the added
   `1025..1359` cases against the reference; selector `1360` remains a

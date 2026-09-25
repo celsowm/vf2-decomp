@@ -272,11 +272,23 @@ static void run_rom_case(
     while (reference_cpu.ip != STATE27_RETURN && steps < 1024u) {
         reference_status =
             vf2_i960_step(&reference_cpu, &reference_machine, NULL);
-        CHECK(reference_status == VF2_OK);
+        if (!test_expect_unsupported) {
+            CHECK(reference_status == VF2_OK);
+        }
         ++steps;
         if (reference_status != VF2_OK) {
             break;
         }
+    }
+    if (test_expect_unsupported) {
+        CHECK(reference_cpu.ip != STATE27_RETURN);
+        native_status = vf2_hybrid_player_14640_state27_execute_for_test(
+            &native_machine, &native_cpu);
+        CHECK(native_status != VF2_OK);
+        vf2_model2a_shutdown(&reference_machine);
+        vf2_model2a_shutdown(&native_machine);
+        vf2_i960_snapshot_destroy(&snap);
+        return;
     }
     CHECK(reference_cpu.ip == STATE27_RETURN);
     reference_instructions =
@@ -286,16 +298,6 @@ static void run_rom_case(
     }
     CHECK(reference_cpu.procedure_calls - snap_calls == REF_CALLS);
     CHECK(reference_cpu.procedure_returns - snap_returns == REF_RETS);
-
-    if (test_expect_unsupported) {
-        native_status = vf2_hybrid_player_14640_state27_execute_for_test(
-            &native_machine, &native_cpu);
-        CHECK(native_status != VF2_OK);
-        vf2_model2a_shutdown(&reference_machine);
-        vf2_model2a_shutdown(&native_machine);
-        vf2_i960_snapshot_destroy(&snap);
-        return;
-    }
 
     /* Native: the 0x14640 state-27 arm. */
     native_status = vf2_hybrid_player_14640_state27_execute_for_test(
@@ -559,7 +561,7 @@ static void run_rom_differential(const char *rom_directory)
                 type15_selector_cases[case_index].steps
             );
         }
-        for (case_index = 129u; case_index <= 1024u; ++case_index) {
+        for (case_index = 129u; case_index <= 1359u; ++case_index) {
             run_rom_case_with_type15_index(
                 main_rom, main_rom_size, main_data, main_data_size,
                 (uint16_t)case_index, UINT64_MAX
@@ -567,7 +569,7 @@ static void run_rom_differential(const char *rom_directory)
         }
         run_rom_case_with_unsupported_type15_index(
             main_rom, main_rom_size, main_data, main_data_size,
-            UINT16_C(0x0401)
+            UINT16_C(0x0550)
         );
     }
 
