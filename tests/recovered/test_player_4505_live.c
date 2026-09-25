@@ -655,6 +655,12 @@ int main(int argc, char **argv)
     } else if (argc == 3 && strcmp(argv[2], "--twelve-low") == 0) {
         test_quadruple_only = 1;
         test_quadruple_mask = UINT32_C(0x0018059f);
+    } else if (argc == 3 && strcmp(argv[2], "--fourteen-low") == 0) {
+        test_quadruple_only = 1;
+        test_quadruple_mask = UINT32_C(0x0040059f);
+    } else if (argc == 3 && strcmp(argv[2], "--fifteen-low") == 0) {
+        test_quadruple_only = 1;
+        test_quadruple_mask = UINT32_C(0x0100059f);
     } else if (argc == 3) {
         return EXIT_SUCCESS;
     }

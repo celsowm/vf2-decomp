@@ -6,6 +6,16 @@ runs through the eleventh-dispatch validation corridor, but it remains one evide
 sequence rather than a complete game implementation. Unsupported paths return
 `VF2_ERROR_UNSUPPORTED` instead of falling back to i960 interpretation.
 
+## Latest measured player extension (v0579)
+
+The live `fa_player` `0x19ef8` corridor now admits the measured
+`+0x1a4` masks `0x0040059f` and `0x0100059f`, each proven across all
+16 combinations of branch bits 5/6/21/23 with full CPU, condition,
+frame, procedure and mutable Model 2A equality at `0x1428c`. Larger
+unmeasured combinations remain fail-closed. Evidence is recorded in
+`decomp/i960/notes/fa_player_19ef8_mask_40059f_v0578.md` and
+`decomp/i960/notes/fa_player_19ef8_mask_100059f_v0579.md`.
+
 The v0168 boundary audit removed the two remaining single-instruction oracle
 handoffs in `native-second-dispatch`: the `ret` stubs at `0x0004bab4` and
 `0x000020ec` are now recovered bridges. The strict post-scheduler corridor is
