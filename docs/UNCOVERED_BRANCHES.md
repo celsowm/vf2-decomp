@@ -135,6 +135,12 @@ exact with the `−9/+2` correction. Bilateral and mode-bit-6-set controls remai
 fail-closed. See
 `decomp/i960/notes/game_info_18644_positive_masks1a0_1a8_threshold3_unilateral_v0608.md`.
 
+The no-bit-8 high masks `0x00000028`, `0x00000088`, `0x000000a0` and
+`0x000000a8` are now native through threshold `3` with their uniform +2
+dispatcher correction. The combined 192-case matrix is exact; threshold `4+`
+remains fail-closed. See
+`decomp/i960/notes/game_info_18644_positive_masks28_88_a0_a8_threshold3_v0609.md`.
+
 The v0168 boundary audit removed the two remaining single-instruction oracle
 handoffs in `native-second-dispatch`: the `ret` stubs at `0x0004bab4` and
 `0x000020ec` are now recovered bridges. The strict post-scheduler corridor is

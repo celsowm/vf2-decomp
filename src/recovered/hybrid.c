@@ -16876,7 +16876,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
              combined_state8_flags == UINT32_C(0x00000088) ||
              combined_state8_flags == UINT32_C(0x000000a0) ||
              combined_state8_flags == UINT32_C(0x000000a8)) &&
-            shared_fighter_threshold <= UINT32_C(2);
+            shared_fighter_threshold <= UINT32_C(3);
         native_state8_mixed_low_positive_path =
             fighter0_state == 8u && fighter1_state == 8u &&
             measured_matrix_distribution &&
@@ -21031,9 +21031,9 @@ static vf2_status hybrid_execute_game_info_bit31_native(
         }
     }
     if (native_state8_bit3_bit5_bit7_positive_path) {
-        /* v0516: the measured no-bit-8 combinations have a uniform
+        /* v0516-v0609: the measured no-bit-8 combinations have a uniform
          * two-instruction dispatcher deficit and the same countdown-derived
-         * final condition. */
+         * final condition, now proven through threshold 3. */
         native_instructions += UINT64_C(2);
         hybrid_set_compare_result(
             cpu, countdown_was_nonzero
