@@ -16522,12 +16522,13 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             combined_state8_flags == UINT32_C(0x00000094);
         const bool v0633_mask36_family =
             combined_state8_flags == UINT32_C(0x00000036) ||
-            combined_state8_flags == UINT32_C(0x0000003e);
+            combined_state8_flags == UINT32_C(0x0000003e) ||
+            combined_state8_flags == UINT32_C(0x0000003a);
         const bool v0517_threshold_ok =
             /* v0518-v0526 extend the measured masks through threshold 8;
              * v0581-v0591 extend the listed masks through threshold 9.
              * v0633 is intentionally limited to the measured threshold-3
-             * slices of masks 0x36 and 0x3e. */
+             * slices of masks 0x36, 0x3a and 0x3e. */
             v0633_mask36_family
                 ? shared_fighter_threshold <= UINT32_C(3)
                 : ((combined_state8_flags == UINT32_C(0x0000000e) ||
@@ -16897,7 +16898,8 @@ static vf2_status hybrid_execute_game_info_bit31_native(
              combined_state8_flags == UINT32_C(0x00000034) ||
              combined_state8_flags == UINT32_C(0x00000094) ||
              combined_state8_flags == UINT32_C(0x00000036) ||
-             combined_state8_flags == UINT32_C(0x0000003e)) &&
+             combined_state8_flags == UINT32_C(0x0000003e) ||
+             combined_state8_flags == UINT32_C(0x0000003a)) &&
             (((combined_state8_flags == UINT32_C(0x0000000e) ||
                combined_state8_flags == UINT32_C(0x00000018) ||
                combined_state8_flags == UINT32_C(0x0000001e) ||
@@ -16912,6 +16914,8 @@ static vf2_status hybrid_execute_game_info_bit31_native(
              (combined_state8_flags == UINT32_C(0x00000036) &&
               shared_fighter_threshold <= UINT32_C(3)) ||
              (combined_state8_flags == UINT32_C(0x0000003e) &&
+              shared_fighter_threshold <= UINT32_C(3)) ||
+             (combined_state8_flags == UINT32_C(0x0000003a) &&
               shared_fighter_threshold <= UINT32_C(3)) ||
              (combined_state8_flags != UINT32_C(0x0000000e) &&
               combined_state8_flags != UINT32_C(0x00000018) &&

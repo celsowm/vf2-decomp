@@ -18,7 +18,7 @@ Larger unmeasured combinations remain fail-closed. Evidence is recorded in
 `decomp/i960/notes/fa_player_19ef8_mask_100059f_v0579.md` plus
 `decomp/i960/notes/fa_player_19ef8_high_masks_v0580.md`.
 
-## Latest measured game-info extension (v0581/v0582/v0583/v0584/v0585/v0586/v0587/v0588/v0589/v0590/v0591/v0611/v0617/v0618/v0619/v0620/v0621/v0622/v0623/v0624/v0625/v0626/v0627/v0628/v0629/v0630/v0631/v0632)
+## Latest measured game-info extension (v0581/v0582/v0583/v0584/v0585/v0586/v0587/v0588/v0589/v0590/v0591/v0611/v0617/v0618/v0619/v0620/v0621/v0622/v0623/v0624/v0625/v0626/v0627/v0628/v0629/v0630/v0631/v0632/v0633)
 
 The positive state-8 `fa_game_info` compositions `0x0000000e` (bits 1+2+3),
 `0x0000001a` (bits 1+3+4), `0x00000018` (bits 3+4) and `0x0000001e`
@@ -2733,8 +2733,16 @@ native through threshold `9`, each with `120/120 exact` cases and the uniform
 `+2` correction. See
 `decomp/i960/notes/game_info_18644_positive_masks_28_88_a0_a8_threshold9_v0632.md`.
 
-The no-bit-8 positive compositions `0x00000036` (bits 1+2+4+5+6) and
-`0x0000003e` (bits 1+2+3+4+5+6) are now native for their measured
+The no-bit-8 positive compositions `0x00000036` (bits 1+2+4+5),
+`0x0000003a` (bits 1+3+4+5) and `0x0000003e` (bits 1+2+3+4+5) are now
+native for their measured threshold-3 slices. Each has three record
+distributions, both countdown values and both mode-bit-6 values at `12/12`
+exact, using the measured mixed-low `+3`/`-2` dispatcher correction.
+Threshold 4 and above remain fail-closed. See
+`decomp/i960/notes/game_info_18644_positive_mask36_threshold3_v0633.md`.
+
+The no-bit-8 positive compositions `0x00000036` (bits 1+2+4+5),
+`0x0000003a` (bits 1+3+4+5) and `0x0000003e` (bits 1+2+3+4+5) are now native for their measured
 threshold-3 slices. Each has three record distributions, both countdown
 values and both mode-bit-6 values at `12/12 exact`; the
 existing mixed-low dispatcher correction supplies the measured `+3` join at

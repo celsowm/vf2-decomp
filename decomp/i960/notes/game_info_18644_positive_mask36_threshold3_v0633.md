@@ -2,8 +2,8 @@
 
 ## Measured question
 
-Can the no-bit-8 state-8 compositions `0x00000036` (bits 1+2+4+5+6)
-and `0x0000003e` (bits 1+2+3+4+5+6) use the existing native mixed-low
+Can the no-bit-8 state-8 compositions `0x00000036` (bits 1+2+4+5),
+`0x0000003a` (bits 1+3+4+5) and `0x0000003e` (bits 1+2+3+4+5) use the existing native mixed-low
 child at threshold 3 without widening unmeasured thresholds or distributions?
 
 ## Evidence
@@ -11,7 +11,7 @@ child at threshold 3 without widening unmeasured thresholds or distributions?
 The full-dispatch validator was run with the repository ROM set for:
 
 ```text
-mask       0x00000036, 0x0000003e
+mask       0x00000036, 0x0000003a, 0x0000003e
 threshold  3
 records    fighter-0 only, fighter-1 only, bilateral
 countdown  0 and 1
@@ -30,7 +30,7 @@ mutable Model 2A memory. The threshold-4 control remains unsupported in all
 
 ## Recovery
 
-`hybrid_execute_game_info_bit31_native` admits `0x36` and `0x3e` only for the
+`hybrid_execute_game_info_bit31_native` admits `0x36`, `0x3a` and `0x3e` only for the
 measured matrix distribution and threshold `<= 3`. The existing mixed-low accounting
 sets the countdown-derived EQUAL/LESS condition and applies the `+3`/`-2`
 instruction join. No field is assigned a semantic name and no ROM-derived
