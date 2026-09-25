@@ -2421,6 +2421,14 @@ distributions and unmeasured positive compositions remain explicit
 `VF2_ERROR_UNSUPPORTED` boundaries. See
 `decomp/i960/notes/game_info_18644_positive_bit1_bit3_bit4_v0519.md`.
 
+Status (v0520): the remaining three v0517 mixed masks `0x0000001c`,
+`0x00000034` and `0x00000094` are now native through threshold `3`. Each
+complete three-distribution/countdown/mode matrix is `12/12` exact (`36/36`
+together), reusing the same −3/+2 dispatcher correction. Threshold `4+`, the
+adjacent `0x18`, other flag distributions and unmeasured positive compositions
+remain explicit `VF2_ERROR_UNSUPPORTED` boundaries. See
+`decomp/i960/notes/game_info_18644_positive_bit2_bit4_threshold3_v0520.md`.
+
 ### v0221 high-26 8140 low cube
 
 * `0x04008140` (high-26 + bits 6+14+15) `1→8` low cube with `-5/-3` (v0221)

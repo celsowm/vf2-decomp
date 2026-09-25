@@ -16333,10 +16333,12 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             combined_state8_flags == UINT32_C(0x00000034) ||
             combined_state8_flags == UINT32_C(0x00000094);
         const bool v0517_threshold_ok =
-            /* v0518/v0519 extend only the two individually measured masks
-             * 0x14 and 0x1a through threshold 3. */
+            /* v0518-v0520 extend the measured masks through threshold 3. */
             (combined_state8_flags == UINT32_C(0x00000014) ||
-             combined_state8_flags == UINT32_C(0x0000001a))
+             combined_state8_flags == UINT32_C(0x0000001a) ||
+             combined_state8_flags == UINT32_C(0x0000001c) ||
+             combined_state8_flags == UINT32_C(0x00000034) ||
+             combined_state8_flags == UINT32_C(0x00000094))
                 ? shared_fighter_threshold <= UINT32_C(3)
                 : shared_fighter_threshold <= UINT32_C(2);
         /* The generic child has measured straight-line behavior for these
@@ -16674,10 +16676,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
              combined_state8_flags == UINT32_C(0x0000001c) ||
              combined_state8_flags == UINT32_C(0x00000034) ||
              combined_state8_flags == UINT32_C(0x00000094)) &&
-            ((combined_state8_flags == UINT32_C(0x00000014) &&
-              shared_fighter_threshold <= UINT32_C(3)) ||
-             (combined_state8_flags != UINT32_C(0x00000014) &&
-              shared_fighter_threshold <= UINT32_C(2)));
+            shared_fighter_threshold <= UINT32_C(3);
         native_state8_bit1_bit3_bit4_positive_path =
             fighter0_state == 8u && fighter1_state == 8u &&
             measured_matrix_distribution &&
@@ -20812,8 +20811,8 @@ static vf2_status hybrid_execute_game_info_bit31_native(
         native_state8_bit1_bit3_bit4_positive_path) {
         /* v0517/v0519: both measured mixed masks overcount the
          * zero-countdown dispatcher by three instructions and undercount the
-         * nonzero path by two. The 0x1a threshold-3 extension was measured
-         * against the same join and does not widen the mask/distribution
+         * nonzero path by two. The threshold-3 extensions were measured
+         * against the same join and do not widen the mask/distribution
          * admission above. */
         if (!countdown_was_nonzero) {
             if (native_instructions < UINT64_C(3)) {
