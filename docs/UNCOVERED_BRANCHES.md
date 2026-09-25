@@ -1272,6 +1272,12 @@ leaves `r15 == phase` (byte `0x0050002b`, loaded at `0x142c4`) and
 recovery previously wrote `registers[15]` from `g0`/`table_last_value`.
 See `decomp/i960/notes/player_142c0_v0392.md`.
 
+Status (v0664): the same live `0x142c0` fixture now also exercises the
+measured `g1 == 1` sibling. The reference and native body both return at
+`0x14310` after 55 body instructions, +3 calls / +3 returns, with full
+live-state equality; the original `g1 == 0` case remains covered at 56
+instructions. See `decomp/i960/notes/player_142c0_g1_one_v0664.md`.
+
 Status (v0393): the fa_rob fighter-exchange body `0x1442c` (called at
 `0x14388` when `+0x04(g7) == 0`) is native for the measured live fast
 path, together with its two `0x14640` no-op helper calls. Restoring

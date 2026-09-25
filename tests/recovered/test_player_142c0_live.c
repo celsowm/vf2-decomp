@@ -89,7 +89,8 @@ static void run_rom_case(
     const uint8_t *main_rom,
     size_t main_rom_size,
     const uint8_t *main_data,
-    size_t main_data_size
+    size_t main_data_size,
+    int use_g1_one
 )
 {
     vf2_model2a reference_machine;
@@ -178,6 +179,11 @@ static void run_rom_case(
     CHECK(reference_cpu.procedure_calls - snap_calls == UINT64_C(10));
     CHECK(reference_cpu.procedure_returns - snap_returns == UINT64_C(10));
 
+    /* The measured sibling enters the same body with g1 == 1. */
+    if (use_g1_one) {
+        reference_cpu.registers[VF2_I960_G0_REGISTER + 1u] = 1u;
+    }
+
     /* Native: corridor (19ef8 -> 0x1428c) + head (1428c -> 0x142c0) to
      * the same body entry. */
     native_status = vf2_hybrid_player_19ef8_execute_for_test(
@@ -190,6 +196,9 @@ static void run_rom_case(
             &native_machine, &native_cpu);
         CHECK(native_status == VF2_OK);
         CHECK(native_cpu.ip == PLAYER_142C0_BODY);
+    }
+    if (use_g1_one) {
+        native_cpu.registers[VF2_I960_G0_REGISTER + 1u] = 1u;
     }
     native_instructions =
         native_cpu.executed_instructions - snap_instructions;
@@ -229,7 +238,8 @@ static void run_rom_case(
     CHECK(reference_cpu.ip == PLAYER_142C0_RETURN);
     reference_instructions =
         reference_cpu.executed_instructions - snap_instructions;
-    CHECK(reference_instructions == REF_TOTAL_TO_RETURN);
+    CHECK(reference_instructions ==
+          REF_TOTAL_TO_RETURN - (use_g1_one ? UINT64_C(1) : UINT64_C(0)));
     CHECK(reference_cpu.procedure_calls - snap_calls == UINT64_C(13));
     CHECK(reference_cpu.procedure_returns - snap_returns == UINT64_C(13));
 
@@ -240,7 +250,8 @@ static void run_rom_case(
     CHECK(native_cpu.ip == PLAYER_142C0_RETURN);
     native_instructions =
         native_cpu.executed_instructions - snap_instructions;
-    CHECK(native_instructions == REF_TOTAL_TO_RETURN);
+    CHECK(native_instructions ==
+          REF_TOTAL_TO_RETURN - (use_g1_one ? UINT64_C(1) : UINT64_C(0)));
     CHECK(native_cpu.procedure_calls - snap_calls == UINT64_C(13));
     CHECK(native_cpu.procedure_returns - snap_returns == UINT64_C(13));
 
@@ -276,7 +287,7 @@ static void run_rom_case(
     vf2_i960_snapshot_destroy(&snap);
 }
 
-static void run_rom_differential(const char *rom_directory)
+static void run_rom_differential(const char *rom_directory, int use_g1_one)
 {
     uint8_t *main_rom = NULL;
     uint8_t *main_data = NULL;
@@ -300,7 +311,8 @@ static void run_rom_differential(const char *rom_directory)
         return;
     }
 
-    run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size,
+                 use_g1_one);
 
     free(main_rom);
     free(main_data);
@@ -310,7 +322,7 @@ int main(int argc, char **argv)
 {
     test_unit_invalid_arguments();
 
-    if (argc != 2) {
+    if (argc < 2 || argc > 3 || (argc == 3 && strcmp(argv[2], "--g1-1") != 0)) {
         if (failures != 0) {
             fprintf(
                 stderr, "%d player-142c0-live unit test(s) failed\n",
@@ -321,7 +333,7 @@ int main(int argc, char **argv)
         return EXIT_SUCCESS;
     }
 
-    run_rom_differential(argv[1]);
+    run_rom_differential(argv[1], argc == 3);
 
     if (failures != 0) {
         fprintf(
