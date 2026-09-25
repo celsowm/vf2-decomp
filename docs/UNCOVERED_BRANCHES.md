@@ -145,6 +145,11 @@ branch-bit combinations with full live-state equality and four calls/returns;
 other unmeasured high-bit combinations remain fail-closed. See
 `decomp/i960/notes/fa_player_19ef8_mask_1040059f_v0666.md`.
 
+The bit-24+bit-26 extension `0x0500059f` is also native across all 16
+branch-bit combinations with full live-state equality and four calls/returns;
+other unmeasured high-bit combinations remain fail-closed. See
+`decomp/i960/notes/fa_player_19ef8_mask_500059f_v0667.md`.
+
 ## Latest measured game-info extension (v0581/v0582/v0583/v0584/v0585/v0586/v0587/v0588/v0589/v0590/v0591/v0611/v0617/v0618/v0619/v0620/v0621/v0622/v0623/v0624/v0625/v0626/v0627/v0628/v0629/v0630/v0631/v0632/v0633/v0634/v0635/v0636/v0637/v0638)
 
 The latest low-family measurements extend the threshold-3 native slice to
