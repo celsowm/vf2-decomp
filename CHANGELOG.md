@@ -12,6 +12,11 @@
   `1025..1359` cases against the reference; selector `1360` remains a
   fail-closed invalid-table control.
 
+- Extend the measured `fa_player` `0x19ef8` entry-state family to two
+  non-branch `fighter+0x1a4` bits (v0555). The complete 378-pair × 16-branch
+  matrix adds 6048 full live-state comparisons; three or more non-branch bits
+  remain `VF2_ERROR_UNSUPPORTED`.
+
 - Extend the measured `fa_player` `0x19ef8` entry-state corridor (v0552).
   Every one of the 28 non-branch `fighter+0x1a4` singleton bits now matches
   the reference when composed with all 16 subsets of branch bits 5/6/21/23:

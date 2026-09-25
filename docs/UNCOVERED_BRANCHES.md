@@ -837,15 +837,17 @@ state tail clears `+0x654` and reaches `0x146d8` in 16 instructions (17 with
 the consumed return); other greater state/flag compositions remain
 fail-closed. See `decomp/i960/notes/fa_player_14640_bit4clear_state13_v0540.md`.
 
-Status (v0552): the live `0x505` `fa_player` `0x19ef8` corridor now admits
+Status (v0555): the live `0x505` `fa_player` `0x19ef8` corridor now admits
 the measured nonzero entry-state bits 5, 6, 21 and 23 in `fighter+0x1a4`.
 Singletons reach `0x1428c` in 1631/1627/1634/1624 instructions respectively
 (the zero-state baseline is 1622); all 15 nonzero combinations are also exact,
 as are all 28 remaining state-bit singletons. Each remaining singleton was
 also composed with all 16 subsets of the four branch bits: 448 mixed cases
 match full live state. Bit 5 sets final `+0x1a4` bit 7, bit 21 toggles the
-player-word bit 6, and bit 23 copies `0x0050a010` to player `+0x1c`. Words
-with two or more non-branch bits remain fail-closed. See
+player-word bit 6, and bit 23 copies `0x0050a010` to player `+0x1c`. Every
+measured combination containing one or two additional non-branch bits is now
+also admitted; the 378-pair × 16-branch matrix adds 6048 full live-state
+comparisons. Words with three or more non-branch bits remain fail-closed. See
 `decomp/i960/notes/fa_player_19ef8_state_flags_v0550.md`.
 
 Status (v0551): the measured positive state-8 `fa_game_info` composition

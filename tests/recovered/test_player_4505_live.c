@@ -67,6 +67,7 @@ static int failures = 0;
 static const char *test_snapshot_path = NULL;
 static uint32_t test_initial_state_flags = 0u;
 static int test_corridor_only = 0;
+static int test_expect_unsupported = 0;
 
 static uint64_t expected_corridor_delta(void)
 {
@@ -227,6 +228,17 @@ static void run_rom_case(
     CHECK(reference_instructions == UINT64_C(1622) + expected_corridor_delta());
     CHECK(reference_cpu.procedure_calls - snap_calls == UINT64_C(4));
     CHECK(reference_cpu.procedure_returns - snap_returns == UINT64_C(4));
+
+    if (test_expect_unsupported) {
+        native_status = vf2_hybrid_player_19ef8_execute_for_test(
+            &native_machine, &native_cpu
+        );
+        CHECK(native_status != VF2_OK);
+        vf2_model2a_shutdown(&reference_machine);
+        vf2_model2a_shutdown(&native_machine);
+        vf2_i960_snapshot_destroy(&snap);
+        return;
+    }
 
     /* Native: the frozen 0x1428c head (setbit-26 + 27b5c fanout) is a
      * separate, still-unmeasured boundary, so exercise only the
@@ -425,9 +437,9 @@ static void run_rom_differential(const char *rom_directory)
             test_initial_state_flags = UINT32_C(1) << index;
             run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
         }
-        /* v0551: every measured non-branch singleton also composes with
-         * every subset of the four branch bits.  Keep the frontier closed
-         * for two or more non-branch bits until that family is measured. */
+        /* v0555: every measured non-branch pair also composes with every
+         * subset of the four branch bits.  Keep three or more non-branch
+         * bits outside this bounded differential family. */
         for (index = 0u; index < 32u; ++index) {
             size_t branch_index = 0u;
             uint32_t non_branch_bit = UINT32_C(1) << index;
@@ -444,9 +456,44 @@ static void run_rom_differential(const char *rom_directory)
                 run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
             }
         }
+        for (index = 0u; index < 32u; ++index) {
+            size_t second_index = 0u;
+            const uint32_t first_bit = UINT32_C(1) << index;
+            if (index == 5u || index == 6u || index == 21u || index == 23u) {
+                continue;
+            }
+            for (second_index = index + 1u; second_index < 32u;
+                 ++second_index) {
+                size_t branch_index = 0u;
+                const uint32_t second_bit = UINT32_C(1) << second_index;
+                if (second_index == 5u || second_index == 6u ||
+                    second_index == 21u || second_index == 23u) {
+                    continue;
+                }
+                for (branch_index = 0u; branch_index < 16u; ++branch_index) {
+                    const uint32_t branch_bits =
+                        ((branch_index & 1u) != 0u ? (UINT32_C(1) << 5u) : 0u) |
+                        ((branch_index & 2u) != 0u ? (UINT32_C(1) << 6u) : 0u) |
+                        ((branch_index & 4u) != 0u ? (UINT32_C(1) << 21u) : 0u) |
+                        ((branch_index & 8u) != 0u ? (UINT32_C(1) << 23u) : 0u);
+                    test_initial_state_flags =
+                        first_bit | second_bit | branch_bits;
+                    run_rom_case(
+                        main_rom, main_rom_size, main_data, main_data_size
+                    );
+                }
+            }
+        }
+        test_expect_unsupported = 1;
+        test_initial_state_flags =
+            (UINT32_C(1) << 0u) | (UINT32_C(1) << 1u) |
+            (UINT32_C(1) << 2u);
+        run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
+        test_expect_unsupported = 0;
     }
     test_initial_state_flags = 0u;
     test_corridor_only = 0;
+    test_expect_unsupported = 0;
     test_snapshot_path = NULL;
 
     free(main_rom);
