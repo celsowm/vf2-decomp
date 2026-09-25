@@ -200,12 +200,39 @@ def main() -> None:
     parser.add_argument("--base", type=Path,
                         help="reuse a calibrated 0x1645c entry snapshot")
     parser.add_argument("--keep", type=Path, help="keep generated snapshots")
+    parser.add_argument(
+        "--distributions", default="unilateral,bilateral",
+        help="comma-separated distributions: unilateral,bilateral",
+    )
+    parser.add_argument(
+        "--countdowns", default="0,1",
+        help="comma-separated countdown values to measure",
+    )
+    parser.add_argument(
+        "--mode-bits", default="0,1",
+        help="comma-separated mode-bit-6 values to measure",
+    )
     parser.add_argument("--workers", type=int, default=2)
     args = parser.parse_args()
 
     thresholds = [int(value, 0) for value in args.thresholds.split(",") if value != ""]
     if any(value < 0 for value in thresholds):
         parser.error("--thresholds must be nonnegative for full dispatch")
+    distributions = [value.strip() for value in args.distributions.split(",")
+                     if value.strip()]
+    if not distributions or any(value not in {"unilateral", "bilateral"}
+                                for value in distributions):
+        parser.error("--distributions must contain unilateral and/or bilateral")
+    try:
+        countdowns = [int(value, 0) for value in args.countdowns.split(",")
+                      if value != ""]
+        mode_bits = [int(value, 0) for value in args.mode_bits.split(",")
+                     if value != ""]
+    except ValueError as error:
+        parser.error(f"invalid countdown/mode value: {error}")
+    if (not countdowns or any(value not in (0, 1) for value in countdowns) or
+            not mode_bits or any(value not in (0, 1) for value in mode_bits)):
+        parser.error("--countdowns and --mode-bits values must be 0 or 1")
 
     if args.keep is not None:
         args.keep.mkdir(parents=True, exist_ok=True)
@@ -223,12 +250,17 @@ def main() -> None:
                            "entry boundary")
         base = base_snapshot.read_bytes()
 
+        distributions_flags = []
+        if "unilateral" in distributions:
+            distributions_flags.extend(((args.mask, 0), (0, args.mask)))
+        if "bilateral" in distributions:
+            distributions_flags.append((args.mask, args.mask))
         cases = [
             (args.binary, args.rom_directory, base, args.state,
              flags0, flags1, countdown, mode_bit6, threshold, root)
-            for flags0, flags1 in ((args.mask, 0), (0, args.mask), (args.mask, args.mask))
-            for countdown in (0, 1)
-            for mode_bit6 in (0, 1)
+            for flags0, flags1 in distributions_flags
+            for countdown in countdowns
+            for mode_bit6 in mode_bits
             for threshold in thresholds
         ]
         total = len(cases)

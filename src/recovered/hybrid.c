@@ -16858,7 +16858,12 @@ static vf2_status hybrid_execute_game_info_bit31_native(
              combined_state8_flags == UINT32_C(0x00000188) ||
              combined_state8_flags == UINT32_C(0x000001a0) ||
              combined_state8_flags == UINT32_C(0x000001a8)) &&
-            shared_fighter_threshold <= UINT32_C(2);
+            (shared_fighter_threshold <= UINT32_C(2) ||
+             (combined_state8_flags == UINT32_C(0x00000120) &&
+              shared_fighter_threshold == UINT32_C(3) &&
+              (mode_value & (UINT8_C(1) << 6u)) == 0u &&
+              (fighter0_state_flags == UINT32_C(0x00000120) ||
+               fighter1_state_flags == UINT32_C(0x00000120))));
         native_state8_bit3_bit5_bit7_positive_path =
             fighter0_state == 8u && fighter1_state == 8u &&
             measured_matrix_distribution &&
@@ -20989,11 +20994,12 @@ static vf2_status hybrid_execute_game_info_bit31_native(
         }
     }
     if (native_state8_bit3_bit5_bit7_bit8_positive_path) {
-        /* v0514/v0515 probe: the unilateral, mode-bit-6-clear masks in the
+        /* v0514/v0515/v0604 probe: the unilateral, mode-bit-6-clear masks in the
          * measured bit8 plus bit3/bit5/bit7 family are exact after a
          * distribution-independent dispatcher correction.
          * Keep the mode-bit-6 and bilateral child branches fail-closed until
-         * their separate ROM paths are measured. */
+         * their separate ROM paths are measured. The threshold-3 extension is
+         * limited to the measured 0x120 unilateral slice. */
         const bool unilateral =
             fighter1_state_flags == 0u || fighter0_state_flags == 0u;
         if ((mode_value & (UINT8_C(1) << 6u)) != 0u || !unilateral) {
