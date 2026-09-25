@@ -831,6 +831,12 @@ the direct tail), with full live-state equality. Other greater relations and
 unmeasured bit/state compositions remain fail-closed. See
 `decomp/i960/notes/fa_player_14640_bit4clear_greater_v0539.md`.
 
+Status (v0540): the same compare-prefix now also admits the measured state-13
+greater witness with bit 4 clear and `(s16(+0x1aa),s16(+0x62a))=(2,1)`. The
+state tail clears `+0x654` and reaches `0x146d8` in 16 instructions (17 with
+the consumed return); other greater state/flag compositions remain
+fail-closed. See `decomp/i960/notes/fa_player_14640_bit4clear_state13_v0540.md`.
+
 Status (v0392): the `0x142c0` body now has a focused ROM-backed
 differential fixture (`vf2_player_142c0_live_differential`) restoring
 `out/pre14288.vf2snap`, stepping the reference through the full

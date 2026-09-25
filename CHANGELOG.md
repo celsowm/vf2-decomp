@@ -10,6 +10,11 @@
   Other greater relations and unmeasured flag/state compositions remain
   fail-closed. See `decomp/i960/notes/fa_player_14640_bit4clear_greater_v0539.md`.
 
+- Extend the measured `fa_rob` `0x14640` greater witness (v0540) to the
+  state-13 tail: bit-4-clear `(s16(+0x1aa),s16(+0x62a))=(2,1)` clears
+  `+0x654` and reaches `0x146d8` in 16 instructions (17 with the consumed
+  return). Other greater state/flag compositions remain fail-closed.
+
 - Recover the measured `pre14288-boot` player shape through the `0x14288`
   corridor and `0x1428c` geometry head (v0538). The boot park now matches the
   reference at `1622/+4/+4` and `10869/+10/+10` with full CPU, condition,

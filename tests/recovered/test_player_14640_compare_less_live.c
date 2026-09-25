@@ -1,6 +1,7 @@
 /* Differential pin for the measured fa_rob 0x14640 signed-less compare
- * prefix siblings (v0412/v0427). Shape 5 additionally proves the v0539
- * bit-4-clear greater witness through the generic dispatcher. */
+ * prefix siblings (v0412/v0427). Shapes 5 and 6 additionally prove the
+ * v0539/v0540 bit-4-clear greater witnesses through the generic dispatcher.
+ */
 
 #include <stdint.h>
 #include <stdio.h>
@@ -147,7 +148,7 @@ static void run_case(const uint8_t *rom, size_t rom_size,
     }
     CHECK(rc.ip == return_ip);
     CHECK(rc.executed_instructions - base_steps ==
-          (dispatch ? UINT64_C(15) :
+          (dispatch ? (variant == 1 ? UINT64_C(17) : UINT64_C(15)) :
            variant == 1 ? UINT64_C(17) : variant >= 3 ? UINT64_C(15) :
            variant == 2 ? NONZERO_TOTAL : TOTAL));
 
@@ -157,7 +158,7 @@ static void run_case(const uint8_t *rom, size_t rom_size,
     CHECK(status == VF2_OK);
     CHECK(nc.ip == return_ip);
     CHECK(nc.executed_instructions - base_steps ==
-          (dispatch ? UINT64_C(15) :
+          (dispatch ? (variant == 1 ? UINT64_C(17) : UINT64_C(15)) :
            variant == 1 ? UINT64_C(17) : variant >= 3 ? UINT64_C(15) :
            variant == 2 ? NONZERO_TOTAL : TOTAL));
     CHECK(vf2_i960_compare_live_state(&rc, &rm, &nc, &nm, &diff) == VF2_OK);

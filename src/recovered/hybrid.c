@@ -6140,11 +6140,13 @@ static vf2_status hybrid_execute_player_14640(
                     machine, cpu);
             } else if (s1aa < s62a ||
                        ((flags & (UINT32_C(1) << 4u)) == 0u &&
-                        s1aa == 2 && s62a == 1)) {
+                        s1aa == 2 && s62a == 1 &&
+                        (r197 == 0u || r197 == 13u))) {
                 /* The direct helper already models the bit-4-clear
-                 * 0x146d8 exits.  Route the one measured greater witness
-                 * (s16(+0x1aa),s16(+0x62a)) == (2,1) through it too; other
-                 * greater compositions remain fail-closed. */
+                 * 0x146d8 exits.  Route the measured greater witnesses
+                 * (s16(+0x1aa),s16(+0x62a)) == (2,1) through it for the
+                 * neutral and state-13 tails; other greater compositions
+                 * remain fail-closed. */
                 status = hybrid_execute_player_14640_compare_less(machine, cpu);
             } else {
                 status = hybrid_execute_player_14640_compare(machine, cpu);
