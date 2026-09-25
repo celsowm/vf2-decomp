@@ -976,6 +976,14 @@ branch bits 5,6,21,23. Every case matches full live state and four
 calls/returns; bit 17 (`0x20059f`) remains an explicit unsupported control.
 See `decomp/i960/notes/fa_player_19ef8_mask_18059f_v0576.md`.
 
+Status (v0578–v0580): the same corridor now also admits the independently
+measured masks `0x0040059f`, `0x0100059f`, `0x0200059f`, `0x0400059f`,
+`0x0800059f`, `0x1000059f`, `0x4000059f` and `0x8000059f`. Each has exact
+full-state equality across all 16 branch-bit compositions. The `0x2000059f`
+value is the already-covered bit-21 branch composition, not a new non-branch
+mask. Other larger combinations remain explicitly unsupported. See
+`decomp/i960/notes/fa_player_19ef8_high_masks_v0580.md`.
+
 Status (v0551): the measured positive state-8 `fa_game_info` composition
 `0x0000000e` (bits 1+2+3) is now native through threshold `8`. Its complete
 three-distribution/countdown/mode/threshold matrix is `108/108` exact, with a
