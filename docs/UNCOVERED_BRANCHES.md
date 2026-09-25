@@ -18,11 +18,11 @@ Larger unmeasured combinations remain fail-closed. Evidence is recorded in
 `decomp/i960/notes/fa_player_19ef8_mask_100059f_v0579.md` plus
 `decomp/i960/notes/fa_player_19ef8_high_masks_v0580.md`.
 
-## Latest measured game-info extension (v0581/v0582/v0583/v0584/v0585/v0586/v0587/v0588/v0589/v0590/v0591/v0611/v0617/v0618/v0619/v0620/v0621/v0622/v0623/v0624/v0625/v0626/v0627/v0628/v0629/v0630/v0631/v0632/v0633/v0634)
+## Latest measured game-info extension (v0581/v0582/v0583/v0584/v0585/v0586/v0587/v0588/v0589/v0590/v0591/v0611/v0617/v0618/v0619/v0620/v0621/v0622/v0623/v0624/v0625/v0626/v0627/v0628/v0629/v0630/v0631/v0632/v0633/v0634/v0635)
 
 The latest low-family measurements extend the threshold-3 native slice to
-`0x00000022`, `0x00000024`, `0x00000026`, `0x0000002a`, `0x0000002c` and
-`0x0000002e`; each is `12/12 exact` across the measured distributions,
+`0x00000022`, `0x00000024`, `0x00000026`, `0x0000002a`, `0x0000002c`,
+`0x0000002e` and `0x00000032`; each is `12/12 exact` across the measured distributions,
 countdowns and mode-bit-6 values. Threshold 4 remains fail-closed. Detailed
 evidence is in
 `decomp/i960/notes/game_info_18644_positive_mask22_threshold3_v0634.md`.
