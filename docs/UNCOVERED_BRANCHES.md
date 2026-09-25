@@ -2662,6 +2662,12 @@ and no source change. The measured rules and counter corrections
 are recorded in
 `decomp/i960/notes/game_info_18644_positive_bit1_bit6_medium_v0481.md`.
 See also `decomp/i960/notes/game_info_18644_positive_mask414e_threshold9_v0612.md`.
+The analogous `0x814e` composition is likewise `120/120` exact through
+threshold `9`; see
+`decomp/i960/notes/game_info_18644_positive_mask814e_threshold9_v0613.md`.
+The corresponding `0x1014e` composition is also `120/120` exact through
+threshold `9`; see
+`decomp/i960/notes/game_info_18644_positive_mask1014e_threshold9_v0614.md`.
 
 Status (v0484): the ordered mixed pair `(0x0146, 0x0142)` and its reverse
 are now admitted at `0x18644`. Both call orders, countdown clear/set and mode
