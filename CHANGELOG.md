@@ -17,6 +17,11 @@
   matrix adds 6048 full live-state comparisons; three or more non-branch bits
   remain `VF2_ERROR_UNSUPPORTED`.
 
+- Extend the measured `fa_player` `0x19ef8` entry-state family with all
+  3276 branch-free triples of non-branch `fighter+0x1a4` bits (v0556). Triple
+  combinations with branch bits and four or more non-branch bits remain
+  fail-closed.
+
 - Extend the measured `fa_player` `0x19ef8` entry-state corridor (v0552).
   Every one of the 28 non-branch `fighter+0x1a4` singleton bits now matches
   the reference when composed with all 16 subsets of branch bits 5/6/21/23:

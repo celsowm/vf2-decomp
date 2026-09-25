@@ -437,9 +437,9 @@ static void run_rom_differential(const char *rom_directory)
             test_initial_state_flags = UINT32_C(1) << index;
             run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
         }
-        /* v0555: every measured non-branch pair also composes with every
-         * subset of the four branch bits.  Keep three or more non-branch
-         * bits outside this bounded differential family. */
+        /* v0556: every measured non-branch pair also composes with every
+         * subset of the four branch bits.  The branch-free triple family is
+         * measured below; larger combinations remain outside the frontier. */
         for (index = 0u; index < 32u; ++index) {
             size_t branch_index = 0u;
             uint32_t non_branch_bit = UINT32_C(1) << index;
@@ -484,10 +484,38 @@ static void run_rom_differential(const char *rom_directory)
                 }
             }
         }
+        for (index = 0u; index < 32u; ++index) {
+            size_t second_index = 0u;
+            const uint32_t first_bit = UINT32_C(1) << index;
+            if (index == 5u || index == 6u || index == 21u || index == 23u) {
+                continue;
+            }
+            for (second_index = index + 1u; second_index < 32u;
+                 ++second_index) {
+                size_t third_index = 0u;
+                const uint32_t second_bit = UINT32_C(1) << second_index;
+                if (second_index == 5u || second_index == 6u ||
+                    second_index == 21u || second_index == 23u) {
+                    continue;
+                }
+                for (third_index = second_index + 1u; third_index < 32u;
+                     ++third_index) {
+                    if (third_index == 5u || third_index == 6u ||
+                        third_index == 21u || third_index == 23u) {
+                        continue;
+                    }
+                    test_initial_state_flags =
+                        first_bit | second_bit | (UINT32_C(1) << third_index);
+                    run_rom_case(
+                        main_rom, main_rom_size, main_data, main_data_size
+                    );
+                }
+            }
+        }
         test_expect_unsupported = 1;
         test_initial_state_flags =
             (UINT32_C(1) << 0u) | (UINT32_C(1) << 1u) |
-            (UINT32_C(1) << 2u);
+            (UINT32_C(1) << 2u) | (UINT32_C(1) << 3u);
         run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
         test_expect_unsupported = 0;
     }
