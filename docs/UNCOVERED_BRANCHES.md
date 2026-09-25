@@ -182,6 +182,12 @@ reference reaches `0x1463c` after 3,967 additional instructions, with three
 calls and four returns. The complete selector-1 continuation remains
 ROM-backed. See `decomp/i960/notes/fa_player_selector1_continuation_v0672.md`.
 
+The measured return tail after those calls is now native: a checkpoint parked
+at `0x144b8` reaches `0x1463c` in 35 instructions with full CPU and mutable
+Model 2A equality. The state-16/state-27 successor branches remain explicit
+unsupported controls. See
+`decomp/i960/notes/fa_player_selector1_return_tail_v0674.md`.
+
 ## Latest measured game-info extension (v0581/v0582/v0583/v0584/v0585/v0586/v0587/v0588/v0589/v0590/v0591/v0611/v0617/v0618/v0619/v0620/v0621/v0622/v0623/v0624/v0625/v0626/v0627/v0628/v0629/v0630/v0631/v0632/v0633/v0634/v0635/v0636/v0637/v0638)
 
 The latest low-family measurements extend the threshold-3 native slice to

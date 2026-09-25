@@ -1791,6 +1791,130 @@ vf2_status vf2_hybrid_player_selector1_setup_execute_for_test(
     return VF2_OK;
 }
 
+vf2_status vf2_hybrid_player_selector1_return_tail_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    const uint32_t fighter0 = cpu != NULL
+        ? cpu->registers[VF2_I960_G0_REGISTER + 7u] : 0u;
+    const uint32_t fighter1 = cpu != NULL
+        ? cpu->registers[VF2_I960_G0_REGISTER + 8u] : 0u;
+    uint16_t selector1 = 0u;
+    uint16_t state1_word = 0u;
+    uint16_t height0 = 0u;
+    uint16_t height1 = 0u;
+    uint16_t position0 = 0u;
+    uint8_t state0 = 0u;
+    uint8_t state1 = 0u;
+    uint8_t flags_byte = 0u;
+    uint32_t flags0 = 0u;
+    uint32_t flags1 = 0u;
+    uint32_t difference = 0u;
+    uint32_t derived = 0u;
+    uint32_t result = 0u;
+    vf2_status status = VF2_OK;
+
+    if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x000144b8) ||
+        cpu->local_frame_depth == 0u || fighter0 == 0u || fighter1 == 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    status = hybrid_read_u8(machine, fighter0 + UINT32_C(0x197), &state0);
+    if (status == VF2_OK) {
+        status = hybrid_read_u8(machine, fighter1 + UINT32_C(0x197), &state1);
+    }
+    if (status == VF2_OK) {
+        status = hybrid_read_u16(machine, fighter1 + UINT32_C(0x1a8), &selector1);
+    }
+    if (status == VF2_OK) {
+        status = hybrid_read_u16(machine, fighter1 + UINT32_C(0x1aa), &state1_word);
+    }
+    if (status == VF2_OK) {
+        status = hybrid_read_u16(machine, fighter0 + UINT32_C(0x858), &height0);
+    }
+    if (status == VF2_OK) {
+        status = hybrid_read_u16(machine, fighter1 + UINT32_C(0x808), &height1);
+    }
+    if (status == VF2_OK) {
+        status = hybrid_read_u16(machine, fighter0 + UINT32_C(0x828), &position0);
+    }
+    if (status == VF2_OK) {
+        status = hybrid_read_u8(machine, fighter0 + UINT32_C(0x822), &flags_byte);
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_read_u32(machine, fighter0, &flags0);
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_read_u32(machine, fighter1, &flags1);
+    }
+    if (status != VF2_OK ||
+        state0 == UINT8_C(27) || state1 == UINT8_C(27) ||
+        state0 == UINT8_C(16) || state1 == UINT8_C(16)) {
+        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
+    }
+
+    /* 0x144b8..0x1450c: copy selector/position data and derive the
+     * fighter-1 exchange value.  The measured branch is cmpobl(r13,r3),
+     * where r13 is fighter1+0x1aa and r3 is (height1-height0)-1. */
+    status = hybrid_write_u16(machine, fighter0 + UINT32_C(0x1aa), 1u);
+    if (status == VF2_OK) {
+        status = hybrid_write_u16(machine, fighter0 + UINT32_C(0x61e), selector1);
+    }
+    difference = (uint32_t)height1 - (uint32_t)height0;
+    result = difference - UINT32_C(1);
+    derived = UINT32_C(0x11000000) + (uint32_t)position0;
+    derived &= ~(UINT32_C(1) << 15u);
+    if (status == VF2_OK) {
+        status = hybrid_write_u16(
+            machine, fighter0 + UINT32_C(0x626), (uint16_t)difference
+        );
+    }
+    if (status == VF2_OK) {
+        status = hybrid_write_u8(machine, fighter1 + UINT32_C(0x822), flags_byte);
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_write_u32(
+            machine, fighter1 + UINT32_C(0x654), derived
+        );
+    }
+    if (status == VF2_OK) {
+        status = hybrid_write_u16(
+            machine, fighter1 + UINT32_C(0x62a), (uint16_t)result
+        );
+    }
+    if (status != VF2_OK) {
+        return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
+    }
+
+    /* 0x144e0..0x14504: r5 = (24 << 17) + fighter0+0x828, with bit 15
+     * cleared by ALTERBIT after CHKBIT.  The measured path has no state
+     * 27/16 successor, so it falls through directly to 0x14628. */
+    (void)flags0;
+    (void)flags1;
+    status = vf2_model2a_write_u32(machine, fighter0 + UINT32_C(0x198), 0u);
+    if (status == VF2_OK) {
+        status = vf2_model2a_write_u32(machine, fighter1 + UINT32_C(0x198), 0u);
+    }
+    if (status != VF2_OK) {
+        return status;
+    }
+    cpu->registers[3] = 0u;
+    cpu->registers[4] = difference;
+    cpu->registers[5] = derived;
+    cpu->registers[7] = (uint32_t)state0;
+    cpu->registers[8] = (uint32_t)state1;
+    cpu->registers[13] = (uint32_t)state1_word;
+    cpu->registers[14] = (uint32_t)position0;
+    cpu->registers[15] = (uint32_t)flags_byte;
+    hybrid_set_compare_result(
+        cpu, state1 > UINT8_C(16)
+            ? VF2_I960_COMPARE_LESS : VF2_I960_COMPARE_GREATER
+    );
+    cpu->ip = UINT32_C(0x0001463c);
+    cpu->executed_instructions += UINT64_C(35);
+    return VF2_OK;
+}
+
 /* v0390 test-only entry to the measured 0x1428c head (see hybrid.h). */
 vf2_status vf2_hybrid_player_1428c_execute_for_test(
     vf2_model2a *machine,

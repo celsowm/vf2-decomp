@@ -360,6 +360,14 @@ vf2_status vf2_hybrid_player_selector1_setup_execute_for_test(
     vf2_i960_cpu *cpu
 );
 
+/* v0674: test-only selector-1 return tail parked at 0x144b8 after the
+ * 0x1a048 continuation.  The measured neutral state-exchange arm reaches
+ * 0x1463c after 35 instructions with no additional call/return. */
+vf2_status vf2_hybrid_player_selector1_return_tail_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 /* v0390: test-only entry to the measured 0x1428c head
  * (setbit-26 + `call 0x270d4` five-slot wrapper + 0x1429c tail).
  * The CPU must be parked at 0x1428c with g7 the player base,
