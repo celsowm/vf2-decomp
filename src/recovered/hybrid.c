@@ -23292,7 +23292,8 @@ static vf2_status coli_18bd4_body(
     vf2_model2a *machine,
     uint32_t g7,
     uint32_t g8,
-    uint64_t *body_out
+    uint64_t *body_out,
+    uint32_t *g0_out
 );
 
 static vf2_status coli_225cc_body(
@@ -23352,7 +23353,9 @@ static vf2_status coli_225cc_body(
     }
     if (type_byte == UINT8_C(22)) {
         uint64_t shortcut = 0u;
-        if (coli_18bd4_body(machine, g7, g8, &shortcut) != VF2_OK) {
+        uint32_t shortcut_g0 = 0u;
+        if (coli_18bd4_body(
+                machine, g7, g8, &shortcut, &shortcut_g0) != VF2_OK) {
             return VF2_ERROR_UNSUPPORTED;
         }
         if (calls_out != NULL) {
@@ -23363,6 +23366,9 @@ static vf2_status coli_225cc_body(
         }
         if (g1_out != NULL) {
             *g1_out = UINT32_C(5); /* mov 5, g1 before the type-5 call */
+        }
+        if (g0_out != NULL && shortcut_g0 != 0u) {
+            *g0_out = shortcut_g0;
         }
         *body_out = UINT64_C(5) + UINT64_C(1) + shortcut +
                     UINT64_C(1) + UINT64_C(1);
@@ -24714,7 +24720,8 @@ static vf2_status coli_18bd4_body(
     vf2_model2a *machine,
     uint32_t g7,
     uint32_t g8,
-    uint64_t *body_out
+    uint64_t *body_out,
+    uint32_t *g0_out
 )
 {
     uint16_t index = 0u;
@@ -24843,6 +24850,12 @@ static vf2_status coli_18bd4_body(
         return VF2_ERROR_UNSUPPORTED;
     }
     body += UINT64_C(5); /* ld + ld + chkbit + alterbit + st */
+    if (g0_out != NULL && walk != 0u) {
+        /* 0x1ab34 returns its matching record in g0.  The type-22
+         * shortcut preserves that register through 0x18bd4; a zero walk
+         * leaves the caller's g0 unchanged on the measured miss shapes. */
+        *g0_out = walk;
+    }
     *body_out = body;
     return VF2_OK;
 }

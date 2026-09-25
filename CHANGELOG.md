@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Preserve the measured resolver `g0` on the `fa_coli` `0x225cc` type-22
+  shortcut (v0531). The nine type-5 hits in selector range `1..64` now carry
+  their `0x1ab34` record pointers through `0x18bd4`; the complete 64-selector
+  matrix matches the reference with exact live-state equality. Selector 0
+  remains fail-closed. See
+  `decomp/i960/notes/fa_coli_225cc_type22_g0_v0531.md`.
+
 - Extend the measured `fa_coli` `0x225cc` type-22 shortcut through the 55
   type-5 walker misses in selector range `1..64` (v0530). Each miss reaches
   `0x10dcc` with exact CPU/condition/procedure/Model 2A state equality; the

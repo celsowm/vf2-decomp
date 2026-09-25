@@ -1762,6 +1762,13 @@ five returns and full live-state equality.  The nine measured hits
 return, and index 0 still fails before the miss branch.  See
 `decomp/i960/notes/fa_coli_225cc_type22_miss_v0530.md`.
 
+Status (v0531): the type-5 hit return is now threaded through the shortcut.
+The complete selector interval `g8+0x19c == 1..64` matches the reference,
+including the nine measured `g0` record pointers and the 55 zero-record
+misses, with exact CPU/condition/procedure/Model 2A state equality. Selector
+0 remains fail-closed because the reference faults during the table walk. See
+`decomp/i960/notes/fa_coli_225cc_type22_g0_v0531.md`.
+
 Status (v0318): long-body `g7+0x1a4` bits 4+12 scale sibling is
 native (263 on the v0288 drive). `g8+0x1a4` bit 13 early-join is
 native when `+0x5b8` bit 0 is set (251). Bit 4 without bit 12 (251)
