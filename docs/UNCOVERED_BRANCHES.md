@@ -2733,6 +2733,14 @@ native through threshold `9`, each with `120/120 exact` cases and the uniform
 `+2` correction. See
 `decomp/i960/notes/game_info_18644_positive_masks_28_88_a0_a8_threshold9_v0632.md`.
 
+The no-bit-8 positive composition `0x00000036` (bits 1+2+4+5+6) is now
+native for the measured threshold-3 slice. Its three record distributions,
+both countdown values and both mode-bit-6 values are `12/12 exact`; the
+existing mixed-low dispatcher correction supplies the measured `+3` join at
+zero countdown and `-2` join at nonzero countdown. Threshold 4 and above
+remain explicit fail-closed controls. See
+`decomp/i960/notes/game_info_18644_positive_mask36_threshold3_v0633.md`.
+
 Status (v0484): the ordered mixed pair `(0x0146, 0x0142)` and its reverse
 are now admitted at `0x18644`. Both call orders, countdown clear/set and mode
 bit 6 clear/set are `8/8` exact against the ROM, including architectural,
