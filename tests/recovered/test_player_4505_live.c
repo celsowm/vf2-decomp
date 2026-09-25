@@ -612,6 +612,15 @@ int main(int argc, char **argv)
     } else if (argc == 3 && strcmp(argv[2], "--quadruple-17") == 0) {
         test_quadruple_only = 1;
         test_quadruple_mask = UINT32_C(0x00000017);
+    } else if (argc == 3 && strcmp(argv[2], "--quadruple-1b") == 0) {
+        test_quadruple_only = 1;
+        test_quadruple_mask = UINT32_C(0x0000001b);
+    } else if (argc == 3 && strcmp(argv[2], "--quadruple-1d") == 0) {
+        test_quadruple_only = 1;
+        test_quadruple_mask = UINT32_C(0x0000001d);
+    } else if (argc == 3 && strcmp(argv[2], "--quadruple-1e") == 0) {
+        test_quadruple_only = 1;
+        test_quadruple_mask = UINT32_C(0x0000001e);
     } else if (argc == 3) {
         return EXIT_SUCCESS;
     }

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Complete the measured four-bit family for `fa_player` `0x19ef8` (v0568):
+  non-branch masks `0x0000001b`, `0x0000001d` and `0x0000001e` now match all
+  16 branch-bit compositions with exact live state and 4-call/4-return
+  accounting. Bit-7 controls remain fail-closed. See
+  `decomp/i960/notes/fa_player_19ef8_quadruple_family_v0568.md`.
+
 - Extend the measured `fa_player` `0x19ef8` corridor to non-branch mask
   `0x00000017` (v0567). All 16 compositions with branch bits 5/6/21/23
   match full live state and exact 4-call/4-return accounting; an added bit-7

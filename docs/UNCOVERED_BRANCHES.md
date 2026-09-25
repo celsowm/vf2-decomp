@@ -908,6 +908,13 @@ the unrelated bit-7 extension remains an explicit fail-closed control. Other
 quadruple masks and five-or-more non-branch bits remain unsupported. See
 `decomp/i960/notes/fa_player_19ef8_quadruple_17_v0567.md`.
 
+Status (v0568): the measured four-bit family is complete for masks `0x1b`
+(bits 0,1,3,4), `0x1d` (bits 0,2,3,4) and `0x1e` (bits 1,2,3,4). Each mask
+matches all 16 branch-bit compositions with full live-state equality and four
+calls/returns; bit-7 extensions remain explicit unsupported controls. Other
+quadruple masks remain fail-closed. See
+`decomp/i960/notes/fa_player_19ef8_quadruple_family_v0568.md`.
+
 Status (v0551): the measured positive state-8 `fa_game_info` composition
 `0x0000000e` (bits 1+2+3) is now native through threshold `8`. Its complete
 three-distribution/countdown/mode/threshold matrix is `108/108` exact, with a
