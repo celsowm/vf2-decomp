@@ -901,6 +901,13 @@ the measured branch corrections. Other quadruple masks and five-or-more
 non-branch bits remain explicit fail-closed boundaries. See
 `decomp/i960/notes/fa_player_19ef8_quadruple_0f_v0566.md`.
 
+Status (v0567): the same corridor also admits measured non-branch mask
+`fighter+0x1a4 = 0x00000017` (bits 0,1,2,4) across all 16 subsets of branch
+bits 5,6,21,23. Every case matches full live state and four calls/returns;
+the unrelated bit-7 extension remains an explicit fail-closed control. Other
+quadruple masks and five-or-more non-branch bits remain unsupported. See
+`decomp/i960/notes/fa_player_19ef8_quadruple_17_v0567.md`.
+
 Status (v0551): the measured positive state-8 `fa_game_info` composition
 `0x0000000e` (bits 1+2+3) is now native through threshold `8`. Its complete
 three-distribution/countdown/mode/threshold matrix is `108/108` exact, with a

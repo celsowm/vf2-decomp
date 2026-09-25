@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Extend the measured `fa_player` `0x19ef8` corridor to non-branch mask
+  `0x00000017` (v0567). All 16 compositions with branch bits 5/6/21/23
+  match full live state and exact 4-call/4-return accounting; an added bit-7
+  control remains fail-closed. See
+  `decomp/i960/notes/fa_player_19ef8_quadruple_17_v0567.md`.
+
 - Align the bounded TGP Model 2A bank window and `atan` table index with the
   MAME reference: low bank-register bits are ignored by the external window,
   and the implicit `0x800000` atan mantissa bit is included before shifting.

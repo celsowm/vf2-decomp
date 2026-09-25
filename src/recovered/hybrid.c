@@ -1155,8 +1155,8 @@ static vf2_status hybrid_execute_player_19ef8(
      * consumes the measured low flag siblings before the selector setup.
      * The branch-sensitive bits are handled below. The bounded matrix now
      * admits up to three non-branch bits with any branch subset, plus the
-     * measured non-branch mask 0x0f with its branch-bit matrix; other larger
-     * combinations remain closed. */
+     * measured non-branch masks 0x0f and 0x17 with their branch-bit
+     * matrices; other larger combinations remain closed. */
     initial_state_flags = player_state_flags;
     {
         const uint32_t branch_state_mask =
@@ -1171,7 +1171,8 @@ static vf2_status hybrid_execute_player_19ef8(
             ++non_branch_count;
         }
         const int state_ok = non_branch_count <= 3u ||
-            non_branch_state_flags == UINT32_C(0x0000000f);
+            non_branch_state_flags == UINT32_C(0x0000000f) ||
+            non_branch_state_flags == UINT32_C(0x00000017);
         const int flags_ok =
             ((player_flags & (
                 (UINT32_C(1) << 6u) | (UINT32_C(1) << 5u) |
