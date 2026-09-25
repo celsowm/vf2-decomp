@@ -16369,6 +16369,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
     bool native_state8_bit3_bit5_bit7_positive_path = false;
     bool native_state8_mixed_low_positive_path = false;
     bool native_state8_bit4_bit5_positive_path = false;
+    bool native_state8_mask30_positive_path = false;
     bool native_state8_bit1_bit3_bit4_positive_path = false;
     bool native_state4_bit15_fighter_path = false;
     bool native_state4_bit15_bit16_fighter_path = false;
@@ -16532,6 +16533,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             combined_state8_flags == UINT32_C(0x0000002a) ||
             combined_state8_flags == UINT32_C(0x0000002c) ||
             combined_state8_flags == UINT32_C(0x0000002e) ||
+            combined_state8_flags == UINT32_C(0x00000030) ||
             combined_state8_flags == UINT32_C(0x00000032);
         const bool v0517_threshold_ok =
             /* v0518-v0526 extend the measured masks through threshold 8;
@@ -16896,6 +16898,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
              combined_state8_flags == UINT32_C(0x0000002a) ||
              combined_state8_flags == UINT32_C(0x0000002c) ||
              combined_state8_flags == UINT32_C(0x0000002e) ||
+             combined_state8_flags == UINT32_C(0x00000030) ||
              combined_state8_flags == UINT32_C(0x00000032) ||
              combined_state8_flags == UINT32_C(0x00000028) ||
              combined_state8_flags == UINT32_C(0x00000088) ||
@@ -16913,7 +16916,8 @@ static vf2_status hybrid_execute_game_info_bit31_native(
               combined_state8_flags != UINT32_C(0x00000026) &&
               combined_state8_flags != UINT32_C(0x0000002a) &&
               combined_state8_flags != UINT32_C(0x0000002c) &&
-              combined_state8_flags != UINT32_C(0x0000002e) &&
+               combined_state8_flags != UINT32_C(0x0000002e) &&
+              combined_state8_flags != UINT32_C(0x00000030) &&
               combined_state8_flags != UINT32_C(0x00000032) &&
               shared_fighter_threshold <= UINT32_C(9)));
         native_state8_mixed_low_positive_path =
@@ -16964,6 +16968,11 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             fighter0_state == 8u && fighter1_state == 8u &&
             measured_matrix_distribution &&
             combined_state8_flags == UINT32_C(0x00000032) &&
+            shared_fighter_threshold <= UINT32_C(3);
+        native_state8_mask30_positive_path =
+            fighter0_state == 8u && fighter1_state == 8u &&
+            measured_matrix_distribution &&
+            combined_state8_flags == UINT32_C(0x00000030) &&
             shared_fighter_threshold <= UINT32_C(3);
         native_state8_bit1_bit3_bit4_positive_path =
             fighter0_state == 8u && fighter1_state == 8u &&
@@ -17620,7 +17629,8 @@ static vf2_status hybrid_execute_game_info_bit31_native(
          native_state8_bit2_bit4_bit8_positive_path ||
          native_state8_bit8_low_family_positive_path ||
          native_state8_bit3_bit5_bit7_bit8_positive_path ||
-         native_state8_bit4_bit5_positive_path)) {
+         native_state8_bit4_bit5_positive_path ||
+         native_state8_mask30_positive_path)) {
         status = vf2_model2a_read_u32(
             machine, UINT32_C(0x0050016c), &mode_base
         );
@@ -21141,6 +21151,42 @@ static vf2_status hybrid_execute_game_info_bit31_native(
                     }
                     native_instructions -= UINT64_C(3);
                 }
+            }
+        } else {
+            native_instructions += UINT64_C(2);
+        }
+        hybrid_set_compare_result(
+            cpu, countdown_was_nonzero
+                ? VF2_I960_COMPARE_LESS : VF2_I960_COMPARE_EQUAL
+        );
+        if (cpu->local_frame_depth + 1u < VF2_I960_MAX_LOCAL_FRAMES) {
+            vf2_i960_local_frame *stale =
+                &cpu->local_frames[cpu->local_frame_depth + 1u];
+            stale->registers[3] = UINT32_C(0x41000000);
+            stale->registers[4] = UINT32_C(0x07800f0f);
+            stale->registers[7] = UINT32_C(0x41000000);
+        }
+    }
+    if (native_state8_mask30_positive_path) {
+        /* v0636: mask 0x30 follows the mixed-low countdown split, with a
+         * second three-instruction overcount at zero countdown only for the
+         * bilateral distribution. */
+        if (!countdown_was_nonzero) {
+            const bool bilateral =
+                fighter0_state_flags == fighter1_state_flags;
+            if (bilateral) {
+                const uint64_t correction =
+                    (mode_value & (UINT8_C(1) << 6u)) != 0u
+                        ? UINT64_C(3) : UINT64_C(6);
+                if (native_instructions < correction) {
+                    return VF2_ERROR_UNSUPPORTED;
+                }
+                native_instructions -= correction;
+            } else {
+                if (native_instructions < UINT64_C(3)) {
+                    return VF2_ERROR_UNSUPPORTED;
+                }
+                native_instructions -= UINT64_C(3);
             }
         } else {
             native_instructions += UINT64_C(2);
