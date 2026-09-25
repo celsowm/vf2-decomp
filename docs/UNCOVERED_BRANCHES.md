@@ -18,16 +18,18 @@ Larger unmeasured combinations remain fail-closed. Evidence is recorded in
 `decomp/i960/notes/fa_player_19ef8_mask_100059f_v0579.md` plus
 `decomp/i960/notes/fa_player_19ef8_high_masks_v0580.md`.
 
-## Latest measured game-info extension (v0581)
+## Latest measured game-info extension (v0581/v0582)
 
-The positive state-8 `fa_game_info` composition `0x0000000e` (bits 1+2+3)
-is now native through threshold `9`. The added 12-case matrix covers the
-three measured fighter-record distributions, both countdown values and both
-mode-bit-6 values; all CPU, condition, frame, procedure, counter and mutable
-Model 2A state matches the reference. Threshold `10+`, unmeasured
-distributions and other positive compositions remain fail-closed. The
-sibling mixed masks remain capped at threshold `8`. See
-`decomp/i960/notes/game_info_18644_positive_mask0e_threshold9_v0581.md`.
+The positive state-8 `fa_game_info` compositions `0x0000000e` (bits 1+2+3)
+and `0x0000001a` (bits 1+3+4) are now native through threshold `9`. Each
+added 12-case matrix covers the three measured fighter-record distributions,
+both countdown values and both mode-bit-6 values; all CPU, condition, frame,
+procedure, counter and mutable Model 2A state matches the reference.
+Threshold `10+`, unmeasured distributions and other positive compositions
+remain fail-closed. The other sibling mixed masks remain capped at threshold
+`8`. See
+`decomp/i960/notes/game_info_18644_positive_mask0e_threshold9_v0581.md` and
+`decomp/i960/notes/game_info_18644_positive_mask1a_threshold9_v0582.md`.
 
 The v0168 boundary audit removed the two remaining single-instruction oracle
 handoffs in `native-second-dispatch`: the `ret` stubs at `0x0004bab4` and
