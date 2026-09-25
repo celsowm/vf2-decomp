@@ -8,6 +8,6 @@ mutable Model 2A memory. Counts are `1622` with no branch bits and the exact
 measured corrections through `1650`; every case has four calls and four
 returns.
 
-The control `0x0000009f`, which adds non-branch bit 7, remains unsupported.
-The guard therefore admits the measured low mask only and does not generalize
-to arbitrary five-bit or larger combinations.
+At v0569 the control `0x0000009f`, which adds non-branch bit 7, remained
+unsupported. It was measured and admitted in the subsequent v0570 slice; the
+then-unmeasured bit-8 extension remains outside this note's evidence.

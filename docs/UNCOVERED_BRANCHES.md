@@ -915,12 +915,18 @@ calls/returns; bit-7 extensions remain explicit unsupported controls. Other
 quadruple masks remain fail-closed. See
 `decomp/i960/notes/fa_player_19ef8_quadruple_family_v0568.md`.
 
-Status (v0569): the same corridor now admits the measured five-bit low mask
+Status (v0569): the same corridor admitted the measured five-bit low mask
 `fighter+0x1a4 = 0x0000001f` (bits 0..4) across all 16 subsets of branch bits
-5,6,21,23. Every case matches full live state and four calls/returns; adding
-bit 7 (`0x9f`) remains an explicit unsupported control. Other five-bit and
-larger compositions remain fail-closed. See
+5,6,21,23. Every case matched full live state and four calls/returns; adding
+bit 7 (`0x9f`) was an explicit unsupported control at that revision. Other
+five-bit and larger compositions remained fail-closed. See
 `decomp/i960/notes/fa_player_19ef8_five_low_v0569.md`.
+
+Status (v0570): the measured extension `fighter+0x1a4 = 0x0000009f` (bits
+0..4 and 7) is now native across all 16 subsets of branch bits 5,6,21,23.
+Every case matches full live state and four calls/returns; bit 8 (`0x19f`)
+remains an explicit unsupported control. See
+`decomp/i960/notes/fa_player_19ef8_mask_9f_v0570.md`.
 
 Status (v0551): the measured positive state-8 `fa_game_info` composition
 `0x0000000e` (bits 1+2+3) is now native through threshold `8`. Its complete

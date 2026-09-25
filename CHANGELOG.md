@@ -4,8 +4,14 @@
 
 - Extend `fa_player` `0x19ef8` to the measured five-bit low mask `0x0000001f`
   (v0569). All 16 branch-bit compositions match full live state and exact
-  4-call/4-return accounting; the `0x9f` bit-7 extension remains fail-closed.
-  See `decomp/i960/notes/fa_player_19ef8_five_low_v0569.md`.
+  4-call/4-return accounting; the then-unmeasured `0x9f` extension remained
+  fail-closed at that revision. See
+  `decomp/i960/notes/fa_player_19ef8_five_low_v0569.md`.
+
+- Extend the same corridor to non-branch mask `0x0000009f` (v0570). All 16
+  branch-bit compositions match full live state and exact 4-call/4-return
+  accounting; bit 8 (`0x19f`) remains fail-closed. See
+  `decomp/i960/notes/fa_player_19ef8_mask_9f_v0570.md`.
 
 - Complete the measured four-bit family for `fa_player` `0x19ef8` (v0568):
   non-branch masks `0x0000001b`, `0x0000001d` and `0x0000001e` now match all
