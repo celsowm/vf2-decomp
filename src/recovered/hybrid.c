@@ -16815,7 +16815,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             fighter0_state == 8u && fighter1_state == 8u &&
             measured_matrix_distribution &&
             combined_state8_flags == UINT32_C(0x00000006) &&
-            shared_fighter_threshold <= UINT32_C(3);
+            shared_fighter_threshold <= UINT32_C(9);
         native_state8_bit1_bit4_pair_positive_path =
             fighter0_state == 8u && fighter1_state == 8u &&
             measured_matrix_distribution &&
@@ -20766,10 +20766,11 @@ static vf2_status hybrid_execute_game_info_bit31_native(
     }
     if (native_state8_bit1_bit2_pair_positive_path ||
         native_state8_bit1_bit4_pair_positive_path) {
-        /* v0509-v0598: the measured low-bit pair joins share the stale frame and
-         * condition correction. Mask 0x6 is uniformly two instructions
-         * short; mask 0x12 is three short at zero countdown and two short
-         * otherwise. Both masks are now proven through threshold 3. */
+        /* v0509-v0598/v0619: the measured low-bit pair joins share the stale
+         * frame and condition correction. Mask 0x6 is uniformly two
+         * instructions short; mask 0x12 is three short at zero countdown and
+         * two short otherwise. Mask 0x6 is now proven through threshold 9;
+         * mask 0x12 remains bounded by its separately measured threshold. */
         if (native_state8_bit1_bit4_pair_positive_path &&
             !countdown_was_nonzero) {
             if (native_instructions < UINT64_C(3)) {
