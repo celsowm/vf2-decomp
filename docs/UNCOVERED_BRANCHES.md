@@ -1455,6 +1455,13 @@ one nested call and return, and complete live-state equality. Selectors
 outside `1..512` remain explicit fail-closed boundaries. See
 `decomp/i960/notes/fa_player_14640_type15_miss_v0492.md`.
 
+Status (v0529): the same type-15 miss recovery now covers the measured
+selector range `+0x194 == 1..1024`. Selectors `513..1024` also reach
+`0x146c4` through the existing zero-record tail with exact reference/native
+instruction counts, one nested call and return, and complete live-state
+equality. Selectors outside `1..1024` remain explicit fail-closed boundaries.
+See `decomp/i960/notes/fa_player_14640_type15_miss_v0529.md`.
+
 Status (v0490): the sibling `fa_rob` `0x1453c/0x14570` type-5 miss recovery
 now covers the complete measured selector range `+0x194 == 1..256`. The new
 selectors `129..256` all reach `0x1463c` through one nested `0x1ab34` call and

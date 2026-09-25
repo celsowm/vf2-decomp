@@ -51,6 +51,7 @@
 static int failures = 0;
 static uint16_t test_type15_index = TYPE15_INDEX;
 static uint64_t test_expected_steps_override = 0u;
+static int test_expect_unsupported = 0;
 
 #define CHECK(expression)                                                     \
     do {                                                                      \
@@ -286,6 +287,16 @@ static void run_rom_case(
     CHECK(reference_cpu.procedure_calls - snap_calls == REF_CALLS);
     CHECK(reference_cpu.procedure_returns - snap_returns == REF_RETS);
 
+    if (test_expect_unsupported) {
+        native_status = vf2_hybrid_player_14640_state27_execute_for_test(
+            &native_machine, &native_cpu);
+        CHECK(native_status != VF2_OK);
+        vf2_model2a_shutdown(&reference_machine);
+        vf2_model2a_shutdown(&native_machine);
+        vf2_i960_snapshot_destroy(&snap);
+        return;
+    }
+
     /* Native: the 0x14640 state-27 arm. */
     native_status = vf2_hybrid_player_14640_state27_execute_for_test(
         &native_machine, &native_cpu);
@@ -348,6 +359,29 @@ static void run_rom_case_with_type15_index(
     );
     test_type15_index = previous_index;
     test_expected_steps_override = previous_steps;
+}
+
+static void run_rom_case_with_unsupported_type15_index(
+    const uint8_t *main_rom,
+    size_t main_rom_size,
+    const uint8_t *main_data,
+    size_t main_data_size,
+    uint16_t type15_index
+)
+{
+    const uint16_t previous_index = test_type15_index;
+    const uint64_t previous_steps = test_expected_steps_override;
+    const int previous_expectation = test_expect_unsupported;
+
+    test_type15_index = type15_index;
+    test_expected_steps_override = UINT64_MAX;
+    test_expect_unsupported = 1;
+    run_rom_case(
+        main_rom, main_rom_size, main_data, main_data_size, 0
+    );
+    test_type15_index = previous_index;
+    test_expected_steps_override = previous_steps;
+    test_expect_unsupported = previous_expectation;
 }
 
 static void run_rom_differential(const char *rom_directory)
@@ -525,12 +559,16 @@ static void run_rom_differential(const char *rom_directory)
                 type15_selector_cases[case_index].steps
             );
         }
-        for (case_index = 129u; case_index <= 512u; ++case_index) {
+        for (case_index = 129u; case_index <= 1024u; ++case_index) {
             run_rom_case_with_type15_index(
                 main_rom, main_rom_size, main_data, main_data_size,
                 (uint16_t)case_index, UINT64_MAX
             );
         }
+        run_rom_case_with_unsupported_type15_index(
+            main_rom, main_rom_size, main_data, main_data_size,
+            UINT16_C(0x0401)
+        );
     }
 
     free(main_rom);

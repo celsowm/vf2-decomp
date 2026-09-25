@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Extend the measured `fa_rob` `0x14640` state-27 type-15 miss recovery
+  through selector `+0x194 == 1..1024` (v0529). The additional `513..1024`
+  sweep reaches `0x146c4` through the existing zero-record tail and matches
+  the reference with exact instruction counts and full live-state equality;
+  larger selectors and unmeasured state/flag compositions remain fail-closed.
+  See `decomp/i960/notes/fa_player_14640_type15_miss_v0529.md`.
+
 - Extend the measured `fa_rob` `0x1453c/0x14570` type-5 miss recovery through
   selector `+0x194 == 1..1024` (v0528). The additional `513..1024` sweep
   reaches `0x1463c` through the existing zero-record tail and matches the
