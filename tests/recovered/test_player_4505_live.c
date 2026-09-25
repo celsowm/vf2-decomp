@@ -69,6 +69,7 @@ static uint32_t test_initial_state_flags = 0u;
 static uint32_t test_selector = UINT32_C(0x00000505);
 static int test_corridor_only = 0;
 static int test_expect_unsupported = 0;
+static int test_quadruple_only = 0;
 
 static uint64_t expected_corridor_delta(void)
 {
@@ -399,6 +400,34 @@ static void run_rom_differential(const char *rom_directory)
         return;
     }
 
+    if (test_quadruple_only) {
+        size_t branch_index = 0u;
+        test_snapshot_path = NULL;
+        test_selector = UINT32_C(0x00000505);
+        test_corridor_only = 1;
+        test_expect_unsupported = 0;
+        for (branch_index = 0u; branch_index < 16u; ++branch_index) {
+            const uint32_t branch_bits =
+                ((branch_index & 1u) != 0u ? (UINT32_C(1) << 5u) : 0u) |
+                ((branch_index & 2u) != 0u ? (UINT32_C(1) << 6u) : 0u) |
+                ((branch_index & 4u) != 0u ? (UINT32_C(1) << 21u) : 0u) |
+                ((branch_index & 8u) != 0u ? (UINT32_C(1) << 23u) : 0u);
+            test_initial_state_flags =
+                (UINT32_C(1) << 0u) | (UINT32_C(1) << 1u) |
+                (UINT32_C(1) << 2u) | (UINT32_C(1) << 3u) | branch_bits;
+            run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
+        }
+        test_expect_unsupported = 1;
+        test_initial_state_flags =
+            (UINT32_C(1) << 0u) | (UINT32_C(1) << 1u) |
+            (UINT32_C(1) << 2u) | (UINT32_C(1) << 3u) |
+            (UINT32_C(1) << 4u);
+        run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
+        free(main_rom);
+        free(main_data);
+        return;
+    }
+
     test_snapshot_path = NULL;
     test_initial_state_flags = 0u;
     test_corridor_only = 0;
@@ -541,15 +570,16 @@ static void run_rom_differential(const char *rom_directory)
                 }
             }
         }
-        test_expect_unsupported = 1;
+        test_expect_unsupported = 0;
         test_initial_state_flags =
             (UINT32_C(1) << 0u) | (UINT32_C(1) << 1u) |
             (UINT32_C(1) << 2u) | (UINT32_C(1) << 3u);
         run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
+        test_expect_unsupported = 1;
         test_initial_state_flags =
             (UINT32_C(1) << 0u) | (UINT32_C(1) << 1u) |
             (UINT32_C(1) << 2u) | (UINT32_C(1) << 3u) |
-            (UINT32_C(1) << 21u);
+            (UINT32_C(1) << 4u);
         run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
         test_expect_unsupported = 0;
     }
@@ -567,7 +597,8 @@ int main(int argc, char **argv)
 {
     test_unit_invalid_arguments();
 
-    if (argc != 2) {
+    if (argc != 2 &&
+        !(argc == 3 && strcmp(argv[2], "--quadruple") == 0)) {
         if (failures != 0) {
             fprintf(
                 stderr, "%d player-4505-live unit test(s) failed\n", failures);
@@ -576,6 +607,8 @@ int main(int argc, char **argv)
         puts("player-4505-live ROM-independent tests passed");
         return EXIT_SUCCESS;
     }
+
+    test_quadruple_only = argc == 3;
 
     run_rom_differential(argv[1]);
 

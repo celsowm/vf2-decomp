@@ -893,6 +893,14 @@ CPU/condition/procedure/Model 2A state at `0x1463c`. Values outside this
 bounded sweep and other fighter fields remain fail-closed. See
 `decomp/i960/notes/fa_player_1442c_state25_successor_sweep_v0564.md`.
 
+Status (v0566): the live `0x19ef8` corridor now admits the measured
+non-branch state mask `fighter+0x1a4 = 0x0000000f` (bits 0,1,2,3) across all
+16 subsets of branch bits 5,6,21,23. Every case matches full live state and
+four calls/returns; the corridor counts range from 1622 to 1650 according to
+the measured branch corrections. Other quadruple masks and five-or-more
+non-branch bits remain explicit fail-closed boundaries. See
+`decomp/i960/notes/fa_player_19ef8_quadruple_0f_v0566.md`.
+
 Status (v0551): the measured positive state-8 `fa_game_info` composition
 `0x0000000e` (bits 1+2+3) is now native through threshold `8`. Its complete
 three-distribution/countdown/mode/threshold matrix is `108/108` exact, with a

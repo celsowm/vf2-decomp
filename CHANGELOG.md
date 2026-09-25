@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Extend the measured `fa_player` `0x19ef8` corridor to non-branch mask
+  `0x0000000f` (v0566). All 16 compositions with branch bits 5/6/21/23
+  match full live state and exact 4-call/4-return accounting; other
+  quadruple masks and five-or-more non-branch bits remain fail-closed. See
+  `decomp/i960/notes/fa_player_19ef8_quadruple_0f_v0566.md`.
+
 - Recover the measured `fa_coli` whole-task both-bit-8/scan-5 sibling
   (v0565). The new parked witness reaches `0x10dcc` at `9526/18/19` with
   complete live-state equality; the fixture now covers four whole-task
