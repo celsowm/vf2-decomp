@@ -1788,6 +1788,15 @@ CPU/condition/procedure/Model 2A state in normal and sanitizer builds. Selector
 0 remains fail-closed; values above 1024 and other compositions are
 unmeasured. See `decomp/i960/notes/fa_coli_225cc_type22_sweep_v0535.md`.
 
+Status (v0536): the same corridor additionally admits 35 individually measured
+returned selectors in the mixed high interval `1345..1408`. Each reaches
+`0x10dcc` and matches the reference with exact CPU/condition/procedure/Model 2A
+state. The four returned selectors `1361`, `1378`, `1395` and `1405` still
+encounter unsupported record-chain shapes in the C walker, while the other
+interleaved high selectors do not return from the oracle walker; none are
+silently admitted. See
+`decomp/i960/notes/fa_coli_225cc_type22_high_returns_v0536.md`.
+
 Status (v0318): long-body `g7+0x1a4` bits 4+12 scale sibling is
 native (263 on the v0288 drive). `g8+0x1a4` bit 13 early-join is
 native when `+0x5b8` bit 0 is set (251). Bit 4 without bit 12 (251)

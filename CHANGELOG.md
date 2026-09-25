@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Extend the `fa_coli` type-22 live selector evidence with 35 individually
+  returned cases in the mixed high interval `g8+0x19c == 1345..1408`
+  (v0536). Each case reaches `0x10dcc` and matches the existing C recovery
+  with exact CPU/condition/procedure/Model 2A state; interleaved walker
+  faults/loops remain outside the admitted set. See
+  `decomp/i960/notes/fa_coli_225cc_type22_high_returns_v0536.md`.
+
 - Extend the measured `fa_coli` type-22 selector sweep through
   `g8+0x19c == 1..1024` (v0535). All 1,024 live selectors reach `0x10dcc` and
   match the reference with exact CPU/condition/procedure/Model 2A state in

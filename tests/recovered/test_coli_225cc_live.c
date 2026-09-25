@@ -1103,6 +1103,35 @@ static void run_rom_differential(const char *rom_directory)
             index
         );
     }
+    /* Higher selectors are not a contiguous admitted interval: the oracle
+     * reaches the parent only for the following measured records, while the
+     * interleaved selectors stay in the original walker frontier.  Pin the
+     * returned cases without turning that mixed region into a guessed range. */
+    {
+        static const uint16_t returned_indices[] = {
+            UINT16_C(1345), UINT16_C(1346), UINT16_C(1347), UINT16_C(1348),
+            UINT16_C(1349), UINT16_C(1350), UINT16_C(1351), UINT16_C(1352),
+            UINT16_C(1353), UINT16_C(1354), UINT16_C(1355), UINT16_C(1356),
+            UINT16_C(1357), UINT16_C(1358), UINT16_C(1359),
+            UINT16_C(1363), UINT16_C(1364), UINT16_C(1366), UINT16_C(1367),
+            UINT16_C(1368), UINT16_C(1369), UINT16_C(1373),
+            UINT16_C(1380), UINT16_C(1381), UINT16_C(1383), UINT16_C(1384),
+            UINT16_C(1385), UINT16_C(1386), UINT16_C(1391), UINT16_C(1392),
+            UINT16_C(1397), UINT16_C(1398), UINT16_C(1404), UINT16_C(1407),
+            UINT16_C(1408)
+        };
+        size_t returned_index = 0u;
+
+        for (returned_index = 0u;
+             returned_index < sizeof(returned_indices) /
+                 sizeof(returned_indices[0]);
+             ++returned_index) {
+            run_type22_miss_snapshot_case(
+                main_rom, main_rom_size, main_data, main_data_size,
+                returned_indices[returned_index]
+            );
+        }
+    }
 
     free(main_rom);
     free(main_data);
