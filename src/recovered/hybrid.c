@@ -6416,7 +6416,8 @@ static vf2_status hybrid_execute_player_1453c(
 
 /* Measured state-25 arm of the fa_rob fighter-exchange body (v0395/v0433),
  * reached at 0x144b0 when fighter0's +0x197 == 25.  On the measured live
- * shape (fighter0 +0x197 == 25, fighter1 +0x197 == 0, +0x194(f0) == 0):
+ * shapes (fighter0 +0x197 == 25, fighter1 +0x197 == 0 or 25,
+ * +0x194(f0) == 0):
  * 1) the 0x19ef8 g0 == 0 zero-path runs (via the 0x144b4 call),
  * 2) the collision/state-exchange body sets +0x1aa/0x61e/0x626/0x822 and
  *    computes +0x654/0x62a on fighter1,
@@ -6508,11 +6509,14 @@ static vf2_status hybrid_execute_player_144b0_with_states(
     r4 = (int32_t)((uint32_t)h808_f1 - (uint32_t)h858_f0);
     r13 = (uint32_t)h1aa_f1;
     r3 = (uint32_t)(r4 - 1);
-    if (g0 != 0u || b197_f0 != 25u || b197_f1 == 25u ||
+    if (g0 != 0u || b197_f0 != 25u ||
+        (b197_f1 == 25u && r13 >= r3) ||
         (b197_f1 == 27u && r13 >= r3)) {
         /* Not a measured state-25 shape (nonzero +0x194 or other fighter
-         * states).  The cmpobl-equal point (r13 == r3) is now admitted
-         * (v0401) on the same 0x14510 path with an EQUAL postcondition. */
+         * states).  State 25 on fighter1 is admitted only for the measured
+         * r13 < r3 neutral tail; the equal/greater cases stay fail-closed.
+         * The cmpobl-equal point for the ordinary neutral state (r13 == r3)
+         * remains admitted (v0401) on the 0x14510 path. */
         return VF2_ERROR_UNSUPPORTED;
     }
 
@@ -6646,11 +6650,12 @@ static vf2_status hybrid_execute_player_144b0_with_states(
         /* 0x14528/0x1452c/0x14548/0x14560 branch chain (measured: fighter1
          * state not 27/16) ends at 0x14628.  Last compare `0x14560 cmpobne
          * 16, r8` is GREATER for the neutral state and LESS for the measured
-         * state-24 successor. */
+         * state-24/state-25 successors. */
         hybrid_set_compare_result(
             cpu,
-            b197_f1 == 24u ? VF2_I960_COMPARE_LESS
-                           : VF2_I960_COMPARE_GREATER);
+            (b197_f1 == 24u || b197_f1 == 25u)
+                ? VF2_I960_COMPARE_LESS
+                : VF2_I960_COMPARE_GREATER);
         cpu->executed_instructions += UINT64_C(35);
     }
     cpu->ip = UINT32_C(0x0001463c);
@@ -7121,8 +7126,7 @@ static vf2_status hybrid_execute_player_1442c(
          * (v0395) when f0 +0x197 == 25.  Guard mirrors the 0x14450/0x14458/
          * 0x14464/0x14468 compares that escape elsewhere; the arm itself
          * re-validates the +0x194/+0x197/0x1aa shape fail-closed. */
-        if (b19b_f0 == 16u || b19b_f1 == 16u ||
-            b197_f1 == 25u || b197_f1 == 27u) {
+        if (b19b_f0 == 16u || b19b_f1 == 16u || b197_f1 == 27u) {
             return VF2_ERROR_UNSUPPORTED;
         }
         if (b197_f1 == 24u) {

@@ -862,6 +862,14 @@ equality. Other selector values, entry shapes and unmeasured stream siblings
 remain fail-closed. See
 `decomp/i960/notes/fa_player_19ef8_selector284_v0560.md`.
 
+Status (v0561): the measured `fa_rob` `0x1442c` state-25/state-25 successor
+now reaches the existing `0x144b0` neutral tail. With the measured
+`+0x194/+0x1aa/+0x858/+0x808` shape, the integrated witness matches 98
+instructions, 3 calls/returns, the `0x1463c` boundary and full live-state
+equality; the final `0x14560` compare is LESS for state 25. Equal/greater
+`r13` shapes and other unmeasured state compositions remain fail-closed. See
+`decomp/i960/notes/fa_player_1442c_state25_state25_v0561.md`.
+
 Status (v0551): the measured positive state-8 `fa_game_info` composition
 `0x0000000e` (bits 1+2+3) is now native through threshold `8`. Its complete
 three-distribution/countdown/mode/threshold matrix is `108/108` exact, with a

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Recover the measured `fa_rob` `0x1442c` state-25/state-25 successor (v0561).
+  The integrated witness now reaches the existing `0x144b0` neutral tail in
+  98 instructions with 3 calls/returns and exact live-state equality. The
+  final compare is LESS for state 25; equal/greater `r13` shapes remain
+  fail-closed. See
+  `decomp/i960/notes/fa_player_1442c_state25_state25_v0561.md`.
+
 - Recover the measured `fa_player` `0x19ef8` selector-`0x284` sibling (v0560).
   The depth-zero `0x00510980` park now matches the selector's opcode-1 plus
   terminator-0 setup stream, 33/24/3 expansion census, exact long-arm byte
