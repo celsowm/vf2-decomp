@@ -2741,8 +2741,9 @@ exact, using the measured mixed-low `+3`/`-2` dispatcher correction.
 Threshold 4 and above remain fail-closed. See
 `decomp/i960/notes/game_info_18644_positive_mask36_threshold3_v0633.md`.
 
-The no-bit-8 positive compositions `0x00000022` (bits 1+5) and `0x00000024`
-(bits 2+5) are now native for their measured threshold-3 slices. Each has
+The no-bit-8 positive compositions `0x00000022` (bits 1+5), `0x00000024`
+(bits 2+5) and `0x00000026` (bits 1+2+5) are now native for their measured
+threshold-3 slices. Each has
 three record distributions, both countdown values and both mode-bit-6 values
 at `12/12 exact` with the
 uniform two-instruction dispatcher correction. Threshold 4 and above remain
