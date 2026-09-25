@@ -16520,14 +16520,15 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             combined_state8_flags == UINT32_C(0x0000001c) ||
              combined_state8_flags == UINT32_C(0x00000034) ||
             combined_state8_flags == UINT32_C(0x00000094);
-        const bool v0633_mask36 =
-            combined_state8_flags == UINT32_C(0x00000036);
+        const bool v0633_mask36_family =
+            combined_state8_flags == UINT32_C(0x00000036) ||
+            combined_state8_flags == UINT32_C(0x0000003e);
         const bool v0517_threshold_ok =
             /* v0518-v0526 extend the measured masks through threshold 8;
              * v0581-v0591 extend the listed masks through threshold 9.
              * v0633 is intentionally limited to the measured threshold-3
-             * slice of mask 0x36. */
-            v0633_mask36
+             * slices of masks 0x36 and 0x3e. */
+            v0633_mask36_family
                 ? shared_fighter_threshold <= UINT32_C(3)
                 : ((combined_state8_flags == UINT32_C(0x0000000e) ||
                     combined_state8_flags == UINT32_C(0x0000001a) ||
@@ -16550,7 +16551,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
          * out-of-range thresholds fail-closed instead of accepting a native
          * child with the wrong dispatcher accounting. */
         if (state8_pair &&
-            ((v0517_low_mask || v0633_mask36) &&
+            ((v0517_low_mask || v0633_mask36_family) &&
              (!measured_matrix_distribution || !v0517_threshold_ok))) {
             return VF2_ERROR_UNSUPPORTED;
         }
@@ -16895,7 +16896,8 @@ static vf2_status hybrid_execute_game_info_bit31_native(
              combined_state8_flags == UINT32_C(0x0000001c) ||
              combined_state8_flags == UINT32_C(0x00000034) ||
              combined_state8_flags == UINT32_C(0x00000094) ||
-             combined_state8_flags == UINT32_C(0x00000036)) &&
+             combined_state8_flags == UINT32_C(0x00000036) ||
+             combined_state8_flags == UINT32_C(0x0000003e)) &&
             (((combined_state8_flags == UINT32_C(0x0000000e) ||
                combined_state8_flags == UINT32_C(0x00000018) ||
                combined_state8_flags == UINT32_C(0x0000001e) ||
@@ -16908,6 +16910,8 @@ static vf2_status hybrid_execute_game_info_bit31_native(
                combined_state8_flags == UINT32_C(0x00000094)) &&
               shared_fighter_threshold <= UINT32_C(9)) ||
              (combined_state8_flags == UINT32_C(0x00000036) &&
+              shared_fighter_threshold <= UINT32_C(3)) ||
+             (combined_state8_flags == UINT32_C(0x0000003e) &&
               shared_fighter_threshold <= UINT32_C(3)) ||
              (combined_state8_flags != UINT32_C(0x0000000e) &&
               combined_state8_flags != UINT32_C(0x00000018) &&
