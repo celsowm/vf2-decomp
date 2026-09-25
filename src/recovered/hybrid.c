@@ -16825,7 +16825,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             fighter0_state == 8u && fighter1_state == 8u &&
             measured_matrix_distribution &&
             combined_state8_flags == UINT32_C(0x00000102) &&
-            shared_fighter_threshold <= UINT32_C(2);
+            shared_fighter_threshold <= UINT32_C(3);
         native_state8_bit2_bit8_positive_path =
             fighter0_state == 8u && fighter1_state == 8u &&
             measured_matrix_distribution &&
@@ -20781,9 +20781,10 @@ static vf2_status hybrid_execute_game_info_bit31_native(
         }
     }
     if (native_state8_bit1_bit8_positive_path) {
-        /* v0510: positive state-8 bits 1+8 retain the isolated-bit-8
+        /* v0510-v0599: positive state-8 bits 1+8 retain the isolated-bit-8
          * unilateral joins. Bilateral records are two instructions long at
-         * zero countdown and three short at nonzero countdown. */
+         * zero countdown and three short at nonzero countdown; the full rule
+         * is now proven through threshold 3. */
         const uint32_t bit1_bit8 = UINT32_C(0x00000102);
         const bool fighter0_only =
             fighter0_state_flags == bit1_bit8 && fighter1_state_flags == 0u;
