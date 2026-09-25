@@ -418,7 +418,9 @@ static void run_rom_differential(const char *rom_directory)
         }
         test_expect_unsupported = 1;
         test_initial_state_flags = test_quadruple_mask |
-            (UINT32_C(1) << 8u);
+            ((test_quadruple_mask & (UINT32_C(1) << 8u)) != 0u
+                 ? (UINT32_C(1) << 10u)
+                 : (UINT32_C(1) << 8u));
         run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
         free(main_rom);
         free(main_data);
@@ -625,6 +627,9 @@ int main(int argc, char **argv)
     } else if (argc == 3 && strcmp(argv[2], "--six-low") == 0) {
         test_quadruple_only = 1;
         test_quadruple_mask = UINT32_C(0x0000009f);
+    } else if (argc == 3 && strcmp(argv[2], "--seven-low") == 0) {
+        test_quadruple_only = 1;
+        test_quadruple_mask = UINT32_C(0x0000019f);
     } else if (argc == 3) {
         return EXIT_SUCCESS;
     }
