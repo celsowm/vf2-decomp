@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Recover the measured positive state-8 mask `0x0c` through threshold `8`
+  (v0527). Its complete 108-case dispatcher matrix now matches the reference
+  exactly with the measured `+2` zero-countdown correction; threshold `9+`,
+  other distributions and unmeasured compositions remain fail-closed. See
+  `decomp/i960/notes/game_info_18644_positive_mask0c_v0527.md`.
+
 - Recover the measured positive state-8 mask `0x0a` through threshold `8`
   (v0526). Its complete 108-case dispatcher matrix now matches the reference
   exactly with the measured `+2` instruction correction; threshold `9+`,

@@ -16346,6 +16346,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             combined_state8_flags == UINT32_C(0x0000001e) ||
             combined_state8_flags == UINT32_C(0x00000016) ||
             combined_state8_flags == UINT32_C(0x0000000a) ||
+            combined_state8_flags == UINT32_C(0x0000000c) ||
             combined_state8_flags == UINT32_C(0x0000001c) ||
             combined_state8_flags == UINT32_C(0x00000034) ||
             combined_state8_flags == UINT32_C(0x00000094);
@@ -16357,6 +16358,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
              combined_state8_flags == UINT32_C(0x0000001e) ||
              combined_state8_flags == UINT32_C(0x00000016) ||
              combined_state8_flags == UINT32_C(0x0000000a) ||
+             combined_state8_flags == UINT32_C(0x0000000c) ||
              combined_state8_flags == UINT32_C(0x0000001c) ||
              combined_state8_flags == UINT32_C(0x00000034) ||
              combined_state8_flags == UINT32_C(0x00000094))
@@ -16696,6 +16698,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
              combined_state8_flags == UINT32_C(0x0000001e) ||
              combined_state8_flags == UINT32_C(0x00000016) ||
              combined_state8_flags == UINT32_C(0x0000000a) ||
+             combined_state8_flags == UINT32_C(0x0000000c) ||
              combined_state8_flags == UINT32_C(0x00000014) ||
              combined_state8_flags == UINT32_C(0x0000001c) ||
              combined_state8_flags == UINT32_C(0x00000034) ||
@@ -20840,9 +20843,11 @@ static vf2_status hybrid_execute_game_info_bit31_native(
          * admission above. */
         if (!countdown_was_nonzero) {
             if ((fighter0_state_flags | fighter1_state_flags) ==
-                    UINT32_C(0x0000000a)) {
-                /* v0526: mask 0x0a takes the measured sibling with a
-                 * two-instruction native deficit correction at zero. */
+                    UINT32_C(0x0000000a) ||
+                (fighter0_state_flags | fighter1_state_flags) ==
+                    UINT32_C(0x0000000c)) {
+                /* v0526-v0527: masks 0x0a/0x0c take the measured siblings
+                 * with a two-instruction native deficit correction at zero. */
                 native_instructions += UINT64_C(2);
             } else {
                 if (native_instructions < UINT64_C(3)) {
