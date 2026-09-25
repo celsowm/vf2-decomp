@@ -18,7 +18,7 @@ Larger unmeasured combinations remain fail-closed. Evidence is recorded in
 `decomp/i960/notes/fa_player_19ef8_mask_100059f_v0579.md` plus
 `decomp/i960/notes/fa_player_19ef8_high_masks_v0580.md`.
 
-## Latest measured game-info extension (v0581/v0582/v0583/v0584/v0585)
+## Latest measured game-info extension (v0581/v0582/v0583/v0584/v0585/v0586)
 
 The positive state-8 `fa_game_info` compositions `0x0000000e` (bits 1+2+3),
 `0x0000001a` (bits 1+3+4), `0x00000018` (bits 3+4) and `0x0000001e`
@@ -36,7 +36,8 @@ See
 `decomp/i960/notes/game_info_18644_positive_mask1a_threshold9_v0582.md` plus
 `decomp/i960/notes/game_info_18644_positive_mask18_threshold9_v0583.md` and
 `decomp/i960/notes/game_info_18644_positive_mask1e_threshold9_v0584.md` plus
-`decomp/i960/notes/game_info_18644_positive_mask0a_threshold9_v0585.md`.
+`decomp/i960/notes/game_info_18644_positive_mask0a_threshold9_v0585.md` and
+`decomp/i960/notes/game_info_18644_positive_mask0c_threshold9_v0586.md`.
 
 The v0168 boundary audit removed the two remaining single-instruction oracle
 handoffs in `native-second-dispatch`: the `ret` stubs at `0x0004bab4` and
