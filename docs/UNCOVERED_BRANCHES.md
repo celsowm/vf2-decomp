@@ -6,7 +6,7 @@ runs through the eleventh-dispatch validation corridor, but it remains one evide
 sequence rather than a complete game implementation. Unsupported paths return
 `VF2_ERROR_UNSUPPORTED` instead of falling back to i960 interpretation.
 
-## Latest measured player extension (v0579/v0639/v0640)
+## Latest measured player extension (v0579/v0641)
 
 The live `fa_player` `0x19ef8` corridor now admits the measured
 `+0x1a4` masks `0x0040059f`, `0x0100059f`, `0x0200059f`, `0x0400059f`,
@@ -18,16 +18,12 @@ Larger unmeasured combinations remain fail-closed. Evidence is recorded in
 `decomp/i960/notes/fa_player_19ef8_mask_100059f_v0579.md` plus
 `decomp/i960/notes/fa_player_19ef8_high_masks_v0580.md`.
 
-The same live corridor now also admits `fighter+0x1a4 = 0x00020059f`
-(the existing low mask plus bit 17) across all 16 branch-bit combinations,
-with full live-state equality and four calls/returns. The adjacent bit-16
-control remains fail-closed. See
-`decomp/i960/notes/fa_player_19ef8_mask_20059f_v0639.md`.
-
-The measured two-bit high extension `0x00060059f` (bits 17+18 over the same
-base) is also native across all 16 branch-bit combinations with full equality;
-other unmeasured high-bit combinations remain fail-closed. See
-`decomp/i960/notes/fa_player_19ef8_mask_60059f_v0640.md`.
+The actual bit-17 extension is `fighter+0x1a4 = 0x0002059f` (bit 17 is
+`0x00020000`), not the already-covered branch-bit-21 value `0x0020059f`.
+The corrected mask is native across all 16 branch-bit combinations with full
+live-state equality and four calls/returns; other high-bit combinations remain
+fail-closed. See
+`decomp/i960/notes/fa_player_19ef8_mask_2059f_v0641.md`.
 
 ## Latest measured game-info extension (v0581/v0582/v0583/v0584/v0585/v0586/v0587/v0588/v0589/v0590/v0591/v0611/v0617/v0618/v0619/v0620/v0621/v0622/v0623/v0624/v0625/v0626/v0627/v0628/v0629/v0630/v0631/v0632/v0633/v0634/v0635/v0636/v0637/v0638)
 
