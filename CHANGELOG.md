@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Extend the measured `fa_rob` `0x1453c/0x14570` type-5 miss recovery through
+  selector `+0x194 == 1..1024` (v0528). The additional `513..1024` sweep
+  reaches `0x1463c` through the existing zero-record tail and matches the
+  reference with exact instruction counts and full live-state equality; larger
+  selectors and unmeasured state/scaling compositions remain fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_type5_miss_v0528.md`.
+
 - Recover the measured positive state-8 mask `0x0c` through threshold `8`
   (v0527). Its complete 108-case dispatcher matrix now matches the reference
   exactly with the measured `+2` zero-countdown correction; threshold `9+`,
