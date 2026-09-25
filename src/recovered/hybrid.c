@@ -16840,7 +16840,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             fighter0_state == 8u && fighter1_state == 8u &&
             measured_matrix_distribution &&
             combined_state8_flags == UINT32_C(0x00000114) &&
-            shared_fighter_threshold <= UINT32_C(2);
+            shared_fighter_threshold <= UINT32_C(3);
         native_state8_bit8_low_family_positive_path =
             fighter0_state == 8u && fighter1_state == 8u &&
             measured_matrix_distribution &&
@@ -20911,11 +20911,12 @@ static vf2_status hybrid_execute_game_info_bit31_native(
         }
     }
     if (native_state8_bit2_bit4_bit8_positive_path) {
-        /* v0512: positive state-8 bits 2+4+8 have a measured
+        /* v0512-v0602: positive state-8 bits 2+4+8 have a measured
          * distribution-independent dispatcher join. Unilateral records are
          * three instructions short at zero countdown and two long at
          * nonzero countdown; the bilateral join is two short at zero
-         * countdown and three long at nonzero countdown. */
+         * countdown and three long at nonzero countdown. The rule is now
+         * proven through threshold 3. */
         const uint32_t bit2_bit4_bit8 = UINT32_C(0x00000114);
         const bool unilateral =
             (fighter0_state_flags == bit2_bit4_bit8 &&
