@@ -48,6 +48,7 @@ int main(void)
     vf2_model2a machine;
     observer_state observed;
     uint32_t value = 0u;
+    uint32_t enable = 0u;
     uint8_t byte = UINT8_C(0x5a);
     size_t before = 0u;
 
@@ -100,6 +101,69 @@ int main(void)
         &machine, VF2_WORK_RAM_BASE + UINT32_C(0x24), UINT32_C(0xaabbccdd)
     ) == VF2_OK);
     EXPECT_TRUE(observed.count == before);
+
+    /* Model 2 timers are one-shot 25 MHz down-counters, not ordinary RAM. */
+    EXPECT_TRUE(vf2_model2a_read_u32(
+        &machine, VF2_TIMER_BASE, &value
+    ) == VF2_OK);
+    EXPECT_TRUE(value == VF2_MODEL2A_TIMER_RELOAD);
+    EXPECT_TRUE(vf2_model2a_write_u32(
+        &machine, VF2_TIMER_BASE, UINT32_C(10)
+    ) == VF2_OK);
+    EXPECT_TRUE(vf2_model2a_set_interrupt_enable(
+        &machine, UINT32_C(1) << 2u
+    ) == VF2_OK);
+    EXPECT_TRUE(vf2_model2a_advance_cycles(&machine, 4u) == VF2_OK);
+    EXPECT_TRUE(vf2_model2a_read_u32(
+        &machine, VF2_TIMER_BASE, &value
+    ) == VF2_OK);
+    EXPECT_TRUE(value == UINT32_C(6));
+    EXPECT_TRUE(vf2_model2a_advance_cycles(&machine, 6u) == VF2_OK);
+    EXPECT_TRUE(value == UINT32_C(6));
+    EXPECT_TRUE(vf2_model2a_read_u32(
+        &machine, VF2_TIMER_BASE, &value
+    ) == VF2_OK);
+    EXPECT_TRUE(value == VF2_MODEL2A_TIMER_RELOAD);
+    EXPECT_TRUE(vf2_model2a_get_interrupt_state(
+        &machine, &value, &enable
+    ) == VF2_OK);
+    EXPECT_TRUE((value & (UINT32_C(1) << 2u)) != 0u);
+    EXPECT_TRUE(vf2_model2a_write_u32(
+        &machine, VF2_INTERRUPT_CONTROL_BASE, UINT32_C(1) << 2u
+    ) == VF2_OK);
+
+    /* Video status follows the MAME Model 2A frame-phase convention. */
+    EXPECT_TRUE(vf2_model2a_write_u32(
+        &machine, VF2_VIDEO_CONTROL_BASE + VF2_MODEL2A_VIDEO_STATUS_OFFSET,
+        UINT32_C(3)
+    ) == VF2_OK);
+    EXPECT_TRUE(vf2_model2a_advance_frame(&machine) == VF2_OK);
+    EXPECT_TRUE(vf2_model2a_advance_frame(&machine) == VF2_OK);
+    EXPECT_TRUE(vf2_model2a_write_u32(
+        &machine, VF2_COPRO_CONTROL_BASE, UINT32_C(4)
+    ) == VF2_OK);
+    EXPECT_TRUE(vf2_model2a_advance_frame(&machine) == VF2_OK);
+    EXPECT_TRUE(vf2_model2a_read_u32(
+        &machine, VF2_VIDEO_CONTROL_BASE + VF2_MODEL2A_VIDEO_STATUS_OFFSET,
+        &value
+    ) == VF2_OK);
+    EXPECT_TRUE(value == UINT32_C(7));
+
+    /* Upload mode accepts and accounts for TGP program words while the
+     * measured guest read boundary remains the hardware's all-ones value. */
+    EXPECT_TRUE(vf2_model2a_write_u32(
+        &machine, VF2_VIDEO_CONTROL_BASE +
+            VF2_MODEL2A_VIDEO_GEOMETRY_CONTROL_OFFSET,
+        UINT32_C(0x80000000)
+    ) == VF2_OK);
+    EXPECT_TRUE(vf2_model2a_write_u32(
+        &machine, VF2_GEOMETRY_BASE + UINT32_C(0x4000),
+        UINT32_C(0x12345678)
+    ) == VF2_OK);
+    EXPECT_TRUE(vf2_model2a_read_u32(
+        &machine, VF2_GEOMETRY_BASE + UINT32_C(0x4000), &value
+    ) == VF2_OK);
+    EXPECT_TRUE(value == UINT32_C(0xffffffff));
 
     vf2_model2a_shutdown(&machine);
     return failures == 0 ? 0 : 1;

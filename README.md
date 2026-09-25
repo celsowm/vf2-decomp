@@ -30,7 +30,12 @@ the measured combinations; neighboring or unverified branches still return
 The project is still a clean-room recovery and validation effort, not a
 complete playable port. Character/arena selection, the complete match state
 machine, fighter physics and combat, ring-out behavior, CPU decision logic,
-and substantial geometry, audio and hardware behavior remain open.
+and substantial geometry, audio and hardware behavior remain open. The
+Model 2A boundary includes the measured common bus behavior for one-shot
+25 MHz timers/IRQ requests, video frame status, render-mode control, TGP
+program-upload accounting. Full TGP firmware execution,
+polygon rasterization, tile/video timing and SCSP FM/DSP behavior remain
+explicitly outside that bounded model.
 
 ### Progress toward a playable Virtua Fighter 2 port
 
@@ -213,7 +218,8 @@ This project is not currently claiming:
 
 - complete decompilation of Virtua Fighter 2;
 - a production-ready or fully playable replacement executable;
-- complete Sega Model 2/TGP emulation;
+- complete Sega Model 2/TGP emulation (the current model is a bounded common
+  Model 2A bus/device boundary);
 - full SCSP FM/DSP audio behavior; or
 - coverage of every gameplay state and branch.
 

@@ -79,7 +79,16 @@ enum {
     VF2_TEXTURE_RAM_MIRROR = 0x00200000u,
     VF2_LUMA_RAM_BASE = 0x12800000u,
     VF2_LUMA_RAM_SIZE = 0x00020000u,
-    VF2_SYSTEM_CONTROL_SIZE = 0x00000100u
+    VF2_SYSTEM_CONTROL_SIZE = 0x00000100u,
+    VF2_MODEL2A_TIMER_CLOCK_HZ = 25000000u,
+    VF2_MODEL2A_TIMER_RELOAD = 0x000fffffu,
+    VF2_MODEL2A_VIDEO_FIFO_STATUS_OFFSET = 0x0004u,
+    VF2_MODEL2A_VIDEO_GEOMETRY_CONTROL_OFFSET = 0x0008u,
+    VF2_MODEL2A_VIDEO_STATUS_OFFSET = 0x000cu,
+    /* This is sideband state in the allocated register window.  It is not a
+     * claimed physical register; keeping it in the captured window makes
+     * snapshots deterministic without adding an unversioned sidecar. */
+    VF2_MODEL2A_FRAME_COUNTER_OFFSET = 0x0100u
 };
 
 #define VF2_SYSTEM_CONTROL_BASE UINT32_C(0xff000000)
@@ -205,6 +214,21 @@ vf2_status vf2_model2a_write_u32(
     vf2_model2a *machine,
     uint32_t address,
     uint32_t value
+);
+
+/* Advance the board's deterministic 25 MHz timer domain.  Model 2 timers
+ * are one-shot down-counters; expiry raises request bit 2+n for timer n. */
+vf2_status vf2_model2a_advance_cycles(
+    vf2_model2a *machine,
+    uint64_t cycles
+);
+
+/* Advance the video frame latch used by the Model 2 video-status register. */
+vf2_status vf2_model2a_advance_frame(vf2_model2a *machine);
+
+vf2_status vf2_model2a_get_frame_number(
+    const vf2_model2a *machine,
+    uint32_t *frame_number
 );
 
 /* Model 2 interrupt controller helpers. */

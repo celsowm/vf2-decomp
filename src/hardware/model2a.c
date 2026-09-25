@@ -26,6 +26,71 @@ static void write_le32(uint8_t *data, uint32_t value)
     data[3] = (uint8_t)(value >> 24u);
 }
 
+static uint32_t model2a_timer_value(
+    const vf2_model2a *machine,
+    size_t timer
+)
+{
+    return read_le32(machine->timers + timer * sizeof(uint32_t));
+}
+
+static void model2a_set_timer_value(
+    vf2_model2a *machine,
+    size_t timer,
+    uint32_t value
+)
+{
+    write_le32(machine->timers + timer * sizeof(uint32_t), value);
+}
+
+static int model2a_timer_running(
+    const vf2_model2a *machine,
+    size_t timer
+)
+{
+    return machine->video_control[UINT32_C(0x20) + timer] != 0u;
+}
+
+static void model2a_set_timer_running(
+    vf2_model2a *machine,
+    size_t timer,
+    int running
+)
+{
+    machine->video_control[UINT32_C(0x20) + timer] =
+        running != 0 ? UINT8_C(1) : UINT8_C(0);
+}
+
+static uint32_t model2a_frame_number(const vf2_model2a *machine)
+{
+    return read_le32(
+        machine->video_control + VF2_MODEL2A_FRAME_COUNTER_OFFSET
+    );
+}
+
+static void model2a_set_frame_number(
+    vf2_model2a *machine,
+    uint32_t frame_number
+)
+{
+    write_le32(
+        machine->video_control + VF2_MODEL2A_FRAME_COUNTER_OFFSET,
+        frame_number
+    );
+}
+
+static uint32_t model2a_video_status(const vf2_model2a *machine)
+{
+    const uint32_t frame = model2a_frame_number(machine);
+    const uint32_t render_mode = read_le32(machine->copro_control);
+    const uint32_t phase = (render_mode & UINT32_C(4)) != 0u
+        ? (frame & UINT32_C(1)) << 2u
+        : (frame & UINT32_C(2)) << 1u;
+    return phase | (read_le32(
+        machine->video_control + VF2_MODEL2A_VIDEO_STATUS_OFFSET
+    ) & UINT32_C(3));
+}
+
 static vf2_status model2a_push_geometry_word(
     vf2_model2a *machine,
     uint32_t value
@@ -35,6 +100,7 @@ static vf2_status model2a_push_geometry_word(
     size_t byte_offset = 0u;
 
     if (machine == NULL || machine->buffer_ram == NULL ||
+        machine->geometry == NULL ||
         machine->buffer_ram_size < sizeof(uint32_t)) {
         return VF2_ERROR_OUT_OF_BOUNDS;
     }
@@ -44,6 +110,12 @@ static vf2_status model2a_push_geometry_word(
         return VF2_ERROR_OUT_OF_BOUNDS;
     }
     if ((machine->geometry_control & UINT32_C(0x80000000)) != 0u) {
+        const size_t program_offset =
+            (size_t)machine->geometry_program_count * sizeof(uint32_t);
+        if (program_offset > UINT32_C(0x4000) - sizeof(uint32_t)) {
+            return VF2_ERROR_OUT_OF_BOUNDS;
+        }
+        write_le32(machine->geometry + UINT32_C(0x4000) + program_offset, value);
         ++machine->geometry_program_count;
     } else {
         write_le32(machine->buffer_ram + byte_offset, value);
@@ -435,6 +507,7 @@ int vf2_model2a_initialize(vf2_model2a *machine)
     machine->geometry_read_start = 0u;
     machine->geometry_control = 0u;
     machine->geometry_program_count = 0u;
+    model2a_set_frame_number(machine, 0u);
     return 1;
 }
 
@@ -548,14 +621,26 @@ vf2_status vf2_model2a_read(
     if (machine == NULL || destination == NULL) {
         return VF2_ERROR_INVALID_ARGUMENT;
     }
-    if (range_contains(
-            VF2_GEOMETRY_BASE + UINT32_C(0x4000),
-            UINT32_C(0x4000), address, size)) {
+    /* The current VF2 boundary intentionally exposes the program upload
+     * window as an unreadable hardware register.  Keep this measured
+     * behavior while retaining uploaded words internally for a future TGP
+     * callback; an unverified read must not become ordinary RAM. */
+    if (range_contains(VF2_GEOMETRY_BASE + UINT32_C(0x4000),
+                       UINT32_C(0x4000), address, size)) {
         if (size != sizeof(uint32_t) ||
             (address & (sizeof(uint32_t) - 1u)) != 0u) {
             return VF2_ERROR_UNSUPPORTED;
         }
         write_le32((uint8_t *)destination, UINT32_C(0xffffffff));
+        return VF2_OK;
+    }
+    if (range_contains(VF2_TIMER_BASE, machine->timers_size, address, size) &&
+        size == sizeof(uint32_t) && (address & (sizeof(uint32_t) - 1u)) == 0u) {
+        const size_t timer = (size_t)(address - VF2_TIMER_BASE) / sizeof(uint32_t);
+        if (timer >= 4u) {
+            return VF2_ERROR_OUT_OF_BOUNDS;
+        }
+        write_le32((uint8_t *)destination, model2a_timer_value(machine, timer));
         return VF2_OK;
     }
     if (range_contains(
@@ -583,10 +668,32 @@ vf2_status vf2_model2a_read(
         memcpy(destination, machine->interrupt_control + register_offset, size);
         return VF2_OK;
     }
-    /* FIFO control: bit 0 is set while the coprocessor output FIFO is empty. */
-    if (address == VF2_VIDEO_CONTROL_BASE + 4u && size <= sizeof(uint32_t)) {
+    /* FIFO control: bit 0 is set while the coprocessor output FIFO is empty.
+     * The portable boundary has no autonomous TGP, so its output FIFO is
+     * empty until a coprocessor callback supplies a value. */
+    if (address == VF2_VIDEO_CONTROL_BASE +
+                    VF2_MODEL2A_VIDEO_FIFO_STATUS_OFFSET &&
+        size <= sizeof(uint32_t)) {
         const uint8_t fifo_empty[4] = {1u, 0u, 0u, 0u};
         memcpy(destination, fifo_empty, size);
+        return VF2_OK;
+    }
+    if (address == VF2_VIDEO_CONTROL_BASE +
+                    VF2_MODEL2A_VIDEO_STATUS_OFFSET &&
+        size == sizeof(uint32_t)) {
+        if (machine->video_control == NULL || machine->copro_control == NULL) {
+            return VF2_ERROR_OUT_OF_BOUNDS;
+        }
+        write_le32((uint8_t *)destination, model2a_video_status(machine));
+        return VF2_OK;
+    }
+    if (address == VF2_COPRO_CONTROL_BASE && size == sizeof(uint32_t)) {
+        if (machine->copro_control == NULL) {
+            return VF2_ERROR_OUT_OF_BOUNDS;
+        }
+        const uint32_t value = read_le32(machine->copro_control);
+        write_le32((uint8_t *)destination,
+                   (value & (UINT32_C(1) | UINT32_C(4) | UINT32_C(0x4000))));
         return VF2_OK;
     }
     if (!find_view(machine, address, size, &view) || view.read_data == NULL) {
@@ -620,11 +727,59 @@ vf2_status vf2_model2a_write(
             (const uint8_t *)source
         ));
     }
+    if (range_contains(VF2_TIMER_BASE, machine->timers_size, address, size) &&
+        size == sizeof(uint32_t) && (address & (sizeof(uint32_t) - 1u)) == 0u) {
+        const size_t timer = (size_t)(address - VF2_TIMER_BASE) / sizeof(uint32_t);
+        if (timer >= 4u) {
+            return VF2_ERROR_OUT_OF_BOUNDS;
+        }
+        model2a_set_timer_value(machine, timer,
+                                read_le32((const uint8_t *)source));
+        model2a_set_timer_running(machine, timer, 1);
+        return VF2_OK;
+    }
     /* The i960 program window is ROM with writes explicitly ignored by the
      * Model 2 map. Some original routines use low addresses as disposable
      * stack spill locations during early initialization. */
     if (range_contains(VF2_MAIN_ROM_BASE, machine->main_rom_size, address, size)) {
         return machine->main_rom != NULL ? VF2_OK : VF2_ERROR_OUT_OF_BOUNDS;
+    }
+    if (address == VF2_VIDEO_CONTROL_BASE && size == sizeof(uint32_t)) {
+        if (machine->video_control == NULL) {
+            return VF2_ERROR_OUT_OF_BOUNDS;
+        }
+        const uint32_t value = read_le32((const uint8_t *)source);
+        const uint32_t previous = read_le32(machine->video_control);
+        /* MAME starts/stops the TGP upload when bit 31 changes.  The
+         * portable model records the transition and resets the measured
+         * program-word counter; actual TGP execution remains callback-owned. */
+        if ((value ^ previous) & UINT32_C(0x80000000)) {
+            if ((value & UINT32_C(0x80000000)) != 0u) {
+                machine->geometry_program_count = 0u;
+            }
+        }
+        write_le32(machine->video_control, value);
+        return VF2_OK;
+    }
+    if (address == VF2_VIDEO_CONTROL_BASE +
+                       VF2_MODEL2A_VIDEO_STATUS_OFFSET &&
+        size == sizeof(uint32_t)) {
+        if (machine->video_control == NULL) {
+            return VF2_ERROR_OUT_OF_BOUNDS;
+        }
+        write_le32(machine->video_control +
+                       VF2_MODEL2A_VIDEO_STATUS_OFFSET,
+                   read_le32((const uint8_t *)source));
+        return VF2_OK;
+    }
+    if (address == VF2_COPRO_CONTROL_BASE && size == sizeof(uint32_t)) {
+        if (machine->copro_control == NULL) {
+            return VF2_ERROR_OUT_OF_BOUNDS;
+        }
+        const uint32_t value = read_le32((const uint8_t *)source);
+        write_le32(machine->copro_control, value &
+                   (UINT32_C(1) | UINT32_C(4) | UINT32_C(0x4000)));
+        return VF2_OK;
     }
     if (address == VF2_INTERRUPT_CONTROL_BASE && size == sizeof(uint32_t)) {
         const uint32_t current = read_le32(machine->interrupt_control);
@@ -757,5 +912,58 @@ vf2_status vf2_model2a_get_interrupt_state(
     }
     *request = read_le32(machine->interrupt_control);
     *enable = read_le32(machine->interrupt_control + 4u);
+    return VF2_OK;
+}
+
+vf2_status vf2_model2a_advance_cycles(
+    vf2_model2a *machine,
+    uint64_t cycles
+)
+{
+    size_t timer = 0u;
+
+    if (machine == NULL || machine->timers == NULL ||
+        machine->video_control == NULL || machine->interrupt_control == NULL) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    for (timer = 0u; timer < 4u; ++timer) {
+        const uint32_t value = model2a_timer_value(machine, timer);
+        if (!model2a_timer_running(machine, timer)) {
+            continue;
+        }
+        if (cycles >= (uint64_t)value) {
+            const uint32_t line = UINT32_C(1) << (unsigned)(timer + 2u);
+            model2a_set_timer_value(machine, timer, VF2_MODEL2A_TIMER_RELOAD);
+            model2a_set_timer_running(machine, timer, 0);
+            if ((read_le32(machine->interrupt_control + 4u) & line) != 0u) {
+                (void)vf2_model2a_raise_interrupt(machine, line);
+            }
+        } else {
+            model2a_set_timer_value(machine, timer,
+                                    value - (uint32_t)cycles);
+        }
+    }
+    return VF2_OK;
+}
+
+vf2_status vf2_model2a_advance_frame(vf2_model2a *machine)
+{
+    if (machine == NULL || machine->video_control == NULL) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    model2a_set_frame_number(machine, model2a_frame_number(machine) + 1u);
+    return VF2_OK;
+}
+
+vf2_status vf2_model2a_get_frame_number(
+    const vf2_model2a *machine,
+    uint32_t *frame_number
+)
+{
+    if (machine == NULL || machine->video_control == NULL ||
+        frame_number == NULL) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    *frame_number = model2a_frame_number(machine);
     return VF2_OK;
 }
