@@ -1487,6 +1487,15 @@ static vf2_status hybrid_execute_player_19ef8(
     if (status == VF2_OK) {
         status = hybrid_write_u16(machine, player + UINT32_C(0xbe2), 0u);
     }
+    /* The measured 0x27130 tail clears the byte immediately following the
+     * profile byte.  Punch10 starts with zero here, so the omission was
+     * invisible on the original corridor pin; natres preserves a set byte
+     * until this final stob and exposes it in full-state comparison. */
+    if (status == VF2_OK) {
+        status = vf2_model2a_write(
+            machine, player + UINT32_C(0xbdd), "\0", 1u
+        );
+    }
     if (status == VF2_OK && selector == UINT32_C(0x00000284)) {
         status = vf2_model2a_write_u32(
             machine, player + UINT32_C(0x170), UINT32_C(0x40000000)
@@ -2014,13 +2023,13 @@ static vf2_status hybrid_execute_player_1428c(
     }
     /* v0357 fail-closed: zero record/scratch is the measured cvtri-fault
      * shape (sixth/punch parks). Do not expand from address 0.
-     * v0390: the measured head shape is exactly record 0x0201c2fc with
-     * selectors 0x0505/0x0039/0x00f1/0x00e7/0x00af (v0358/v0359) and
-     * the corridor's own entry F0 (bit 11 only); anything else stays
-     * fail-closed so the expander cannot silently succeed on sibling
-     * shapes. */
+     * v0390/v0537: the measured head shape is record 0x0201c2fc with
+     * selectors 0x0505/0x0039/0x00f1/0x00e7/0x00af.  The original corridor
+     * enters with F0 0x00000800 on the base park; the measured natres
+     * corridor enters with F0 0x80000882.  No other flag word is admitted. */
     if (record_pointer != UINT32_C(0x0201c2fc) || scratch_base == 0u ||
-        player_flags != UINT32_C(0x00000800)) {
+        (player_flags != UINT32_C(0x00000800) &&
+         player_flags != UINT32_C(0x80000882))) {
         return VF2_ERROR_UNSUPPORTED;
     }
     destinations[0] = scratch_base + 0x1e0u;

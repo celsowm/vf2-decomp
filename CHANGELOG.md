@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Recover the measured `pre14288-natres` player shape through the `0x14288`
+  corridor and `0x1428c` geometry head (v0537). The corridor now preserves
+  the late `player+0xbdd` clear, and the head admits only the measured natres
+  F0 word `0x80000882` in addition to the existing `0x00000800` shape. Both
+  base and natres reach `0x142c0` at `10869` instructions with `+10/+10` and
+  full live-state equality. See
+  `decomp/i960/notes/player_natres_142c0_v0537.md`.
+
 - Extend the `fa_coli` type-22 live selector evidence with 35 individually
   returned cases in the mixed high interval `g8+0x19c == 1345..1408`
   (v0536). Each case reaches `0x10dcc` and matches the existing C recovery

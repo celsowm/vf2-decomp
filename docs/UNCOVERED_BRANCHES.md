@@ -803,6 +803,15 @@ focused byte-exact fixture (five-slot payload + float triple vs
 `player_270d4_slot_pin_v0358.md` style) remains open. See
 `decomp/i960/notes/player_142c0_v0391.md`.
 
+Status (v0537): the second measured player shape, `pre14288-natres`, is now
+native through the same boundary. Its corridor reaches `0x1428c` in
+`1622/+4/+4` with full state equality after the measured late clear of
+`player+0xbdd`; its exact head F0 word is `0x80000882`, and the five-slot
+geometry head reaches `0x142c0` in `10869/+10/+10` with full equality. The
+existing base shape `0x00000800` remains covered. Other F0 words, zero
+record/scratch and unmeasured slot selectors remain fail-closed. See
+`decomp/i960/notes/player_natres_142c0_v0537.md`.
+
 Status (v0392): the `0x142c0` body now has a focused ROM-backed
 differential fixture (`vf2_player_142c0_live_differential`) restoring
 `out/pre14288.vf2snap`, stepping the reference through the full

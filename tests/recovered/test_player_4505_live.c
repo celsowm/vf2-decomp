@@ -39,11 +39,12 @@
  *   (+0x10 = 0x501500, +0x0c = 0x142f4, g0 = +0x640, g1 = +0x04,
  *   g2 = +0x1b0; 7 steps, no calls, no CC write) -> 0x142c0.
  *
- * The fixture restores the measured live snapshot out/pre14288.vf2snap
- * (entry +0x1a4 == 0, CC=NONE) into both machines and runs the
- * reference interpreter against the native corridor; no synthetic
- * work-RAM seed is constructed.  ROM/main_data differences versus the
- * frozen snapshot are served by the attached real images.
+ * The fixture restores both measured live snapshots
+ * out/pre14288.vf2snap and out/pre14288-natres.vf2snap (entry +0x1a4 == 0,
+ * CC=NONE) into both machines and runs the reference interpreter against
+ * the native corridor; no synthetic work-RAM seed is constructed.
+ * ROM/main_data differences versus the frozen snapshots are served by the
+ * attached real images.
  */
 
 #include <stdint.h>
@@ -63,6 +64,7 @@
 #define PLAYER_4505_HEAD_END UINT32_C(0x000142c0)
 
 static int failures = 0;
+static const char *test_snapshot_path = NULL;
 
 #define CHECK(expression)                                                     \
     do {                                                                      \
@@ -139,11 +141,13 @@ static void run_rom_case(
         vf2_model2a_shutdown(&native_machine);
         return;
     }
-    ok = (vf2_i960_snapshot_read_file(
-              &snap,
-              "D:/ia/vf2-decomp/out/pre14288.vf2snap") == VF2_OK ||
-          vf2_i960_snapshot_read_file(
-              &snap, "out/pre14288.vf2snap") == VF2_OK);
+    ok = test_snapshot_path != NULL
+        ? vf2_i960_snapshot_read_file(&snap, test_snapshot_path) == VF2_OK
+        : (vf2_i960_snapshot_read_file(
+               &snap,
+               "D:/ia/vf2-decomp/out/pre14288.vf2snap") == VF2_OK ||
+           vf2_i960_snapshot_read_file(
+               &snap, "out/pre14288.vf2snap") == VF2_OK);
     CHECK(ok);
     if (!ok) {
         vf2_model2a_shutdown(&reference_machine);
@@ -338,7 +342,11 @@ static void run_rom_differential(const char *rom_directory)
         return;
     }
 
+    test_snapshot_path = NULL;
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
+    test_snapshot_path = "out/pre14288-natres.vf2snap";
+    run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
+    test_snapshot_path = NULL;
 
     free(main_rom);
     free(main_data);
