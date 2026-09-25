@@ -14,3 +14,9 @@ The measured writes are:
 
 The subsequent selector-1 setup/continuation is not yet recovered. It remains
 an explicit ROM-backed boundary; no native acceptance is added by this note.
+
+## Measured selector setup
+
+Executing only the `call 0x1a1e4` from the `0x1a044` boundary returns at
+`0x1a048` after 167 instructions. The resulting fighter fields are
+`+0x1a4 = 0x163`, `+0x1a8 = 1` and `+0x1aa = 1`.
