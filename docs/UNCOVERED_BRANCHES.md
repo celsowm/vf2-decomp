@@ -2404,6 +2404,15 @@ fail-closed at `0/12` for each mask; other positive compositions remain
 explicit unsupported boundaries. See
 `decomp/i960/notes/game_info_18644_positive_bit2_bit4_mixed_v0517.md`.
 
+Status (v0518): the exact positive state-8 mask `0x00000014` is now native
+through threshold `3`. Its complete three-distribution/countdown/mode matrix
+is `48/48` exact, including the newly recovered 12 threshold-3 cases. The
+same dispatcher correction remains exact: −3 instructions at countdown zero
+and +2 at nonzero countdown, with the measured stale frame and condition
+state. Threshold `4+`, mask `0x00000018`, the other v0517 masks at threshold
+`3`, and non-distribution flag splits remain explicit fail-closed controls.
+See `decomp/i960/notes/game_info_18644_positive_bit2_bit4_v0518.md`.
+
 ### v0221 high-26 8140 low cube
 
 * `0x04008140` (high-26 + bits 6+14+15) `1→8` low cube with `-5/-3` (v0221)

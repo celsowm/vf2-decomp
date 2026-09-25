@@ -16321,6 +16321,33 @@ static vf2_status hybrid_execute_game_info_bit31_native(
          fighter0_state_flags == combined_matrix_flags) &&
         (fighter1_state_flags == 0u ||
          fighter1_state_flags == combined_matrix_flags);
+    {
+        const uint32_t combined_state8_flags =
+            fighter0_state_flags | fighter1_state_flags;
+        const bool state8_pair =
+            fighter0_state == 8u && fighter1_state == 8u;
+        const bool v0517_low_mask =
+            combined_state8_flags == UINT32_C(0x00000014) ||
+            combined_state8_flags == UINT32_C(0x0000001a) ||
+            combined_state8_flags == UINT32_C(0x0000001c) ||
+            combined_state8_flags == UINT32_C(0x00000034) ||
+            combined_state8_flags == UINT32_C(0x00000094);
+        const bool v0517_threshold_ok =
+            combined_state8_flags == UINT32_C(0x00000014)
+                ? shared_fighter_threshold <= UINT32_C(3)
+                : shared_fighter_threshold <= UINT32_C(2);
+        /* The generic child has measured straight-line behavior for these
+         * records, but the dispatcher admission is still evidence-bounded.
+         * Keep the adjacent 0x18 control, unmeasured distributions and
+         * out-of-range thresholds fail-closed instead of accepting a native
+         * child with the wrong dispatcher accounting. */
+        if (state8_pair &&
+            (combined_state8_flags == UINT32_C(0x00000018) ||
+             (v0517_low_mask &&
+              (!measured_matrix_distribution || !v0517_threshold_ok)))) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+    }
     const bool measured_negative_state8_pair =
         fighter0_state == 8u && fighter1_state == 8u;
     const bool measured_negative_state4_pair =
@@ -16644,7 +16671,10 @@ static vf2_status hybrid_execute_game_info_bit31_native(
              combined_state8_flags == UINT32_C(0x0000001c) ||
              combined_state8_flags == UINT32_C(0x00000034) ||
              combined_state8_flags == UINT32_C(0x00000094)) &&
-            shared_fighter_threshold <= UINT32_C(2);
+            ((combined_state8_flags == UINT32_C(0x00000014) &&
+              shared_fighter_threshold <= UINT32_C(3)) ||
+             (combined_state8_flags != UINT32_C(0x00000014) &&
+              shared_fighter_threshold <= UINT32_C(2)));
         native_state8_bit1_bit3_bit4_positive_path =
             fighter0_state == 8u && fighter1_state == 8u &&
             measured_matrix_distribution &&

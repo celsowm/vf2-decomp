@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Close the measured positive state-8 `fa_game_info` mask `0x14` corridor
+  through threshold `3` (v0518). The complete 48-case dispatcher matrix now
+  matches the reference exactly; threshold `4+`, adjacent mask `0x18`, other
+  v0517 masks at threshold `3` and unmeasured distributions remain fail-closed.
+  See `decomp/i960/notes/game_info_18644_positive_bit2_bit4_v0518.md`.
+
 - Recover the measured `fa_coli` bit-16/bit-22-set continuation at `0x225cc`
   (v0452). The exact scan-4 witness now reaches the g0=5 `0x22d8c` tail,
   matching 108 instructions and exact live state, including `g0=0xeb` and

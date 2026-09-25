@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "vf2/fighter_candidate.h"
+#include "vf2/hybrid.h"
 #include "vf2/i960/executor.h"
 #include "vf2/i960/snapshot.h"
 #include "vf2/native_runtime.h"
@@ -2021,6 +2022,79 @@ static void test_game_info_bit31_native_dispatch(void) {
 
     vf2_model2a_shutdown(&machine);
     free(rom);
+}
+
+static void test_game_info_positive_admission_controls(void) {
+    static const struct {
+        uint32_t flags0;
+        uint32_t flags1;
+        uint32_t threshold;
+    } cases[] = {
+        {UINT32_C(0x00000014), UINT32_C(0x00000000), UINT32_C(4)},
+        {UINT32_C(0x00000018), UINT32_C(0x00000000), UINT32_C(0)},
+        {UINT32_C(0x0000001c), UINT32_C(0x00000000), UINT32_C(3)},
+        {UINT32_C(0x00000004), UINT32_C(0x00000010), UINT32_C(0)}
+    };
+    const uint32_t fighter0 = UINT32_C(0x00502000);
+    const uint32_t fighter1 = UINT32_C(0x00503000);
+    const uint32_t registry = UINT32_C(0x00515200);
+    size_t index = 0u;
+
+    for (index = 0u; index < sizeof(cases) / sizeof(cases[0]); ++index) {
+        uint8_t *rom = (uint8_t *)calloc(1u, VF2_MAIN_ROM_SIZE);
+        vf2_model2a machine;
+        vf2_i960_cpu cpu;
+        vf2_native_runtime_state state;
+        vf2_native_runtime_run_report report;
+
+        CHECK(rom != NULL);
+        CHECK(vf2_model2a_initialize(&machine) != 0);
+        if (rom == NULL || machine.work_ram == NULL) {
+            free(rom);
+            continue;
+        }
+        CHECK(vf2_model2a_attach_main_rom(&machine, rom, VF2_MAIN_ROM_SIZE) ==
+              VF2_OK);
+        CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00500804), fighter0) ==
+              VF2_OK);
+        CHECK(vf2_model2a_write_u32(&machine, UINT32_C(0x00500808), fighter1) ==
+              VF2_OK);
+        CHECK(vf2_model2a_write_u32(
+                  &machine, fighter0, UINT32_C(0x80000000)) == VF2_OK);
+        CHECK(vf2_model2a_write_u32(
+                  &machine, fighter1, UINT32_C(0x80000000)) == VF2_OK);
+        CHECK(vf2_model2a_write_u32(
+                  &machine, fighter0 + UINT32_C(0x1a4), cases[index].flags0) ==
+              VF2_OK);
+        CHECK(vf2_model2a_write_u32(
+                  &machine, fighter1 + UINT32_C(0x1a4), cases[index].flags1) ==
+              VF2_OK);
+        CHECK(vf2_model2a_write(
+                  &machine, fighter0 + UINT32_C(0xa00),
+                  (const uint8_t *)"\x08", 1u) == VF2_OK);
+        CHECK(vf2_model2a_write(
+                  &machine, fighter1 + UINT32_C(0xa00),
+                  (const uint8_t *)"\x08", 1u) == VF2_OK);
+        CHECK(vf2_model2a_write_u32(
+                  &machine, UINT32_C(0x0050a028), cases[index].threshold) ==
+              VF2_OK);
+        CHECK(vf2_model2a_write_u32(
+                  &machine, UINT32_C(0x00508000), UINT32_C(1) << 5u) ==
+              VF2_OK);
+
+        vf2_i960_cpu_reset(&cpu, 0u, 0u, UINT32_C(0x00010d54));
+        cpu.registers[1] = VF2_WORK_RAM_BASE + UINT32_C(0x3000);
+        cpu.registers[29] = registry;
+        CHECK(vf2_i960_cpu_enter_procedure(
+                  &cpu, UINT32_C(0x0001645c), UINT32_C(0x00010dcc)) == VF2_OK);
+        CHECK(vf2_native_runtime_initialize(&state, 4u) == VF2_OK);
+        memset(&report, 0, sizeof(report));
+        CHECK(vf2_native_runtime_run_until(
+                  &machine, &cpu, &state, UINT32_C(0x00010dcc), 1u,
+                  &report) == VF2_ERROR_UNSUPPORTED);
+        vf2_model2a_shutdown(&machine);
+        free(rom);
+    }
 }
 
 static void test_player_task_interpreter_bridge(void) {
@@ -7621,6 +7695,7 @@ int main(int argc, char **argv) {
     test_single_bridge_run();
     test_second_game_info_task_run();
     test_game_info_bit31_native_dispatch();
+    test_game_info_positive_admission_controls();
     test_player_task_interpreter_bridge();
     test_player_19ef8_selector_4505();
     test_budget_and_unsupported_are_explicit();
