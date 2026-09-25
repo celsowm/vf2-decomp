@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Extend the measured `fa_coli` `0x225cc` type-22 shortcut through the 55
+  type-5 walker misses in selector range `1..64` (v0530). Each miss reaches
+  `0x10dcc` with exact CPU/condition/procedure/Model 2A state equality; the
+  nine hit selectors in the same bounded probe remain a separate `g0` return
+  frontier, and the index-0 control remains fail-closed. See
+  `decomp/i960/notes/fa_coli_225cc_type22_miss_v0530.md`.
+
 - Extend the measured `fa_rob` `0x14640` state-27 type-15 miss recovery
   through selector `+0x194 == 1..1024` (v0529). The additional `513..1024`
   sweep reaches `0x146c4` through the existing zero-record tail and matches

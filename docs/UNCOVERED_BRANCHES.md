@@ -1752,6 +1752,16 @@ state, procedure state and Model 2A memory.  Other type-5 misses remain
 explicitly fail-closed (see
 `decomp/i960/notes/fa_coli_225cc_type22_miss_v0493.md`).
 
+Status (v0530): the same shortcut now admits all 55 measured type-5 walker
+misses in selector range `g8+0x19c == 1..64`:
+`1..12, 16..21, 23..24, 26, 28..29, 31..35, 37..64`.  The existing
+`0x1ab34` body supplies the selector-dependent type-8 walk count, while the
+zero-record tail remains exact; every case reaches `0x10dcc` with three calls,
+five returns and full live-state equality.  The nine measured hits
+(`13,14,15,22,25,27,30,36,43`) still differ in the unmodeled `g0` resolver
+return, and index 0 still fails before the miss branch.  See
+`decomp/i960/notes/fa_coli_225cc_type22_miss_v0530.md`.
+
 Status (v0318): long-body `g7+0x1a4` bits 4+12 scale sibling is
 native (263 on the v0288 drive). `g8+0x1a4` bit 13 early-join is
 native when `+0x5b8` bit 0 is set (251). Bit 4 without bit 12 (251)

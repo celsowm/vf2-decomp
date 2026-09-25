@@ -792,15 +792,17 @@ static void run_rom_case(
     vf2_model2a_shutdown(&native_machine);
 }
 
-/* v0493: the measured type-22 shortcut with a type-5 walker miss at index 1.
- * The parked entry snapshot already has the live 0x225cc frame and parent
- * return chain. Reference probing with +0x19f=22 and +0x19c=1 reaches the
- * parent boundary 0x10dcc in 71 instructions, +3 calls / +5 returns. */
+/* v0493/v0530: the measured type-22 shortcut walker-miss sweep. The parked
+ * entry snapshot already has the live 0x225cc frame and parent return chain.
+ * Reference probing with +0x19f=22 and the 55 selectors below reaches the
+ * parent boundary 0x10dcc with +3 calls / +5 returns. The nine hit selectors
+ * in 1..64 remain a separate register-return frontier. */
 static void run_type22_miss_snapshot_case(
     const uint8_t *main_rom,
     size_t main_rom_size,
     const uint8_t *main_data,
-    size_t main_data_size
+    size_t main_data_size,
+    uint16_t index
 )
 {
     vf2_model2a reference_machine;
@@ -858,10 +860,10 @@ static void run_type22_miss_snapshot_case(
         &native_machine, g8 + UINT32_C(0x19f), UINT32_C(22), 1u
     ) == VF2_OK);
     CHECK(write_seed_bytes(
-        &reference_machine, g8 + UINT32_C(0x19c), UINT32_C(1), 2u
+        &reference_machine, g8 + UINT32_C(0x19c), index, 2u
     ) == VF2_OK);
     CHECK(write_seed_bytes(
-        &native_machine, g8 + UINT32_C(0x19c), UINT32_C(1), 2u
+        &native_machine, g8 + UINT32_C(0x19c), index, 2u
     ) == VF2_OK);
 
     snap_instructions = snap.cpu.executed_instructions;
@@ -880,7 +882,6 @@ static void run_type22_miss_snapshot_case(
     CHECK(reference_cpu.ip == UINT32_C(0x00010dcc));
     reference_instructions =
         reference_cpu.executed_instructions - snap_instructions;
-    CHECK(reference_instructions == UINT64_C(71));
     CHECK(reference_cpu.procedure_calls - snap_calls == UINT64_C(3));
     CHECK(reference_cpu.procedure_returns - snap_returns == UINT64_C(5));
 
@@ -903,8 +904,9 @@ static void run_type22_miss_snapshot_case(
     if (compare_status != VF2_OK || !diff.equal) {
         fprintf(
             stderr,
-            "coli-225cc-type22-miss ref=%d native=%d compare=%d "
+            "coli-225cc-type22-index=%u ref=%d native=%d compare=%d "
             "component=%s offset=%zu expected=0x%08x actual=0x%08x\n",
+            (unsigned)index,
             (int)reference_status, (int)native_status,
             (int)compare_status, diff.component, diff.first_offset,
             (unsigned)diff.expected_value, (unsigned)diff.actual_value);
@@ -1095,9 +1097,26 @@ static void run_rom_differential(const char *rom_directory)
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 151);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 152);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 153);
-    run_type22_miss_snapshot_case(
-        main_rom, main_rom_size, main_data, main_data_size
-    );
+    static const uint16_t miss_indices[] = {
+        UINT16_C(1), UINT16_C(2), UINT16_C(3), UINT16_C(4), UINT16_C(5),
+        UINT16_C(6), UINT16_C(7), UINT16_C(8), UINT16_C(9), UINT16_C(10),
+        UINT16_C(11), UINT16_C(12), UINT16_C(16), UINT16_C(17), UINT16_C(18),
+        UINT16_C(19), UINT16_C(20), UINT16_C(21), UINT16_C(23), UINT16_C(24),
+        UINT16_C(26), UINT16_C(28), UINT16_C(29), UINT16_C(31), UINT16_C(32),
+        UINT16_C(33), UINT16_C(34), UINT16_C(35), UINT16_C(37), UINT16_C(38),
+        UINT16_C(39), UINT16_C(40), UINT16_C(41), UINT16_C(42), UINT16_C(44),
+        UINT16_C(45), UINT16_C(46), UINT16_C(47), UINT16_C(48), UINT16_C(49),
+        UINT16_C(50), UINT16_C(51), UINT16_C(52), UINT16_C(53), UINT16_C(54),
+        UINT16_C(55), UINT16_C(56), UINT16_C(57), UINT16_C(58), UINT16_C(59),
+        UINT16_C(60), UINT16_C(61), UINT16_C(62), UINT16_C(63), UINT16_C(64)
+    };
+    for (size_t miss = 0u;
+         miss < sizeof(miss_indices) / sizeof(miss_indices[0]); ++miss) {
+        run_type22_miss_snapshot_case(
+            main_rom, main_rom_size, main_data, main_data_size,
+            miss_indices[miss]
+        );
+    }
 
     free(main_rom);
     free(main_data);
