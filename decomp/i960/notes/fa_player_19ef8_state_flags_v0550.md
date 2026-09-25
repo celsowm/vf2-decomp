@@ -1,4 +1,4 @@
-# v0550: measured `0x19ef8` entry state-flag siblings
+# v0552: measured `0x19ef8` entry state-flag compositions
 
 The live `0x505` player corridor was extended from the zero-state entry to
 the bounded nonzero `fighter + 0x1a4` matrix.  The witness starts from
@@ -15,13 +15,14 @@ Measured singleton deltas to the existing `1622`-instruction corridor:
 | 23 | 1624 | global `0x0050a010` is copied to player `+0x1c` |
 
 All 15 nonzero combinations of these four bits were also run.  In addition,
-each of the other 28 individual state bits was measured as a singleton; each
-took the unchanged 1622-instruction corridor and matched full state.  The
-focused fixture therefore runs 46 cases in total, including the three
-existing zero-state ROM parks.
+each of the other 28 individual state bits was measured as a singleton, and
+each was composed with every one of the 16 subsets of the four branch bits.
+The resulting 448 mixed cases all reached `0x1428c` and matched full state;
+the focused fixture now runs 494 cases in total, including the three existing
+zero-state ROM parks.
 
-The native corridor admits every measured singleton and any combination made
-solely from bits 5, 6, 21 and 23.  Mixed words that combine one of those
-branch-sensitive bits with another state bit remain
+The native corridor admits every measured singleton, any combination made
+solely from bits 5, 6, 21 and 23, and any measured combination containing one
+additional non-branch bit.  Words containing two or more non-branch bits remain
 `VF2_ERROR_UNSUPPORTED`.  The measured live selector, table stream and
 downstream scratch/census guards are unchanged.

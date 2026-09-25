@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Extend the measured `fa_player` `0x19ef8` entry-state corridor (v0552).
+  Every one of the 28 non-branch `fighter+0x1a4` singleton bits now matches
+  the reference when composed with all 16 subsets of branch bits 5/6/21/23:
+  448 additional full live-state comparisons pass. Words with two or more
+  non-branch bits remain `VF2_ERROR_UNSUPPORTED`. See
+  `decomp/i960/notes/fa_player_19ef8_state_flags_v0550.md`.
+
 - Recover the measured `fa_game_info` positive state-8 composition `0x0e`
   (v0551). The three-distribution matrix through threshold `8` is now exact
   for both countdown values and both mode-bit-6 settings: `108/108` full

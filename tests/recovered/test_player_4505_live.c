@@ -425,6 +425,25 @@ static void run_rom_differential(const char *rom_directory)
             test_initial_state_flags = UINT32_C(1) << index;
             run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
         }
+        /* v0551: every measured non-branch singleton also composes with
+         * every subset of the four branch bits.  Keep the frontier closed
+         * for two or more non-branch bits until that family is measured. */
+        for (index = 0u; index < 32u; ++index) {
+            size_t branch_index = 0u;
+            uint32_t non_branch_bit = UINT32_C(1) << index;
+            if (index == 5u || index == 6u || index == 21u || index == 23u) {
+                continue;
+            }
+            for (branch_index = 0u; branch_index < 16u; ++branch_index) {
+                const uint32_t branch_bits =
+                    ((branch_index & 1u) != 0u ? (UINT32_C(1) << 5u) : 0u) |
+                    ((branch_index & 2u) != 0u ? (UINT32_C(1) << 6u) : 0u) |
+                    ((branch_index & 4u) != 0u ? (UINT32_C(1) << 21u) : 0u) |
+                    ((branch_index & 8u) != 0u ? (UINT32_C(1) << 23u) : 0u);
+                test_initial_state_flags = non_branch_bit | branch_bits;
+                run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
+            }
+        }
     }
     test_initial_state_flags = 0u;
     test_corridor_only = 0;
