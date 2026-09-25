@@ -9,12 +9,14 @@ sequence rather than a complete game implementation. Unsupported paths return
 ## Latest measured player extension (v0579)
 
 The live `fa_player` `0x19ef8` corridor now admits the measured
-`+0x1a4` masks `0x0040059f` and `0x0100059f`, each proven across all
-16 combinations of branch bits 5/6/21/23 with full CPU, condition,
-frame, procedure and mutable Model 2A equality at `0x1428c`. Larger
-unmeasured combinations remain fail-closed. Evidence is recorded in
+`+0x1a4` masks `0x0040059f`, `0x0100059f`, `0x0200059f`, `0x0400059f`,
+`0x0800059f`, `0x1000059f`, `0x4000059f` and `0x8000059f`, each proven
+across all 16 combinations of branch bits 5/6/21/23 with full CPU,
+condition, frame, procedure and mutable Model 2A equality at `0x1428c`.
+Larger unmeasured combinations remain fail-closed. Evidence is recorded in
 `decomp/i960/notes/fa_player_19ef8_mask_40059f_v0578.md` and
-`decomp/i960/notes/fa_player_19ef8_mask_100059f_v0579.md`.
+`decomp/i960/notes/fa_player_19ef8_mask_100059f_v0579.md` plus
+`decomp/i960/notes/fa_player_19ef8_high_masks_v0580.md`.
 
 The v0168 boundary audit removed the two remaining single-instruction oracle
 handoffs in `native-second-dispatch`: the `ret` stubs at `0x0004bab4` and

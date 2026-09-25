@@ -661,6 +661,24 @@ int main(int argc, char **argv)
     } else if (argc == 3 && strcmp(argv[2], "--fifteen-low") == 0) {
         test_quadruple_only = 1;
         test_quadruple_mask = UINT32_C(0x0100059f);
+    } else if (argc == 3 && strcmp(argv[2], "--mask-0200059f") == 0) {
+        test_quadruple_only = 1;
+        test_quadruple_mask = UINT32_C(0x0200059f);
+    } else if (argc == 3 && strcmp(argv[2], "--mask-0400059f") == 0) {
+        test_quadruple_only = 1;
+        test_quadruple_mask = UINT32_C(0x0400059f);
+    } else if (argc == 3 && strcmp(argv[2], "--mask-0800059f") == 0) {
+        test_quadruple_only = 1;
+        test_quadruple_mask = UINT32_C(0x0800059f);
+    } else if (argc == 3 && strcmp(argv[2], "--mask-1000059f") == 0) {
+        test_quadruple_only = 1;
+        test_quadruple_mask = UINT32_C(0x1000059f);
+    } else if (argc == 3 && strcmp(argv[2], "--mask-4000059f") == 0) {
+        test_quadruple_only = 1;
+        test_quadruple_mask = UINT32_C(0x4000059f);
+    } else if (argc == 3 && strcmp(argv[2], "--mask-8000059f") == 0) {
+        test_quadruple_only = 1;
+        test_quadruple_mask = UINT32_C(0x8000059f);
     } else if (argc == 3) {
         return EXIT_SUCCESS;
     }
