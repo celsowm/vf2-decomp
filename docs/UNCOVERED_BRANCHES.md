@@ -6,7 +6,7 @@ runs through the eleventh-dispatch validation corridor, but it remains one evide
 sequence rather than a complete game implementation. Unsupported paths return
 `VF2_ERROR_UNSUPPORTED` instead of falling back to i960 interpretation.
 
-## Latest measured player extension (v0579/v0641/v0642/v0643/v0644/v0645/v0646/v0647/v0648/v0649/v0650/v0651/v0652)
+## Latest measured player extension (v0579/v0641/v0642/v0643/v0644/v0645/v0646/v0647/v0648/v0649/v0650/v0651/v0652/v0653)
 
 The live `fa_player` `0x19ef8` corridor now admits the measured
 `+0x1a4` masks `0x0040059f`, `0x0100059f`, `0x0200059f`, `0x0400059f`,
@@ -79,6 +79,11 @@ The bit-17+bit-30 extension `0x4002059f` is also native across all 16
 branch-bit combinations with full live-state equality and four calls/returns;
 other unmeasured high-bit combinations remain fail-closed. See
 `decomp/i960/notes/fa_player_19ef8_mask_4002059f_v0652.md`.
+
+The bit-17+bit-31 extension `0x8002059f` is also native across all 16
+branch-bit combinations with full live-state equality and four calls/returns;
+other unmeasured high-bit combinations remain fail-closed. See
+`decomp/i960/notes/fa_player_19ef8_mask_8002059f_v0653.md`.
 
 ## Latest measured game-info extension (v0581/v0582/v0583/v0584/v0585/v0586/v0587/v0588/v0589/v0590/v0591/v0611/v0617/v0618/v0619/v0620/v0621/v0622/v0623/v0624/v0625/v0626/v0627/v0628/v0629/v0630/v0631/v0632/v0633/v0634/v0635/v0636/v0637/v0638)
 
