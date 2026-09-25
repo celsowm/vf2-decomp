@@ -16529,12 +16529,13 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             combined_state8_flags == UINT32_C(0x00000024) ||
             combined_state8_flags == UINT32_C(0x00000026) ||
             combined_state8_flags == UINT32_C(0x0000002a) ||
-            combined_state8_flags == UINT32_C(0x0000002c);
+            combined_state8_flags == UINT32_C(0x0000002c) ||
+            combined_state8_flags == UINT32_C(0x0000002e);
         const bool v0517_threshold_ok =
             /* v0518-v0526 extend the measured masks through threshold 8;
              * v0581-v0591 extend the listed masks through threshold 9.
              * v0633/v0634 are intentionally limited to measured threshold-3
-             * slices of masks 0x36, 0x3a, 0x3e, 0x22, 0x24, 0x26, 0x2a and 0x2c. */
+             * slices of masks 0x36, 0x3a, 0x3e, 0x22, 0x24, 0x26, 0x2a, 0x2c and 0x2e. */
             (v0634_mask22_family
                 ? shared_fighter_threshold <= UINT32_C(3)
                 : v0633_mask36_family
@@ -16892,6 +16893,7 @@ static vf2_status hybrid_execute_game_info_bit31_native(
              combined_state8_flags == UINT32_C(0x00000026) ||
              combined_state8_flags == UINT32_C(0x0000002a) ||
              combined_state8_flags == UINT32_C(0x0000002c) ||
+             combined_state8_flags == UINT32_C(0x0000002e) ||
              combined_state8_flags == UINT32_C(0x00000028) ||
              combined_state8_flags == UINT32_C(0x00000088) ||
              combined_state8_flags == UINT32_C(0x000000a0) ||
@@ -16900,13 +16902,15 @@ static vf2_status hybrid_execute_game_info_bit31_native(
                combined_state8_flags == UINT32_C(0x00000024) ||
                combined_state8_flags == UINT32_C(0x00000026) ||
                combined_state8_flags == UINT32_C(0x0000002a) ||
-               combined_state8_flags == UINT32_C(0x0000002c)) &&
+               combined_state8_flags == UINT32_C(0x0000002c) ||
+               combined_state8_flags == UINT32_C(0x0000002e)) &&
               shared_fighter_threshold <= UINT32_C(3)) ||
              (combined_state8_flags != UINT32_C(0x00000022) &&
               combined_state8_flags != UINT32_C(0x00000024) &&
               combined_state8_flags != UINT32_C(0x00000026) &&
               combined_state8_flags != UINT32_C(0x0000002a) &&
               combined_state8_flags != UINT32_C(0x0000002c) &&
+              combined_state8_flags != UINT32_C(0x0000002e) &&
               shared_fighter_threshold <= UINT32_C(9)));
         native_state8_mixed_low_positive_path =
             fighter0_state == 8u && fighter1_state == 8u &&

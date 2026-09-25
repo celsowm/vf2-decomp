@@ -20,6 +20,13 @@ Larger unmeasured combinations remain fail-closed. Evidence is recorded in
 
 ## Latest measured game-info extension (v0581/v0582/v0583/v0584/v0585/v0586/v0587/v0588/v0589/v0590/v0591/v0611/v0617/v0618/v0619/v0620/v0621/v0622/v0623/v0624/v0625/v0626/v0627/v0628/v0629/v0630/v0631/v0632/v0633/v0634)
 
+The latest low-family measurements extend the threshold-3 native slice to
+`0x00000022`, `0x00000024`, `0x00000026`, `0x0000002a`, `0x0000002c` and
+`0x0000002e`; each is `12/12 exact` across the measured distributions,
+countdowns and mode-bit-6 values. Threshold 4 remains fail-closed. Detailed
+evidence is in
+`decomp/i960/notes/game_info_18644_positive_mask22_threshold3_v0634.md`.
+
 The positive state-8 `fa_game_info` compositions `0x0000000e` (bits 1+2+3),
 `0x0000001a` (bits 1+3+4), `0x00000018` (bits 3+4) and `0x0000001e`
 (bits 1+2+3+4) are now native through threshold `9`. Each added 12-case
@@ -2742,8 +2749,8 @@ Threshold 4 and above remain fail-closed. See
 `decomp/i960/notes/game_info_18644_positive_mask36_threshold3_v0633.md`.
 
 The no-bit-8 positive compositions `0x00000022` (bits 1+5), `0x00000024`
-(bits 2+5), `0x00000026` (bits 1+2+5), `0x0000002a` (bits 1+3+5) and
-`0x0000002c` (bits 2+3+5) are now native for their measured
+(bits 2+5), `0x00000026` (bits 1+2+5), `0x0000002a` (bits 1+3+5),
+`0x0000002c` (bits 2+3+5) and `0x0000002e` (bits 1+2+3+5) are now native for their measured
 threshold-3 slices. Each has
 three record distributions, both countdown values and both mode-bit-6 values
 at `12/12 exact` with the
