@@ -3,6 +3,13 @@
 ## Unreleased
 
 - Extend the measured `fa_coli` type-22 selector sweep through
+  `g8+0x19c == 1..512` (v0534). All 512 live selectors reach `0x10dcc` and
+  match the reference with exact CPU/condition/procedure/Model 2A state in
+  normal and sanitizer builds; selector 0 and values above 512 remain outside
+  the admitted evidence. See
+  `decomp/i960/notes/fa_coli_225cc_type22_sweep_v0534.md`.
+
+- Extend the measured `fa_coli` type-22 selector sweep through
   `g8+0x19c == 1..256` (v0533). All 256 live selectors reach `0x10dcc` and
   match the reference with exact CPU/condition/procedure/Model 2A state;
   selector 0 and values above 256 remain outside the admitted evidence. See

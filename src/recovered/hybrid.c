@@ -24755,7 +24755,7 @@ static vf2_status coli_18bd4_body(
          * same arithmetic tail as the first-hit shape.  The reference reads
          * the zero-record fields at addresses 1 and 3; their measured values
          * are both zero.  The measured selector interval now extends through
-         * 1..256; index 0 fails earlier in the reference walk before this
+         * 1..512; index 0 fails earlier in the reference walk before this
          * branch is reachable. */
         walker_miss = true;
         field = 0u;
