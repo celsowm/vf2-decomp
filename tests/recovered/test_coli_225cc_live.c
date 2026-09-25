@@ -794,9 +794,9 @@ static void run_rom_case(
 
 /* v0493/v0530/v0531: the measured type-22 shortcut selector sweep. The
  * parked entry snapshot already has the live 0x225cc frame and parent return
- * chain. Reference probing with +0x19f=22 and +0x19c=1..64 reaches the parent
- * boundary 0x10dcc with +3 calls / +5 returns for both the 55 walker misses
- * and nine hits. */
+ * chain. Reference probing with +0x19f=22 and +0x19c=1..256 reaches the
+ * parent boundary 0x10dcc with +3 calls / +5 returns for both walker misses
+ * and hits. */
 static void run_type22_miss_snapshot_case(
     const uint8_t *main_rom,
     size_t main_rom_size,
@@ -1097,7 +1097,7 @@ static void run_rom_differential(const char *rom_directory)
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 151);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 152);
     run_rom_case(main_rom, main_rom_size, main_data, main_data_size, 153);
-    for (uint16_t index = UINT16_C(1); index <= UINT16_C(64); ++index) {
+    for (uint16_t index = UINT16_C(1); index <= UINT16_C(256); ++index) {
         run_type22_miss_snapshot_case(
             main_rom, main_rom_size, main_data, main_data_size,
             index

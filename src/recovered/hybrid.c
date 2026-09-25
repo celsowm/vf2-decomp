@@ -24754,9 +24754,9 @@ static vf2_status coli_18bd4_body(
         /* v0493/v0530: a zero result from the type-5 table walk reaches the
          * same arithmetic tail as the first-hit shape.  The reference reads
          * the zero-record fields at addresses 1 and 3; their measured values
-         * are both zero.  Indices 1..64 cover both the 55 measured miss
-         * records and the nine measured hit records; index 0 fails earlier
-         * in the reference walk before this branch is reachable. */
+         * are both zero.  The measured selector interval now extends through
+         * 1..256; index 0 fails earlier in the reference walk before this
+         * branch is reachable. */
         walker_miss = true;
         field = 0u;
     } else if (hybrid_read_u16(
