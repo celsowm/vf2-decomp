@@ -1529,11 +1529,12 @@ one nested call and return with exact instruction-count and full live-state
 equality. Selectors outside `1..512` remain explicit fail-closed boundaries.
 See `decomp/i960/notes/fa_player_1453c_type5_miss_v0491.md`.
 
-Status (v0528): the same type-5 miss recovery now covers the measured
-selector range `+0x194 == 1..1024`. Selectors `513..1024` also reach
+Status (v0553): the same type-5 miss recovery now covers the measured
+selector range `+0x194 == 1..1359`. Selectors `1025..1359` also reach
 `0x1463c` through the existing zero-record tail with exact instruction-count
-and full live-state equality. Selectors outside `1..1024` remain explicit
-fail-closed boundaries. See
+and full live-state equality. Selectors outside `1..1359` remain explicit
+fail-closed boundaries; selector `1360` is a measured invalid-table negative
+control. See
 `decomp/i960/notes/fa_player_1453c_type5_miss_v0528.md`.
 
 Status (v0476): the `fa_rob` `0x14640` state-27 type-15 walker now admits

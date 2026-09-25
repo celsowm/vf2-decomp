@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Extend the measured `fa_rob` `0x1453c/0x14570` type-5 miss interval to
+  `+0x194=1..1359` (v0553). The focused fixture compares the added
+  `1025..1359` cases against the reference; selector `1360` remains a
+  fail-closed invalid-table control.
+
 - Extend the measured `fa_player` `0x19ef8` entry-state corridor (v0552).
   Every one of the 28 non-branch `fighter+0x1a4` singleton bits now matches
   the reference when composed with all 16 subsets of branch bits 5/6/21/23:
