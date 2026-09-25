@@ -77,6 +77,11 @@ threshold `3` with its uniform +2 dispatcher correction. Its complete 48-case
 matrix is exact; threshold `4+` remains fail-closed. See
 `decomp/i960/notes/game_info_18644_positive_mask06_threshold3_v0597.md`.
 
+The positive state-8 pair mask `0x00000012` (bits 1+4) is now native through
+threshold `3` with its measured `−3/+2` dispatcher split. Its complete 48-case
+matrix is exact; threshold `4+` remains fail-closed. See
+`decomp/i960/notes/game_info_18644_positive_mask12_threshold3_v0598.md`.
+
 The v0168 boundary audit removed the two remaining single-instruction oracle
 handoffs in `native-second-dispatch`: the `ret` stubs at `0x0004bab4` and
 `0x000020ec` are now recovered bridges. The strict post-scheduler corridor is
