@@ -16522,9 +16522,11 @@ static vf2_status hybrid_execute_game_info_bit31_native(
             combined_state8_flags == UINT32_C(0x00000094);
         const bool v0517_threshold_ok =
             /* v0518-v0526 extend the measured masks through threshold 8;
-             * v0581-v0582 extend masks 0x0e and 0x1a through threshold 9. */
+             * v0581-v0583 extend masks 0x0e, 0x1a and 0x18 through
+             * threshold 9. */
             (combined_state8_flags == UINT32_C(0x0000000e) ||
-             combined_state8_flags == UINT32_C(0x0000001a))
+             combined_state8_flags == UINT32_C(0x0000001a) ||
+             combined_state8_flags == UINT32_C(0x00000018))
                 ? shared_fighter_threshold <= UINT32_C(9)
                 : (v0517_low_mask
                        ? shared_fighter_threshold <= UINT32_C(8)
@@ -16869,9 +16871,11 @@ static vf2_status hybrid_execute_game_info_bit31_native(
              combined_state8_flags == UINT32_C(0x0000001c) ||
              combined_state8_flags == UINT32_C(0x00000034) ||
              combined_state8_flags == UINT32_C(0x00000094)) &&
-            ((combined_state8_flags == UINT32_C(0x0000000e) &&
+            (((combined_state8_flags == UINT32_C(0x0000000e) ||
+               combined_state8_flags == UINT32_C(0x00000018)) &&
               shared_fighter_threshold <= UINT32_C(9)) ||
              (combined_state8_flags != UINT32_C(0x0000000e) &&
+              combined_state8_flags != UINT32_C(0x00000018) &&
               shared_fighter_threshold <= UINT32_C(8)));
         native_state8_bit1_bit3_bit4_positive_path =
             fighter0_state == 8u && fighter1_state == 8u &&
@@ -21008,8 +21012,9 @@ static vf2_status hybrid_execute_game_info_bit31_native(
         /* v0517-v0551/v0582: measured mixed masks overcount the
          * zero-countdown dispatcher by three instructions and undercount the
          * nonzero path by two. The threshold extensions were measured
-         * against the same join; masks 0x0e and 0x1a are proven through
-         * threshold 9, while the other sibling masks remain capped at 8. */
+         * against the same join; masks 0x0e, 0x1a and 0x18 are proven
+         * through threshold 9, while the other sibling masks remain capped
+         * at 8. */
         if (!countdown_was_nonzero) {
             if ((fighter0_state_flags | fighter1_state_flags) ==
                     UINT32_C(0x0000000e)) {
