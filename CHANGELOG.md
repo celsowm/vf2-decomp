@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Expand the `fa_coli` whole-task matrix with three measured bit-15/
+  `field_0822 = 1` neighbors across the fighter-1, both-live and scan-5
+  shapes. All retain exact ROM/native accounting and live-state equality.
+  See `tests/recovered/test_coli_whole_task_live.c`.
+
 - Expand the `fa_coli` whole-task fixture with measured scan-5
   `field_0822 = 16` neighbors for both fighter-bit-8 orientations; both keep
   exact ROM/native accounting and live-state equality. See

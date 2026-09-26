@@ -6,6 +6,15 @@ runs through the eleventh-dispatch validation corridor, but it remains one evide
 sequence rather than a complete game implementation. Unsupported paths return
 `VF2_ERROR_UNSUPPORTED` instead of falling back to i960 interpretation.
 
+## v0681 measured bit-15/`field_0822 = 1` neighbors
+
+The whole-task fixture now covers three further measured combinations:
+fighter-1 bit 8 with fighter 0 bit 15 at `field_0804` (`9385/17/18`),
+both fighters bit 8 with the same bit-15 field (`9520/18/19`), and the
+both-live scan-5 form with `field_0822 = 1` (`9526/18/19`). All finish at
+`0x10dcc` with full live-state equality. Other combinations remain
+fail-closed until measured.
+
 ## v0680 measured scan-5 `field_0822` neighbors
 
 The whole-task fixture now also proves the scan-5 neighbors with
