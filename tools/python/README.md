@@ -133,6 +133,31 @@ Unit tests:
 python tools/python/test_frontier.py
 ```
 
+## `model2recomp_hints.py`
+
+Use the optional `model2recomp` i960 static lifter as a second source of entry
+point candidates. It reports IAC reinitialization targets, interrupt-table
+handlers, statically discovered functions and measured runtime hints. The
+external checkout is loaded only for analysis; its Model 2 runtime is not a
+dependency of this repository.
+
+```powershell
+python tools/python/model2recomp_hints.py `
+  --program-bin C:/path/to/program.bin `
+  --model2recomp-root C:/path/to/model2recomp `
+  --out out/model2recomp-vf2-hints.json
+```
+
+These addresses are navigation candidates. Re-disassemble them with
+`vf2i960`, reproduce a controlled state, and prove any resulting C recovery by
+the ROM-backed differential contract.
+
+Unit tests:
+
+```sh
+python tools/python/test_model2recomp_hints.py
+```
+
 ## Next layer
 
 The next high-value steps beyond the shipped frontier ranker are targeted dynamic taint and Z3 bit-vector constraints for branches whose measured inputs still resist a compact semantic rule.

@@ -37,6 +37,30 @@ and any other liftkit placeholder remain evidence gaps. Never copy a scaffold
 directly into `src/recovered`; recover the smallest behavior from measured
 state and prove it with the ROM-backed differential contract below.
 
+### Optional model2recomp static hints
+
+`model2recomp` can be used as a second static analyst for entry-point discovery.
+Its generic i960 lifter exposes candidates found through IAC reinitialization,
+interrupt tables, static function discovery and previously measured runtime
+hints. The bridge loads only `tools/i960_lifter.py` from an external checkout;
+it does not import the Model 2 runtime, geometry engine, TGP or generated game
+code.
+
+When a flat program image is available, run:
+
+```powershell
+python tools/python/model2recomp_hints.py `
+  --program-bin C:/path/to/program.bin `
+  --model2recomp-root C:/path/to/model2recomp `
+  --out out/model2recomp-vf2-hints.json
+```
+
+The report is a candidate index only. Validate every address with the local
+`vf2i960` disassembler and the reference executor before using it to guide a
+recovery. A discovered interrupt handler or IAC target is not evidence that
+its semantics are understood, and no generated external C may be promoted to
+`src/recovered`.
+
 ## Dynamic evidence
 
 Execute a bounded path:
