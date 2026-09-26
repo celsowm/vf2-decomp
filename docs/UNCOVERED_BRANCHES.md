@@ -1,5 +1,17 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## model2recomp-guided interrupt acknowledge 0x00000d30
+
+The external static lifter identified 0x00000d30 as an independent interrupt
+entry. Its four measured instructions are now recovered in C with a strict
+entered-frame precondition: lda 0x00e80000,r4, subo 5,0,r5,
+st r5,(r4), and ret, producing 0xfffffffb at the acknowledge port and
+returning to the measured 0x00000040 continuation. A unit differential test
+compares CPU state, procedure return accounting and mutable Model 2A state.
+This is a low-level interrupt slice, not a claim about the neighboring
+0x00000e10/0x00000e30 handlers; those remain unsupported until their dispatch
+conditions and side effects are measured.
+
 This document catalogs major unobserved execution paths and unrecovered
 subsystems in Virtua Fighter 2 Version 2.1. The accepted clean-room corridor now
 runs through the eleventh-dispatch validation corridor, but it remains one evidence-backed

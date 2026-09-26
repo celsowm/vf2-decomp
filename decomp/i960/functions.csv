@@ -69,6 +69,7 @@ address,end,name,status,source,notes
 0x0004e808,0x00000cdc,tile_controller_update,recovered-observed-branch,dynamic-differential,Runs the observed tile controller path and the recovered glyph expansion
 0x00010f08,0x00010f90,frame_timer_prefix,recovered-observed-branch,dynamic-differential,Computes frame timing state and enters the recovered four-visit wait phase
 0x00000bc0,0x00000c00,interrupt_save_prefix,recovered-control-block,dynamic-differential,Saves the observed interrupt working set and validates the runtime enable flag
+0x00000d30,0x00000040,interrupt_ack,recovered-control-block,static-lift+unit-differential,Stores the measured interrupt acknowledge value at 0x00e80000 and returns
 0x00000c0c,0x00000c78,interrupt_buffer_gate,recovered-observed-branch,dynamic-differential,Processes the observed interrupt buffer and geometry gate path
 0x00000c94,0x00000cd4,interrupt_input_ring,recovered-observed-branch,dynamic-differential,Runs the observed input ring poll and control-flow tail
 0x00000ce0,0x00000d20,interrupt_restore_prefix,recovered-control-block,dynamic-differential,Restores the interrupt working set up to the architectural return

@@ -162,6 +162,16 @@ typedef struct vf2_recovered_timer_irq_report {
     int wait_released;
 } vf2_recovered_timer_irq_report;
 
+/* Measured four-instruction interrupt acknowledge handler at 0x00000d30. */
+typedef struct vf2_recovered_interrupt_ack_report {
+    uint32_t entry_address;
+    uint32_t exit_address;
+    uint32_t acknowledge_address;
+    uint32_t acknowledge_value;
+    uint64_t recovered_instruction_count;
+    uint64_t recovered_procedure_returns;
+} vf2_recovered_interrupt_ack_report;
+
 typedef struct vf2_recovered_boot_stage2_report {
     uint32_t start_address;
     uint32_t stop_address;
@@ -222,6 +232,15 @@ vf2_status vf2_recovered_task_registry_initialize(
 vf2_status vf2_recovered_timer_irq_dispatch(
     vf2_model2a *machine,
     vf2_recovered_timer_irq_report *report
+);
+
+/* Semantic C recovery of the independent 0x00000d30 interrupt handler.
+ * The caller must provide an entered i960 procedure frame at 0x00000d30;
+ * unentered or neighboring handler states remain unsupported. */
+vf2_status vf2_recovered_interrupt_ack_dispatch(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu,
+    vf2_recovered_interrupt_ack_report *report
 );
 
 /* Semantic recovery of the scheduler registry scan at 0x00010d54.

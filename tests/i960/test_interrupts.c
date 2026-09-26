@@ -4,6 +4,7 @@
 
 #include "vf2/hybrid.h"
 #include "vf2/i960/executor.h"
+#include "vf2/i960/snapshot.h"
 #include "vf2/model2a.h"
 #include "vf2/recovered.h"
 
@@ -13,6 +14,113 @@ static void write_le32(uint8_t *data, uint32_t value)
     data[1] = (uint8_t)(value >> 8u);
     data[2] = (uint8_t)(value >> 16u);
     data[3] = (uint8_t)(value >> 24u);
+}
+
+static int vf2_test_interrupt_ack_handler(void)
+{
+    uint8_t *rom = NULL;
+    vf2_model2a reference_machine;
+    vf2_model2a native_machine;
+    vf2_i960_cpu reference_cpu;
+    vf2_i960_cpu native_cpu;
+    vf2_i960_run_options options;
+    vf2_i960_run_result result;
+    vf2_recovered_interrupt_ack_report report;
+    vf2_i960_snapshot_diff diff;
+    vf2_status status = VF2_OK;
+    bool reference_initialized = false;
+    bool native_initialized = false;
+    int test_result = 0;
+
+    memset(&reference_machine, 0, sizeof(reference_machine));
+    memset(&native_machine, 0, sizeof(native_machine));
+    memset(&report, 0, sizeof(report));
+    memset(&diff, 0, sizeof(diff));
+    rom = (uint8_t *)calloc(1u, VF2_MAIN_ROM_SIZE);
+    if (rom == NULL || !vf2_model2a_initialize(&reference_machine)) {
+        test_result = 1;
+        goto cleanup;
+    }
+    reference_initialized = true;
+    if (!vf2_model2a_initialize(&native_machine)) {
+        test_result = 2;
+        goto cleanup;
+    }
+    native_initialized = true;
+
+    /* The model2recomp-guided lift at 0x0d30 is exactly four instructions:
+     * load 0xe80000, form -5, acknowledge, and return. */
+    write_le32(rom + 0x00000d30u, 0x8c203000u);
+    write_le32(rom + 0x00000d38u, 0x59281905u);
+    write_le32(rom + 0x00000d3cu, 0x92291000u);
+    write_le32(rom + 0x00000d40u, 0x0a000000u);
+    if (vf2_model2a_attach_main_rom(
+            &reference_machine, rom, VF2_MAIN_ROM_SIZE
+        ) != VF2_OK ||
+        vf2_model2a_attach_main_rom(
+            &native_machine, rom, VF2_MAIN_ROM_SIZE
+        ) != VF2_OK) {
+        test_result = 3;
+        goto cleanup;
+    }
+
+    vf2_i960_cpu_reset(&reference_cpu, 0u, 0u, UINT32_C(0x00000040));
+    vf2_i960_cpu_reset(&native_cpu, 0u, 0u, UINT32_C(0x00000040));
+    reference_cpu.registers[1] = VF2_WORK_RAM_BASE + UINT32_C(0x3000);
+    native_cpu.registers[1] = VF2_WORK_RAM_BASE + UINT32_C(0x3000);
+    if (vf2_i960_cpu_enter_procedure(
+            &reference_cpu, UINT32_C(0x00000d30), UINT32_C(0x00000040)
+        ) != VF2_OK ||
+        vf2_i960_cpu_enter_procedure(
+            &native_cpu, UINT32_C(0x00000d30), UINT32_C(0x00000040)
+        ) != VF2_OK) {
+        test_result = 4;
+        goto cleanup;
+    }
+
+    memset(&options, 0, sizeof(options));
+    options.stop_address = UINT32_C(0x00000040);
+    options.max_steps = 8u;
+    status = vf2_i960_run(&reference_cpu, &reference_machine, &options, &result);
+    if (status != VF2_OK || result.halt_reason != VF2_I960_HALT_STOP_ADDRESS ||
+        result.executed_instructions != UINT64_C(4) ||
+        reference_cpu.executed_instructions != UINT64_C(4) ||
+        reference_cpu.procedure_returns != UINT64_C(1) ||
+        reference_cpu.ip != UINT32_C(0x00000040) ||
+        reference_cpu.local_frame_depth != 0u) {
+        test_result = 5;
+        goto cleanup;
+    }
+
+    status = vf2_recovered_interrupt_ack_dispatch(
+        &native_machine, &native_cpu, &report
+    );
+    if (status != VF2_OK || report.entry_address != UINT32_C(0x00000d30) ||
+        report.exit_address != UINT32_C(0x00000040) ||
+        report.acknowledge_address != UINT32_C(0x00e80000) ||
+        report.acknowledge_value != UINT32_C(0xfffffffb) ||
+        report.recovered_instruction_count != UINT64_C(4) ||
+        report.recovered_procedure_returns != UINT64_C(1)) {
+        test_result = 6;
+        goto cleanup;
+    }
+    status = vf2_i960_compare_live_state(
+        &reference_cpu, &reference_machine, &native_cpu, &native_machine, &diff
+    );
+    if (status != VF2_OK || !diff.equal) {
+        test_result = 7;
+        goto cleanup;
+    }
+
+cleanup:
+    if (native_initialized) {
+        vf2_model2a_shutdown(&native_machine);
+    }
+    if (reference_initialized) {
+        vf2_model2a_shutdown(&reference_machine);
+    }
+    free(rom);
+    return test_result;
 }
 
 int vf2_test_i960_interrupts(void)
@@ -32,6 +140,9 @@ int vf2_test_i960_interrupts(void)
     uint8_t flag = 0u;
     vf2_status status = VF2_OK;
 
+    if (vf2_test_interrupt_ack_handler() != 0) {
+        return 14;
+    }
     memset(&report, 0, sizeof(report));
     rom = (uint8_t *)calloc(1u, VF2_MAIN_ROM_SIZE);
     if (rom == NULL || !vf2_model2a_initialize(&machine)) {
