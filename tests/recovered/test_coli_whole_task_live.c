@@ -280,8 +280,11 @@ static void test_matrix_case(
         f0_flag == 0u && f1_flag == 0u ? UINT64_C(9214) :
         f0_flag != 0u && f1_flag != 0u ?
             (f0_821 == 5u && f1_821 == 5u ? UINT64_C(9532) :
+             f0_821 == 2u ? UINT64_C(9527) :
              f0_821 == 5u || f1_821 == 5u ? UINT64_C(9526) : UINT64_C(9520)) :
         (active_flag != 0u &&
+         (f0_flag != 0u ? f0_821 : f1_821) == 2u ? UINT64_C(9392) :
+         active_flag != 0u &&
          (f0_flag != 0u ? f0_821 : f1_821) == 5u
             ? UINT64_C(9391) : UINT64_C(9385));
     const uint64_t expected_calls =
@@ -338,7 +341,6 @@ static void test_matrix_case(
         &ref_cpu, &ref_m, &nat_cpu, &nat_m, &diff
     ) == VF2_OK);
     CHECK(diff.equal);
-
     vf2_model2a_shutdown(&ref_m);
     vf2_model2a_shutdown(&nat_m);
 }
@@ -397,6 +399,21 @@ static void run_rom(const char *dir){
                     0u, scans[f1_scan], 0u
                 );
             }
+        }
+    }
+    {
+        const uint8_t scans[] = {2u};
+        for (size_t scan = 0u; scan < sizeof(scans); ++scan) {
+            test_matrix_case(
+                rom, rs, data, ds, &matrix_snapshot,
+                0x100u, 0u, 0u, scans[scan], 0u,
+                0u, 0u, 0u
+            );
+            test_matrix_case(
+                rom, rs, data, ds, &matrix_snapshot,
+                0x100u, 0x100u, 0u, scans[scan], 0u,
+                0u, 0u, 0u
+            );
         }
     }
     for (uint32_t f0_flag = 0u; f0_flag <= 0x100u; f0_flag += 0x100u) {

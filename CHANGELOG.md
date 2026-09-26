@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Add measured F0 `field_0821 = 2` neighbors to the whole-task fixture:
+  single-live `9392/17/18` and bilateral `9527/18/19` now match the ROM and
+  native C with complete live-state equality. The neighboring scan-6 branch
+  remains fail-closed at its measured `0x22210` frontier.
+  See `decomp/i960/notes/fa_coli_whole_task_scan821_f0_v0686.md`.
+
 - Add the 16-case bilateral `field_0821` composition matrix. Both fighters'
   scan-5 combination is measured at `9532/18/19` and now matches native C and
   the ROM with full live-state equality through `0x10dcc`; intermediate

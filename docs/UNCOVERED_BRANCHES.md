@@ -6,6 +6,16 @@ runs through the eleventh-dispatch validation corridor, but it remains one evide
 sequence rather than a complete game implementation. Unsupported paths return
 `VF2_ERROR_UNSUPPORTED` instead of falling back to i960 interpretation.
 
+## v0686 measured `field_0821 = 2` F0 neighbors
+
+Two additional ROM-backed witnesses now cover fighter-0 `field_0821 = 2`
+with fighter 1 inactive and with both bit-8 flags active. They match native C
+at `9392/17/18` and `9527/18/19` respectively, including full live-state
+equality through `0x10dcc`. The measured correction removes two accounting
+instructions in each shape. The neighboring `field_0821 = 6` path reaches a
+different midbody branch at `0x22210` and remains explicitly unsupported.
+See `decomp/i960/notes/fa_coli_whole_task_scan821_f0_v0686.md`.
+
 ## v0685 measured bilateral scan composition matrix
 
 The same fixture now covers all 16 combinations of fighter-0 and fighter-1

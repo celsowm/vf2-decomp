@@ -30573,6 +30573,21 @@ vf2_status vf2_hybrid_coli_23524_execute(
              * kept separately above. */
             body -= UINT64_C(1);
         }
+        if ((g6 == (UINT32_C(1) << 1u) ||
+             g6 == (UINT32_C(1) << 2u)) &&
+            (flags0 & (UINT32_C(1) << 8u)) != 0u &&
+            field_820 == UINT8_C(0) &&
+            scan_821 == UINT8_C(2) &&
+            ((g6 == (UINT32_C(1) << 1u) &&
+              (flags1 & (UINT32_C(1) << 8u)) == 0u) ||
+             (g6 == (UINT32_C(1) << 2u) &&
+              (flags1 & (UINT32_C(1) << 8u)) != 0u &&
+              field_820_other == UINT8_C(0) &&
+              scan_821_other == UINT8_C(0)))) {
+            /* Measured scan-2 witnesses remove two accounting instructions
+             * in the single-live and F0-scan-2 bilateral shapes. */
+            body -= UINT64_C(2);
+        }
     }
 
     cpu->registers[VF2_I960_G0_REGISTER + 3u] = 0u;
@@ -31206,6 +31221,9 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
                     !(coli_instructions == UINT64_C(9526) &&
                       coli_calls == UINT64_C(18) &&
                       coli_returns == UINT64_C(19)) &&
+                    !(coli_instructions == UINT64_C(9527) &&
+                      coli_calls == UINT64_C(18) &&
+                      coli_returns == UINT64_C(19)) &&
                     !(coli_instructions == UINT64_C(9532) &&
                       coli_calls == UINT64_C(18) &&
                       coli_returns == UINT64_C(19)) &&
@@ -31213,6 +31231,9 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
                       coli_calls == UINT64_C(18) &&
                       coli_returns == UINT64_C(19)) &&
                     !(coli_instructions == UINT64_C(9393) &&
+                      coli_calls == UINT64_C(17) &&
+                      coli_returns == UINT64_C(18)) &&
+                    !(coli_instructions == UINT64_C(9392) &&
                       coli_calls == UINT64_C(17) &&
                       coli_returns == UINT64_C(18)) &&
                     !(coli_instructions == UINT64_C(9385) &&
