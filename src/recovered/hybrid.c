@@ -23051,7 +23051,8 @@ vf2_status vf2_hybrid_coli_contact_query_execute(
 /* Body-only recovery of 0x22298: no CPU frame, no ret accounting.
  * Warm (bit 8 clear): body 6. Sibling (bit 8 and bit 1 set): body 7.
  * Live v0351 (bit 8 set, bit 1 clear + measured gates): body 13.
- * The measured both-bit-8/scan-5 ordering miss stores 0xffff with body 20.
+ * The measured single-live and both-live scan-5 ordering misses store 0xffff
+ * with body 20.
  * All accepted shapes store their measured result into g7+0x6dc; other
  * siblings fail closed. */
 static vf2_status coli_22298_body(
@@ -23214,6 +23215,36 @@ static vf2_status coli_22298_body(
                     machine, g7 + UINT32_C(0x61c), &half_61c) != VF2_OK ||
                 hybrid_read_u8(
                     machine, g8 + UINT32_C(0x821), &scan_821) != VF2_OK) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+            if (flags_g7 == 0u &&
+                flags_g8 == (UINT32_C(1) << 8u) &&
+                half_61c == UINT16_C(0) &&
+                scan_821 == UINT8_C(5)) {
+                uint32_t ordering_a = 0u;
+                uint32_t ordering_b = 0u;
+
+                if (vf2_model2a_read_u32(
+                        machine, g7 + UINT32_C(0x1f8), &ordering_a) !=
+                        VF2_OK ||
+                    vf2_model2a_read_u32(
+                        machine, g7 + UINT32_C(0x6e4), &ordering_b) !=
+                        VF2_OK) {
+                    return VF2_ERROR_UNSUPPORTED;
+                }
+                if ((int32_t)ordering_a >= (int32_t)ordering_b) {
+                    /* Measured f0-bit8/scan5 sibling: the second
+                     * 0x22298 call takes the ordering-fail common tail,
+                     * stores 0xffff at g7+0x6dc and consumes 20 body
+                     * instructions. Keep the opposite ordering closed. */
+                    if (hybrid_write_u16(
+                            machine, g7 + VF2_COLI_BITMASK_RESULT_OFFSET,
+                            UINT16_C(0xffff)) != VF2_OK) {
+                        return VF2_ERROR_UNSUPPORTED;
+                    }
+                    *body_out = UINT64_C(20);
+                    return VF2_OK;
+                }
                 return VF2_ERROR_UNSUPPORTED;
             }
             second_loop_candidate = half_61c == UINT16_C(0) &&
@@ -28557,6 +28588,34 @@ vf2_status vf2_hybrid_coli_midbody_tail_execute(
     cpu->registers[VF2_I960_G0_REGISTER + 7u] = fighter1;
     cpu->registers[VF2_I960_G0_REGISTER + 8u] = fighter0;
 
+    {
+        uint32_t flags0 = 0u;
+        uint32_t flags1 = 0u;
+        uint8_t field_820 = 0u;
+        uint8_t scan_821 = 0u;
+
+        if (vf2_model2a_read_u32(
+                machine, fighter0 + VF2_COLI_BITMASK_FLAGS_OFFSET, &flags0) !=
+                VF2_OK ||
+            vf2_model2a_read_u32(
+                machine, fighter1 + VF2_COLI_BITMASK_FLAGS_OFFSET, &flags1) !=
+                VF2_OK ||
+            hybrid_read_u8(machine, fighter0 + UINT32_C(0x820), &field_820) !=
+                VF2_OK ||
+            hybrid_read_u8(machine, fighter0 + UINT32_C(0x821), &scan_821) !=
+                VF2_OK) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        if ((flags0 & (UINT32_C(1) << 8u)) != 0u &&
+            (flags1 & (UINT32_C(1) << 8u)) == 0u &&
+            field_820 == UINT8_C(0) && scan_821 == UINT8_C(5)) {
+            /* The alternate 0x22404 scan path removes one parent
+             * instruction while the 0x22298 child gains seven; the
+             * measured tail total remains equal to the scan-0 sibling. */
+            body -= UINT64_C(1);
+        }
+    }
+
     return hybrid_complete_procedure(machine, cpu, body, 4u, 4u);
     }
 }
@@ -30437,6 +30496,33 @@ vf2_status vf2_hybrid_coli_23524_execute(
         }
     }
 
+    if (g6 == (UINT32_C(1) << 1u)) {
+        uint32_t flags0 = 0u;
+        uint32_t flags1 = 0u;
+        uint8_t field_820 = 0u;
+        uint8_t scan_821 = 0u;
+
+        if (vf2_model2a_read_u32(
+                machine, g7 + VF2_COLI_BITMASK_FLAGS_OFFSET, &flags0) !=
+                VF2_OK ||
+            vf2_model2a_read_u32(
+                machine, g8 + VF2_COLI_BITMASK_FLAGS_OFFSET, &flags1) !=
+                VF2_OK ||
+            hybrid_read_u8(machine, g7 + UINT32_C(0x820), &field_820) !=
+                VF2_OK ||
+            hybrid_read_u8(machine, g7 + UINT32_C(0x821), &scan_821) !=
+                VF2_OK) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        if ((flags0 & (UINT32_C(1) << 8u)) != 0u &&
+            (flags1 & (UINT32_C(1) << 8u)) == 0u &&
+            field_820 == UINT8_C(0) && scan_821 == UINT8_C(5)) {
+            /* The measured single-live scan-5 shell omits the two
+             * setbit instructions taken by the scan-1 sibling. */
+            body -= UINT64_C(1);
+        }
+    }
+
     cpu->registers[VF2_I960_G0_REGISTER + 3u] = 0u;
     cpu->registers[VF2_I960_G0_REGISTER + 4u] = g4;
     cpu->registers[VF2_I960_G0_REGISTER + 5u] = r15;
@@ -31052,7 +31138,9 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
                   * entry: reference 9393/17/18 (0x22404 x2, no 0x225cc)
                   * for fighter0 bit 8. Fighter1 bit 8 is the mirrored
                   * sibling 9385/17/18 (v0384, same 0x22404 x2, swapped
-                  * 0x22298 live/warm). Both clear is 9214/18/19.
+                  * 0x22298 live/warm). v0678 adds the measured f0-bit8,
+                  * field_0820=0, field_0821=5 sibling at 9391/17/18.
+                  * Both clear is 9214/18/19.
                   * Live g0=1→0x225cc midbody-park shape is measured at
                   * 380 steps / 12 call-instructions / 10 rets
                   * (coli-live-midbody-g01): 22298 warm+live-bit8,
@@ -31068,6 +31156,9 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
                       coli_calls == UINT64_C(17) &&
                       coli_returns == UINT64_C(18)) &&
                     !(coli_instructions == UINT64_C(9385) &&
+                      coli_calls == UINT64_C(17) &&
+                      coli_returns == UINT64_C(18)) &&
+                    !(coli_instructions == UINT64_C(9391) &&
                       coli_calls == UINT64_C(17) &&
                       coli_returns == UINT64_C(18))) {
                     status = VF2_ERROR_UNSUPPORTED;

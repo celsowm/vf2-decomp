@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Extend the measured `fa_coli` whole-task corridor with the single-live
+  `field_0821 = 5` sibling. The ROM-backed fixture proves exact
+  `9391/17/18` accounting and full live-state equality through `0x10dcc`; the
+  opposite ordering remains fail-closed. See
+  `decomp/i960/notes/fa_coli_whole_task_scan5_v0678.md`.
+
 - Consolidate the measured `fa_player` `0x27b5c` five-slot walk behind one
   internal helper shared by the direct `0x270d4` wrapper and the accepted
   `0x1428c` head. This is a structural reuse only: selector gates, fail-closed

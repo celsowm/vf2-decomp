@@ -6,6 +6,19 @@ runs through the eleventh-dispatch validation corridor, but it remains one evide
 sequence rather than a complete game implementation. Unsupported paths return
 `VF2_ERROR_UNSUPPORTED` instead of falling back to i960 interpretation.
 
+## v0678 measured `fa_coli` scan-5 sibling
+
+The whole-task fixture now covers the measured single-live shape where fighter
+0 has `field_01a4` bit 8, fighter 1 does not, fighter 0 has
+`field_0820 = 0` and `field_0821 = 5`. The second `0x22298` call takes the
+ordering-fail tail, stores `0xffff` at the neutral `field_06dc` offset, and
+the paired `0x22404` path reaches the observed zero-contact exit. The native
+task matches the ROM at `9391/17/18` through `0x10dcc`, including live-state
+equality. The opposite ordering and unmeasured neighboring combinations remain
+unsupported. Evidence and the reproducible fixture are recorded in
+`decomp/i960/notes/fa_coli_whole_task_scan5_v0678.md` and
+`tests/recovered/test_coli_whole_task_live.c`.
+
 ## v0677 player slot-walk consolidation
 
 The measured five-slot record walk used by `fa_player` `0x270d4` and the
