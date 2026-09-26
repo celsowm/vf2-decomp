@@ -23803,10 +23803,12 @@ static vf2_status coli_22404_body(
         if (result == 0u) {
             /* v0501/v0502: measured stale slot-0 empty tails.  The
              * table-index-0, -2 and -5 witnesses all reach this join with
-             * the computed result clear; keep other selectors closed. */
+             * the computed result clear; v0688 adds the whole-task
+             * g13=0x514940/index-1 witness. Keep other selectors closed. */
             if (old_snap != snap &&
                 !(slot == UINT8_C(0) && result == UINT16_C(0) &&
                   (field_820 == UINT8_C(0) ||
+                   field_820 == UINT8_C(1) ||
                    field_820 == UINT8_C(2) ||
                    field_820 == UINT8_C(5)))) {
                 return VF2_ERROR_UNSUPPORTED;
@@ -31296,6 +31298,9 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
                       coli_calls == UINT64_C(17) &&
                       coli_returns == UINT64_C(18)) &&
                     !(coli_instructions == UINT64_C(9391) &&
+                      coli_calls == UINT64_C(17) &&
+                      coli_returns == UINT64_C(18)) &&
+                    !(coli_instructions == UINT64_C(9398) &&
                       coli_calls == UINT64_C(17) &&
                       coli_returns == UINT64_C(18))) {
                     status = VF2_ERROR_UNSUPPORTED;

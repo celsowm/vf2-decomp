@@ -64,7 +64,15 @@ static void test_one(const uint8_t *rom,size_t rs,const uint8_t *data,size_t ds,
     CHECK(vf2_model2a_attach_main_rom(&nat_m,rom,rs)==VF2_OK);
     CHECK(vf2_model2a_attach_main_data(&ref_m,data,ds)==VF2_OK);
     CHECK(vf2_model2a_attach_main_data(&nat_m,data,ds)==VF2_OK);
-    if(f1==11) {
+    if(f1==12) {
+        CHECK(apply_f0(&ref_m)==VF2_OK);
+        CHECK(apply_f0(&nat_m)==VF2_OK);
+        CHECK(vf2_model2a_write_u32(&ref_m, 0x005149cc, 0x0000ffffu) == VF2_OK);
+        CHECK(vf2_model2a_write_u32(&nat_m, 0x005149cc, 0x0000ffffu) == VF2_OK);
+        ref_cpu.registers[VF2_I960_G0_REGISTER + 13u] = 0x00514940u;
+        nat_cpu.registers[VF2_I960_G0_REGISTER + 13u] = 0x00514940u;
+    }
+    else if(f1==11) {
         CHECK(apply_both_high(&ref_m)==VF2_OK);
         CHECK(apply_both_high(&nat_m)==VF2_OK);
         CHECK(vf2_model2a_write_u32(&ref_m, 0x00510d84, 0x00008000u) == VF2_OK);
@@ -161,11 +169,13 @@ static void test_one(const uint8_t *rom,size_t rs,const uint8_t *data,size_t ds,
     uint64_t nat_ins = nat_cpu.executed_instructions - snap.cpu.executed_instructions;
     uint64_t nat_calls = nat_cpu.procedure_calls - snap.cpu.procedure_calls;
     uint64_t nat_rets = nat_cpu.procedure_returns - snap.cpu.procedure_returns;
-    const char *mode_str = f1==11 ? "both-high-bit15-8221" : f1==10 ? "both-bit15-8221" : f1==9 ? "f1-bit15-8221" : f1==8 ? "f1-scan5-82216" : f1==7 ? "f0-scan5-82216" : f1==6 ? "both-bit15-f1" : f1==5 ? "both-bit15" : f1==4 ? "f0-scan5" : f1==3 ? "both-high" : f1==2 ? "both" : f1 ? "f1" : "f0";
+    const char *mode_str = f1==12 ? "f0-g13-live-9398" : f1==11 ? "both-high-bit15-8221" : f1==10 ? "both-bit15-8221" : f1==9 ? "f1-bit15-8221" : f1==8 ? "f1-scan5-82216" : f1==7 ? "f0-scan5-82216" : f1==6 ? "both-bit15-f1" : f1==5 ? "both-bit15" : f1==4 ? "f0-scan5" : f1==3 ? "both-high" : f1==2 ? "both" : f1 ? "f1" : "f0";
     printf("mode %s: ref %llu/%llu/%llu nat %llu/%llu/%llu\n", mode_str,
         (unsigned long long)ref_ins,(unsigned long long)ref_calls,(unsigned long long)ref_rets,
         (unsigned long long)nat_ins,(unsigned long long)nat_calls,(unsigned long long)nat_rets);
-    if(f1==11 || f1==10 || f1==9) {
+    if(f1==12) {
+        CHECK(ref_ins==9398); CHECK(ref_calls==17); CHECK(ref_rets==18);
+    } else if(f1==11 || f1==10 || f1==9) {
         CHECK(ref_ins==(f1==11 ? 9526 : f1==10 ? 9520 : 9385)); CHECK(ref_calls==(f1==11 || f1==10 ? 18 : 17)); CHECK(ref_rets==(f1==11 || f1==10 ? 19 : 18));
     } else if(f1==8 || f1==7) {
         CHECK(ref_ins==(f1==7 ? 9391 : 9385)); CHECK(ref_calls==17); CHECK(ref_rets==18);
@@ -362,6 +372,7 @@ static void run_rom(const char *dir){
     test_one(rom,rs,data,ds,9);
     test_one(rom,rs,data,ds,10);
     test_one(rom,rs,data,ds,11);
+    test_one(rom,rs,data,ds,12);
     vf2_i960_snapshot_init(&matrix_snapshot);
     CHECK(
         vf2_i960_snapshot_read_file(

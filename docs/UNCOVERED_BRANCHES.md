@@ -18,6 +18,18 @@ runs through the eleventh-dispatch validation corridor, but it remains one evide
 sequence rather than a complete game implementation. Unsupported paths return
 `VF2_ERROR_UNSUPPORTED` instead of falling back to i960 interpretation.
 
+## v0688 whole-task `fa_coli` stale-empty witness `9398/17/18`
+
+The complete `0x000221e8` → `0x00010dcc` corridor now admits one additional
+ROM-backed shape: fighter 0 `field_01a4 = 0x100`, `field_0820 = 1`,
+`g13 = 0x00514940`, and the measured `0x005149cc = 0xffff` setup. The first
+`0x22404` contact query is a stale-slot, empty-result path; the reference
+returns zero there, and the previous native gate incorrectly rejected index 1
+for that specific stale-empty join. Native and reference now match the full
+state at `9398` instructions, 17 procedure calls and 18 returns. Other
+stale-empty combinations remain fail-closed. See
+`decomp/i960/notes/fa_coli_whole_task_9398_v0688.md`.
+
 ## v0687 liftkit-guided `fa_player` `0x27ce0` gate
 
 The optional external i960 lift was used to expose the four-load gate before

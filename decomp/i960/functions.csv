@@ -5,6 +5,7 @@ address,end,name,status,source,notes
 0x00010cbc,0x00010d54,task_registry_initialize,recovered,manual+differential,29-entry scheduler registry initializer
 0x00010d54,,scheduler_dispatch,recovered-prefix,dynamic+semantic,Runnable registry scan and indirect dispatch
 0x0001645c,0x00016504,task_game_info,recovered-first-dispatch,dynamic-differential,Direct no-call first-dispatch branch
+0x000221e8,0x00010dcc,task_coli,recovered-observed-branch,dynamic-differential,Whole-task fa_coli corridor admits the measured 9398/17/18 stale-empty witness in addition to the existing matrix
 0x00029748,0x0002974c,task_user,recovered,dynamic-differential,Complete no-op task
 0x000439fc,0x00043a40,task_sound_initialize,recovered,dynamic-differential,Complete first-entry initializer
 0x000640f4,0x0006428c,task_osage,recovered-first-dispatch,dynamic-differential,Initialization path for both instances
