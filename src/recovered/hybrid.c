@@ -30566,11 +30566,11 @@ vf2_status vf2_hybrid_coli_23524_execute(
             (flags0 & (UINT32_C(1) << 8u)) != 0u &&
             (flags1 & (UINT32_C(1) << 8u)) != 0u &&
             field_820 == UINT8_C(0) &&
-            scan_821 == UINT8_C(0) &&
             field_820_other == UINT8_C(0) &&
             scan_821_other == UINT8_C(5)) {
-            /* The bilateral F1 scan-5 witness keeps the ordinary F0
-             * accounting correction and removes one further instruction. */
+            /* Every measured bilateral F1 scan-5 witness removes one further
+             * instruction; the ordinary F0 correction, when applicable, is
+             * kept separately above. */
             body -= UINT64_C(1);
         }
     }
@@ -31204,6 +31204,9 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
                       coli_calls == UINT64_C(18) &&
                       coli_returns == UINT64_C(19)) &&
                     !(coli_instructions == UINT64_C(9526) &&
+                      coli_calls == UINT64_C(18) &&
+                      coli_returns == UINT64_C(19)) &&
+                    !(coli_instructions == UINT64_C(9532) &&
                       coli_calls == UINT64_C(18) &&
                       coli_returns == UINT64_C(19)) &&
                     !(coli_instructions == UINT64_C(9520) &&

@@ -279,7 +279,8 @@ static void test_matrix_case(
     const uint64_t expected_ins =
         f0_flag == 0u && f1_flag == 0u ? UINT64_C(9214) :
         f0_flag != 0u && f1_flag != 0u ?
-            (f0_821 == 5u || f1_821 == 5u ? UINT64_C(9526) : UINT64_C(9520)) :
+            (f0_821 == 5u && f1_821 == 5u ? UINT64_C(9532) :
+             f0_821 == 5u || f1_821 == 5u ? UINT64_C(9526) : UINT64_C(9520)) :
         (active_flag != 0u &&
          (f0_flag != 0u ? f0_821 : f1_821) == 5u
             ? UINT64_C(9391) : UINT64_C(9385));
@@ -383,6 +384,18 @@ static void run_rom(const char *dir){
                         );
                     }
                 }
+            }
+        }
+    }
+    {
+        const uint8_t scans[] = {0u, 1u, 4u, 5u};
+        for (size_t f0_scan = 0u; f0_scan < sizeof(scans); ++f0_scan) {
+            for (size_t f1_scan = 0u; f1_scan < sizeof(scans); ++f1_scan) {
+                test_matrix_case(
+                    rom, rs, data, ds, &matrix_snapshot,
+                    0x100u, 0x100u, 0u, scans[f0_scan], 0u,
+                    0u, scans[f1_scan], 0u
+                );
             }
         }
     }

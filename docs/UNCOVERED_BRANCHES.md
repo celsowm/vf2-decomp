@@ -6,6 +6,16 @@ runs through the eleventh-dispatch validation corridor, but it remains one evide
 sequence rather than a complete game implementation. Unsupported paths return
 `VF2_ERROR_UNSUPPORTED` instead of falling back to i960 interpretation.
 
+## v0685 measured bilateral scan composition matrix
+
+The same fixture now covers all 16 combinations of fighter-0 and fighter-1
+`field_0821` values `0/1/4/5` with both bit-8 flags set. The reference adds
+one measured cluster, `9532/18/19`, when both fighters select scan-5; one
+fighter selecting scan-5 produces `9526/18/19`, and all other combinations
+remain `9520/18/19`. Native C matches every case through `0x10dcc` with
+complete live-state equality, including the newly admitted `9532` task gate.
+See `decomp/i960/notes/fa_coli_whole_task_scan821_bilateral_v0685.md`.
+
 ## v0684 measured `fa_coli` fighter-1 scan matrix
 
 The parked whole-task fixture now also covers the mirrored 128-case domain
@@ -14,8 +24,8 @@ with fighter-1 `field_0804` bit 15, `field_0821` values `0/1/4/5`, and
 clusters and native C matches every case through `0x10dcc` with complete
 live-state equality. The fighter-1 scan-5 witnesses required a separately
 measured one-instruction correction in the single-live and bilateral shapes.
-Unmeasured simultaneous nonzero scan fields and other object fields remain
-fail-closed. See
+Other object fields and unmeasured flag/scan combinations remain fail-closed.
+See
 `decomp/i960/notes/fa_coli_whole_task_scan821_f1_matrix_v0684.md`.
 
 ## v0682 native game-update boundary

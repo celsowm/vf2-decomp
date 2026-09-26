@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Add the 16-case bilateral `field_0821` composition matrix. Both fighters'
+  scan-5 combination is measured at `9532/18/19` and now matches native C and
+  the ROM with full live-state equality through `0x10dcc`; intermediate
+  single-scan-5 combinations remain `9526/18/19`.
+  See `decomp/i960/notes/fa_coli_whole_task_scan821_bilateral_v0685.md`.
+
 - Add the mirrored fighter-1 `fa_coli` scan matrix: 128 ROM-backed cases now
   cover fighter-1 `field_0804`, `field_0821` and `field_0822` variants, with
   exact native/live-state equality through `0x10dcc`. The measured fighter-1
