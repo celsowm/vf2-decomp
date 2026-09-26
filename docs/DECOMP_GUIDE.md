@@ -9,6 +9,34 @@ build/vf2i960 analyze roms/vf2 out/analysis
 Inspect the function list, CFG, xrefs, abstract values, indirect targets and
 pseudocode before assigning names or writing recovered C.
 
+### Optional liftkit static scaffold
+
+The generic i960 lifter from `segamodel2-tools` can provide an additional IR,
+CFG, ABI and C scaffold view for one measured VF2 slice. Keep that checkout
+outside this repository and configure it with `--liftkit-root` or
+`SEGAMODEL2_TOOLS_ROOT`:
+
+```powershell
+python tools/python/liftkit_vf2.py `
+  --rom-dir roms/vf2 `
+  --liftkit-root C:/path/to/segamodel2-tools `
+  --vf2i960 build/Debug/vf2i960.exe `
+  --address 0x27b5c `
+  --count 128 `
+  --name fa_player_27b5c
+```
+
+The adapter obtains the listing from the local `vf2i960` command, normalizes
+only the address delimiter expected by liftkit, and writes all outputs below
+`out/liftkit/`. It does not use the external MAME frontend, which is tied to
+Sega Rally ROM names and layout.
+
+The generated `*.lifted.c` file is a deterministic navigation scaffold only.
+Unresolved condition-state expressions such as `ac`, raw `ldt`/`stt`, `cvtri`
+and any other liftkit placeholder remain evidence gaps. Never copy a scaffold
+directly into `src/recovered`; recover the smallest behavior from measured
+state and prove it with the ROM-backed differential contract below.
+
 ## Dynamic evidence
 
 Execute a bounded path:
