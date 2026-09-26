@@ -30496,7 +30496,8 @@ vf2_status vf2_hybrid_coli_23524_execute(
         }
     }
 
-    if (g6 == (UINT32_C(1) << 1u)) {
+    if (g6 == (UINT32_C(1) << 1u) ||
+        g6 == (UINT32_C(1) << 2u)) {
         uint32_t flags0 = 0u;
         uint32_t flags1 = 0u;
         uint8_t field_820 = 0u;
@@ -30515,10 +30516,15 @@ vf2_status vf2_hybrid_coli_23524_execute(
             return VF2_ERROR_UNSUPPORTED;
         }
         if ((flags0 & (UINT32_C(1) << 8u)) != 0u &&
-            (flags1 & (UINT32_C(1) << 8u)) == 0u &&
-            field_820 == UINT8_C(0) && scan_821 == UINT8_C(5)) {
-            /* The measured single-live scan-5 shell omits the two
-             * setbit instructions taken by the scan-1 sibling. */
+            field_820 == UINT8_C(0) &&
+            ((g6 == (UINT32_C(1) << 1u) &&
+              (flags1 & (UINT32_C(1) << 8u)) == 0u &&
+              scan_821 == UINT8_C(5)) ||
+             (g6 == (UINT32_C(1) << 2u) &&
+              (flags1 & (UINT32_C(1) << 8u)) != 0u &&
+              scan_821 == UINT8_C(0)))) {
+            /* These measured generic g3-scan shells omit one native
+             * accounting instruction relative to the shared candidate. */
             body -= UINT64_C(1);
         }
     }
@@ -31140,6 +31146,8 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
                   * sibling 9385/17/18 (v0384, same 0x22404 x2, swapped
                   * 0x22298 live/warm). v0678 adds the measured f0-bit8,
                   * field_0820=0, field_0821=5 sibling at 9391/17/18.
+                  * v0679 adds the both-live field_0804 bit-15 sibling at
+                  * 9520/18/19.
                   * Both clear is 9214/18/19.
                   * Live g0=1→0x225cc midbody-park shape is measured at
                   * 380 steps / 12 call-instructions / 10 rets
@@ -31150,6 +31158,9 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
                       coli_calls == UINT64_C(18) &&
                       coli_returns == UINT64_C(19)) &&
                     !(coli_instructions == UINT64_C(9526) &&
+                      coli_calls == UINT64_C(18) &&
+                      coli_returns == UINT64_C(19)) &&
+                    !(coli_instructions == UINT64_C(9520) &&
                       coli_calls == UINT64_C(18) &&
                       coli_returns == UINT64_C(19)) &&
                     !(coli_instructions == UINT64_C(9393) &&

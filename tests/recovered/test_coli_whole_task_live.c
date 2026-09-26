@@ -64,7 +64,19 @@ static void test_one(const uint8_t *rom,size_t rs,const uint8_t *data,size_t ds,
     CHECK(vf2_model2a_attach_main_rom(&nat_m,rom,rs)==VF2_OK);
     CHECK(vf2_model2a_attach_main_data(&ref_m,data,ds)==VF2_OK);
     CHECK(vf2_model2a_attach_main_data(&nat_m,data,ds)==VF2_OK);
-    if(f1==4) {
+    if(f1==5) {
+        CHECK(apply_both(&ref_m)==VF2_OK);
+        CHECK(apply_both(&nat_m)==VF2_OK);
+        CHECK(vf2_model2a_write(&ref_m, 0x005111a0, (const uint8_t *)"\x00", 1u) == VF2_OK);
+        CHECK(vf2_model2a_write(&nat_m, 0x005111a0, (const uint8_t *)"\x00", 1u) == VF2_OK);
+        CHECK(vf2_model2a_write(&ref_m, 0x005111a1, (const uint8_t *)"\x00", 1u) == VF2_OK);
+        CHECK(vf2_model2a_write(&nat_m, 0x005111a1, (const uint8_t *)"\x00", 1u) == VF2_OK);
+        CHECK(vf2_model2a_write(&ref_m, 0x005111a2, (const uint8_t *)"\x00\x00", 2u) == VF2_OK);
+        CHECK(vf2_model2a_write(&nat_m, 0x005111a2, (const uint8_t *)"\x00\x00", 2u) == VF2_OK);
+        CHECK(vf2_model2a_write_u32(&ref_m, 0x00510d84, 0x00008000u) == VF2_OK);
+        CHECK(vf2_model2a_write_u32(&nat_m, 0x00510d84, 0x00008000u) == VF2_OK);
+    }
+    else if(f1==4) {
         CHECK(apply_f0(&ref_m)==VF2_OK);
         CHECK(apply_f0(&nat_m)==VF2_OK);
         CHECK(vf2_model2a_write(&ref_m, 0x005111a0, (const uint8_t *)"\x00", 1u) == VF2_OK);
@@ -97,11 +109,13 @@ static void test_one(const uint8_t *rom,size_t rs,const uint8_t *data,size_t ds,
     uint64_t nat_ins = nat_cpu.executed_instructions - snap.cpu.executed_instructions;
     uint64_t nat_calls = nat_cpu.procedure_calls - snap.cpu.procedure_calls;
     uint64_t nat_rets = nat_cpu.procedure_returns - snap.cpu.procedure_returns;
-    const char *mode_str = f1==4 ? "f0-scan5" : f1==3 ? "both-high" : f1==2 ? "both" : f1 ? "f1" : "f0";
+    const char *mode_str = f1==5 ? "both-bit15" : f1==4 ? "f0-scan5" : f1==3 ? "both-high" : f1==2 ? "both" : f1 ? "f1" : "f0";
     printf("mode %s: ref %llu/%llu/%llu nat %llu/%llu/%llu\n", mode_str,
         (unsigned long long)ref_ins,(unsigned long long)ref_calls,(unsigned long long)ref_rets,
         (unsigned long long)nat_ins,(unsigned long long)nat_calls,(unsigned long long)nat_rets);
-    if(f1==4) {
+    if(f1==5) {
+        CHECK(ref_ins==9520); CHECK(ref_calls==18); CHECK(ref_rets==19);
+    } else if(f1==4) {
         CHECK(ref_ins==9391); CHECK(ref_calls==17); CHECK(ref_rets==18);
     } else if(f1==0){
         CHECK(ref_ins==9393); CHECK(ref_calls==17); CHECK(ref_rets==18);
@@ -135,6 +149,7 @@ static void run_rom(const char *dir){
     test_one(rom,rs,data,ds,2);
     test_one(rom,rs,data,ds,3);
     test_one(rom,rs,data,ds,4);
+    test_one(rom,rs,data,ds,5);
     free(rom); free(data);
 }
 int main(int argc,char **argv){

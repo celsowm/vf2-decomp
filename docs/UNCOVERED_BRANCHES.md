@@ -6,6 +6,17 @@ runs through the eleventh-dispatch validation corridor, but it remains one evide
 sequence rather than a complete game implementation. Unsupported paths return
 `VF2_ERROR_UNSUPPORTED` instead of falling back to i960 interpretation.
 
+## v0679 measured `fa_coli` both-live bit-15 sibling
+
+The whole-task fixture also covers the measured both-live shape with bit 8 set
+on both fighters, fighter 0 `field_0804 = 0x00008000`, and fighter 0
+`field_0820 = 0`, `field_0821 = 0`, `field_0822 = 0`. The first contact query
+takes the measured shorter scan path and the task exits through the same
+zero-contact tail. Native and ROM match at `9520/18/19` through `0x10dcc`,
+including live-state equality. Other bit-15/order combinations remain
+fail-closed. Evidence is recorded in
+`decomp/i960/notes/fa_coli_whole_task_both_bit15_v0679.md`.
+
 ## v0678 measured `fa_coli` scan-5 sibling
 
 The whole-task fixture now covers the measured single-live shape where fighter
