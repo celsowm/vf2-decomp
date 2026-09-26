@@ -6,6 +6,18 @@ runs through the eleventh-dispatch validation corridor, but it remains one evide
 sequence rather than a complete game implementation. Unsupported paths return
 `VF2_ERROR_UNSUPPORTED` instead of falling back to i960 interpretation.
 
+## v0687 liftkit-guided `fa_player` `0x27ce0` gate
+
+The optional external i960 lift was used to expose the four-load gate before
+the existing `0x27d00` bridge. The equal-selector shape (`+0x1aa == 1`,
+`+0xc4e == 1`, `+0xc4c == +0x1a8`) is now native-pinned: it returns at
+`0x1abf8` after 9 instructions including the call, with the measured equal
+condition state and full ROM-backed live-state equality. The live `0x505`
+shape still takes the `+0xc4e != 1` branch to `0x27d00`; unmeasured gate
+shapes remain fail-closed. The adjacent `0x27cc8` lift only corroborated the
+already recovered 36-word `cvtri/stis` tail. See
+`decomp/i960/notes/fa_player_27ce0_gate_v0687.md`.
+
 ## v0686 measured `field_0821 = 2` F0 neighbors
 
 Two additional ROM-backed witnesses now cover fighter-0 `field_0821 = 2`

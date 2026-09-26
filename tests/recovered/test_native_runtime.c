@@ -20,6 +20,19 @@ static int failures = 0;
         }                                                                              \
     } while (0)
 
+static vf2_status test_write_u16(
+    vf2_model2a *machine,
+    uint32_t address,
+    uint16_t value
+)
+{
+    const uint8_t bytes[2] = {
+        (uint8_t)(value & UINT16_C(0xff)),
+        (uint8_t)(value >> 8u)
+    };
+    return vf2_model2a_write(machine, address, bytes, sizeof(bytes));
+}
+
 static void enter_parent(vf2_i960_cpu *cpu, uint32_t target) {
     vf2_i960_cpu_reset(cpu, 0u, 0u, UINT32_C(0x00001000));
     cpu->registers[1] = VF2_WORK_RAM_BASE + UINT32_C(0x3000);
@@ -7538,6 +7551,91 @@ static void test_player_27b5c_zero_record_fail_closed(void) {
     free(rom);
 }
 
+/* liftkit-guided gate pin: 0x1abf4 calls 0x27ce0, whose equal-selector
+ * shape returns at 0x1abf8 after the four-load gate. */
+static void test_player_27ce0_equal_selector_rom_pin(const char *rom_dir)
+{
+    uint8_t *main_rom = NULL;
+    size_t main_rom_size = 0u;
+    vf2_model2a ref_machine;
+    vf2_model2a native_machine;
+    vf2_i960_cpu ref_cpu;
+    vf2_i960_cpu native_cpu;
+    vf2_i960_run_options options;
+    vf2_i960_run_result result;
+    vf2_i960_snapshot_diff diff;
+    const uint32_t player = UINT32_C(0x00510980);
+    const uint32_t stack = UINT32_C(0x005ff500);
+    vf2_status status = VF2_OK;
+
+    CHECK(vf2_romset_build_region(
+              rom_dir, VF2_REGION_MAINCPU, &main_rom, &main_rom_size) ==
+          VF2_OK);
+    if (main_rom == NULL) {
+        return;
+    }
+    memset(&ref_machine, 0, sizeof(ref_machine));
+    memset(&native_machine, 0, sizeof(native_machine));
+    CHECK(vf2_model2a_initialize(&ref_machine));
+    CHECK(vf2_model2a_initialize(&native_machine));
+    CHECK(vf2_model2a_attach_main_rom(
+              &ref_machine, main_rom, main_rom_size) == VF2_OK);
+    CHECK(vf2_model2a_attach_main_rom(
+              &native_machine, main_rom, main_rom_size) == VF2_OK);
+    CHECK(test_write_u16(
+              &ref_machine, player + UINT32_C(0x1aa), 1u) == VF2_OK);
+    CHECK(test_write_u16(
+              &native_machine, player + UINT32_C(0x1aa), 1u) == VF2_OK);
+    CHECK(test_write_u16(
+              &ref_machine, player + UINT32_C(0xc4e), 1u) == VF2_OK);
+    CHECK(test_write_u16(
+              &native_machine, player + UINT32_C(0xc4e), 1u) == VF2_OK);
+    CHECK(test_write_u16(
+              &ref_machine, player + UINT32_C(0xc4c), 0x505u) == VF2_OK);
+    CHECK(test_write_u16(
+              &native_machine, player + UINT32_C(0xc4c), 0x505u) == VF2_OK);
+    CHECK(test_write_u16(
+              &ref_machine, player + UINT32_C(0x1a8), 0x505u) == VF2_OK);
+    CHECK(test_write_u16(
+              &native_machine, player + UINT32_C(0x1a8), 0x505u) == VF2_OK);
+
+    vf2_i960_cpu_reset(&ref_cpu, 0u, 0u, UINT32_C(0x0001abf4));
+    vf2_i960_cpu_reset(&native_cpu, 0u, 0u, UINT32_C(0x0001abf4));
+    ref_cpu.registers[1] = stack;
+    native_cpu.registers[1] = stack;
+    ref_cpu.registers[VF2_I960_FP_REGISTER] = stack - UINT32_C(0x100);
+    native_cpu.registers[VF2_I960_FP_REGISTER] = stack - UINT32_C(0x100);
+    ref_cpu.registers[VF2_I960_G0_REGISTER + 7u] = player;
+    native_cpu.registers[VF2_I960_G0_REGISTER + 7u] = player;
+    memset(&options, 0, sizeof(options));
+    options.stop_address = UINT32_C(0x0001abf8);
+    options.max_steps = 16u;
+    options.stop_on_self_branch = false;
+    memset(&result, 0, sizeof(result));
+    status = vf2_i960_run(&ref_cpu, &ref_machine, &options, &result);
+    CHECK(status == VF2_OK);
+    CHECK(ref_cpu.ip == UINT32_C(0x0001abf8));
+    CHECK(result.executed_instructions == UINT64_C(9));
+    status = vf2_hybrid_player_27ce0_execute_for_test(
+        &native_machine, &native_cpu
+    );
+    CHECK(status == VF2_OK);
+    CHECK(native_cpu.ip == UINT32_C(0x0001abf8));
+    CHECK(native_cpu.executed_instructions == UINT64_C(9));
+    CHECK(vf2_i960_compare_live_state(
+              &ref_cpu, &ref_machine, &native_cpu, &native_machine, &diff) ==
+          VF2_OK);
+    if (!diff.equal) {
+        fprintf(stderr, "27ce0 diff component=%s offset=%zu expected=%08x actual=%08x\n",
+                diff.component, diff.first_offset,
+                (unsigned)diff.expected_value, (unsigned)diff.actual_value);
+    }
+    CHECK(diff.equal);
+    vf2_model2a_shutdown(&ref_machine);
+    vf2_model2a_shutdown(&native_machine);
+    free(main_rom);
+}
+
 /* v0359 ROM pin: five 0x270d4 slots vs oracle with COBR CC (9235 insns). */
 static void test_player_270d4_five_slot_rom_pin(const char *rom_dir)
 {
@@ -7690,6 +7788,7 @@ int main(int argc, char **argv) {
     test_frame_dispatch_selector0_sega_warning_draw();
     test_player_27b5c_zero_record_fail_closed();
     if (argc >= 2) {
+        test_player_27ce0_equal_selector_rom_pin(argv[1]);
         test_player_270d4_five_slot_rom_pin(argv[1]);
     }
     test_post_boot_delay();

@@ -1993,6 +1993,11 @@ static vf2_status hybrid_execute_player_1428c(
     vf2_i960_cpu *cpu
 );
 
+static vf2_status hybrid_execute_player_27ce0_prefix(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 /* v0389 test-only entry to the recovered 0x14288 -> 0x19ef8 corridor
  * unit (see hybrid.h).  Thin wrapper: the static unit above already
  * fails closed on every unmeasured shape. */
@@ -2196,6 +2201,14 @@ vf2_status vf2_hybrid_player_1428c_execute_for_test(
 )
 {
     return hybrid_execute_player_1428c(machine, cpu);
+}
+
+vf2_status vf2_hybrid_player_27ce0_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_27ce0_prefix(machine, cpu);
 }
 
 static vf2_status hybrid_execute_player_142c0(
@@ -3354,17 +3367,60 @@ static vf2_status hybrid_execute_player_27ce0_prefix(
     vf2_i960_cpu *cpu
 )
 {
+    const uint32_t player = cpu != NULL
+        ? cpu->registers[VF2_I960_G0_REGISTER + 7u] : 0u;
+    uint16_t counter = 0u;
+    uint16_t ready = 0u;
+    uint16_t current_selector = 0u;
+    uint16_t requested_selector = 0u;
     vf2_status status = VF2_OK;
 
-    (void)machine;
-    if (cpu == NULL || cpu->ip != UINT32_C(0x0001abf4)) {
+    if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x0001abf4) ||
+        player == 0u) {
         return VF2_ERROR_UNSUPPORTED;
+    }
+    /* liftkit 0x27ce0 identifies a four-load gate before the shared
+     * 0x27d00 body.  The live selector-0x505 park takes the second
+     * compare branch (ready != 1).  The equal-selector sibling is a
+     * measured early return at 0x27cfc; keep both outcomes explicit so
+     * this native bridge does not silently skip the ROM gate. */
+    status = hybrid_read_u16(
+        machine, player + UINT32_C(0x1aa), &counter
+    );
+    if (status == VF2_OK) {
+        status = hybrid_read_u16(
+            machine, player + UINT32_C(0xc4e), &ready
+        );
+    }
+    if (status == VF2_OK) {
+        status = hybrid_read_u16(
+            machine, player + UINT32_C(0xc4c), &current_selector
+        );
+    }
+    if (status == VF2_OK) {
+        status = hybrid_read_u16(
+            machine, player + UINT32_C(0x1a8), &requested_selector
+        );
+    }
+    if (status != VF2_OK) {
+        return status;
     }
     status = vf2_i960_cpu_enter_procedure(
         cpu, UINT32_C(0x00027ce0), UINT32_C(0x0001abf8)
     );
     if (status != VF2_OK) {
         return status;
+    }
+    if (counter == UINT16_C(1) && ready == UINT16_C(1) &&
+        current_selector == requested_selector) {
+        hybrid_set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
+        status = vf2_i960_cpu_return_procedure(cpu, machine);
+        if (status != VF2_OK) {
+            return status;
+        }
+        /* call 0x27ce0 + the eight measured instructions through ret. */
+        cpu->executed_instructions += UINT64_C(9);
+        return VF2_OK;
     }
     cpu->ip = UINT32_C(0x00027d00);
     if (cpu->registers[VF2_I960_G0_REGISTER + 7u] == UINT32_C(0x00512980))
