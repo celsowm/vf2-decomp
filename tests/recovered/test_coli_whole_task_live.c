@@ -198,13 +198,16 @@ static void test_one(const uint8_t *rom,size_t rs,const uint8_t *data,size_t ds,
     vf2_model2a_shutdown(&nat_m);
 }
 
-static vf2_status apply_matrix_case(
+static vf2_status apply_matrix_case_for_fighters(
     vf2_model2a *m,
     uint32_t f0_flag,
     uint32_t f1_flag,
     uint32_t f0_804,
     uint8_t f0_821,
-    uint16_t f0_822
+    uint16_t f0_822,
+    uint32_t f1_804,
+    uint8_t f1_821,
+    uint16_t f1_822
 )
 {
     vf2_status status = vf2_model2a_write_u32(m, 0x00510b24, f0_flag);
@@ -225,6 +228,19 @@ static vf2_status apply_matrix_case(
         status = vf2_model2a_write(m, 0x005111a2, bytes, sizeof(bytes));
     }
     if (status == VF2_OK) {
+        status = vf2_model2a_write_u32(m, 0x00512d84, f1_804);
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_write(m, 0x005131a1, &f1_821, 1u);
+    }
+    if (status == VF2_OK) {
+        const uint8_t bytes[2] = {
+            (uint8_t)f1_822,
+            (uint8_t)(f1_822 >> 8u)
+        };
+        status = vf2_model2a_write(m, 0x005131a2, bytes, sizeof(bytes));
+    }
+    if (status == VF2_OK) {
         status = vf2_model2a_write_u32(m, 0x005149cc, 0x0000ffffu);
     }
     return status;
@@ -240,7 +256,10 @@ static void test_matrix_case(
     uint32_t f1_flag,
     uint32_t f0_804,
     uint8_t f0_821,
-    uint16_t f0_822
+    uint16_t f0_822,
+    uint32_t f1_804,
+    uint8_t f1_821,
+    uint16_t f1_822
 )
 {
     vf2_model2a ref_m = {0};
@@ -256,11 +275,14 @@ static void test_matrix_case(
     uint64_t nat_calls = 0u;
     uint64_t nat_rets = 0u;
     size_t steps = 0u;
+    const uint32_t active_flag = f0_flag != 0u ? f0_flag : f1_flag;
     const uint64_t expected_ins =
         f0_flag == 0u && f1_flag == 0u ? UINT64_C(9214) :
         f0_flag != 0u && f1_flag != 0u ?
-            (f0_821 == 5u ? UINT64_C(9526) : UINT64_C(9520)) :
-        (f0_flag != 0u && f0_821 == 5u ? UINT64_C(9391) : UINT64_C(9385));
+            (f0_821 == 5u || f1_821 == 5u ? UINT64_C(9526) : UINT64_C(9520)) :
+        (active_flag != 0u &&
+         (f0_flag != 0u ? f0_821 : f1_821) == 5u
+            ? UINT64_C(9391) : UINT64_C(9385));
     const uint64_t expected_calls =
         f0_flag != f1_flag ? UINT64_C(17) : UINT64_C(18);
     const uint64_t expected_rets = expected_calls + UINT64_C(1);
@@ -277,11 +299,13 @@ static void test_matrix_case(
     CHECK(vf2_model2a_attach_main_rom(&nat_m, rom, rs) == VF2_OK);
     CHECK(vf2_model2a_attach_main_data(&ref_m, data, ds) == VF2_OK);
     CHECK(vf2_model2a_attach_main_data(&nat_m, data, ds) == VF2_OK);
-    CHECK(apply_matrix_case(
-        &ref_m, f0_flag, f1_flag, f0_804, f0_821, f0_822
+    CHECK(apply_matrix_case_for_fighters(
+        &ref_m, f0_flag, f1_flag, f0_804, f0_821, f0_822,
+        f1_804, f1_821, f1_822
     ) == VF2_OK);
-    CHECK(apply_matrix_case(
-        &nat_m, f0_flag, f1_flag, f0_804, f0_821, f0_822
+    CHECK(apply_matrix_case_for_fighters(
+        &nat_m, f0_flag, f1_flag, f0_804, f0_821, f0_822,
+        f1_804, f1_821, f1_822
     ) == VF2_OK);
 
     while (ref_cpu.ip != 0x00010dcc && steps < 10000u) {
@@ -294,9 +318,10 @@ static void test_matrix_case(
     ref_rets = ref_cpu.procedure_returns - source_snapshot->cpu.procedure_returns;
 
     CHECK(nat_cpu.ip == 0x000221e8);
-    CHECK(vf2_hybrid_first_dispatch_task_execute(
+    vf2_status native_status = vf2_hybrid_first_dispatch_task_execute(
         &nat_m, &nat_cpu, nat_cpu.registers[29], &report
-    ) == VF2_OK);
+    );
+    CHECK(native_status == VF2_OK);
     CHECK(nat_cpu.ip == 0x00010dcc);
     nat_ins = nat_cpu.executed_instructions - source_snapshot->cpu.executed_instructions;
     nat_calls = nat_cpu.procedure_calls - source_snapshot->cpu.procedure_calls;
@@ -353,7 +378,25 @@ static void run_rom(const char *dir){
                         test_matrix_case(
                             rom, rs, data, ds, &matrix_snapshot,
                             f0_flag, f1_flag, f0_804,
-                            scans[scan], fields[field]
+                            scans[scan], fields[field],
+                            0u, 0u, 0u
+                        );
+                    }
+                }
+            }
+        }
+    }
+    for (uint32_t f0_flag = 0u; f0_flag <= 0x100u; f0_flag += 0x100u) {
+        for (uint32_t f1_flag = 0u; f1_flag <= 0x100u; f1_flag += 0x100u) {
+            for (uint32_t f1_804 = 0u; f1_804 <= 0x8000u; f1_804 += 0x8000u) {
+                const uint8_t scans[] = {0u, 1u, 4u, 5u};
+                const uint16_t fields[] = {0u, 1u, 16u, 256u};
+                for (size_t scan = 0u; scan < sizeof(scans); ++scan) {
+                    for (size_t field = 0u; field < sizeof(fields) / sizeof(fields[0]); ++field) {
+                        test_matrix_case(
+                            rom, rs, data, ds, &matrix_snapshot,
+                            f0_flag, f1_flag, 0u, 0u, 0u,
+                            f1_804, scans[scan], fields[field]
                         );
                     }
                 }

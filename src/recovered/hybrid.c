@@ -30501,7 +30501,9 @@ vf2_status vf2_hybrid_coli_23524_execute(
         uint32_t flags0 = 0u;
         uint32_t flags1 = 0u;
         uint8_t field_820 = 0u;
+        uint8_t field_820_other = 0u;
         uint8_t scan_821 = 0u;
+        uint8_t scan_821_other = 0u;
 
         if (vf2_model2a_read_u32(
                 machine, g7 + VF2_COLI_BITMASK_FLAGS_OFFSET, &flags0) !=
@@ -30511,28 +30513,64 @@ vf2_status vf2_hybrid_coli_23524_execute(
                 VF2_OK ||
             hybrid_read_u8(machine, g7 + UINT32_C(0x820), &field_820) !=
                 VF2_OK ||
+            hybrid_read_u8(
+                machine, g8 + UINT32_C(0x820), &field_820_other) !=
+                VF2_OK ||
             hybrid_read_u8(machine, g7 + UINT32_C(0x821), &scan_821) !=
+                VF2_OK ||
+            hybrid_read_u8(
+                machine, g8 + UINT32_C(0x821), &scan_821_other) !=
                 VF2_OK) {
             return VF2_ERROR_UNSUPPORTED;
         }
-        if ((flags0 & (UINT32_C(1) << 8u)) != 0u &&
-            field_820 == UINT8_C(0) &&
-            ((g6 == (UINT32_C(1) << 1u) &&
-              (flags1 & (UINT32_C(1) << 8u)) == 0u &&
-              (scan_821 == UINT8_C(0) ||
-               scan_821 == UINT8_C(1) ||
-               scan_821 == UINT8_C(4) ||
-               scan_821 == UINT8_C(5))) ||
-             (g6 == (UINT32_C(1) << 2u) &&
-              (flags1 & (UINT32_C(1) << 8u)) != 0u &&
-              (scan_821 == UINT8_C(0) ||
-               scan_821 == UINT8_C(1) ||
-               scan_821 == UINT8_C(4))))) {
+        bool adjust_g3_scan = false;
+        if (g6 == (UINT32_C(1) << 1u)) {
+            if ((flags0 & (UINT32_C(1) << 8u)) != 0u &&
+                (flags1 & (UINT32_C(1) << 8u)) == 0u &&
+                field_820 == UINT8_C(0)) {
+                if (scan_821 == UINT8_C(0) ||
+                    scan_821 == UINT8_C(1) ||
+                    scan_821 == UINT8_C(4) ||
+                    scan_821 == UINT8_C(5)) {
+                    adjust_g3_scan = true;
+                }
+            } else if ((flags0 & (UINT32_C(1) << 8u)) == 0u &&
+                       (flags1 & (UINT32_C(1) << 8u)) != 0u &&
+                       field_820_other == UINT8_C(0) &&
+                       scan_821_other == UINT8_C(5)) {
+                adjust_g3_scan = true;
+            }
+        } else if (g6 == (UINT32_C(1) << 2u) &&
+                   (flags0 & (UINT32_C(1) << 8u)) != 0u &&
+                   (flags1 & (UINT32_C(1) << 8u)) != 0u &&
+                   field_820 == UINT8_C(0)) {
+            if (scan_821 == UINT8_C(0) ||
+                scan_821 == UINT8_C(1) ||
+                scan_821 == UINT8_C(4)) {
+                adjust_g3_scan = true;
+            } else if (scan_821 == UINT8_C(0) &&
+                       field_820_other == UINT8_C(0) &&
+                       scan_821_other == UINT8_C(5)) {
+                adjust_g3_scan = true;
+            }
+        }
+        if (adjust_g3_scan) {
             /* Measured generic g3-scan shells omit one accounting
              * instruction relative to the shared candidate.  The single-live
              * scan-0/1/4/5 and bilateral scan-0/1/4 cases are pinned by the
-             * complete 128-case whole-task sweep; bilateral scan-5 retains
-             * the separate high-scan accounting shape below. */
+             * complete whole-task sweeps; the measured bilateral F1 scan-5
+             * witness has its extra correction immediately below. */
+            body -= UINT64_C(1);
+        }
+        if (g6 == (UINT32_C(1) << 2u) &&
+            (flags0 & (UINT32_C(1) << 8u)) != 0u &&
+            (flags1 & (UINT32_C(1) << 8u)) != 0u &&
+            field_820 == UINT8_C(0) &&
+            scan_821 == UINT8_C(0) &&
+            field_820_other == UINT8_C(0) &&
+            scan_821_other == UINT8_C(5)) {
+            /* The bilateral F1 scan-5 witness keeps the ordinary F0
+             * accounting correction and removes one further instruction. */
             body -= UINT64_C(1);
         }
     }

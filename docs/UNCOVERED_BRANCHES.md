@@ -6,6 +6,18 @@ runs through the eleventh-dispatch validation corridor, but it remains one evide
 sequence rather than a complete game implementation. Unsupported paths return
 `VF2_ERROR_UNSUPPORTED` instead of falling back to i960 interpretation.
 
+## v0684 measured `fa_coli` fighter-1 scan matrix
+
+The parked whole-task fixture now also covers the mirrored 128-case domain
+with fighter-1 `field_0804` bit 15, `field_0821` values `0/1/4/5`, and
+`field_0822` values `0/1/16/256`. The ROM again produces the five measured
+clusters and native C matches every case through `0x10dcc` with complete
+live-state equality. The fighter-1 scan-5 witnesses required a separately
+measured one-instruction correction in the single-live and bilateral shapes.
+Unmeasured simultaneous nonzero scan fields and other object fields remain
+fail-closed. See
+`decomp/i960/notes/fa_coli_whole_task_scan821_f1_matrix_v0684.md`.
+
 ## v0682 native game-update boundary
 
 `vf2_game_run_native_frame` is now explicitly validation/oracle-only. The
@@ -23,8 +35,8 @@ and `field_0822` values `0/1/16/256`. Every reference case reaches
 `0x10dcc` and matches native C with complete live-state equality. The compact
 accounting rule has five measured outcomes (`9214`, `9385`, `9391`, `9520`,
 `9526`, with the existing call/return shapes). Values outside this matrix,
-including fighter-1 field variants and unmeasured scan values, remain
-fail-closed. See
+including simultaneous fighter-1 field variants and unmeasured scan values,
+remain fail-closed. See
 `decomp/i960/notes/fa_coli_whole_task_scan821_matrix_v0683.md`.
 
 ## v0681 measured bit-15/`field_0822 = 1` neighbors

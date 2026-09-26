@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Add the mirrored fighter-1 `fa_coli` scan matrix: 128 ROM-backed cases now
+  cover fighter-1 `field_0804`, `field_0821` and `field_0822` variants, with
+  exact native/live-state equality through `0x10dcc`. The measured fighter-1
+  scan-5 single/bilateral accounting corrections remain narrowly scoped.
+  See
+  `decomp/i960/notes/fa_coli_whole_task_scan821_f1_matrix_v0684.md`.
+
 - Expand the `fa_coli` whole-task differential fixture to 128 measured
   scan/flag/field combinations and recover the corresponding compact
   accounting corrections. All cases retain exact live-state equality through
