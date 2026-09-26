@@ -3,6 +3,12 @@
 The executor validates recovered C and discovers the next evidence boundary. It
 is not intended to become the native game runtime.
 
+The same rule applies to the public game facade: `vf2_game_run_native_frame`
+is a validation/oracle entry point, while `vf2_game_update` must not execute
+i960 instructions. Until the portable gameplay pipeline is complete, an
+attached oracle runtime makes `vf2_game_update` fail closed with
+`VF2_ERROR_UNSUPPORTED`.
+
 ## Accepted differential checkpoints
 
 | Original path/function | Accepted C | Result |

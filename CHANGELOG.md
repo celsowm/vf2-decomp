@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Separated the normal game update boundary from the i960 validation runner:
+  `vf2_game_update` no longer invokes `vf2_game_run_native_frame` and now
+  fails closed when only the oracle runtime is attached. Added a regression
+  check proving that the update does not execute i960 instructions.
+
 - Expand the `fa_coli` whole-task matrix with three measured bit-15/
   `field_0822 = 1` neighbors across the fighter-1, both-live and scan-5
   shapes. All retain exact ROM/native accounting and live-state equality.

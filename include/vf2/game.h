@@ -59,6 +59,9 @@ vf2_status vf2_game_attach_native_runtime(
     vf2_i960_cpu *cpu,
     vf2_native_runtime_state *runtime
 );
+
+/* Validation-only frame runner.  This boundary may execute the recovered
+ * i960 runtime; vf2_game_update never calls it. */
 vf2_status vf2_game_run_native_frame(
     vf2_game *game,
     size_t max_blocks,

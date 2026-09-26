@@ -187,6 +187,13 @@ This is an integration boundary, not a claim of a playable game: gameplay input
 semantics, the complete TGP packet/microcode protocol, gameplay state and full
 sound behavior remain open.
 
+`vf2_game_update` now preserves that boundary. When an oracle runtime is
+attached it returns `VF2_ERROR_UNSUPPORTED` without advancing the i960 CPU or
+the game frame; it never delegates to `vf2_game_run_native_frame`. The latter
+is explicitly validation-only. This fail-closed split prevents the current
+ROM-backed executor from becoming an accidental normal-game dependency while
+the portable fighter/match pipeline is still being recovered.
+
 The Model 2A input facade now exposes the active-low 315-5649 B/C/D input
 ports at `0x01c00002`, `0x01c00004` and `0x01c00006`. `vf2_game_set_input`
 updates the platform surface and synchronizes the native machine, including

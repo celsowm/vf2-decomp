@@ -528,6 +528,15 @@ vf2_status vf2_game_update(vf2_game *game)
         return VF2_ERROR_INVALID_ARGUMENT;
     }
 
+    /* Preflight the execution boundary before touching any mutable subsystem.
+     * An attached oracle without a portable gameplay pipeline is unsupported
+     * as a whole frame, so audio maintenance must not create a partial update
+     * before that result is reported. */
+    if (game->native_machine != NULL || game->native_cpu != NULL ||
+        game->native_runtime != NULL) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
     if (game->sound != NULL) {
         vf2_status status = vf2_sound_board_maintain_streams(
             game->sound, &stream_maintenance
@@ -543,11 +552,13 @@ vf2_status vf2_game_update(vf2_game *game)
         }
     }
 
-    if (game->native_machine != NULL || game->native_cpu != NULL ||
-        game->native_runtime != NULL) {
-        return vf2_game_run_native_frame(game, 100000u, NULL);
-    }
-
+    /* The interpreted/recovered i960 runtime is an oracle boundary, not the
+     * normal game loop.  Keep this guard explicit until the portable fighter,
+     * match and submission pipeline is attached to vf2_game.  In particular,
+     * do not silently turn vf2_game_update into a call to
+     * vf2_game_run_native_frame: doing so would make an apparently native
+     * frame execute guest instructions and would hide missing gameplay
+     * recovery behind the validation path. */
     ++game->frame_number;
     return VF2_OK;
 }

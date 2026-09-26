@@ -6,6 +6,15 @@ runs through the eleventh-dispatch validation corridor, but it remains one evide
 sequence rather than a complete game implementation. Unsupported paths return
 `VF2_ERROR_UNSUPPORTED` instead of falling back to i960 interpretation.
 
+## v0682 native game-update boundary
+
+`vf2_game_run_native_frame` is now explicitly validation/oracle-only. The
+normal `vf2_game_update` path performs an early preflight and returns
+`VF2_ERROR_UNSUPPORTED` without changing frame, audio, or CPU state when an
+i960 runtime is attached but the portable gameplay pipeline is absent. This
+prevents the current recovered executor from becoming an accidental game-loop
+dependency. A complete native fighter/match implementation remains open.
+
 ## v0681 measured bit-15/`field_0822 = 1` neighbors
 
 The whole-task fixture now covers three further measured combinations:
