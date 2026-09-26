@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Expand the `fa_coli` whole-task fixture with measured scan-5
+  `field_0822 = 16` neighbors for both fighter-bit-8 orientations; both keep
+  exact ROM/native accounting and live-state equality. See
+  `tests/recovered/test_coli_whole_task_live.c`.
+
 - Extend the measured `fa_coli` whole-task corridor with the both-live
   `field_0804` bit-15 sibling. The ROM-backed fixture proves exact
   `9520/18/19` accounting and full live-state equality through `0x10dcc`;
