@@ -15,6 +15,18 @@ i960 runtime is attached but the portable gameplay pipeline is absent. This
 prevents the current recovered executor from becoming an accidental game-loop
 dependency. A complete native fighter/match implementation remains open.
 
+## v0683 measured `fa_coli` scan matrix
+
+The parked whole-task fixture now covers all 128 combinations of fighter
+bit-8 flags, fighter-0 `field_0804` bit 15, `field_0821` values `0/1/4/5`,
+and `field_0822` values `0/1/16/256`. Every reference case reaches
+`0x10dcc` and matches native C with complete live-state equality. The compact
+accounting rule has five measured outcomes (`9214`, `9385`, `9391`, `9520`,
+`9526`, with the existing call/return shapes). Values outside this matrix,
+including fighter-1 field variants and unmeasured scan values, remain
+fail-closed. See
+`decomp/i960/notes/fa_coli_whole_task_scan821_matrix_v0683.md`.
+
 ## v0681 measured bit-15/`field_0822 = 1` neighbors
 
 The whole-task fixture now covers three further measured combinations:

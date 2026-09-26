@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Expand the `fa_coli` whole-task differential fixture to 128 measured
+  scan/flag/field combinations and recover the corresponding compact
+  accounting corrections. All cases retain exact live-state equality through
+  `0x10dcc`. See
+  `decomp/i960/notes/fa_coli_whole_task_scan821_matrix_v0683.md`.
+
 - Separated the normal game update boundary from the i960 validation runner:
   `vf2_game_update` no longer invokes `vf2_game_run_native_frame` and now
   fails closed when only the oracle runtime is attached. Added a regression

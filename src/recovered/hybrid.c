@@ -30519,12 +30519,20 @@ vf2_status vf2_hybrid_coli_23524_execute(
             field_820 == UINT8_C(0) &&
             ((g6 == (UINT32_C(1) << 1u) &&
               (flags1 & (UINT32_C(1) << 8u)) == 0u &&
-              scan_821 == UINT8_C(5)) ||
+              (scan_821 == UINT8_C(0) ||
+               scan_821 == UINT8_C(1) ||
+               scan_821 == UINT8_C(4) ||
+               scan_821 == UINT8_C(5))) ||
              (g6 == (UINT32_C(1) << 2u) &&
               (flags1 & (UINT32_C(1) << 8u)) != 0u &&
-              scan_821 == UINT8_C(0)))) {
-            /* These measured generic g3-scan shells omit one native
-             * accounting instruction relative to the shared candidate. */
+              (scan_821 == UINT8_C(0) ||
+               scan_821 == UINT8_C(1) ||
+               scan_821 == UINT8_C(4))))) {
+            /* Measured generic g3-scan shells omit one accounting
+             * instruction relative to the shared candidate.  The single-live
+             * scan-0/1/4/5 and bilateral scan-0/1/4 cases are pinned by the
+             * complete 128-case whole-task sweep; bilateral scan-5 retains
+             * the separate high-scan accounting shape below. */
             body -= UINT64_C(1);
         }
     }
