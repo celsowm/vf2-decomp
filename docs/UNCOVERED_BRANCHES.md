@@ -6,6 +6,15 @@ runs through the eleventh-dispatch validation corridor, but it remains one evide
 sequence rather than a complete game implementation. Unsupported paths return
 `VF2_ERROR_UNSUPPORTED` instead of falling back to i960 interpretation.
 
+## v0677 player slot-walk consolidation
+
+The measured five-slot record walk used by `fa_player` `0x270d4` and the
+accepted `0x1428c` head now shares one internal C helper. The refactor preserves
+the existing selector gates and does not widen the accepted state space. The
+ROM-backed `0x27b5c` body remains proven only for its existing slot shapes; the
+continuation frontier at `0x27cc8` and all unmeasured records remain
+fail-closed.
+
 ## Latest measured player extension (v0579/v0641/v0642/v0643/v0644/v0645/v0646/v0647/v0648/v0649/v0650/v0651/v0652/v0653/v0654/v0655/v0656/v0657/v0658/v0659/v0660/v0676)
 
 The live `fa_player` `0x19ef8` corridor now admits the measured

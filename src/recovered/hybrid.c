@@ -2468,6 +2468,57 @@ static vf2_status hybrid_execute_player_27b5c(
     return status;
 }
 
+/* The 0x270d4 wrapper and the 0x1428c head consume the same five-record
+ * layout.  Keep the slot walk in one place so a future measured selector
+ * shape cannot accidentally be fixed in only one caller.  The optional
+ * expected_selectors array is a caller gate, not part of the record
+ * semantics: the direct wrapper accepts any selector that 0x27b5c itself
+ * has measured, while the 0x1428c head currently has one proven five-slot
+ * record shape. */
+static vf2_status hybrid_execute_player_270d4_slots(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu,
+    uint32_t record_pointer,
+    uint32_t scratch_base,
+    const uint16_t *expected_selectors
+)
+{
+    static const uint32_t record_offsets[5] = {
+        UINT32_C(0), UINT32_C(2), UINT32_C(0x10),
+        UINT32_C(0x14), UINT32_C(0x3e)
+    };
+    static const uint32_t destination_offsets[5] = {
+        UINT32_C(0x1e0), UINT32_C(0x2d0), UINT32_C(0x3c0),
+        UINT32_C(0x4b0), UINT32_C(0x5a0)
+    };
+    size_t index = 0u;
+    vf2_status status = VF2_OK;
+
+    if (machine == NULL || cpu == NULL || record_pointer == 0u ||
+        scratch_base == 0u) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    for (index = 0u; status == VF2_OK && index < 5u; ++index) {
+        uint16_t record_selector = 0u;
+        status = hybrid_read_u16(
+            machine, record_pointer + record_offsets[index], &record_selector
+        );
+        if (status == VF2_OK && expected_selectors != NULL &&
+            record_selector != expected_selectors[index]) {
+            status = VF2_ERROR_UNSUPPORTED;
+        }
+        if (status == VF2_OK) {
+            status = hybrid_execute_player_27b5c(
+                machine,
+                cpu,
+                (uint32_t)record_selector,
+                scratch_base + destination_offsets[index]
+            );
+        }
+    }
+    return status;
+}
+
 /* v0359: measured five-slot wrapper 0x270d4→0x2712c with COBR CC active.
  * Oracle on player-1428c-f0-s6: 9235 insns, +5 calls, +5 returns. */
 static vf2_status hybrid_execute_player_270d4(
@@ -2485,11 +2536,6 @@ static vf2_status hybrid_execute_player_270d4(
     uint64_t start_returns = 0u;
     uint32_t record_pointer = 0u;
     uint32_t scratch_base = 0u;
-    uint32_t destinations[5];
-    const uint32_t record_offsets[] = {0u, 2u, 0x10u, 0x14u, 0x3eu};
-    uint32_t index = 0u;
-    uint16_t record_selector = 0u;
-    uint32_t selector = 0u;
     vf2_status status = VF2_OK;
 
     if (machine == NULL || cpu == NULL || player == 0u) {
@@ -2515,22 +2561,9 @@ static vf2_status hybrid_execute_player_270d4(
     if (record_pointer == 0u || scratch_base == 0u) {
         return VF2_ERROR_UNSUPPORTED;
     }
-    destinations[0] = scratch_base + 0x1e0u;
-    destinations[1] = scratch_base + 0x2d0u;
-    destinations[2] = scratch_base + 0x3c0u;
-    destinations[3] = scratch_base + 0x4b0u;
-    destinations[4] = scratch_base + 0x5a0u;
-    for (index = 0u; status == VF2_OK && index < 5u; ++index) {
-        status = hybrid_read_u16(
-            machine, record_pointer + record_offsets[index], &record_selector
-        );
-        selector = record_selector;
-        if (status == VF2_OK) {
-            status = hybrid_execute_player_27b5c(
-                machine, cpu, selector, destinations[index]
-            );
-        }
-    }
+    status = hybrid_execute_player_270d4_slots(
+        machine, cpu, record_pointer, scratch_base, NULL
+    );
     if (status != VF2_OK) {
         return status;
     }
@@ -2603,12 +2636,8 @@ static vf2_status hybrid_execute_player_1428c(
         ? cpu->registers[VF2_I960_G0_REGISTER + 7u] : 0u;
     uint32_t record_pointer = 0u;
     uint32_t scratch_base = 0u;
-    uint32_t destinations[5];
-    const uint32_t record_offsets[] = {0u, 2u, 0x10u, 0x14u, 0x3eu};
     uint32_t player_flags = 0u;
     uint32_t selector = 0u;
-    uint32_t index = 0u;
-    uint16_t record_selector = 0u;
     uint8_t player_byte = 0u;
     vf2_status status = VF2_OK;
 
@@ -2654,11 +2683,6 @@ static vf2_status hybrid_execute_player_1428c(
          player_flags != UINT32_C(0x80000882))) {
         return VF2_ERROR_UNSUPPORTED;
     }
-    destinations[0] = scratch_base + 0x1e0u;
-    destinations[1] = scratch_base + 0x2d0u;
-    destinations[2] = scratch_base + 0x3c0u;
-    destinations[3] = scratch_base + 0x4b0u;
-    destinations[4] = scratch_base + 0x5a0u;
     if (status == VF2_OK) {
         player_flags |= UINT32_C(1) << 26u;
         status = vf2_model2a_write_u32(machine, player, player_flags);
@@ -2675,23 +2699,14 @@ static vf2_status hybrid_execute_player_1428c(
     }
     /* v0390: gate each slot on its measured record selector
      * (v0358/v0359: 0x0505/0x0039/0x00f1/0x00e7/0x00af). */
-    for (index = 0u; status == VF2_OK && index < 5u; ++index) {
+    {
         static const uint16_t measured_selectors[5] = {
             UINT16_C(0x0505), UINT16_C(0x0039), UINT16_C(0x00f1),
             UINT16_C(0x00e7), UINT16_C(0x00af)
         };
-        status = hybrid_read_u16(
-            machine, record_pointer + record_offsets[index], &record_selector
+        status = hybrid_execute_player_270d4_slots(
+            machine, cpu, record_pointer, scratch_base, measured_selectors
         );
-        if (status == VF2_OK && record_selector != measured_selectors[index]) {
-            status = VF2_ERROR_UNSUPPORTED;
-        }
-        selector = record_selector;
-        if (status == VF2_OK) {
-            status = hybrid_execute_player_27b5c(
-                machine, cpu, selector, destinations[index]
-            );
-        }
     }
     if (status == VF2_OK) {
         status = vf2_model2a_read_u32(

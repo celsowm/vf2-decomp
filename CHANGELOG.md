@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Consolidate the measured `fa_player` `0x27b5c` five-slot walk behind one
+  internal helper shared by the direct `0x270d4` wrapper and the accepted
+  `0x1428c` head. This is a structural reuse only: selector gates, fail-closed
+  behavior, instruction accounting and the proven ROM boundary are unchanged.
+  The `0x27cc8` continuation remains an explicit measured frontier.
+
 - Extend `fa_player` `0x19ef8` to the measured five-bit low mask `0x0000001f`
   (v0569). All 16 branch-bit compositions match full live state and exact
   4-call/4-return accounting; the then-unmeasured `0x9f` extension remained
