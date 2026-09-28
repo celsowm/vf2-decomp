@@ -1034,7 +1034,8 @@ vf2_status vf2_tgp_read_atan(const vf2_tgp *tgp, uint32_t *value)
     ordered = (tgp->atan_base[0] & UINT32_C(0x7fffffff)) <=
               (tgp->atan_base[1] & UINT32_C(0x7fffffff));
     if (exponent <= UINT8_C(0x17)) {
-        index = (tgp->atan_base[3] & UINT32_C(0x7fffff)) >> exponent;
+        index = ((tgp->atan_base[3] & UINT32_C(0x7fffff)) |
+                 UINT32_C(0x800000)) >> exponent;
     }
     if (index == UINT32_C(0x4000)) {
         index = UINT32_C(0x3fff);
@@ -1150,7 +1151,10 @@ vf2_status vf2_tgp_read_banked_memory(
     if (tgp == NULL || machine == NULL || value == NULL) {
         return VF2_ERROR_INVALID_ARGUMENT;
     }
-    address = tgp->bank_register | word_offset;
+    /* The Model 2A window decodes the bank selector in bits 16..23;
+     * low register bits are not part of the external address. */
+    address = (tgp->bank_register & UINT32_C(0x00ff0000)) |
+              (word_offset & UINT32_C(0x0000ffff));
     index = address & UINT32_C(0x7fffff);
     if ((address & UINT32_C(0x800000)) != 0u) {
         const size_t words = tgp->copro_data_size / sizeof(uint32_t);
@@ -1186,7 +1190,9 @@ vf2_status vf2_tgp_write_banked_memory(
     if (tgp == NULL || machine == NULL) {
         return VF2_ERROR_INVALID_ARGUMENT;
     }
-    address = tgp->bank_register | word_offset;
+    /* Match the Model 2A bank window: only the high bank byte is decoded. */
+    address = (tgp->bank_register & UINT32_C(0x00ff0000)) |
+              (word_offset & UINT32_C(0x0000ffff));
     index = address & UINT32_C(0x7fffff);
     if ((address & UINT32_C(0x400000)) != 0u) {
         return vf2_model2a_write_u32(

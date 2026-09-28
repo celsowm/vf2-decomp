@@ -58,6 +58,14 @@
  *   +0x0c50 4B W  ip  0x00029544 (float result)
  *  Taint: branch 0x0002949c depends on fighter0 + 0x01a4 bit 19
  *
+ * v0351 live coli midbody g0=1 (out/coli-live-midbody-g01, bases
+ * 0x00510980 / 0x00512980, g13=0x00514940) bilateral via
+ * tools/python/fighter_offsets.py --fighter-base:
+ *   +0x0026 2B R, +0x01a4 4B R, +0x01a8 2B R, +0x06dc 2B RW,
+ *   +0x0000 4B R, +0x0004 1B R, +0x0821 1B R.
+ * Unilateral on this drive: +0x0828, +0x1234, +0x06d4/+0x06d8,
+ * +0x0700, +0x082a, +0x019f, +0x01aa, +0x05b4/+0x05b8.
+ *
  * The window 0x2000 covers all above (max offset 0x1200).
  * Field names remain field_XXXX until independent behavioral proof
  * assigns semantic names (health, animation_state, etc. are forbidden
@@ -69,6 +77,7 @@
 /* Stable offsets measured above */
 #define VF2_FIGHTER_OFF_0000 0x0000u
 #define VF2_FIGHTER_OFF_0004 0x0004u
+#define VF2_FIGHTER_OFF_0026 0x0026u
 #define VF2_FIGHTER_OFF_0084 0x0084u
 #define VF2_FIGHTER_OFF_017C 0x017cu
 #define VF2_FIGHTER_OFF_018A 0x018au
@@ -92,6 +101,7 @@
 /* Widths as observed in the measured corridor (state-8, 0x18644 prefix) */
 #define VF2_FIGHTER_WIDTH_0000 4u
 #define VF2_FIGHTER_WIDTH_0004 1u
+#define VF2_FIGHTER_WIDTH_0026 2u
 #define VF2_FIGHTER_WIDTH_0084 4u
 #define VF2_FIGHTER_WIDTH_017C 2u
 #define VF2_FIGHTER_WIDTH_018A 2u
@@ -101,15 +111,23 @@
 #define VF2_FIGHTER_WIDTH_01AA 2u
 #define VF2_FIGHTER_WIDTH_01B1 1u
 #define VF2_FIGHTER_WIDTH_01F4 4u
+#define VF2_FIGHTER_WIDTH_01F8 4u
 #define VF2_FIGHTER_WIDTH_01FC 4u
 #define VF2_FIGHTER_WIDTH_05B4 2u
 #define VF2_FIGHTER_WIDTH_05B8 4u
 #define VF2_FIGHTER_WIDTH_05F4 4u
 #define VF2_FIGHTER_WIDTH_0614 2u
+#define VF2_FIGHTER_WIDTH_0644 2u
+#define VF2_FIGHTER_WIDTH_064C 2u
+#define VF2_FIGHTER_WIDTH_0650 2u
 #define VF2_FIGHTER_WIDTH_06DC 2u
+#define VF2_FIGHTER_WIDTH_0820 1u
 #define VF2_FIGHTER_WIDTH_0821 1u
 #define VF2_FIGHTER_WIDTH_0844 4u
 #define VF2_FIGHTER_WIDTH_0C50 4u
+#define VF2_FIGHTER_WIDTH_0D00 2u
+#define VF2_FIGHTER_WIDTH_0D04 2u
+#define VF2_FIGHTER_WIDTH_0D08 2u
 #define VF2_FIGHTER_WIDTH_1200 1u
 
 /*
@@ -138,7 +156,7 @@ struct vf2_fighter_candidate {
     uint8_t  field_01b1;                 /* +0x01b1  R 1B type 0/6/8/10 */
     uint8_t  _pad_01b2[0x01f4 - 0x01b2];
     uint32_t field_01f4;                 /* +0x01f4  R 4B */
-    uint8_t  _pad_01f8[0x01fc - 0x01f8];
+    uint32_t field_01f8;                 /* +0x01f8  R 4B v0387 */
     uint32_t field_01fc;                 /* +0x01fc  R 4B */
     uint8_t  _pad_0200[0x05b4 - 0x0200];
     uint16_t field_05b4;                 /* +0x05b4  R 2B */
@@ -148,7 +166,13 @@ struct vf2_fighter_candidate {
     uint32_t field_05f4;                 /* +0x05f4  RW 4B */
     uint8_t  _pad_05f8[0x0614 - 0x05f8];
     uint16_t field_0614;                 /* +0x0614  R 2B path B mask */
-    uint8_t  _pad_0616[0x06dc - 0x0616];
+    uint8_t  _pad_0616[0x0644 - 0x0616];
+    uint16_t field_0644;                 /* +0x0644  RW 2B v0387 */
+    uint8_t  _pad_0646[0x064c - 0x0646];
+    uint16_t field_064c;                 /* +0x064c  RW 2B v0387 */
+    uint8_t  _pad_064e[0x0650 - 0x064e];
+    uint16_t field_0650;                 /* +0x0650  RW 2B v0387 */
+    uint8_t  _pad_0652[0x06dc - 0x0652];
     uint16_t field_06dc;                 /* +0x06dc  W 2B coli contact clear */
     uint8_t  _pad_06de[0x0821 - 0x06de];
     uint8_t  field_0821;                 /* +0x0821  R 1B coli scan */
@@ -156,7 +180,13 @@ struct vf2_fighter_candidate {
     uint32_t field_0844;                 /* +0x0844  R 4B */
     uint8_t  _pad_0848[0x0c50 - 0x0848];
     uint32_t field_0c50;                 /* +0x0c50  W 4B float result */
-    uint8_t  _pad_0c54[0x1200 - 0x0c54];
+    uint8_t  _pad_0c54[0x0d00 - 0x0c54];
+    uint16_t field_0d00;                 /* +0x0d00  RW 2B v0387 */
+    uint8_t  _pad_0d02[0x0d04 - 0x0d02];
+    uint16_t field_0d04;                 /* +0x0d04  RW 2B v0387 */
+    uint8_t  _pad_0d06[0x0d08 - 0x0d06];
+    uint16_t field_0d08;                 /* +0x0d08  RW 2B v0387 */
+    uint8_t  _pad_0d0a[0x1200 - 0x0d0a];
     uint8_t  field_1200;                 /* +0x1200  W 1B */
     uint8_t  _pad_1201[VF2_FIGHTER_CANDIDATE_WINDOW - 0x1201];
 };
@@ -172,15 +202,22 @@ _Static_assert(offsetof(struct vf2_fighter_candidate, field_01a8) == 0x01a8, "fi
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_01aa) == 0x01aa, "fighter field_01aa offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_01b1) == 0x01b1, "fighter field_01b1 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_01f4) == 0x01f4, "fighter field_01f4 offset");
+_Static_assert(offsetof(struct vf2_fighter_candidate, field_01f8) == 0x01f8, "fighter field_01f8 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_01fc) == 0x01fc, "fighter field_01fc offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_05b4) == 0x05b4, "fighter field_05b4 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_05b8) == 0x05b8, "fighter field_05b8 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_05f4) == 0x05f4, "fighter field_05f4 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0614) == 0x0614, "fighter field_0614 offset");
+_Static_assert(offsetof(struct vf2_fighter_candidate, field_0644) == 0x0644, "fighter field_0644 offset");
+_Static_assert(offsetof(struct vf2_fighter_candidate, field_064c) == 0x064c, "fighter field_064c offset");
+_Static_assert(offsetof(struct vf2_fighter_candidate, field_0650) == 0x0650, "fighter field_0650 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_06dc) == 0x06dc, "fighter field_06dc offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0821) == 0x0821, "fighter field_0821 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0844) == 0x0844, "fighter field_0844 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0c50) == 0x0c50, "fighter field_0c50 offset");
+_Static_assert(offsetof(struct vf2_fighter_candidate, field_0d00) == 0x0d00, "fighter field_0d00 offset");
+_Static_assert(offsetof(struct vf2_fighter_candidate, field_0d04) == 0x0d04, "fighter field_0d04 offset");
+_Static_assert(offsetof(struct vf2_fighter_candidate, field_0d08) == 0x0d08, "fighter field_0d08 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_1200) == 0x1200, "fighter field_1200 offset");
 _Static_assert(sizeof(struct vf2_fighter_candidate) == VF2_FIGHTER_CANDIDATE_WINDOW, "fighter window");
 

@@ -2,6 +2,1388 @@
 
 ## Unreleased
 
+- Add measured F0 `field_0821 = 2` neighbors to the whole-task fixture:
+  single-live `9392/17/18` and bilateral `9527/18/19` now match the ROM and
+  native C with complete live-state equality. The neighboring scan-6 branch
+  remains fail-closed at its measured `0x22210` frontier.
+  See `decomp/i960/notes/fa_coli_whole_task_scan821_f0_v0686.md`.
+
+- Add the 16-case bilateral `field_0821` composition matrix. Both fighters'
+  scan-5 combination is measured at `9532/18/19` and now matches native C and
+  the ROM with full live-state equality through `0x10dcc`; intermediate
+  single-scan-5 combinations remain `9526/18/19`.
+  See `decomp/i960/notes/fa_coli_whole_task_scan821_bilateral_v0685.md`.
+
+- Add the mirrored fighter-1 `fa_coli` scan matrix: 128 ROM-backed cases now
+  cover fighter-1 `field_0804`, `field_0821` and `field_0822` variants, with
+  exact native/live-state equality through `0x10dcc`. The measured fighter-1
+  scan-5 single/bilateral accounting corrections remain narrowly scoped.
+  See
+  `decomp/i960/notes/fa_coli_whole_task_scan821_f1_matrix_v0684.md`.
+
+- Expand the `fa_coli` whole-task differential fixture to 128 measured
+  scan/flag/field combinations and recover the corresponding compact
+  accounting corrections. All cases retain exact live-state equality through
+  `0x10dcc`. See
+  `decomp/i960/notes/fa_coli_whole_task_scan821_matrix_v0683.md`.
+
+- Separated the normal game update boundary from the i960 validation runner:
+  `vf2_game_update` no longer invokes `vf2_game_run_native_frame` and now
+  fails closed when only the oracle runtime is attached. Added a regression
+  check proving that the update does not execute i960 instructions.
+
+- Expand the `fa_coli` whole-task matrix with three measured bit-15/
+  `field_0822 = 1` neighbors across the fighter-1, both-live and scan-5
+  shapes. All retain exact ROM/native accounting and live-state equality.
+  See `tests/recovered/test_coli_whole_task_live.c`.
+
+- Expand the `fa_coli` whole-task fixture with measured scan-5
+  `field_0822 = 16` neighbors for both fighter-bit-8 orientations; both keep
+  exact ROM/native accounting and live-state equality. See
+  `tests/recovered/test_coli_whole_task_live.c`.
+
+- Extend the measured `fa_coli` whole-task corridor with the both-live
+  `field_0804` bit-15 sibling. The ROM-backed fixture proves exact
+  `9520/18/19` accounting and full live-state equality through `0x10dcc`;
+  unmeasured combinations remain fail-closed. See
+  `decomp/i960/notes/fa_coli_whole_task_both_bit15_v0679.md`.
+
+- Extend the measured `fa_coli` whole-task corridor with the single-live
+  `field_0821 = 5` sibling. The ROM-backed fixture proves exact
+  `9391/17/18` accounting and full live-state equality through `0x10dcc`; the
+  opposite ordering remains fail-closed. See
+  `decomp/i960/notes/fa_coli_whole_task_scan5_v0678.md`.
+
+- Consolidate the measured `fa_player` `0x27b5c` five-slot walk behind one
+  internal helper shared by the direct `0x270d4` wrapper and the accepted
+  `0x1428c` head. This is a structural reuse only: selector gates, fail-closed
+  behavior, instruction accounting and the proven ROM boundary are unchanged.
+  The `0x27cc8` continuation remains an explicit measured frontier.
+
+- Extend `fa_player` `0x19ef8` to the measured five-bit low mask `0x0000001f`
+  (v0569). All 16 branch-bit compositions match full live state and exact
+  4-call/4-return accounting; the then-unmeasured `0x9f` extension remained
+  fail-closed at that revision. See
+  `decomp/i960/notes/fa_player_19ef8_five_low_v0569.md`.
+
+- Extend the same corridor to non-branch mask `0x0000009f` (v0570). All 16
+  branch-bit compositions match full live state and exact 4-call/4-return
+  accounting; the then-unmeasured bit-8 extension remained fail-closed at
+  that revision. See
+  `decomp/i960/notes/fa_player_19ef8_mask_9f_v0570.md`.
+
+- Extend the same corridor to non-branch mask `0x0000019f` (v0571). All 16
+  branch-bit compositions match full live state and exact 4-call/4-return
+  accounting; the then-unmeasured bit-10 extension remained fail-closed at
+  that revision. See
+  `decomp/i960/notes/fa_player_19ef8_mask_19f_v0571.md`.
+
+- Extend the same corridor to non-branch mask `0x0000059f` (v0572). All 16
+  branch-bit compositions match full live state and exact 4-call/4-return
+  accounting; the then-unmeasured bit-12 extension remained fail-closed at
+  that revision. See
+  `decomp/i960/notes/fa_player_19ef8_mask_59f_v0572.md`.
+
+- Extend the same corridor to non-branch mask `0x0001059f` (v0573). All 16
+  branch-bit compositions match full live state and exact 4-call/4-return
+  accounting; the then-unmeasured bit-14 extension remained fail-closed at
+  that revision. See
+  `decomp/i960/notes/fa_player_19ef8_mask_1059f_v0573.md`.
+
+- Extend the same corridor to non-branch mask `0x0005059f` (v0574). All 16
+  branch-bit compositions match full live state and exact 4-call/4-return
+  accounting; the then-unmeasured bit-15 extension remained fail-closed at
+  that revision. See
+  `decomp/i960/notes/fa_player_19ef8_mask_5059f_v0574.md`.
+
+- Extend the same corridor to non-branch mask `0x0008059f` (v0575). All 16
+  branch-bit compositions match full live state and exact 4-call/4-return
+  accounting; the then-unmeasured bit-16 extension remained fail-closed at
+  that revision. See
+  `decomp/i960/notes/fa_player_19ef8_mask_8059f_v0575.md`.
+
+- Extend the same corridor to non-branch mask `0x0018059f` (v0576). All 16
+  branch-bit compositions match full live state and exact 4-call/4-return
+  accounting; bit 17 (`0x20059f`) remains fail-closed. See
+  `decomp/i960/notes/fa_player_19ef8_mask_18059f_v0576.md`.
+
+- Complete the measured four-bit family for `fa_player` `0x19ef8` (v0568):
+  non-branch masks `0x0000001b`, `0x0000001d` and `0x0000001e` now match all
+  16 branch-bit compositions with exact live state and 4-call/4-return
+  accounting. Bit-7 controls remain fail-closed. See
+  `decomp/i960/notes/fa_player_19ef8_quadruple_family_v0568.md`.
+
+- Extend the measured `fa_player` `0x19ef8` corridor to non-branch mask
+  `0x00000017` (v0567). All 16 compositions with branch bits 5/6/21/23
+  match full live state and exact 4-call/4-return accounting; an added bit-7
+  control remains fail-closed. See
+  `decomp/i960/notes/fa_player_19ef8_quadruple_17_v0567.md`.
+
+- Align the bounded TGP Model 2A bank window and `atan` table index with the
+  MAME reference: low bank-register bits are ignored by the external window,
+  and the implicit `0x800000` atan mantissa bit is included before shifting.
+  Regression coverage now distinguishes both corrected behaviors.
+
+- Extend the measured `fa_player` `0x19ef8` corridor to non-branch mask
+  `0x0000000f` (v0566). All 16 compositions with branch bits 5/6/21/23
+  match full live state and exact 4-call/4-return accounting; other
+  quadruple masks and five-or-more non-branch bits remain fail-closed. See
+  `decomp/i960/notes/fa_player_19ef8_quadruple_0f_v0566.md`.
+
+- Recover the measured `fa_coli` whole-task both-bit-8/scan-5 sibling
+  (v0565). The new parked witness reaches `0x10dcc` at `9526/18/19` with
+  complete live-state equality; the fixture now covers four whole-task
+  shapes. The `0x238a4` table-bit test follows the original `bbc r7,r3`
+  operand order, while unmeasured collision siblings remain fail-closed.
+  See `decomp/i960/notes/fa_coli_whole_task_both_high_v0565.md`.
+
+- Prove the complete bounded `fa_rob` `0x1442c` state-25 successor-byte sweep
+  (v0564). For fighter1 `+0x197 = 1..31`, all integrated cases match full
+  live state; counts are 144 (16), 105 (24), 126 (27), 92 (28), and 98 for
+  the remaining values.
+
+- Extend the measured `fa_rob` `0x1442c` state-25 successor family (v0563).
+  Oracle sweeps prove successors `17..23,25..26,28..31` with exact live state;
+  the neutral tail is 98 instructions except the 92-instruction successor 28
+  arm. Other state values remain fail-closed.
+
+- Recover the measured `fa_rob` `0x1442c` state-25/state-22 successor (v0562).
+  The integrated witness matches the existing neutral tail in 98 instructions
+  with 3 calls/returns and exact live-state equality; the final compare is
+  LESS. No unmeasured state family is admitted. See
+  `decomp/i960/notes/fa_player_1442c_state25_state22_v0562.md`.
+
+- Recover the measured `fa_rob` `0x1442c` state-25/state-25 successor (v0561).
+  The integrated witness now reaches the existing `0x144b0` neutral tail in
+  98 instructions with 3 calls/returns and exact live-state equality. The
+  final compare is LESS for state 25; equal/greater `r13` shapes remain
+  fail-closed. See
+  `decomp/i960/notes/fa_player_1442c_state25_state25_v0561.md`.
+
+- Recover the measured `fa_player` `0x19ef8` selector-`0x284` sibling (v0560).
+  The depth-zero `0x00510980` park now matches the selector's opcode-1 plus
+  terminator-0 setup stream, 33/24/3 expansion census, exact long-arm byte
+  stream, `table+0xbcc` float window and 1804-instruction corridor. Other
+  selector and stream shapes remain fail-closed. See
+  `decomp/i960/notes/fa_player_19ef8_selector284_v0560.md`.
+
+- Extend the measured `fa_rob` `0x14640` type-15 miss interval to
+  `+0x194=1..1359` (v0554). The focused fixture compares the added
+  `1025..1359` cases against the reference; selector `1360` remains a
+  fail-closed negative control.
+
+- Extend the measured `fa_rob` `0x1453c/0x14570` type-5 miss interval to
+  `+0x194=1..1359` (v0553). The focused fixture compares the added
+  `1025..1359` cases against the reference; selector `1360` remains a
+  fail-closed invalid-table control.
+
+- Extend the measured `fa_player` `0x19ef8` entry-state family to two
+  non-branch `fighter+0x1a4` bits (v0555). The complete 378-pair × 16-branch
+  matrix adds 6048 full live-state comparisons; three or more non-branch bits
+  remain `VF2_ERROR_UNSUPPORTED`.
+
+- Extend the measured `fa_player` `0x19ef8` entry-state family with all
+  3276 branch-free triples of non-branch `fighter+0x1a4` bits (v0556). Triple
+  combinations with branch bits and four or more non-branch bits remain
+  fail-closed.
+
+- Extend the measured `fa_player` `0x19ef8` triple family through branch bit
+  5 (v0557). All 3276 branch-free triples and their 3276 bit-5 compositions
+  match the reference; other branch-bit triple compositions remain closed.
+
+- Extend the measured `fa_player` `0x19ef8` triple family through all four
+  branch bits (v0559). All 3276 non-branch triples across all 16 branch
+  subsets match the reference; four or more non-branch bits remain closed.
+
+- Extend the measured `fa_player` `0x19ef8` entry-state corridor (v0552).
+  Every one of the 28 non-branch `fighter+0x1a4` singleton bits now matches
+  the reference when composed with all 16 subsets of branch bits 5/6/21/23:
+  448 additional full live-state comparisons pass. Words with two or more
+  non-branch bits remain `VF2_ERROR_UNSUPPORTED`. See
+  `decomp/i960/notes/fa_player_19ef8_state_flags_v0550.md`.
+
+- Recover the measured `fa_game_info` positive state-8 composition `0x0e`
+  (v0551). The three-distribution matrix through threshold `8` is now exact
+  for both countdown values and both mode-bit-6 settings: `108/108` full
+  dispatcher cases match CPU state, condition state, frames, procedure state,
+  counters and mutable Model 2A memory. The zero-countdown dispatcher uses
+  the measured two-instruction positive correction; threshold `9+`, unmeasured
+  distributions and neighboring compositions remain fail-closed. See
+  `decomp/i960/notes/game_info_18644_positive_mask0e_v0551.md`.
+
+- Recover the measured `fa_player` `0x19ef8` entry-state siblings (v0550).
+  The live `0x505` corridor now accepts the bounded `fighter+0x1a4` bits
+  5/6/21/23, including all 15 nonzero combinations, with exact instruction
+  deltas and full CPU/condition/frame/procedure/Model 2A equality. All 32
+  state-bit singletons are covered; mixed words combining an unmeasured bit
+  with a branch-sensitive bit remain closed. Bit 5
+  produces the ROM's post-selector `+0x1a4` bit-7 update, bit 21 toggles the
+  player-word bit 6, and bit 23 copies `0x0050a010` to `+0x1c`. Other entry
+  state bits remain fail-closed. See
+  `decomp/i960/notes/fa_player_19ef8_state_flags_v0550.md`.
+
+- Recover the measured `fa_rob` `0x14640` bit-4-clear greater sibling
+  (v0539). With `+0x654 != 0`, neutral state byte, `+0x1aa=2` and
+  `+0x62a=1`, the generic dispatcher now reaches the `0x146c8` tail and
+  returns through `0x146d8` with exact reference/native state equality;
+  the direct tail is 14 instructions and the consumed caller return is 15.
+  Other greater relations and unmeasured flag/state compositions remain
+  fail-closed. See `decomp/i960/notes/fa_player_14640_bit4clear_greater_v0539.md`.
+
+- Extend the measured `fa_rob` `0x14640` greater witness (v0540) to the
+  state-13 tail: bit-4-clear `(s16(+0x1aa),s16(+0x62a))=(2,1)` clears
+  `+0x654` and reaches `0x146d8` in 16 instructions (17 with the consumed
+  return). Other greater state/flag compositions remain fail-closed.
+
+- Recover the measured `pre14288-boot` player shape through the `0x14288`
+  corridor and `0x1428c` geometry head (v0538). The boot park now matches the
+  reference at `1622/+4/+4` and `10869/+10/+10` with full CPU, condition,
+  frame, procedure-counter and Model 2A state equality. Its distinct
+  depth-zero entry, null persistent scratch pointer and transient `0x520000`
+  scratch base are admitted only for the measured `0x505` / `0x510980` shape;
+  other zero-frame and zero-scratch shapes remain fail-closed. See
+  `decomp/i960/notes/player_boot_142c0_v0538.md`.
+
+- Recover the measured `pre14288-natres` player shape through the `0x14288`
+  corridor and `0x1428c` geometry head (v0537). The corridor now preserves
+  the late `player+0xbdd` clear, and the head admits only the measured natres
+  F0 word `0x80000882` in addition to the existing `0x00000800` shape. Both
+  base and natres reach `0x142c0` at `10869` instructions with `+10/+10` and
+  full live-state equality. See
+  `decomp/i960/notes/player_natres_142c0_v0537.md`.
+
+- Extend the `fa_coli` type-22 live selector evidence with 35 individually
+  returned cases in the mixed high interval `g8+0x19c == 1345..1408`
+  (v0536). Each case reaches `0x10dcc` and matches the existing C recovery
+  with exact CPU/condition/procedure/Model 2A state; interleaved walker
+  faults/loops remain outside the admitted set. See
+  `decomp/i960/notes/fa_coli_225cc_type22_high_returns_v0536.md`.
+
+- Extend the measured `fa_coli` type-22 selector sweep through
+  `g8+0x19c == 1..1024` (v0535). All 1,024 live selectors reach `0x10dcc` and
+  match the reference with exact CPU/condition/procedure/Model 2A state in
+  normal and sanitizer builds; selector 0 and values above 1024 remain outside
+  the admitted evidence. See
+  `decomp/i960/notes/fa_coli_225cc_type22_sweep_v0535.md`.
+
+- Extend the measured `fa_coli` type-22 selector sweep through
+  `g8+0x19c == 1..512` (v0534). All 512 live selectors reach `0x10dcc` and
+  match the reference with exact CPU/condition/procedure/Model 2A state in
+  normal and sanitizer builds; selector 0 and values above 512 remain outside
+  the admitted evidence. See
+  `decomp/i960/notes/fa_coli_225cc_type22_sweep_v0534.md`.
+
+- Extend the measured `fa_coli` type-22 selector sweep through
+  `g8+0x19c == 1..256` (v0533). All 256 live selectors reach `0x10dcc` and
+  match the reference with exact CPU/condition/procedure/Model 2A state;
+  selector 0 and values above 256 remain outside the admitted evidence. See
+  `decomp/i960/notes/fa_coli_225cc_type22_sweep_v0533.md`.
+
+- Extend the measured `fa_coli` `0x227dc` type-5 match tail through the
+  controlled selector interval `g7+0x848 == 1..64` (v0532). All selectors
+  resolve to the measured `0x02014d75` record and match the reference in 61
+  instructions with complete live-state equality; selector 0, other records
+  and unmeasured compositions remain fail-closed. See
+  `decomp/i960/notes/fa_coli_227dc_match_v0532.md`.
+
+- Preserve the measured resolver `g0` on the `fa_coli` `0x225cc` type-22
+  shortcut (v0531). The nine type-5 hits in selector range `1..64` now carry
+  their `0x1ab34` record pointers through `0x18bd4`; the complete 64-selector
+  matrix matches the reference with exact live-state equality. Selector 0
+  remains fail-closed. See
+  `decomp/i960/notes/fa_coli_225cc_type22_g0_v0531.md`.
+
+- Extend the measured `fa_coli` `0x225cc` type-22 shortcut through the 55
+  type-5 walker misses in selector range `1..64` (v0530). Each miss reaches
+  `0x10dcc` with exact CPU/condition/procedure/Model 2A state equality; the
+  nine hit selectors in the same bounded probe remain a separate `g0` return
+  frontier, and the index-0 control remains fail-closed. See
+  `decomp/i960/notes/fa_coli_225cc_type22_miss_v0530.md`.
+
+- Extend the measured `fa_rob` `0x14640` state-27 type-15 miss recovery
+  through selector `+0x194 == 1..1024` (v0529). The additional `513..1024`
+  sweep reaches `0x146c4` through the existing zero-record tail and matches
+  the reference with exact instruction counts and full live-state equality;
+  larger selectors and unmeasured state/flag compositions remain fail-closed.
+  See `decomp/i960/notes/fa_player_14640_type15_miss_v0529.md`.
+
+- Extend the measured `fa_rob` `0x1453c/0x14570` type-5 miss recovery through
+  selector `+0x194 == 1..1024` (v0528). The additional `513..1024` sweep
+  reaches `0x1463c` through the existing zero-record tail and matches the
+  reference with exact instruction counts and full live-state equality; larger
+  selectors and unmeasured state/scaling compositions remain fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_type5_miss_v0528.md`.
+
+- Recover the measured positive state-8 mask `0x0c` through threshold `8`
+  (v0527). Its complete 108-case dispatcher matrix now matches the reference
+  exactly with the measured `+2` zero-countdown correction; threshold `9+`,
+  other distributions and unmeasured compositions remain fail-closed. See
+  `decomp/i960/notes/game_info_18644_positive_mask0c_v0527.md`.
+
+- Recover the measured positive state-8 mask `0x0a` through threshold `8`
+  (v0526). Its complete 108-case dispatcher matrix now matches the reference
+  exactly with the measured `+2` instruction correction; threshold `9+`,
+  other distributions and unmeasured compositions remain fail-closed. See
+  `decomp/i960/notes/game_info_18644_positive_mask0a_v0526.md`.
+
+- Recover the measured positive state-8 mask `0x16` through threshold `8`
+  (v0525). Its complete 108-case dispatcher matrix now matches the reference
+  exactly; threshold `9+`, other distributions and unmeasured compositions
+  remain fail-closed. See
+  `decomp/i960/notes/game_info_18644_positive_mask16_v0525.md`.
+
+- Recover the measured positive state-8 mask `0x1e` through threshold `8`
+  (v0524). Its complete 108-case dispatcher matrix now matches the reference
+  exactly; threshold `9+`, other distributions and unmeasured compositions
+  remain fail-closed. See
+  `decomp/i960/notes/game_info_18644_positive_mask1e_v0524.md`.
+
+- Recover the measured positive state-8 mask `0x18` through threshold `8`
+  (v0523). Its complete 108-case dispatcher matrix now matches the reference
+  exactly; threshold `9+`, other distributions and unmeasured compositions
+  remain fail-closed. See
+  `decomp/i960/notes/game_info_18644_positive_mask18_v0523.md`.
+
+- Extend all five measured positive state-8 `fa_game_info` mixed masks through
+  threshold `8` (v0522). Their combined complete 240-case dispatcher matrix
+  now matches the reference exactly; threshold `9+`, adjacent `0x18`, other
+  distributions and unmeasured compositions remain fail-closed. See
+  `decomp/i960/notes/game_info_18644_positive_bit2_bit4_threshold8_v0522.md`.
+
+- Extend all five measured positive state-8 `fa_game_info` mixed masks through
+  threshold `4` (v0521). Their combined complete 60-case dispatcher matrix
+  now matches the reference exactly; threshold `5+`, adjacent `0x18`, other
+  distributions and unmeasured compositions remain fail-closed. See
+  `decomp/i960/notes/game_info_18644_positive_bit2_bit4_threshold4_v0521.md`.
+
+- Extend the remaining measured positive state-8 `fa_game_info` masks `0x1c`,
+  `0x34` and `0x94` through threshold `3` (v0520). Their combined complete
+  36-case dispatcher matrix now matches the reference exactly; thresholds
+  `4+`, adjacent `0x18`, other distributions and unmeasured compositions
+  remain fail-closed. See
+  `decomp/i960/notes/game_info_18644_positive_bit2_bit4_threshold3_v0520.md`.
+
+- Extend the measured positive state-8 `fa_game_info` mask `0x1a` through
+  threshold `3` (v0519). Its complete 12-case dispatcher matrix now matches
+  the reference exactly; adjacent and unmeasured compositions remain
+  fail-closed. See
+  `decomp/i960/notes/game_info_18644_positive_bit1_bit3_bit4_v0519.md`.
+
+- Close the measured positive state-8 `fa_game_info` mask `0x14` corridor
+  through threshold `3` (v0518). The complete 48-case dispatcher matrix now
+  matches the reference exactly; threshold `4+`, adjacent mask `0x18`, other
+  v0517 masks at threshold `3` and unmeasured distributions remain fail-closed.
+  See `decomp/i960/notes/game_info_18644_positive_bit2_bit4_v0518.md`.
+
+- Recover the measured `fa_coli` bit-16/bit-22-set continuation at `0x225cc`
+  (v0452). The exact scan-4 witness now reaches the g0=5 `0x22d8c` tail,
+  matching 108 instructions and exact live state, including `g0=0xeb` and
+  the `0x0c0100eb` result. Other bit-16 compositions remain fail-closed. See
+  `decomp/i960/notes/fa_coli_225cc_bit16_bit22_v0452.md`.
+
+- Recover the measured `fa_coli` bit-16 scan-4 continuation at `0x225cc`
+  (v0451). The `0x22c88` bbs-16 edge now reaches the shared `0x22e24` join
+  for the exact `g7 + 0x821 == 4`, `g8 + 0x1a4 == 0x00010000` witness,
+  matching 217 instructions and exact live state. Other bit-16 compositions
+  remain fail-closed. See
+  `decomp/i960/notes/fa_coli_225cc_bit16_scan4_v0451.md`.
+
+- Recover the measured state-16/state-25 type-walker misses (v0450). Indices
+  `0x110` and `0x2cf` now preserve the `g0 == 0` type-8 terminator and match
+  the ROM in 161/147 instructions with four calls/returns and exact live-state
+  equality. Other walker misses remain fail-closed. See
+  `decomp/i960/notes/fa_player_1442c_state16_state25_walker_miss_v0450.md`.
+
+- Recover the integrated state-16/state-25 zero-selector join (v0449). The
+  measured row now follows the swapped zero `0x19ef8` path into the existing
+  direct state-16 type-5 tail for indices `0x6f`, `0x73` and `0x74`, matching
+  144 instructions with four calls/returns and exact live-state equality.
+  Nonzero selectors and other index compositions remain fail-closed. See
+  `decomp/i960/notes/fa_player_1442c_state16_state25_v0449.md`.
+
+- Recover integrated state-16/state-24 write arms (v0448). The measured
+  `+0x19f == 25` and `22` cases now match in 59/60 instructions with two
+  calls/returns and exact live-state equality. Other state-24 compositions
+  remain fail-closed. See
+  `decomp/i960/notes/fa_player_1442c_state16_state24_writes_v0448.md`.
+
+- Recover the integrated state-16/state-24 neutral continuation (v0447).
+  The measured `+0x19f` miss now reaches the direct state-16 type-5 body in
+  105 instructions with three calls/returns and exact live-state equality;
+  state-24 `+0x19f` values 25/22 remain separate boundaries. See
+  `decomp/i960/notes/fa_player_1442c_state16_state24_v0447.md`.
+
+- Prove the integrated state-16/state-27 join (v0446). The state-27 helper
+  mutates the post-helper row into the existing both-state-16 join; the live
+  fixture now proves the 126-instruction path with four calls/returns and
+  exact live-state equality. See
+  `decomp/i960/notes/fa_player_1442c_state16_state27_v0446.md`.
+
+- Recover integrated state-16 ordinary joins (v0445). The live `0x1442c`
+  row with fighter 0 state 16 and fighter 1 state 26 now reaches the native
+  direct `0x14570` body in 98 instructions with three calls/returns and exact
+  live-state equality. Measured special state-24/25/27 successors remain
+  fail-closed. See
+  `decomp/i960/notes/fa_player_1442c_state16_ordinary_v0445.md`.
+
+- Generalize the bounded neutral `0x14528` family (v0444). A second full
+  `r7=0..31` reference row at `r8 == 1` matches the same 9-instruction exit,
+  with only the dedicated state-16/state-27 rows taking the type-5 paths.
+  Native C now admits the measured bounded cross-product and the live fixture
+  proves the state-26/state-1 neutral witness; values above 31 remain
+  fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_neutral_cross_product_v0444.md`.
+
+- Consolidate the bounded direct state-16 `0x14528` family (v0443). A
+  reference sweep of `r7 == 16` and `r8=0..31` uses the same 52-instruction
+  type-5 body for every value except the dedicated state-16/state-27 joins.
+  Native C and the live fixture now cover `r8 == 26`, including its text-tail
+  variant; values above 31 remain fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_state16_direct_family_v0443.md`.
+
+- Recover the bounded neutral `0x14528` state family (v0442). A reference
+  sweep of `r8 == 0` and `r7=0..31` takes the same 9-instruction
+  `0x14560 -> 0x14628` exit for every value except the dedicated state-16
+  and state-27 arms. Native C admits that measured family and the live
+  fixture proves state 26 with zero calls/returns; values above 31 and other
+  state-byte combinations remain fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_neutral_family_v0442.md`.
+
+- Consolidate the measured `0x14528` state-16 swapped joins (v0441). A
+  bounded `r7=0..31` reference sweep shows one 55-instruction path for every
+  value except the dedicated state-16 and state-27 arms; native C now admits
+  that measured family and the focused fixture proves state 26 plus text.
+  Values outside the measured state-byte domain remain fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_state16_family_v0441.md`.
+
+- Recover the measured direct `0x144b0` state-25/state-27 successor (v0440).
+  The state-25 arm now reaches the recovered swapped state-27 type-5 body and
+  matches the ROM in 100 instructions with two calls/returns and exact
+  live-state equality. See
+  `decomp/i960/notes/fa_player_144b0_state27_v0440.md`.
+
+- Recover the measured `0x1453c` state-28/state-16 swapped join (v0439).
+  The shared type-5 body now admits the `r7 == 28`, `r8 == 16` shape and
+  matches the ROM in 55 instructions with one call/return; its board/text
+  witness matches at 129 instructions with two calls/returns. See
+  `decomp/i960/notes/fa_player_1453c_state28_v0439.md`.
+
+- Recover the measured `0x1453c` state-24/state-16 swapped join (v0438).
+  The shared type-5 body now admits the `r7 == 24`, `r8 == 16` shape and
+  matches the ROM in 55 instructions with one call/return and exact
+  live-state equality. The board/text siblings remain bounded by measured
+  shapes. See
+  `decomp/i960/notes/fa_player_1453c_state24_v0438.md`.
+
+- Recover the measured state-13 bit-4-clear `0x14640` tail (v0437). The
+  state-13 helper now admits both flag-bit shapes through `0x146c8` and
+  `0x146d8`; the bit-4-clear witness matches 13 instructions with no calls or
+  returns and exact live-state equality, while the existing bit-4-set witness
+  remains 14 instructions. See
+  `decomp/i960/notes/fa_player_14640_state13_bit4_clear_v0437.md`.
+
+- Recover the measured integrated state-25/state-27 neutral continuation
+  (v0436). The live state-27 helper clears fighter1 `+0x194`, after which the
+  state-25 arm reaches `0x144b0` and the common exit in 126 instructions with
+  four calls/returns and exact live-state equality. Direct state-27 entry at
+  `0x144b0` remains unsupported. See
+  `decomp/i960/notes/fa_player_1442c_state25_state27_v0436.md`.
+
+- Recover the measured integrated state-25/state-24 `0x14474` sibling
+  (v0435). When fighter0 `+0x19f` is 25 or 22, the swapped arm now writes
+  the original fighter0 `+0x194`/`+0x1a4` state and rejoins the common exit;
+  the ROM-backed witnesses match 59/60 instructions with two calls/returns
+  and exact live-state equality. See
+  `decomp/i960/notes/fa_player_1442c_state25_state24_1474_v0435.md`.
+
+- Recover the measured `0x144b0` state-25 to state-24 successor (v0434).
+  The neutral `0x14474`/`0x14498` prefix now reaches the existing common
+  `0x144b0` exit: the direct witness matches 53 instructions and the
+  integrated `0x1442c` witness matches 105 instructions, with exact live-state
+  equality in both forms. See
+  `decomp/i960/notes/fa_player_144b0_state24_v0434.md`.
+
+- Recover the measured `0x144b0` state-25 to state-16 successor (v0433).
+  The `0x14560` fall-through now reaches the recovered swapped `0x14570`
+  type-5 body: the direct arm matches 99 instructions with two calls/returns,
+  and the integrated `0x1442c` path matches 144 instructions with four
+  calls/returns and exact live-state equality. See
+  `decomp/i960/notes/fa_player_144b0_state16_v0433.md`.
+
+- Recover the measured `0x14640` state-27 board-bit-20 shift sibling
+  (v0432). The type-15 tail now admits the `shli` arm at `0x14684`, adding one
+  instruction to the compare-prefix witness; the expanded fixture proves the
+  45-step path with exact live-state equality.
+
+- Recover the measured `0x14640` compare-prefix equality tails for state 27
+  and state 28 (v0431). The generic dispatcher now routes both states through
+  the shared 10-instruction `0x146dc` tail; the ROM-backed fixture proves the
+  resulting 11-step caller return and exact live-state equality.
+
+- Complete the measured 0x1453c/0x14570 board-bit-9-clear text matrix
+  (v0430). The recovered 0x7fc0 expander now covers all 35 accepted
+  state/scaling shapes, including swapped, both-state-16 and mixed
+  first/later-scaling paths. Each text variant matches the ROM with the
+  expected +74 instructions and one additional call/return; the expanded
+  fixture proves full live-state equality.
+
+- Extend the measured 0x1453c/0x14570 text tail (v0429). The board-bit-9-clear
+  0x7fc0 path now covers unscaled state-27/state-16 direct, swapped and
+  both-state-16 joins, plus direct state-16 first/second/later single-scaling
+  variants. The fixture proves 126/130/129/128/132/129/128/131-step shapes
+  with exact live-state equality; mixed text compositions remain fail-closed.
+
+- Extend the measured `0x14640` compare-prefix tails to signed-greater
+  variants (v0428). State 27, state 28 and the neutral/state-13 tails now
+  accept unequal `+0x1aa`/`+0x62a` values in either signed order; equal values
+  remain fail-closed. The live fixtures prove exact state equality for both
+  compare directions.
+
+- Recover the measured neutral nonzero `0x14640` less-than tail (v0427).
+  With bit 4 clear, `+0x194 != 0`, `+0x654 != 0` and signed
+  `+0x1aa < +0x62a`, the native path now matches the ROM through `0x146d8`
+  in 16 instructions, clearing `+0x654`; the existing zero tail remains
+  14 instructions. The compare-less fixture proves neutral zero, state 13,
+  neutral nonzero and neutral bit-4-set shapes with full live-state equality.
+  See
+  `decomp/i960/notes/fa_player_14640_compare_less_nonzero_v0427.md`.
+
+- Recover the measured `0x14640` state-28 compare-prefix sibling (v0426).
+  With `+0x654 != 0` and signed `+0x1aa < +0x62a`, the native arithmetic tail
+  now matches the ROM through `0x146c4` in 16 instructions, alongside the
+  original 13-instruction path. The state-28 fixture proves both with full
+  live-state equality and generic dispatch reaches the recovered arm. See
+  `decomp/i960/notes/fa_player_14640_state28_compare_less_v0426.md`.
+
+- Recover the measured `0x14640` state-27 compare-prefix sibling (v0425).
+  With `+0x654 != 0` and signed `+0x1aa < +0x62a`, the existing type-15
+  state-27 walk now matches the ROM through `0x146c4` in 44 instructions
+  (+1 call/return), alongside the original 41-instruction path. The
+  standalone fixture proves both with full live-state equality and the
+  dispatcher now reaches the recovered arm. See
+  `decomp/i960/notes/fa_player_14640_state27_compare_less_v0425.md`.
+
+- Recover the measured mixed first/later scaling matrix (v0424). With
+  `+0x1a4(g8)` bit 0, `+0x3351` bit 6 and optionally target g8 bit 29 set,
+  direct/swapped state 27 reaches 57/60 and 61/64, swapped state 16 reaches
+  60/63, and both-state-16 direct/swapped reaches 59/62 and 63/66. The
+  expanded `vf2_player_1453c_live` fixture now proves 35 shapes with exact
+  live-state equality; mixed scaled text remains fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_mixed_scaling_v0424.md`.
+
+- Extend the measured bit-29 later-scaling arm across the state-27/state-16
+  matrix (v0423). With `+0x3351` bit 6 and the target g8 word bit 29 set,
+  direct/swapped state 27 reaches 57/61 instructions, swapped state 16
+  reaches 60, and both-state-16 direct/swapped reaches 59/63. The expanded
+  `vf2_player_1453c_live` fixture now proves 25 shapes with exact live-state
+  equality; mixed first/later scaling and scaled text remain fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_later_scaling_matrix_v0423.md`.
+
+- Extend the measured `0x145c0` second-gate arm across the state-27/state-16
+  matrix (v0422). With `+0x3351` bit 6 set and g8 bit 29 clear, direct/
+  swapped state 27 reaches 54/58 instructions, swapped state 16 reaches 57,
+  and both-state-16 direct/swapped reaches 56/60. The expanded
+  `vf2_player_1453c_live` fixture now proves 20 shapes with exact live-state
+  equality; bit-29-set and mixed scaling combinations remain fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_second_gate_matrix_v0422.md`.
+
+- Extend the measured first-scaling arm across the state-27/state-16 swap
+  matrix (v0421). The native helper now proves direct/swapped state 27 at
+  55/59 instructions, swapped state 16 at 58, and both-state-16 direct/
+  swapped at 57/61, with exact live-state equality and one call/return in
+  each case. Other scaling compositions remain fail-closed. See the expanded
+  `vf2_player_1453c_live` fixture and
+  `decomp/i960/notes/fa_player_1453c_scaling_matrix_v0421.md`.
+
+- Recover the measured direct state-16 text tail of `0x14570` (v0420). With
+  board `0x508000` bit 9 clear, the native path calls the existing recovered
+  `0x7fc0` byte expander from source `0x1b970` to `0x010006e8`, matching the
+  ROM through `0x1463c` in 126 instructions with two calls/returns. The
+  `vf2_player_1453c_live` fixture now proves ten measured shapes with full
+  live-state equality; scaled/swapped text variants remain fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_text_v0420.md`.
+
+- Recover the measured direct state-16 later scaling arm of `0x14570` (v0419).
+  With `+0x3351` bit 6 and the g8 word bit 29 set, the native path performs
+  the measured second `shro`/`addo`, selects `0x1b982` and matches the ROM
+  through `0x1463c` in 57 instructions with one call/return. The
+  `vf2_player_1453c_live` fixture now proves nine measured shapes with full
+  live-state equality; other later scaling/text compositions remain
+  fail-closed. See `decomp/i960/notes/fa_player_1453c_later_scaling_v0419.md`.
+
+- Recover the measured direct state-16 `0x145c0` second gate (v0418). With
+  `+0x3351` bit 6 set and `g8` bit 29 clear, the native path matches the ROM
+  through `0x1463c` in 54 instructions with one type-5 call/return. The
+  expanded `vf2_player_1453c_live` fixture now proves eight measured
+  state-27/state-16 shapes with full live-state equality; other second-gate
+  and later scaling/text variants remain fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_second_gate_v0418.md`.
+
+- Recover the measured direct state-16 first-scaling arm of `0x14570` (v0417).
+  With `+0x1a4(g8)` bit 0 set, the native path scales the type-5 record byte,
+  selects `0x1b979` and matches the ROM through `0x1463c` in 55 instructions
+  with one call/return. The expanded `vf2_player_1453c_live` fixture proves
+  the shape with full live-state equality; unmeasured scaled swaps and later
+  scaling/text arms remain fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_scaling_v0417.md`.
+
+- Extend the `0x1453c`/`0x14570` fighter-exchange recovery for the measured
+  state-16 joins (v0416). The native helper now covers `(r7,r8)=(16,0)` and
+  `(0,16)`, plus both 16 values with the observed `0x500028` bit-0 swap gate,
+  matching 52/55/54/58 instruction paths and one type-5 call/return. The
+  ROM-backed fixture now proves six direct/swapped state-27/state-16 shapes
+  with full live-state equality; other compositions remain fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_state16_v0416.md`.
+
+- Extend the measured `fa_rob` `0x1453c` state-27 recovery for the f1 == 27
+  swap path (v0415). When `r7 != 27` and `r8 == 27`, the native helper now
+  models the `0x14530..0x14538` g7/g8 swap and matches the ROM through
+  `0x1463c` in 56 instructions with one type-5 walker call/return. The
+  existing ROM-backed fixture now proves both direct and swapped shapes with
+  full live-state equality; unmeasured scaling, text and broader dispatch
+  variants remain fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_swap_v0415.md`.
+
+- Recover the measured `fa_rob` `0x14640` signed-greater compare-prefix tails
+  (v0414).  The native path now covers neutral bit-4-clear cases with zero or
+  nonzero `+0x194` (14/16 instructions to `0x146d8`) and state 13 with bit 4
+  clear or set (16/17 instructions), preserving the observed EQUAL/LESS
+  condition state and `+0x654` effects.  The new
+  `vf2_player_14640_compare_tail_live` fixture proves all four shapes with
+  full live-state equality; unmeasured compositions remain fail-closed.  See
+  `decomp/i960/notes/fa_player_14640_compare_tails_v0414.md`.
+
+- Extend the `0x14640` compare-prefix less-than recovery for the measured
+  state-13 sibling (v0413): bit 4 set, `+0x197 == 13` and nonzero `+0x194`
+  reach `0x146d8` in 17 instructions, clear `+0x654` and finish LESS.  The
+  existing ROM-backed compare-less fixture now proves both this shape and the
+  v0412 neutral shape with full live-state equality.  See
+  `decomp/i960/notes/fa_player_14640_compare_less_state13_v0413.md`.
+
+- Recover the measured `fa_rob` `0x14640` signed-less compare-prefix sibling
+  (v0412).  For `+0x198 == 0`, `+0x654 != 0`, signed
+  `+0x1aa < +0x62a`, neutral `+0x197`, bit 4 clear and `+0x194 == 0`, the
+  native path reaches `0x146d8` in 14 instructions, leaves `+0x654` intact
+  and matches the final EQUAL condition state.  The new
+  `vf2_player_14640_compare_less_live` fixture proves full live-state
+  equality, and dispatch now selects this sibling for the measured less-than
+  case.  Other less-than compositions remain fail-closed.  See
+  `decomp/i960/notes/fa_player_14640_compare_less_v0412.md`.
+
+- Recover the measured `fa_rob` state-13 neutral tail at `0x14640` (v0411),
+  including its 14-instruction path to `0x146d8`, `+0x654` clear and final
+  LESS condition state.  The ROM-backed
+  `vf2_player_14640_state13_live` fixture proves full live-state equality.
+  See `decomp/i960/notes/fa_player_14640_state13_v0411.md`.
+
+- Recover the fa_rob compare-prefix escape arm `0x14640` (v0410), reached
+  when fighter g7 has `+0x198 == 0` and `+0x654 != 0` (the `0x1464c
+  cmpobe 0, r3` not taken, running the `+0x1aa`/`+0x62a` compare prefix
+  `0x14650`..`0x14658`) with `s16(+0x1aa) == s16(+0x62a)` (the `0x14658
+  cmpobe r13, r14` IS taken to `0x146dc`).  It stores r3 (= the `+0x654`
+  value, distinct from the v0408 `+0x198` escape) to `+0x194(g7)`, clears
+  `+0x654(g7)` and leaves `r15 = 0`, `r3 = +0x654`,
+  `r13 = s16(+0x1aa)`, `r14 = s16(+0x62a)`.  No walker.  Measured path:
+  10 steps / +0 call / +0 return, leaving the `0x146e8` ret unconsumed.
+  Recovered as standalone `hybrid_execute_player_14640_compare_escape` +
+  `vf2_hybrid_player_14640_compare_escape_execute_for_test`, dispatched
+  from `hybrid_execute_player_14640` when `+0x654 != 0` and
+  `s16(+0x1aa) == s16(+0x62a)` (which then consumes the `0x146e8` ret to
+  return through the `0x14640` frame).  Final reference `compare_result`
+  is EQUAL.  ROM-backed
+  `vf2_player_14640_compare_escape_live_differential` proves the arm
+  byte-exact (10/+0/+0, full live state).  `ctest` 92/92. See
+  `decomp/i960/notes/fa_player_14640_compare_escape_v0410.md`.
+
+- Recover the fa_rob compare-prefix arm `0x14640` (v0409), reached when
+  fighter g7 has `+0x198 == 0` and `+0x654 != 0` (the `0x1464c cmpobe 0,
+  r3` not taken, running the `+0x1aa`/`+0x62a` compare prefix
+  `0x14650`..`0x14658`) with `s16(+0x1aa) > s16(+0x62a)` (the `0x14658
+  cmpobe r13, r14` not taken to `0x146dc`).  On the measured shape
+  (`+0x197` not 27/28/13, bit 4 of `(g7)` SET) it clears `+0x194(g7)` and
+  leaves `r15 = 0`, `r3 = +0x197`, `r13 = s16(+0x1aa)`,
+  `r14 = s16(+0x62a)`.  No walker.  Measured path: 15 steps / +0 call /
+  +0 return, leaving the `0x146c4` ret unconsumed.  Recovered as standalone
+  `hybrid_execute_player_14640_compare` +
+  `vf2_hybrid_player_14640_compare_execute_for_test`, dispatched from
+  `hybrid_execute_player_14640` when `+0x654 != 0` (which then consumes
+  the `0x146c4` ret to return through the `0x14640` frame).  The
+  `s16(+0x1aa) <= s16(+0x62a)` escape jump stays fail-closed.  Final
+  reference `compare_result` is GREATER.  ROM-backed
+  `vf2_player_14640_compare_live_differential` proves the arm byte-exact
+  (15/+0/+0, full live state).  `ctest` 90/90. See
+  `decomp/i960/notes/fa_player_14640_compare_v0409.md`.
+
+- Recover the fa_rob escape arm `0x14640` (v0408), reached when fighter
+  g7 has `+0x198 != 0` (the `0x14644 cmpobne 0, r3` jumps directly to
+  `0x146dc`).  It stores r3 (= the `+0x198` value) to `+0x194(g7)`,
+  clears `+0x654(g7)` and leaves `r15 = 0` and `r3 = +0x198`.  No walker.
+  Measured path: 5 steps / +0 call / +0 return, leaving the `0x146e8` ret
+  unconsumed.  Recovered as standalone
+  `hybrid_execute_player_14640_escape` +
+  `vf2_hybrid_player_14640_escape_execute_for_test`, dispatched from
+  `hybrid_execute_player_14640` when `+0x198 != 0` (which then consumes
+  the `0x146e8` ret to return through the `0x14640` frame).  The
+  `+0x654 != 0` `+0x1aa`/`+0x62a` compare arm stays fail-closed.  Final
+  reference `compare_result` is LESS.  ROM-backed
+  `vf2_player_14640_escape_live_differential` proves the arm byte-exact
+  (5/+0/+0, full live state).  `ctest` 88/88. See
+  `decomp/i960/notes/fa_player_14640_escape_v0408.md`.
+
+- Recover the fa_rob bit-4-set neutral arm `0x14640` (v0407), the
+  `+0x197` not 27/28 neutral tail when bit 4 of `(g7)` is SET (the
+  `0x146b0 bbc 4, r15` not taken) and r3 (`+0x197`) != 13 (the `0x146b8
+  cmpobe 13, r3` not taken).  It clears `+0x194(g7)` and leaves `r15 = 0`
+  and `r3 = +0x197`.  No walker.  Measured path: 12 steps / +0 call / +0
+  return, leaving the `0x146c4` ret unconsumed.  Recovered as standalone
+  `hybrid_execute_player_14640_bit4set` +
+  `vf2_hybrid_player_14640_bit4set_execute_for_test`, dispatched from
+  `hybrid_execute_player_14640` when bit 4 of `(g7)` is set and `+0x197`
+  not 27/28/13 (which then consumes the `0x146c4` ret to return through
+  the `0x14640` frame).  The `r3 == 13` sibling (which takes the 0x146c8
+  tail), the `+0x654 != 0` `+0x1aa`/`+0x62a` compare arm, and the
+  `r198 != 0` escape stay fail-closed.  Final reference `compare_result`
+  is GREATER.  ROM-backed
+  `vf2_player_14640_bit4set_live_differential` proves the arm byte-exact
+  (12/+0/+0, full live state).  `ctest` 86/86. See
+  `decomp/i960/notes/fa_player_14640_bit4set_v0407.md`.
+
+- Recover the fa_rob state-28 arm `0x14640` (v0406), the state-28 sibling
+  of the v0405 state-27 walk: when fighter g7 has `+0x198 == 0`,
+  `+0x654 == 0` and `+0x197 == 28`, the `0x1469c cmpobne 28, r3` falls
+  through, adds 3 to `s16(+0x1aa(g7))` and stores the u16 back to
+  `+0x1aa(g7)`, clears `+0x194(g7)`, leaves `r15 = 0` and `r3` the new
+  `+0x1aa` value.  No walker.  Measured path: 13 steps / +0 call / +0
+  return, leaving the `0x146c4` ret unconsumed.  Recovered as standalone
+  `hybrid_execute_player_14640_state28` +
+  `vf2_hybrid_player_14640_state28_execute_for_test`, dispatched from
+  `hybrid_execute_player_14640` when `+0x197 == 28` (which then consumes
+  the `0x146c4` ret to return through the `0x14640` frame).  The
+  `+0x654 != 0` `+0x1aa`/`+0x62a` compare arm and the `+0x197` not 27/28
+  neutral tail stay fail-closed.  Final reference `compare_result` is
+  EQUAL.  ROM-backed `vf2_player_14640_state28_live_differential` proves
+  the arm byte-exact (13/+0/+0, full live state).  `ctest` 84/84. See
+  `decomp/i960/notes/fa_player_14640_state28_v0406.md`.
+
+- Recover the fa_rob state-27 arm `0x14640` (v0405), the natural
+  continuation of the f0==27 flow: when fighter g7 has `+0x198 == 0`,
+  `+0x654 == 0` and `+0x197 == 27`, the `0x14664` walk indexes a type-15
+  record chain via `+0x194(g7)` (`0x1ab34`, `g1 == 15`), then stores
+  `r4 = s16(+1(record)) - 1` into `+0x62a(g7)`, moves the original full
+  `+0x194(g7)` u32 into `+0x654(g7)` and clears `+0x194(g7)`.  Measured
+  short path: 41 steps / +1 call / +1 return (the 0x1ab34 walker), leaving
+  the `0x146c4` ret unconsumed.  Recovered as standalone
+  `hybrid_execute_player_14640_state27` +
+  `vf2_hybrid_player_14640_state27_execute_for_test`, dispatched from
+  `hybrid_execute_player_14640` when `+0x197 == 27` (which then consumes
+  the `0x146c4` ret to return through the `0x14640` frame).  The walker is
+  modelled through `vf2_hybrid_coli_1ab34_execute`, so frame linkage and
+  call/return counters match the reference exactly; a walker miss and the
+  unmeasured `shli`/`+0x1aa`/`+0x62a` compare siblings stay fail-closed.
+  Final reference `compare_result` is NONE.  ROM-backed
+  `vf2_player_14640_state27_live_differential` proves the arm byte-exact
+  (41/+1/+1, full live state).  `ctest` 82/82. See
+  `decomp/i960/notes/fa_player_14640_state27_v0405.md`.
+
+- Recover the fa_rob state-27 arm `0x1453c` (v0404), resolving the v0403
+  blocker: mine the `0x0200d34c` type-5 record chains to find a `+0x194`
+  whose low 13 bits walk to a type-5 record (index `0x73`), then re-probe
+  the `0x14570` tail from the `0x14528` state-27 entry.  The arm sets
+  `+0x197(g7)` to 16, walks type-5 via `+0x194(g7)`, stores
+  `+0x194(g8) = 0x11000000 + s16(rec+1)` and `u8(rec+3)` to `+0x822(g8)`,
+  clears bit 21 of `+0x1a4(g8)`, flips bit 6 of `(g8)` via
+  `chkbit`/`alterbit`, and rejoins the `0x14628` common exit.  Measured
+  short path: 52 steps / +1 call / +1 return (the 0x1ab34 walker).
+  Recovered as standalone `hybrid_execute_player_1453c` +
+  `vf2_hybrid_player_1453c_execute_for_test`.  The walker is modelled
+  through `vf2_hybrid_coli_1ab34_execute`, so frame linkage and
+  call/return counters match the reference exactly; a walker miss and the
+  unmeasured scaling/text branches stay fail-closed.
+  ROM-backed `vf2_player_1453c_live_differential` proves the arm byte-exact
+  (52/+1/+1, full live state).  `ctest` 80/80. See
+  `decomp/i960/notes/fa_player_1453c_state27_v0404.md`.
+
+- Scope the fa_rob `0x1453c` arm without recovering it (v0403,
+  measurement only): the head is 3 steps but the `0x14570` tail faults
+  in `0x1ab34` at `0x1ab4c` when `+0x194(g7)` low half is 0
+  (`table[0] == 0`, `g0 == 8` unmapped; a miss-zero would then fault
+  at `0x1457c`). The tail needs a `+0x194` indexing a type-5 record
+  chain; all such paths stay fail-closed. See
+  `decomp/i960/notes/fa_player_1453c_tail_blocked_v0403.md`.
+
+- Recover the fa_rob `0x14498` escape for other `+0x19f` values
+  (v0402): on all three `0x14474` entries, any `+0x19f` outside
+  {25, 22} restores `g7/g8` and runs the neutral
+  `0x144a0 -> 0x14528 -> 0x14548 -> 0x14560 -> 0x14628` exit with no
+  `+0x194`/`+0x1a4` stores. Spans 57 (direct) / 60 (swapped) /
+  59 (both-24) instructions to `0x1463c` with +2/+2; last compare
+  `cmpobne 16, r8` leaves GREATER (neutral f1) or LESS (`r8 == 24`).
+  ROM-backed `vf2_player_1442c_live_differential` now runs fourteen
+  cases byte-exact. `ctest` 78/78. See
+  `decomp/i960/notes/fa_player_14498_escape_v0402.md`.
+
+- Recover the fa_rob `0x144b0` cmpobl-equal point (v0401): when
+  `0x1450c cmpobl r13, r3` sees `r13 == r3` (measured `r3 == 0` with
+  fighter1 `+0x1aa == 0`), the body takes the same `0x14510`
+  fall-through as the not-taken sibling (47 steps / +1 / +1) with
+  CC = EQUAL instead of GREATER. ROM-backed
+  `vf2_player_1442c_live_differential` now runs eleven cases
+  byte-exact. `ctest` 78/78. See
+  `decomp/i960/notes/fa_player_144b0_equal_v0401.md`.
+
+- Recover the fa_rob `0x14474` both-24 entry (v0400): when both
+  fighters' `+0x197 == 24`, the f0-priority `cmpobe` takes the direct
+  path and runs the same `+0x19f(f1)` body on fighter1. Spans 56
+  (`+0x19f == 25`) / 57 (`== 22`) instructions to `0x1463c` with
+  +2 calls / +2 rets (prefix both siblings 15+15), CC = EQUAL.
+  ROM-backed `vf2_player_1442c_live_differential` now runs ten cases
+  byte-exact. Other `+0x19f` values stay fail-closed. `ctest` 78/78.
+  See `decomp/i960/notes/fa_player_14474_both24_v0400.md`.
+
+- Recover the fa_rob `0x14474` swapped entry (v0399): when fighter1
+  `+0x197 == 24` (fighter0 not 24) the body swaps (`g7 = f1`, `g8 =
+  f0`) and runs the same `+0x19f` body on fighter0. Spans 57
+  (`+0x19f(f0) == 25`) / 58 (`== 22`) instructions to `0x1463c`
+  with +2 calls / +2 rets, CC = EQUAL. ROM-backed
+  `vf2_player_1442c_live_differential` now runs eight cases byte-exact.
+  Other `+0x19f` values and the both-`== 24` shape stay fail-closed.
+  `ctest` 78/78. See
+  `decomp/i960/notes/fa_player_14474_swapped_v0399.md`.
+
+- Recover the fa_rob `0x14474` arm (v0398): entered at `0x14474` when
+  fighter0 `+0x197 == 24`. For fighter1 `+0x19f` in {25, 22} the body
+  stores `0x01000000` to `+0x194(f1)`, clears bit 0 of `+0x1a4(f1)`,
+  takes `b 0x14628` and clears both `+0x198`. Spans 54 (`+0x19f ==
+  25`) / 55 (`== 22`) instructions to `0x1463c` with +2 calls / +2
+  rets, CC = EQUAL. The f0 `0x14640` call takes the `+0x194 != 0`
+  sibling (15 steps) since `+0x197` is the high byte of `+0x194`;
+  the f1 call stays no-op (13). ROM-backed
+  `vf2_player_1442c_live_differential` now runs six cases byte-exact.
+  Other `+0x19f` values and the `f1 == 24` entry stay fail-closed.
+  `ctest` 78/78. See
+  `decomp/i960/notes/fa_player_14474_arm_v0398.md`.
+
+- Recover the fa_rob `0x144b0` cmpobl-not-taken sibling (v0397): when
+  `0x1450c cmpobl r13, r3` does not take (`r13 > r3` unsigned, measured
+  with fighter1 `+0x808 == 1` / `+0x1aa == 100` so `r13 = 100 > r3 =
+  0`), the state-25 arm stores `r5` to `+0x194(f1)` (`0x14510`), takes
+  `b 0x14628` and clears both `+0x198`, skipping the `+0x654`/`+0x62a`
+  stores and the fighter-state chain. Span 47 instructions to `0x1463c`
+  with +1 call / +1 return, CC = GREATER. Also fixes two latent
+  modeling errors that cancel on the all-zero v0395 pin: ROM `ldos`
+  zero-extends (not sign) and `subi r13, r14, r4` computes
+  `+0x808(f1) - +0x858(f0)`. ROM-backed `vf2_player_1442c_live` now
+  runs all four cases byte-exact (fast path 51 / +2 / +2, `0x14640`
+  sibling 14 / +0 / +1, state-25 53 / +1 / +1, not-taken 47 / +1 / +1).
+  The cmpobl-equal point stays fail-closed. `ctest` 78/78. See
+  `decomp/i960/notes/fa_player_144b0_sibling_v0397.md`.
+
+- Recover the fa_rob `0x144b0` state-25 collision arm (v0395): entered at
+  `0x144b0` when fighter0 `+0x197 == 25`. On the measured live shape
+  (fighter0 `+0x197 == 25`, fighter1 `+0x197 == 0`, fighter0 `+0x194 ==
+  0`) the arm runs the `0x19ef8` g0==0 zero-path (clears `+0x5cc`/`+0x60c`
+  and `(g7)` bit 9, `+0x1a4 &= 0x00814068`, `+0x1a8 = 0`), then the
+  collision/state-exchange body (`+0x1aa = 1`, `+0x61e = +0x1a8(f1)`,
+  `+0x626 = r4`, `+0x822(f1) = +0x822(f0)`, `+0x654(f1) = r5`,
+  `+0x62a(f1) = (u16)(r4-1)`) and the `0x14628` common exit clearing both
+  `+0x198`. Span 53 instructions to `0x1463c` with +1 call / +1 return.
+  ROM-backed `vf2_player_1442c_live_differential` now runs all three cases
+  byte-exact (fast path 51 / +2 / +2, sibling 14 / +0 / +1, state-25
+  53 / +1 / +1). The `0x14640` state-25 helper path and other `0x1442c`
+  heavy arms remain fail-closed. `ctest` 78/78. See
+  `decomp/i960/notes/fa_player_144b0_state25_v0395.md`.
+
+- Recover the fa_rob `0x14640` collision/state helper `+0x194 != 0`
+  sibling (v0394): `mov 0,r15; st r15,+0x654(g7)`, CC = LESS,
+  14 steps / +1 return, alongside the v0393 no-op (CC = EQUAL, 12 steps).
+  The shared gates (`+0x198 == 0`, `+0x654 == 0`, `+0x197` not 27/28,
+  `(g7)` bit 4 clear) dispatch to both measured exits. ROM-backed
+  `vf2_player_1442c_live_differential` now runs both cases byte-exact
+  (fast path 51 / +2 / +2, sibling 14 / +0 / +1). The `0x1442c` state-25
+  arm and other `0x14640` gates remain fail-closed. `ctest` 78/78. See
+  `decomp/i960/notes/fa_player_14640_sibling_v0394.md`.
+
+- Recover the fa_rob fighter-exchange body `0x1442c` live fast path plus
+  its two `0x14640` no-op helper calls (v0393): first native block of the
+  collision/state-exchange function that follows the recovered player
+  corridor. Called at `0x14388` when `+0x04(g7)==0`; on the accepted live
+  (neutral) shape both fighters' `+0x197` are not in {16,24,25,27}, the
+  body runs the two swapped-g7/g8 helper calls, escapes to the `0x14628`
+  common exit and clears both fighters' `+0x198`. Full-function reference
+  to `0x1463c` is 51 steps / +2 calls / +2 rets. New focused ROM-backed
+  fixture `vf2_player_1442c_live_differential` (restores
+  `out/park-1442c.vf2snap`, byte-exact live-state equality) plus
+  ROM-independent unit test. Heavy collision arms and non-no-op `0x14640`
+  branches remain fail-closed. `ctest` 78/78; `native-sixth-dispatch` and
+  `native-twelfth-dispatch` unchanged. AGENTS.md Windows environment
+  canonicalized to the native CMake/MSVC `build/` path. See
+  `decomp/i960/notes/fa_player_1442c_live_v0393.md`.
+
+- Fix do game_info countdown-0 compare-state (v0388):
+  `correct_measured_compare_state` agora deixa EQUAL em countdown 0 em
+  todas as distribuicoes (antes so f0-only) e LESS caso contrario,
+  igual ao helper irmao `correct_countdown_compare_state`. Revalidados
+  ROM-backed via `validate_game_info_full_dispatch.py` thresholds
+  0,1,2: `0x06214000` 36/36 (era 8/12 na matriz threshold-0), todas as
+  50 plus2_plus3 36/36 (1800 fixtures), todas as 12 condition-only
+  36/36 (432 fixtures), caudas `0x00204000`/`0x00210000`/`0x00214000`/
+  `0x00218000` 36/36 e spot `0x0021c000` 36/36; snapshot + assinatura
+  + contadores exatos ate `0x10dcc`. `ctest -C Debug` 72/72. Sem novas
+  admissoes; irmaos nao medidos seguem fail-closed. See
+  `decomp/i960/notes/game_info_countdown0_compare_v0388.md`.
+
+- Recovery C do coli whole-task live both-fighters `9528/18/19`
+  (v0386): `g6=4` (both-live, warm `44`); shell segundo `0x238a4`
+  longo `134` (`g3=0`, fighter1 byte `0` com `half 0/0`) vs single `5`,
+  shell `9418` vs `9307`; threshold fica warm `17` (`r3==0`,
+  `g6==4`) com cluster `0xd4..0xe8` e fighter `+0x18/+0x20` em `0`.
+  Midbody tail `110` (`107` body + `EQUAL` `+2`) vs `56`/`86`; seis
+  halfwords `fighter+0x6dc`, `g13+0xc/0xe`, `fighter+0x8d4` e
+  `0x0051498c= e8 21 02` medidos. Gate `9528` ao lado de `9393`/`9385`
+  com `EQUAL` `+2`. Fixture `vf2_coli_whole_task_live` estendida a 3
+  modos. `ctest` 72/72; ASan/UBSan green. See
+  `decomp/i960/notes/fa_coli_whole_task_both_live_v0386.md`.
+
+- Recovery C do coli whole-task live single-fighter f0 `9393/17/18`
+  e f1 `9385/17/18` (v0385): flag builder `0x233d0` live `53` (`g6=2`,
+  tabela `0x2330c` f0 vs `0x23324` f1, `0xFFFFDFFC` em `0xb4/0xb8`,
+  `0x88=3`) vs warm `44` (`g6=0`); shell `0x23524` live threshold em
+  `0x236b0` (`r3==4294959100`, `g6==2`) com `26` vs `17` e `12` calls
+  vs `13`, seis stores `0xd4..0xe8` e fighter `+0x18/+0x20` pinados em
+  `0xFFFFDFFC`; whole-task `9393`/`9385` com `EQUAL` e `+1`/`+2`
+  counts. Fixture ROM-backed `vf2_coli_whole_task_live` via
+  `coli-parked-221e8`. `ctest` 72/72; ASan/UBSan green. See
+  `decomp/i960/notes/fa_coli_whole_task_live_v0385.md`.
+
+- Recovery C do coli g3-scan `0x238a4` live (single fighter `+0x1a4`
+  bit8) (v0384): helper `0x238a4` nativo com `136`/`0x18`/`EQUAL` e
+  `134`/`0`/`EQUAL` (f0/f1 espelhados; fixture ROM-backed
+  `vf2_coli_238a4_live` via `coli-parked-221e8`). Flag builder
+  `0x233d0` agora permite `xor bit8` com `0x820==1` (`g6` 2 vs 0).
+  Shell `0x23524` conta `b238+1`. Gate whole-task agora permite
+  `9385/17/18` (f1) ao lado de `9393` no nível helper. `ctest` 70/70;
+  ASan/UBSan green. See
+  `decomp/i960/notes/fa_coli_238a4_live_v0384.md`.
+
+- Recovery C do coli mid-body tail whole-tail live (primeiro hit, segundo
+  warm, long) (v0383): `0x22210 -> 0x10dcc` nativo com igualdade total
+  de estado (371 steps, 9 calls / 10 rets, CC final + `g1` pinados;
+  fixture ROM-backed `vf2_coli_midbody_tail_live` via snapshot base
+  medido). Branch v0304 agora encaminha counts/CC/G1 do long
+  (`4,4`/`5,5`/`9,9` nested). `ctest` 68/68; ASan/UBSan green.
+  Próximo: composição whole-task `0x221e8` (9529). See
+  `decomp/i960/notes/fa_coli_midbody_tail_live_v0383.md`.
+
+- Recovery C do coli `0x22404` live first-contact stale slot (v0382):
+  shape (slot velho `0xffff` vs snap 0) nativo com igualdade total
+  de estado (body 77, `g0 = 1`, CC final pinado; fixture ROM-backed
+  `vf2_coli_22404_live`). Fall-through `cmpobe` → `bal 0x225bc`
+  (+5); stale+empty e stale slot 1 seguem fail-closed. Fix de oráculo
+  junto: `bo`/`bno` após `scanbit` volta ao domínio do legacy (o
+  wrapper re-decidia de AC stale e spinava o scan loop em qualquer
+  miss) — override AC agora restrito ao domínio integer-compare. `ctest` 66/66; ASan/UBSan green incl. phase17
+  202/202. Próximo: composição whole-tail (371/12/10). See
+  `decomp/i960/notes/fa_coli_22404_live_v0382.md`.
+
+- Recovery C do coli `0x225cc` live-midbody (v0381): shape
+  (`g8+0x1a4 = 0`, `g7+0x1a4 = 0x100`) nativo com igualdade total
+  de estado (240 steps, 4 calls aninhados, CC final + `g1`
+  pinados; fixture ROM-backed `vf2_coli_225cc_live`). Correções:
+  gate `g8+0x6d4 == 0xffff` relaxado (half alimenta só a máscara),
+  pack `0x22628` inalcançável removido (`be` sempre tomado com
+  `r11 == 0`; −9 fantasma), float-tail `r9 == 0` admitido
+  (`0.0/24.0` bit-exato). Pins sintéticos −9 com floats
+  recomputados. `ctest` 64/64. See
+  `decomp/i960/notes/fa_coli_225cc_live_v0381.md`.
+
+- Sanitizer gate green on Clang ASan/UBSan (Windows): `ctest` 62/62
+  em `build-clang-asan` (`-fsanitize=address,undefined`, runtimes
+  linkados confirmadas nos binários), cobrindo as mudanças de
+  runtime v0378/v0380. Fix de portabilidade junto: `libm` só é
+  linkada fora de Windows (ou sob MinGW); MSYS2 GCC segue sem
+  runtime ASan (limitação do ambiente, pré-existente).
+
+- Pin de condition codes por caminho no `phase17_zero` (v0380):
+  diferencial 202/202 (era 0/189). Trace de 682k steps agrupa todos
+  os casos em 12 tails com cauda comum sem compares
+  (`ret @ 0xa6f4 → 0x1004`); cada saída nativa replica seu último
+  compare medido com AC lockstep (word-scan unsigned vs `0xffffff`,
+  tail `fa_control0` como função do mode byte `*(0x50002b)`,
+  preâmbulo `cmpobe 0, *0x5000a6`, saída do countdown do rect, tail
+  index8 no `player0+0x158` pré-update, tails por next de transição).
+  Estabelecido: no path `vf2_i960_run`, `executor.c` compila com
+  `vf2_i960_step=vf2_i960_step_legacy` (COBR `cmpo/cmpi` escreve CC,
+  `bbs/bbc` nunca — 3312 execuções, zero mudanças). `ctest` 62/62
+  sem regressões. See
+  `decomp/i960/notes/phase17_cc_pins_v0380.md`.
+
+- Recovery C de `fa_pol_test` path A + helper `0x7f24` (v0378):
+  `vf2_recovered_pol_test_path_a` cobre gate `mode>=2`, pack de 6
+  words, FIFO gold de 15 words, loop/final submits `0x986/0x985` via
+  `0x7c60` reutilizado (pins 163/162/127). Oracle re-medido: traces
+  param em `0x21b00` com 162/161 steps e FIFO gold verbatim no
+  memory-trace. Path B, semantica da paleta, vertex stream e dispatch
+  do scheduler seguem unsupported. `explore_geo_edges.py`
+  reclassifica um push geo-stream fora do `0x7c60` (`0x19684`);
+  classes TGP `0x07/09/0b/0c` = 0; consumo de `w2` fora do guest.
+  Unit + diferencial ROM-backed. See
+  `decomp/i960/notes/pol_test_path_a_v0378.md`,
+  `geo_edge_coverage_v0378.md`, `tgp_w2_consumption_v0378.md`.
+
+- Packet boundary pol_test + scene phase5 + matrix ports (v0377):
+  **P1** mede `fa_pol_test@0x21a00` + helpers `0x7c60`/`0x7f24`:
+  i960 grava **apenas** tabela w0/w1/w2 + `r11=-1` + protocolo FIFO
+  (`0x800101,0x1800303,0x3000606,0x1a003434,0x1000202`); **vértices
+  de polygons.bin nunca aparecem** no oracle i960 — TGP consome via
+  `w2` fora do guest. Decode vertex-stream **ABSENT/UNPROVEN**;
+  `skip3_float_link` mantido só como hipótese host (gold hex id
+  `0x97d` attr `0xe1001601` → quad). pol_test `w3=((n-1)<<16)|n`.
+  **P2**: 11 portos (aperture `0x90e000`, geo `0x800000/804000`,
+  function `0x880000`, upload `0x980000`, work-RAM, FIFO…) — matrix
+  TGP/focus **ausentes** (`confidence=absent`); aperture só serializa
+  display triple; `0x0b001616` é tag copro classe 0x16. **P3**: cena
+  attract phase5 com **112** ids medidos + tags FIFO
+  `confidence=protocol_tag` (não paleta de jogo); strips temporais
+  + grid em `out/attr-render/v0377/scene/`. Logo 3D nomeado
+  **fail-closed**. Tools Python + notes; sem mudança de semântica
+  recovery C nesta fatia. See
+  `decomp/i960/notes/packet_format_p1_v0377.md`,
+  `matrix_ports_p2_v0377.md`, `scene_phase5_p3_v0377.md`.
+
+- Recovery C do submit polygon `0x7c60` + camera store IPs (v0376):
+  **`vf2_recovered_polygon_object_submit`** (`src/recovered/
+  polygon_object_submit.c`) recupera o body medido `0x7c60–0x7d10`:
+  gate `0x50101c > 0x501018 → ret` sem stores; preâmbulo FIFO
+  `0x1a003434`; tabela `ldq 0x020e0004[g0*16]`; `st w0 → g10+0x10`;
+  `stq` via `(g10)[g12]` com **r11=-1**; caminho opcional `g1`
+  (`r9 += (w3>>16)*4`, `0x5010d0 += w3_low`); contadores
+  `0x501010++` / `0x50101c += w3_low`. Fail-closed: tabela ausente →
+  `OUT_OF_BOUNDS`; IP errado → `UNSUPPORTED`. Pin ROM-backed
+  **`0x148→0x000b026a`**, **`0x88→0x0008e6de`**. Vizinhos `0x7d14`/
+  `0x7d6c`/`0x7e50`/`0x1962c` permanecem unsupported. Oracle de
+  estado de câmera: store IPs **`0x31024`** (display triple
+  6.0/4.7/18.5 em `*(0x50084c)+0x54`) e **`0x1d34c`/`0x1d35c`**
+  (escala `600.0f` em `0x501084/88`); FIFO `0x0b001616` é tag copro
+  aritmética (classe 0x16), **não** opcode TGP matrix; matrix/focus
+  TGP 3x4 seguem **absent** nos streams. Host render: views de
+  análise + fix do contact-sheet; PNGs `out/attr-render/v0376/`.
+  Focused CTest Debug observado **9/9 Passed** (incl.
+  `vf2_polygon_object_submit` + `_differential`). Logo 3D nomeado
+  **fail-closed**. See `decomp/i960/notes/tgp_camera_state_v0376.md`,
+  `host_render_views_v0376.md`, `polygon_object_submit` notes via
+  UNCOVERED v0376.
+
+- Host mesh pipeline + FIFO transform absence (v0375): **análise visual**
+  das malhas polygon-ROM medidas — não recovery, **logo 3D nomeado
+  fail-closed**. Tools: `render_mesh_host.py` (multi-view PNG, z-buffer,
+  dual-decode skip3/noskip alinhado a `tgp.c`), `rank_poly_objects.py`
+  (4096 ids da tabela `0x020e0004`; skip3 primário — malhas densas
+  **skip3_dominant**, ex. `0x5c7=515`, `0x1cb/0x33e=384`, `0x08f=257`),
+  `extract_fifo_transforms.py` + `apply_tgp_transform.py`. Oracle
+  attract/boot: commands TGP class **0x09/0x0b/0x0c** (focus/matrix/
+  translate) **ausentes** após filtro de protocolo FIFO; bits 23–27
+  colidem com cores (`0x14802929`…). Estado host medido: display triple
+  `*(u32*)0x50084c+0x54..5c = (6.0f, 4.7f, 18.5f)`, escala câmera
+  `0x501084/0x501088=600.0f`. `vf2probe --max-steps 0` **não** congela
+  o park (preferir snap-parser). PNGs em `out/attr-render/` (não git).
+  See `decomp/i960/notes/render_mesh_host_v0375.md`,
+  `object_rank_v0375.md`, `fifo_transforms_v0375.md`.
+
+- Attract object-id attribution (v0374): natural phase5 geo/FIFO writes
+  de table w0 atribuídos a **`0x7d08`/`0x7d0c`** (helper `0x7c60`).
+  Callers que carregam `g0`: **`0x190f0`** (ponteiro de estado),
+  **`0x61cc8`** (walker de lista stride +24), **`0x21134`** (tabelas
+  halfword `0x6ee38`/`0x6fe38`). IDs naturais incluem `0x88`, `0x143–
+  0x152`, `0x4d1–0x4eb`, `0xd06–0xd11` — **não** imediatos ROM.
+  `display_command_emit 0x31040` usa `0x70cbc[0]=0xee1` (mesmo em
+  TEST); sem overlap com a família attract. Sem ASCII SEGA/LOGO/TITLE
+  em ROM de objetos; lutadores AKIRA/WOLF/PAI presentes sem ponteiro
+  para ids de attract. **Logo 3D nomeado: fail-closed.** See
+  `decomp/i960/notes/logo_named_witness_v0373.md`.
+
+- Object-submit attribution + alt selectors (v0373): ~**140** ROM
+  `call 0x7c60` sites (dest=`ip+signed24`); clusters display
+  `0x19xxx` / `0x20xxx` (54, incl. pol_test ids `0x97d–0x986`) /
+  `0x2e4e4–0x31778` (49, `display_command_emit 0x31040` via table
+  `0x70cbc`). Attract phase5 still submits **unnamed** polygon ids
+  `0x88/0x14x`. Alt sel sweep: only **sel 9** from boot park opens
+  FIFO (1408 writes); no SEGA/LOGO ASCII; residual tiles `t4e jef`
+  ≠ título. Logo 3D nomeado **fail-closed**. See
+  `decomp/i960/notes/logo_object_submit_v0372.md`.
+
+- Objetos polygon no attract (v0372): oracle phase5 **lê** a tabela
+  `0x020e0004` (ids **0x148/0x88/0x145…**) e **grava** word0 em
+  geo/FIFO (`0xb026a` = id 0x148). Helper `0x7c60` + `fa_pol_test`
+  `0x21a00` medidos no oracle: FIFO `0x1a003434` + protocolo
+  idêntico ao attract. `w2` com bit `0x800000` → polygons.bin em
+  **word index** (`id 0x148` → word `0x40430`, w3=`0x014a0164`).
+  Sem ASCII SEGA/LOGO em ROM. Render host produz triângulos 3D
+  (ex. id 0x1cb 384 tris) **sem** forma nomeada de logo. Logo 3D
+  nomeado continua fail-closed. See
+  `decomp/i960/notes/attract_poly_objects_v0372.md`.
+
+- Status-tail oracle ROM real (v0371): park attract, `0x4d25c→0x4d2bc`
+  mede mode **0x03** = **156** passos (só dest `0x010000e2`), mode
+  **0x0c** = **305** e **0x0d** = **307** (dests special+common;
+  delta **+2** = pin C). ROM `0x4d28c`/`0x4d2ac` = 15 espaços+NUL →
+  glyphs `0x8020`. Thunk phase14: 11 passos a `0x9444`, 15 a
+  `0x9468` sem tiles neste park. Unit `run_common_only_spaces`
+  pinna mode3 common-only. Logo 3D fail-closed. See
+  `decomp/i960/notes/status_tail_oracle_v0371.md`.
+
+- Phase stores + status-tail bit9 clear (v0370): varredura maincpu
+  mapeia **91** sites `ldib/stib` de `0x500030`; no sel3 o avanço é
+  `phase+1` nos workers (phase14 **não** tem store). Memory-trace
+  oracle 80k passos attract ready=0: **0** writes em `0x500030`
+  (só snapshot `0x500031/34`). Thunk `0x7fc0` = blit C-string →
+  glyphs `0x80xx`. Final-status counters0 + board bit9 **clear**:
+  **13** passos até `0x4d25c`, ready 0; `0x50002b=0x03` → dest thunk
+  `0x010000e2`. C tail já fail-closed em mode `0x0c/0x0d`. Unit nova
+  pin bit9-clear. Logo 3D fail-closed. See
+  `decomp/i960/notes/phase_stores_status_tail_v0370.md`.
+
+- Cauda sel3 + fail-closed phase14/15 (v0369): oráculo a partir do
+  park phase14/ready=0 mede thunk **0x9444** em **11** passos (phase
+  **não** avança; resume 400k permanece 0x0e em spin `0x4c7xx`).
+  Workers forçados: **15→16** (mask=1, ctr=128), **16→17**, **17→0**.
+  ROM phase15 compara mask com **0x700/0x540/0x380/0x1c0** e blita
+  descriptors main_data (ex. `0x02a69cd2` 7×26 → glyphs **0x88xx** no
+  tile plane `0x01000124`); **não** é string SEGA nomeada. C agora
+  **fail-closed** nesses masks e no not-ready de phase14. Logo 3D
+  continua unwitness. See
+  `decomp/i960/notes/attract_tail_phase15_masks_v0369.md`.
+
+- Pin oracle final-status `0x4bf90` (v0368): com counters 0 e ready=1
+  o oráculo executa **12** passos até `0x4bfdc` e grava
+  **`0x550000=0`**; ctr0=1 ou ctr2=1 mantêm ready=1 (6/10 passos).
+  Board bit9 set pula `call 0x4d25c`. C unit já pinava **13** insns
+  (12+`ret`) — coerente. Entrada ROM: scan `0x4bd24` → `0x4bf90`.
+  Após clear no attract, phase14 **não** ++phase (worker não grava
+  phase+1). CTest orchestrator/texture **8/8 Passed**. Logo 3D
+  fail-closed. See `decomp/i960/notes/final_status_pin_v0368.md`.
+
+- Ready-latch + FIFO/texture (v0367): ROM stores em `0x550000` =
+  set **1** (`0x4b414/0x4b83c/0x4ba14`) e clear **0** em
+  **`0x4bfc4`** (r14==0 e ctr2 `0x5502e0`==0). C
+  `execute_texture_final_status_call` espelha o clear; **model2a/TGP
+  não** limpam o latch sozinhos. Parks phase14: ready=1 com
+  contadores 0 — clear não roda no spin de objeto. Worker phase14
+  (ROM+C) **não** escreve phase+1 → fases 15+ não alcançadas por
+  esse caminho. Correlação: attract FIFO **1157–2016** writes +
+  nz_tex **~10154** vs TEST FIFO **9** + nz **0**; sem mesh nomeada
+  → logo 3D fail-closed. See
+  `decomp/i960/notes/ready_clear_fifo_corr_v0367.md`.
+
+- Attract sel3 phases 3–14 + gate `0x550000` (v0366): oracle alcança
+  fases **3..14** com nav limpo e scouts de counters medidos
+  (`0x500024`, `0x515b50`, `0x500028` com sel=3 preservado). Workers
+  phase8/9/14: ctr=0 e `0x550000==1` → **ret** (espera); not-ready →
+  thunk `0x9444` (v0026: 26 insns). Natural pós-phase7 tem ready=1;
+  oráculo re-arm ready=1 e phase14 trava. Coli spin `0x224xx` trava
+  scheduler sem visitas a `0xa6c0` (recete `--set-ip`). Sem logo 3D
+  nomeado. See
+  `decomp/i960/notes/attract_phases_ready_gate_v0366.md`.
+
+- Attract longo + FIFO TGP (v0365): com nav limpo o oráculo drena
+  phase3 (cd 256→0, ~1/frame), avança **fases 4→8** (sel3, sem TEST).
+  Texture 64k nz **0→4360→~10154** no attract vs **0** em TEST.
+  Memory-trace FIFO `0x884000`: attract **1157–2016** writes vs TEST
+  **9**. Fase 8 fica em loop de objeto `0x4c7xx`; sem tile/malha SEGA
+  3D nomeada → logo 3D **fail-closed**. See
+  `decomp/i960/notes/attract_long_fifo_v0365.md`.
+
+- Executor COBR `teste` + attract TGP (v0364): `test*` (op 0x20–0x27)
+  grava `0xffffffff/0` no operando a partir de `compare_result`
+  (unit ROM `0x22780000`); `vf2_tests` all passed; focused CTest **7/7**
+  sem regressão sixth-dispatch. Attract nav-clear atravessa `0x19024`
+  (sel3/phase3, cd 256→253, sem TEST); texture first-64k **nz=4360**
+  no park long vs 0 em TEST. Memory-trace: **1157** writes TGP FIFO
+  `0x884000` com function codes e floats no attract fase 3.
+  Logo 3D/malha SEGA **não** pinado. See
+  `decomp/i960/notes/teste_attract_tgp_v0364.md`.
+
+- Referência MAME TGP/Model 2 (v0363): dump limpo em `third_party/`
+  (mb86233 + model2.cpp, BSD-3-Clause) + `tools/python/tgp_disasm_mame.py`
+  analysis-only. Política: MAME sugere → oráculo mede → C prova; sem
+  link no runtime. Mapa copro/geo/FIO/sincos documentado vs `tgp.c`.
+  See `decomp/i960/notes/mame_mb86233_reference_v0363.md` e
+  `third_party/README.md`.
+
+- Attract pós-SEGA: gate de input + fase 3 (v0362). O oracle grava
+  **sel 2→0x10** em `0xa748` quando `0x500704` tem **bit 26 ou 2**
+  (trace: `stib 0x10` em `0xa76c`; park lia `0x0f000000`). Com
+  `resume-trace` zerando `0x500704` a cada frame a partir de
+  `sega-after-cd`: sel **02→03**, phase3 **0→3**, geometria/buffer
+  mudam, **sem** TEST MENU. Oráculo para em **`teste` @ `0x19024`**
+  (executor sem semântica COBR `test*`) no corpo de objeto/fighter do
+  attract. Logo 3D / malha SEGA **não** witness. COUNTRY não desvia o
+  handoff TEST quando o gate está ativo; COUNTRY≠0 pula a SEGA legal.
+  Tools: `dump_attract_rom.py`, `dump_attract_state.py`,
+  `attract_navclear.py`, etc. See
+  `decomp/i960/notes/attract_nav_gate_teste_v0362.md`.
+
+- Attract pós-SEGA medido (v0361): caminho natural
+  **SEGA warning (sel 0→1) → sel 2 → sel 3 → 0x10 → 0x11 TEST MENU**
+  neste backup/config. Tabelas ROM corretas: sel2=`0xab0c`,
+  sel3=`0xacf8` (phases 0–17), sel16=`0x10a0c` (C grava a4=0x0b),
+  sel17=`0x10b5c`. Recovery documenta handoff fases 12–15 → sel 16.
+  Forçar sel=4..15 também termina em TEST MENU. Texture-ram hash muda no
+  handoff sem malha 3D SEGA na FIFO. Logo de jogo permanece fail-closed
+  (falta estado de máquina fora do handoff de teste). See
+  `decomp/i960/notes/attract_sel3_to_testmenu_v0361.md`.
+
+- Tela SEGA alcançada (v0360): o **frame selector 0** desenha a assinatura
+  legal Model 2 cujas strings ROM incluem `SEGA ENTERPRISES,LTD.` (`0xaaad`).
+  Witness natural: `park-after-irq` (COUNTRY=JAPAN, assinatura `0xa5a5…` não
+  casa) → 1 frame **15853** insns, selector **1**, countdown **640**, glyphs
+  `0x89xx` nos destinos `0x01000332..0x01001650`. Warm com assinatura em
+  `0x59cfe0` **pula** o desenho (fast path 34 → sel 2) — por que v0353–v0356
+  nunca viram SEGA. Decoders `0x80xx` não liam glyphs estilizados. C
+  `execute_selector0_body` já cobria o ramo draw; unit
+  `test_frame_dispatch_selector0_sega_warning_draw` pin 15853/sel=1/640.
+  Tools em `tools/python/dump_sel0_strings.py` e `decode_glyph_tiles.py`.
+  See `decomp/i960/notes/sega_warning_screen_v0360.md`.
+
+- COBR CC + pin `0x270d4` (v0359): executor `cmpo*`/`cmpi*` COBR now write
+  `compare_result` **and** AC low condition bits (hardware lockstep). Recovered
+  exits recalibrated on measured last-cmpo: `fa_kill_osage` (0x65838 chain),
+  `fa_osage0/1` (`cmpobne 0,instance` → EQUAL/LESS), first-sweep scheduler
+  finish → **GREATER** at `0xa014`. `native-first-dispatch` and
+  `native-sixth-dispatch` **MATCH** (870 blocks / 7,404,901 insns). Player
+  wrapper `0x270d4` admitted: C 5×`0x27b5c` equals oracle on five slots,
+  **9235** insns, ROM pin `vf2_player_270d4_five_slot_pin`. Selectors
+  `{0x0505,0x0039,0x00f1,0x00e7,0x00af}` at main_data `0x0201c2fc`.
+  `phase17_zero` differential still fails on per-path CC (open). See
+  `player_270d4_slot_pin_v0358.md` (blocked narrative) + this slice.
+
+- Pin `0x270d4` five slots + coli body 77 (v0358): record selectors medidos
+  em main_data `0x0201c2fc` = `{0x0505,0x0039,0x00f1,0x00e7,0x00af}`.
+  COBR `cmpobl`+`be` no despacho de `0x27b5c`: com CC arquitetural
+  (experimental, revertido) o span oracle é **9235** e C iguala os cinco
+  slots; com executor master (COBR sem escrita de `compare_result`) o span
+  stale é **9378**. O fix de CC quebra MATCH (`fa_kill_osage`, phase17,
+  bridges). Master mantém executor legacy e `0x270d4` **fail-closed**.
+  Coli live body 77 documentado sem extensão C. See
+  `decomp/i960/notes/player_270d4_slot_pin_v0358.md` and
+  `decomp/i960/notes/fa_coli_22404_body77_v0358.md`.
+
+- Player `0x27b5c` degenerado vs válido (v0357): sixth/punch têm
+  `+0x1a0/+0xbd8 = 0` → reference `cvtri` falha em `0x27cc8`; C agora
+  **fail-closed** nessa forma (unit `test_player_27b5c_zero_record_fail_closed`).
+  Parks `player-1428c-*` com record `0x0201c2fc` / scratch `0x00520000`
+  executam o wrapper **`0x270d4 → 0x2712c` em 9378 insns** com cinco slots
+  preenchidos e cursors `g3=0x520630`, `g5=0x50ea98`, `g6=0x50e2d0`.
+  Pin diferencial byte a byte dos slots permanece aberto. See
+  `decomp/i960/notes/player_27b5c_valid_degenerate_v0357.md`.
+
+- Attract/game-assign + player `0x27cc8` (v0356): backup factory-like no
+  sixth; COIN não sai do TEST MENU (v0355). Drive `0x4505` mede
+  **1749** insns até `0x270d4` e **1709** até `cvtri` em **`0x27cc8`**
+  (soma **3458** = trace v0352). Wrapper `0x270d4` = 5×`0x27b5c`
+  (g0/g3 tabelados) — helper C já existe no corredor `0x1428c`; admitir
+  `0x270d4` reaproveitando-o continua **fail-closed** sem pin de estado
+  final live dos cinco slots. See
+  `decomp/i960/notes/attract_player_27cc8_v0356.md`.
+
+- Input-driven display path (v0355): sob `vf2cycles` strict, **COIN+START**
+  12 ciclos MATCH permanece **TEST MENU** (26 010 insns); **PUNCH** alcança
+  **EXIT TEST MODE** naturalmente (`a4=0x8b`, countdown 320→310→290) e com
+  **332** ciclos MATCH (14,9 M insns na perna de 300; 12 216 blocos) o
+  countdown expira e o oracle **redesenha TEST MENU** (`a4=0x0b`, cd 0).
+  Geometria FIFO e buffer-ram idênticos entre parks de teste (rampa de
+  cor, não malha logo). Sem tile `SEGA`. See
+  `decomp/i960/notes/input_display_path_v0355.md`.
+
+- EXIT TEST MODE + warm-boot attract (v0354): na fronteira **frame-dispatch**
+  `0xa6c0` a partir do sixth MATCH, forçar `a4=0x8b` mede first-visit
+  **13286** insns e desenha tile **`EXIT TEST MODE`** (countdown **320**,
+  `a5=0xff`); terminal countdown=1 → **13194** insns em **`0x000000b0`**
+  com `0x500082=0x8000`. Warm-boot pós-exit usa backup **válido** (CRC
+  `0x9480`, não BROKEN), selector **0→2 em 34 insns** (unit pin), depois
+  selector `0x10` limpa/redesenha e o oracle **retorna a TEST MENU**
+  (`0x11`) armando coli `0x221e8`. **Sem tile `SEGA`** nesta trajetória —
+  logo attract permanece fronteira TGP/config. Unit
+  `test_frame_dispatch_selector0_signature_fast_path`. See
+  `decomp/i960/notes/exit_testmode_attract_v0354.md`.
+
+- Entrada em tela (v0353): landmark de display medido no cold-boot.
+  Primeira tela visível no oracle: tile-plane **`BACKUP RAM IS BROKEN.` /
+  `INITIALIZED.`** em `0x0004aff8` (2 985 244 insns pós-stage1) e
+  continuação **`I/O Initialize ...` / `Sound Initialize ...`**; pin C
+  unitário em `0x010008aa` (`test_post_boot_backup_broken_screen`) além
+  do I/O text existente em `0x01000c28`. Tela estável do corredor MATCH:
+  **TEST MENU** selector `0x11` em `native-sixth-dispatch`
+  (`sixth-fresh`, `0x5000a4=0x0b`), com paleta/texture preenchidas.
+  Logo SEGA **não** é tile ASCII nesta trajetória — attract/TGP e
+  EXIT TEST MODE → warm-boot permanecem fronteira explícita.
+  Ferramenta `tools/python/render_tile_plane.py` (grelha 64×48 + PPM
+  host-side). See `decomp/i960/notes/display_landmark_v0353.md`.
+
+- Fecho dos abertos Combate Vivo (v0352): player `0x4505`
+  reproduzido com drive padrão — punch10/sixth-regen/fifth-rt
+  **1745/4/4**, boot **1743/4/4**, natres **1659/4/4**; C seleciona
+  1745 vs 1743 por F0 bit26 (natres bit31 fail-closed);
+  `native-resume` alcança coli `0x221e8` a partir do park armado;
+  task inteira com receita live mede **9398/17/18 sem `0x225cc`**
+  (sibling fail-closed); span `0x22404` live **78** passos
+  documentado; frontier player pós-`0x4505` → unsupported
+  **`0x27cc8`**; endurance MATCH até dispatch **10675**; CTest
+  **57/57**. See `decomp/i960/notes/close_open_v0352.md`.
+
+- Campanha Combate Vivo (v0351): arming coli por PUNCH a partir de
+  `native-sixth-dispatch` (`sixth-fresh` + 330 ciclos → slot10
+  `entry=0x221e8`, countdown 0); live midbody `g0=1` medido
+  **380** passos / 12 call-instr / 10 rets com `0x225cc` longo
+  249 até `0x22294`; C admite sibling `0x22298` bit8-set/bit1-clear
+  (body **13**, unit 14 + 3 negativos fail-closed); frontier
+  `--fighter-base` + `fighter_offsets.py`; `+0x0026` bilateral no
+  layout candidato; endurance MATCH observada até dispatch **9626+**;
+  CTest **57/57**. See `decomp/i960/notes/combat_live_v0351.md`.
+
+- Fecho dos abertos restantes (v0350): coli live midbody
+  `g0=1→0x225cc→0x10dcc` medido **380/9/10** (call `0x22290` em
+  129 passos; `g13=0x514940` no park midbody); `0x4505` replicado
+  em **`sixth-regen`** e **`player-14288-fifth-rt`** (1745/4/4,
+  estado final punch10) — prova independente do arquivo punch10;
+  shapes irmãos boot **1743** e natres **1659** documentados
+  fail-closed; endurance MATCH até **8000**. See
+  `decomp/i960/notes/close_open_v0350.md`.
+
+- Fecho dos abertos (v0349): punch10-t6/pf5/type6 reproduzem
+  referência `0x4505` **1745/4/4**; C fail-closed em F0 bit31/1
+  (parks `player-14288-*`); unit `test_player_19ef8_selector_4505`;
+  coli tail live `g0=1→0x225cc→0x10dcc` **346/6/8** a partir de
+  `coli-22404-e1`; whole-task estática pinada **9393/17/18** (sem
+  `0x225cc`); endurance `native-nth-dispatch` **MATCH até 5000**.
+  See `decomp/i960/notes/close_open_items_v0349.md`.
+
+- Itens 1–4 autônomos (v0348): fa_player selector **`0x4505`**
+  admitido nativo na forma punch10 (1745/4/4, tabelas mascaradas
+  `& 0x1fff`); site-B-only whole-task documentado inalcançável sem
+  mutar `0x508000` entre cascade e `0x22dd4`; pin coli não-warm
+  medido **9528/18/19** ao lado de 9214/18/19; endurance
+  `native-nth-dispatch` **MATCH até 1000**. See
+  `decomp/i960/notes/items_1to4_v0348.md`.
+
+- Tracks B–D autonomous slice (v0347): native dispatch **12–40**
+  MATCH (CTest pin added for dispatch 12); fa_player `0x4505`
+  measured complete on `punch10` (**1745** steps to `0x1428c`)
+  but warm `0x505` still faults — recovery stays fail-closed;
+  coli site-B-only `0x22dd4` board-clear gate wired via proven
+  `0x502a4`#siteB + `0x7fc0`#4 helpers (probe span **237**
+  steps). See `decomp/i960/notes/tracks_bcd_v0347.md`.
+
+- coli exit landing (v0346): measured live `call 0x225cc` at `0x22290`
+  returns to the `ret` at `0x22294`, which pops to scheduler `0x10dcc`.
+  `vf2_hybrid_coli_225cc_execute` now double-pops that ret when the
+  entered return is `0x22294` and a parent frame remains. Site-A
+  live-landing unit: parent `enter(0x22210,0x10dcc)` + child
+  `enter(0x225cc,0x22294)` lands `0x10dcc` with exact **884/7/9**.
+  Procedure-only units that enter with stand-in `0x22240` are
+  unchanged. ROM-backed third/fourth/fifth/sixth/eleventh dispatch
+  pass; `vf2cycles --input 16` **8/8 MATCH**
+  (`decomp/i960/notes/fa_coli_exit_landing_v0346.md`);
+
 - Site-A full leg runs natively end-to-end (v0345-B, fa_coli
   done): new `coli_225cc_sitea_cont` models `0x22960` → `0x22e24`
   (three `0x7fc0` calls, `0x9444`, scan tail, `0x2298c` join,

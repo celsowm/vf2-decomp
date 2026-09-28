@@ -9,6 +9,58 @@ build/vf2i960 analyze roms/vf2 out/analysis
 Inspect the function list, CFG, xrefs, abstract values, indirect targets and
 pseudocode before assigning names or writing recovered C.
 
+### Optional liftkit static scaffold
+
+The generic i960 lifter from `segamodel2-tools` can provide an additional IR,
+CFG, ABI and C scaffold view for one measured VF2 slice. Keep that checkout
+outside this repository and configure it with `--liftkit-root` or
+`SEGAMODEL2_TOOLS_ROOT`:
+
+```powershell
+python tools/python/liftkit_vf2.py `
+  --rom-dir roms/vf2 `
+  --liftkit-root C:/path/to/segamodel2-tools `
+  --vf2i960 build/Debug/vf2i960.exe `
+  --address 0x27b5c `
+  --count 128 `
+  --name fa_player_27b5c
+```
+
+The adapter obtains the listing from the local `vf2i960` command, normalizes
+only the address delimiter expected by liftkit, and writes all outputs below
+`out/liftkit/`. It does not use the external MAME frontend, which is tied to
+Sega Rally ROM names and layout.
+
+The generated `*.lifted.c` file is a deterministic navigation scaffold only.
+Unresolved condition-state expressions such as `ac`, raw `ldt`/`stt`, `cvtri`
+and any other liftkit placeholder remain evidence gaps. Never copy a scaffold
+directly into `src/recovered`; recover the smallest behavior from measured
+state and prove it with the ROM-backed differential contract below.
+
+### Optional model2recomp static hints
+
+`model2recomp` can be used as a second static analyst for entry-point discovery.
+Its generic i960 lifter exposes candidates found through IAC reinitialization,
+interrupt tables, static function discovery and previously measured runtime
+hints. The bridge loads only `tools/i960_lifter.py` from an external checkout;
+it does not import the Model 2 runtime, geometry engine, TGP or generated game
+code.
+
+When a flat program image is available, run:
+
+```powershell
+python tools/python/model2recomp_hints.py `
+  --program-bin C:/path/to/program.bin `
+  --model2recomp-root C:/path/to/model2recomp `
+  --out out/model2recomp-vf2-hints.json
+```
+
+The report is a candidate index only. Validate every address with the local
+`vf2i960` disassembler and the reference executor before using it to guide a
+recovery. A discovered interrupt handler or IAC target is not evidence that
+its semantics are understood, and no generated external C may be promoted to
+`src/recovered`.
+
 ## Dynamic evidence
 
 Execute a bounded path:

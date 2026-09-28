@@ -37,6 +37,12 @@ static void test_native_attachment(void)
     EXPECT_TRUE(vf2_game_attach_native_runtime(
         &game, &machine, &cpu, &runtime
     ) == VF2_OK);
+    {
+        const uint64_t instructions_before = cpu.executed_instructions;
+        EXPECT_TRUE(vf2_game_update(&game) == VF2_ERROR_UNSUPPORTED);
+        EXPECT_TRUE(game.frame_number == 0u);
+        EXPECT_TRUE(cpu.executed_instructions == instructions_before);
+    }
     EXPECT_TRUE(vf2_game_run_native_frame(&game, 0u, &report) ==
                 VF2_ERROR_INVALID_ARGUMENT);
     EXPECT_TRUE(vf2_game_run_native_frame(&game, 1u, &report) ==

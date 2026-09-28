@@ -63,6 +63,7 @@ typedef struct vf2_recovered_task_report {
     uint32_t continuation;
     size_t bytes_written;
     size_t global_bytes_written;
+    uint32_t last_compare_result;
 } vf2_recovered_task_report;
 
 typedef struct vf2_recovered_camera_init_report {
@@ -144,6 +145,8 @@ typedef struct vf2_recovered_kill_osage_report {
     size_t records_evaluated;
     size_t records_marked_for_kill;
     size_t flag_words_written;
+    /* vf2_i960_compare_result from the last ROM cmpo* in 0x65838. */
+    uint32_t last_compare_result;
 } vf2_recovered_kill_osage_report;
 
 typedef struct vf2_recovered_timer_irq_report {
@@ -158,6 +161,16 @@ typedef struct vf2_recovered_timer_irq_report {
     size_t interrupts_serviced;
     int wait_released;
 } vf2_recovered_timer_irq_report;
+
+/* Measured four-instruction interrupt acknowledge handler at 0x00000d30. */
+typedef struct vf2_recovered_interrupt_ack_report {
+    uint32_t entry_address;
+    uint32_t exit_address;
+    uint32_t acknowledge_address;
+    uint32_t acknowledge_value;
+    uint64_t recovered_instruction_count;
+    uint64_t recovered_procedure_returns;
+} vf2_recovered_interrupt_ack_report;
 
 typedef struct vf2_recovered_boot_stage2_report {
     uint32_t start_address;
@@ -219,6 +232,15 @@ vf2_status vf2_recovered_task_registry_initialize(
 vf2_status vf2_recovered_timer_irq_dispatch(
     vf2_model2a *machine,
     vf2_recovered_timer_irq_report *report
+);
+
+/* Semantic C recovery of the independent 0x00000d30 interrupt handler.
+ * The caller must provide an entered i960 procedure frame at 0x00000d30;
+ * unentered or neighboring handler states remain unsupported. */
+vf2_status vf2_recovered_interrupt_ack_dispatch(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu,
+    vf2_recovered_interrupt_ack_report *report
 );
 
 /* Semantic recovery of the scheduler registry scan at 0x00010d54.
@@ -345,6 +367,62 @@ vf2_status vf2_recovered_task_kill_osage_execute(
 vf2_status vf2_recovered_boot_stage1(
     vf2_model2a *machine,
     vf2_recovered_boot_stage1_report *report
+);
+
+/*
+ * Semantic recovery of attract/display polygon-object submit helper 0x00007c60.
+ *
+ * Measured protocol (ROM disasm + oracle pin, decomp/i960/notes/logo_object_submit_v0372.md):
+ *   gate: if *(u32*)0x50101c > *(u32*)0x501018 -> ret
+ *   FIFO preamble via (g11)[g12]: word 0x1a003434, then *(g10+0x2008)
+ *   object table: 0x020e0004[g0*16], ldq 4 words into r8..r11
+ *   st  r8, 0x10(g10)          ; geo word0 when g10 = 0x800000
+ *   stq r8, (g10)[g12]         ; quad path; r11 forced to -1 before the store
+ *
+ * The CPU must already be entered at 0x00007c60 with the caller-provided
+ * g0/g1/g10/g11/g12 register state. Gate-closed returns VF2_OK with no
+ * submit stores. Table/FIFO memory faults return the model2a status
+ * (fail-closed; no silent success). Nearby helpers at 0x7d14/0x7d6c/0x7e50
+ * are intentionally not covered.
+ */
+vf2_status vf2_recovered_polygon_object_submit(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
+/*
+ * Palette-like geo pack helper 0x00007f24 (measured body).
+ *
+ * st g12, 0x30(g10); six iterations from g0:
+ *   word = (sext(hi) << 16) + (0x17f - sext(lo)) + *(u32*)0x5013f0
+ *   st word, (g10)[g12]; g0 += 4
+ * Live path-A park writes 0x7f, 0x1f001ff, 0xf8013f x4 to geo port g10+g12.
+ * Semantic name of the pack is unproven — words only.
+ */
+vf2_status vf2_recovered_polygon_palette_pack_7f24(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
+/*
+ * fa_pol_test 0x00021a00 path A (measured FIFO protocol).
+ *
+ * Gate: mode byte 0x00530150 >= 2 takes path A (cmpoble 2, r14). Path B
+ * (mode < 2) returns VF2_ERROR_UNSUPPORTED. Count byte 0x0053014c drives
+ * a loop of helper 0x7c60 submits: id 0x985 when mode==3 else 0x986,
+ * g1=0. Final submit is always 0x985. Palette helper 0x7f24 runs first.
+ *
+ * Gold FIFO (count=1, mode=2, geo pointer 0):
+ *   0x800101, 0x1800303, 0x3000606,
+ *   0x3e9eb852, 0x3e428f5c, 0x3f9eb852,
+ *   0x1a003434, 0x0,
+ *   0x3000606, 0x0, 0xbec7ae14, 0x0,
+ *   0x1a003434, 0x0,
+ *   0x1000202
+ */
+vf2_status vf2_recovered_pol_test_path_a(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
 );
 
 #endif

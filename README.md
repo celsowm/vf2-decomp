@@ -10,9 +10,32 @@ The goal is to recover the original game/runtime behavior into portable, readabl
 
 ## Project status
 
-The project already contains a substantial recovered native runtime, ROM validation/reconstruction tools, Intel i960 analysis tooling, a bounded Model 2A hardware model, snapshot/resume support and strict differential validation between recovered C and the original program.
+As of v0.1.3, the project contains a substantial recovered native runtime,
+ROM validation/reconstruction tools, Intel i960 analysis tooling, a bounded
+Model 2A hardware model, snapshot/resume support and strict differential
+validation between recovered C and the original program.
 
-Current work is focused on expanding recovered gameplay/runtime state coverage while preserving exact CPU, procedure-count and mutable-memory behavior for accepted paths. Unsupported or unverified branches remain explicit instead of being approximated.
+The validated native corridor now preserves exact CPU, condition-code,
+procedure-count and mutable-memory state through the repeated scheduler and
+gameplay dispatches, with measured `native-nth-dispatch` coverage through
+dispatch 40 and a CTest pin at dispatch 12. The strict post-scheduler corridor
+contains 1,270,824 recovered instructions and zero interpreted instructions.
+
+Recent recovery work has expanded the measured state-8 positive-mask families
+in `fa_game_info`, the `fa_player` geometry and collision/state-exchange
+corridors, and selected `fa_coli` continuations. These are accepted only for
+the measured combinations; neighboring or unverified branches still return
+`VF2_ERROR_UNSUPPORTED`.
+
+The project is still a clean-room recovery and validation effort, not a
+complete playable port. Character/arena selection, the complete match state
+machine, fighter physics and combat, ring-out behavior, CPU decision logic,
+and substantial geometry, audio and hardware behavior remain open. The
+Model 2A boundary includes the measured common bus behavior for one-shot
+25 MHz timers/IRQ requests, video frame status, render-mode control, TGP
+program-upload accounting. Full TGP firmware execution,
+polygon rasterization, tile/video timing and SCSP FM/DSP behavior remain
+explicitly outside that bounded model.
 
 ### Progress toward a playable Virtua Fighter 2 port
 
@@ -21,12 +44,12 @@ These bars are a qualitative view of progress toward running the **complete game
 ```text
 ROM / boot              ██████████  very advanced
 Model 2A hardware       ███████░░░  functional for the current corridor
-scheduler / runtime     █████████░  very advanced
+scheduler / runtime     ██████████  validated native corridor
 input                    ████████░░
 camera                   ████████░░
 HUD / game_disp          ███████░░░
 fighter / game logic     ██████░░░░
-geometry / rendering     █████░░░░░
+geometry / rendering     ██████░░░░  recovered corridors; broader renderer open
 audio                    ███░░░░░░░
 complete game flow       ███░░░░░░░
 fully playable match     ██░░░░░░░░
@@ -196,7 +219,8 @@ This project is not currently claiming:
 
 - complete decompilation of Virtua Fighter 2;
 - a production-ready or fully playable replacement executable;
-- complete Sega Model 2/TGP emulation;
+- complete Sega Model 2/TGP emulation (the current model is a bounded common
+  Model 2A bus/device boundary);
 - full SCSP FM/DSP audio behavior; or
 - coverage of every gameplay state and branch.
 

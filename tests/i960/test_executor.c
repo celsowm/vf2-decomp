@@ -531,5 +531,56 @@ int vf2_test_i960_executor(void)
         return 59;
     }
     vf2_model2a_shutdown(&machine);
+
+    /* COBR test* writes 0xffffffff/0 from compare_result into src1.
+     * Encoded like ROM 0x00019024: teste r15 after cmpo. */
+    {
+        /* ROM encoding: op in bits31-24, src1 in bits23-19.
+         * teste r15 = 0x22780000; teste r3 = 0x22180000; testg r15 = 0x21780000 */
+        const uint32_t teste_r15 = UINT32_C(0x22780000);
+        const uint32_t teste_r3 = UINT32_C(0x22180000);
+        memset(image, 0xff, sizeof(image));
+        write_le32(image + 0u, teste_r15);
+        write_le32(image + 4u, teste_r3);
+        write_le32(image + 8u, UINT32_C(0x21780000)); /* testg r15 */
+        write_le32(image + 12u, UINT32_C(0x21780000));
+        if (!vf2_model2a_initialize(&machine)) {
+            return 60;
+        }
+        if (vf2_model2a_attach_main_rom(&machine, image, sizeof(image)) != VF2_OK) {
+            vf2_model2a_shutdown(&machine);
+            return 61;
+        }
+        vf2_i960_cpu_reset(&cpu, 0u, 0u, 0u);
+        cpu.registers[15] = UINT32_C(0x12345678);
+        cpu.registers[3] = UINT32_C(0x9abcdef0);
+        cpu.compare_result = VF2_I960_COMPARE_EQUAL;
+        status = vf2_i960_step(&cpu, &machine, NULL);
+        if (status != VF2_OK || cpu.ip != 4u ||
+            cpu.registers[15] != UINT32_MAX ||
+            cpu.compare_result != VF2_I960_COMPARE_EQUAL) {
+            vf2_model2a_shutdown(&machine);
+            return 62;
+        }
+        status = vf2_i960_step(&cpu, &machine, NULL);
+        if (status != VF2_OK || cpu.ip != 8u || cpu.registers[3] != UINT32_MAX) {
+            vf2_model2a_shutdown(&machine);
+            return 63;
+        }
+        cpu.registers[15] = 0u;
+        cpu.compare_result = VF2_I960_COMPARE_EQUAL;
+        status = vf2_i960_step(&cpu, &machine, NULL);
+        if (status != VF2_OK || cpu.registers[15] != 0u) {
+            vf2_model2a_shutdown(&machine);
+            return 64;
+        }
+        cpu.compare_result = VF2_I960_COMPARE_GREATER;
+        status = vf2_i960_step(&cpu, &machine, NULL);
+        if (status != VF2_OK || cpu.registers[15] != UINT32_MAX) {
+            vf2_model2a_shutdown(&machine);
+            return 65;
+        }
+        vf2_model2a_shutdown(&machine);
+    }
     return 0;
 }

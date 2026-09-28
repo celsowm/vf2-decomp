@@ -208,9 +208,10 @@ static void correct_measured_compare_state(
     uint8_t countdown
 )
 {
-    if (fighter0_only && countdown == 0u) {
+    (void)fighter0_only;
+    if (countdown == 0u) {
         set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
-    } else if (countdown != 0u) {
+    } else {
         set_compare_result(cpu, VF2_I960_COMPARE_LESS);
     }
 }

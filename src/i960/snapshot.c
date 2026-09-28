@@ -520,8 +520,29 @@ vf2_status vf2_i960_compare_live_state(
         expected_cpu->local_frame_depth != actual_cpu->local_frame_depth) {
         diff->equal = false;
         (void)snprintf(diff->component, sizeof(diff->component), "cpu-state");
-        diff->expected_value = expected_cpu->ip;
-        diff->actual_value = actual_cpu->ip;
+        if (expected_cpu->ip != actual_cpu->ip) {
+            diff->first_offset = 0u;
+            diff->expected_value = expected_cpu->ip;
+            diff->actual_value = actual_cpu->ip;
+        } else if (expected_cpu->compare_result != actual_cpu->compare_result) {
+            diff->first_offset = 1u;
+            diff->expected_value = (uint32_t)expected_cpu->compare_result;
+            diff->actual_value = (uint32_t)actual_cpu->compare_result;
+        } else if (expected_cpu->arithmetic_control !=
+                   actual_cpu->arithmetic_control) {
+            diff->first_offset = 2u;
+            diff->expected_value = expected_cpu->arithmetic_control;
+            diff->actual_value = actual_cpu->arithmetic_control;
+        } else if (expected_cpu->local_frame_depth !=
+                   actual_cpu->local_frame_depth) {
+            diff->first_offset = 3u;
+            diff->expected_value = expected_cpu->local_frame_depth;
+            diff->actual_value = actual_cpu->local_frame_depth;
+        } else {
+            diff->first_offset = 4u;
+            diff->expected_value = expected_cpu->ip;
+            diff->actual_value = actual_cpu->ip;
+        }
         ++diff->differing_bytes;
     }
     for (index = 0u; index < VF2_I960_REGISTER_COUNT; ++index) {
@@ -641,8 +662,24 @@ vf2_status vf2_i960_snapshot_compare(
         expected->cpu.local_frame_depth != actual->cpu.local_frame_depth) {
         diff->equal = false;
         (void)snprintf(diff->component, sizeof(diff->component), "cpu-state");
-        diff->expected_value = expected->cpu.ip;
-        diff->actual_value = actual->cpu.ip;
+        if (expected->cpu.ip != actual->cpu.ip) {
+            diff->first_offset = 0u;
+            diff->expected_value = expected->cpu.ip;
+            diff->actual_value = actual->cpu.ip;
+        } else if (expected->cpu.compare_result != actual->cpu.compare_result) {
+            diff->first_offset = 1u;
+            diff->expected_value = (uint32_t)expected->cpu.compare_result;
+            diff->actual_value = (uint32_t)actual->cpu.compare_result;
+        } else if (expected->cpu.arithmetic_control !=
+                   actual->cpu.arithmetic_control) {
+            diff->first_offset = 2u;
+            diff->expected_value = expected->cpu.arithmetic_control;
+            diff->actual_value = actual->cpu.arithmetic_control;
+        } else {
+            diff->first_offset = 4u;
+            diff->expected_value = expected->cpu.ip;
+            diff->actual_value = actual->cpu.ip;
+        }
         ++diff->differing_bytes;
     }
     {

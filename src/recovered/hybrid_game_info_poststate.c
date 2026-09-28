@@ -37,7 +37,12 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
     status = vf2_hybrid_first_dispatch_task_execute_poststate_base(
         machine, cpu, registry_address, report
     );
-    if (status != VF2_OK || !correct_game_disp_frame2) {
+    /* v0389: the player live corridor (0x14288) is handled entirely by
+     * the base dispatch above; the game_disp measured case never fires
+     * there (it requires the game_info entry IP), so forward its
+     * outcome directly. */
+    if (status != VF2_OK || !correct_game_disp_frame2 ||
+        cpu->ip == UINT32_C(0x0001428c)) {
         return status;
     }
     if (cpu->ip != VF2_GAME_DISP_SCHEDULER_RETURN) {

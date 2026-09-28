@@ -131,6 +131,78 @@ static vf2_hybrid_bridge_report run_selector_case(uint8_t selector)
     return report;
 }
 
+
+static void run_common_only_spaces(void)
+{
+    /* Oracle attract park: mode 0x03 blits only the common destination
+     * from ROM spaces at 0x4d2ac (measured 156 steps to 0x4d2bc). */
+    static const char spaces[13] = "            ";
+    vf2_hybrid_bridge_report report;
+    vf2_model2a machine;
+    vf2_i960_cpu cpu;
+    uint8_t *rom = NULL;
+    uint8_t rendered[24];
+
+    memset(&report, 0, sizeof(report));
+    memset(&machine, 0, sizeof(machine));
+    memset(&cpu, 0, sizeof(cpu));
+    memset(rendered, 0, sizeof(rendered));
+
+    rom = (uint8_t *)calloc(VF2_MAIN_ROM_SIZE, 1u);
+    CHECK(rom != NULL);
+    if (rom == NULL) {
+        return;
+    }
+    seed_inline_text(rom, SPECIAL_SOURCE, spaces);
+    seed_inline_text(rom, COMMON_SOURCE, spaces);
+
+    CHECK(vf2_model2a_initialize(&machine) != 0);
+    if (machine.work_ram == NULL || machine.tile_ram == NULL) {
+        free(rom);
+        return;
+    }
+    CHECK(
+        vf2_model2a_attach_main_rom(&machine, rom, VF2_MAIN_ROM_SIZE) == VF2_OK
+    );
+    CHECK(
+        vf2_model2a_write(
+            &machine, STATUS_SELECTOR, &(uint8_t){3}, 1u
+        ) == VF2_OK
+    );
+    vf2_i960_cpu_reset(&cpu, 0u, 0u, STATUS_TAIL_ENTRY);
+    CHECK(
+        vf2_i960_cpu_enter_procedure(
+            &cpu, STATUS_TAIL_ENTRY, RETURN_SENTINEL
+        ) == VF2_OK
+    );
+    CHECK(
+        vf2_hybrid_post_frame_bridge_execute(&machine, &cpu, &report) == VF2_OK
+    );
+    CHECK(report.kind == VF2_HYBRID_BRIDGE_TEXTURE_STATUS_TAIL);
+    CHECK(report.entry_address == STATUS_TAIL_ENTRY);
+    CHECK(report.exit_address == RETURN_SENTINEL);
+    CHECK(report.bytes_written >= 24u);
+    CHECK(cpu.ip == RETURN_SENTINEL);
+    CHECK(
+        vf2_model2a_read(
+            &machine, COMMON_DESTINATION, rendered, sizeof(rendered)
+        ) == VF2_OK
+    );
+    CHECK(rendered[0] == UINT8_C(0x20));
+    CHECK(rendered[1] == UINT8_C(0x80));
+    CHECK(
+        vf2_model2a_read(
+            &machine, SPECIAL_DESTINATION, rendered, sizeof(rendered)
+        ) == VF2_OK
+    );
+    /* Special plane must stay untouched on the common-only path. */
+    CHECK(rendered[0] != UINT8_C(0x20) || rendered[1] != UINT8_C(0x80));
+
+    vf2_model2a_shutdown(&machine);
+    free(rom);
+}
+
+
 int main(void)
 {
     const vf2_hybrid_bridge_report selector12 = run_selector_case(UINT8_C(12));
@@ -149,6 +221,7 @@ int main(void)
         selector13.recovered_procedure_returns ==
         selector12.recovered_procedure_returns
     );
+    run_common_only_spaces();
 
     if (failures != 0) {
         fprintf(stderr, "%d texture-status-tail test(s) failed\n", failures);

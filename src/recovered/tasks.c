@@ -1,5 +1,6 @@
 #include "vf2/recovered.h"
 #include "vf2/fighter_candidate.h"
+#include "vf2/i960/executor.h"
 
 #include <string.h>
 
@@ -280,6 +281,11 @@ vf2_status vf2_recovered_task_osage_first_dispatch(
     local_report.entry_point = UINT32_C(0x000640f4);
     local_report.registry_address = registry_address;
     local_report.bytes_written = 26u;
+    /* ROM 0x640f8: cmpobne 0, instance. CC from that compare only
+     * (bbc bit7 does not write CC; bit7-set body is unrecovered). */
+    local_report.last_compare_result = instance == 0u
+        ? (uint32_t)VF2_I960_COMPARE_EQUAL
+        : (uint32_t)VF2_I960_COMPARE_LESS;
     if (report != NULL) {
         *report = local_report;
     }
@@ -1399,7 +1405,8 @@ static vf2_status kill_osage_evaluate_record(
     uint32_t registry_address,
     uint32_t *elapsed_ticks,
     size_t *marked_for_kill,
-    size_t *flag_words_written
+    size_t *flag_words_written,
+    vf2_i960_compare_result *last_compare
 )
 {
     uint32_t continuation = 0u;
@@ -1416,40 +1423,81 @@ static vf2_status kill_osage_evaluate_record(
         return status;
     }
 
-    if (continuation == VF2_TASK_OSAGE_CONTINUATION &&
-        (flags & UINT32_C(1)) == 0u &&
-        (flags & (UINT32_C(1) << 2u)) != 0u) {
-        status = vf2_model2a_read_u32(
-            machine, registry_address + UINT32_C(0x128), &accumulated_age
-        );
-        if (status != VF2_OK) {
-            return status;
+    /* ROM 0x65838: mov 0,r7; cmpobne cont,0x6428c → miss; bbs 0 → miss;
+     * bbc 2 → miss; ld age; cmpobl age+elapsed,0x4268 → miss; else hit.
+     * Last cmpo* is cmpobne (early miss) or cmpobl (late miss/hit). */
+    if (continuation != UINT32_C(0x0006428c)) {
+        if (last_compare != NULL) {
+            *last_compare = continuation < UINT32_C(0x0006428c)
+                ? VF2_I960_COMPARE_LESS : VF2_I960_COMPARE_GREATER;
         }
-        if (*elapsed_ticks + accumulated_age >= VF2_TASK_KILL_OSAGE_THRESHOLD) {
-            flags |= (UINT32_C(1) << 3u);
+        /* miss: clear bit 3; g6 += 0 (r7 still 0) */
+        flags &= ~(UINT32_C(1) << 3u);
+        status = vf2_model2a_write_u32(machine, registry_address, flags);
+        if (status == VF2_OK) {
+            ++*flag_words_written;
+        }
+        return status;
+    }
+    if (last_compare != NULL) {
+        *last_compare = VF2_I960_COMPARE_EQUAL;
+    }
+    if ((flags & UINT32_C(1)) != 0u ||
+        (flags & (UINT32_C(1) << 2u)) == 0u) {
+        flags &= ~(UINT32_C(1) << 3u);
+        status = vf2_model2a_write_u32(machine, registry_address, flags);
+        if (status == VF2_OK) {
+            ++*flag_words_written;
+        }
+        return status;
+    }
+
+    status = vf2_model2a_read_u32(
+        machine, registry_address + UINT32_C(0x128), &accumulated_age
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+    {
+        const uint32_t sum = *elapsed_ticks + accumulated_age;
+        const uint32_t limit = UINT32_C(0x00004268);
+        if (last_compare != NULL) {
+            if (sum < limit) {
+                *last_compare = VF2_I960_COMPARE_LESS;
+            } else if (sum == limit) {
+                *last_compare = VF2_I960_COMPARE_EQUAL;
+            } else {
+                *last_compare = VF2_I960_COMPARE_GREATER;
+            }
+        }
+        if (sum < limit) {
+            /* miss after load: g6 += age */
+            flags &= ~(UINT32_C(1) << 3u);
             status = vf2_model2a_write_u32(machine, registry_address, flags);
             if (status == VF2_OK) {
-                status = vf2_model2a_read_u32(
-                    machine, VF2_TASK_KILL_OSAGE_COUNTER, &kill_counter
-                );
-            }
-            if (status == VF2_OK) {
-                status = vf2_model2a_write_u32(
-                    machine, VF2_TASK_KILL_OSAGE_COUNTER, kill_counter + 1u
-                );
-            }
-            if (status == VF2_OK) {
-                ++*marked_for_kill;
+                *elapsed_ticks = sum;
                 ++*flag_words_written;
             }
             return status;
         }
     }
 
-    flags &= ~(UINT32_C(1) << 3u);
+    /* hit: set bit 3, bump kill counter. ROM hit path does not add age
+     * into g6 (no addo r7,g6,g6). */
+    flags |= (UINT32_C(1) << 3u);
     status = vf2_model2a_write_u32(machine, registry_address, flags);
     if (status == VF2_OK) {
-        *elapsed_ticks += accumulated_age;
+        status = vf2_model2a_read_u32(
+            machine, VF2_TASK_KILL_OSAGE_COUNTER, &kill_counter
+        );
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_write_u32(
+            machine, VF2_TASK_KILL_OSAGE_COUNTER, kill_counter + 1u
+        );
+    }
+    if (status == VF2_OK) {
+        ++*marked_for_kill;
         ++*flag_words_written;
     }
     return status;
@@ -1469,6 +1517,7 @@ vf2_status vf2_recovered_task_kill_osage_execute(
     uint32_t elapsed = 0u;
     size_t marked = 0u;
     size_t flag_writes = 0u;
+    vf2_i960_compare_result last_cc = VF2_I960_COMPARE_NONE;
     vf2_status status = VF2_OK;
 
     if (machine == NULL ||
@@ -1506,11 +1555,11 @@ vf2_status vf2_recovered_task_kill_osage_execute(
     elapsed /= UINT32_C(25);
 
     status = kill_osage_evaluate_record(
-        machine, first, &elapsed, &marked, &flag_writes
+        machine, first, &elapsed, &marked, &flag_writes, &last_cc
     );
     if (status == VF2_OK) {
         status = kill_osage_evaluate_record(
-            machine, second, &elapsed, &marked, &flag_writes
+            machine, second, &elapsed, &marked, &flag_writes, &last_cc
         );
     }
     if (status != VF2_OK) {
@@ -1524,6 +1573,7 @@ vf2_status vf2_recovered_task_kill_osage_execute(
     local_report.records_evaluated = 2u;
     local_report.records_marked_for_kill = marked;
     local_report.flag_words_written = flag_writes;
+    local_report.last_compare_result = (uint32_t)last_cc;
     if (report != NULL) {
         *report = local_report;
     }

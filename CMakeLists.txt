@@ -68,6 +68,8 @@ add_library(vf2_core STATIC
     src/recovered/native_runtime_condition.c
     src/recovered/native_runtime_state.c
     src/recovered/object_service.c
+    src/recovered/polygon_object_submit.c
+    src/recovered/pol_test_path_a.c
     src/recovered/native_differential.c
     src/recovered/native_differential_step.c
     src/recovered/texture_bridge.c
@@ -119,7 +121,7 @@ target_include_directories(vf2_core
 
 vf2_set_project_warnings(vf2_core)
 
-if(NOT MSVC)
+if(NOT WIN32 OR MINGW)
     target_link_libraries(vf2_core PUBLIC m)
 endif()
 
@@ -258,6 +260,10 @@ if(VF2_BUILD_TESTS)
     target_link_libraries(vf2_native_runtime_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_native_runtime_tests)
     add_test(NAME vf2_native_runtime COMMAND vf2_native_runtime_tests)
+    if(EXISTS "${VF2_ROM_DIR}")
+        add_test(NAME vf2_player_270d4_five_slot_pin
+                 COMMAND vf2_native_runtime_tests "${VF2_ROM_DIR}")
+    endif()
 
     add_executable(vf2_native_runtime_state_tests tests/recovered/test_native_runtime_state.c)
     target_link_libraries(vf2_native_runtime_state_tests PRIVATE vf2_core)
@@ -321,10 +327,141 @@ if(VF2_BUILD_TESTS)
     target_link_libraries(vf2_object_handler_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_object_handler_tests)
 
+    add_executable(vf2_polygon_object_submit_tests tests/recovered/test_polygon_object_submit.c)
+    target_link_libraries(vf2_polygon_object_submit_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_polygon_object_submit_tests)
+    add_test(NAME vf2_polygon_object_submit COMMAND vf2_polygon_object_submit_tests)
+
+    add_executable(vf2_pol_test_path_a_tests tests/recovered/test_pol_test_path_a.c)
+    target_link_libraries(vf2_pol_test_path_a_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_pol_test_path_a_tests)
+    add_test(NAME vf2_pol_test_path_a COMMAND vf2_pol_test_path_a_tests)
+
+    add_executable(vf2_coli_225cc_live_tests tests/recovered/test_coli_225cc_live.c)
+    target_link_libraries(vf2_coli_225cc_live_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_coli_225cc_live_tests)
+    add_test(NAME vf2_coli_225cc_live COMMAND vf2_coli_225cc_live_tests)
+
+    add_executable(vf2_coli_22404_live_tests tests/recovered/test_coli_22404_live.c)
+    target_link_libraries(vf2_coli_22404_live_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_coli_22404_live_tests)
+    add_test(NAME vf2_coli_22404_live COMMAND vf2_coli_22404_live_tests)
+
+    add_executable(vf2_coli_midbody_tail_live_tests tests/recovered/test_coli_midbody_tail_live.c)
+    target_link_libraries(vf2_coli_midbody_tail_live_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_coli_midbody_tail_live_tests)
+    add_test(NAME vf2_coli_midbody_tail_live COMMAND vf2_coli_midbody_tail_live_tests)
+
+    add_executable(vf2_coli_238a4_live_tests tests/recovered/test_coli_238a4_live.c)
+    target_link_libraries(vf2_coli_238a4_live_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_coli_238a4_live_tests)
+    add_test(NAME vf2_coli_238a4_live COMMAND vf2_coli_238a4_live_tests)
+
+    add_executable(vf2_coli_whole_task_live_tests tests/recovered/test_coli_whole_task_live.c)
+    target_link_libraries(vf2_coli_whole_task_live_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_coli_whole_task_live_tests)
+    add_test(NAME vf2_coli_whole_task_live COMMAND vf2_coli_whole_task_live_tests)
+
+    add_executable(vf2_player_4505_live_tests tests/recovered/test_player_4505_live.c)
+    target_link_libraries(vf2_player_4505_live_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_player_4505_live_tests)
+    add_test(NAME vf2_player_4505_live COMMAND vf2_player_4505_live_tests)
+
+    add_executable(vf2_player_142c0_live_tests tests/recovered/test_player_142c0_live.c)
+    target_link_libraries(vf2_player_142c0_live_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_player_142c0_live_tests)
+    add_test(NAME vf2_player_142c0_live COMMAND vf2_player_142c0_live_tests)
+
+    add_executable(vf2_player_selector1_live_tests tests/recovered/test_player_selector1_live.c)
+    target_link_libraries(vf2_player_selector1_live_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_player_selector1_live_tests)
+
+    add_executable(vf2_player_1442c_live_tests tests/recovered/test_player_1442c_live.c)
+    target_link_libraries(vf2_player_1442c_live_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_player_1442c_live_tests)
+    add_test(NAME vf2_player_1442c_live COMMAND vf2_player_1442c_live_tests)
+
+    add_executable(vf2_player_1442c_state16_live_tests tests/recovered/test_player_1442c_state16_live.c)
+    target_link_libraries(vf2_player_1442c_state16_live_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_player_1442c_state16_live_tests)
+    add_test(NAME vf2_player_1442c_state16_live COMMAND vf2_player_1442c_state16_live_tests)
+
+    add_executable(vf2_player_1453c_live_tests tests/recovered/test_player_1453c_live.c)
+    target_link_libraries(vf2_player_1453c_live_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_player_1453c_live_tests)
+    add_test(NAME vf2_player_1453c_live COMMAND vf2_player_1453c_live_tests)
+
+    add_executable(vf2_player_14640_state27_live_tests tests/recovered/test_player_14640_state27_live.c)
+    target_link_libraries(vf2_player_14640_state27_live_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_player_14640_state27_live_tests)
+    add_test(NAME vf2_player_14640_state27_live COMMAND vf2_player_14640_state27_live_tests)
+
+    add_executable(vf2_player_14640_state28_live_tests tests/recovered/test_player_14640_state28_live.c)
+    target_link_libraries(vf2_player_14640_state28_live_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_player_14640_state28_live_tests)
+    add_test(NAME vf2_player_14640_state28_live COMMAND vf2_player_14640_state28_live_tests)
+
+    add_executable(vf2_player_14640_bit4set_live_tests tests/recovered/test_player_14640_bit4set_live.c)
+    target_link_libraries(vf2_player_14640_bit4set_live_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_player_14640_bit4set_live_tests)
+    add_test(NAME vf2_player_14640_bit4set_live COMMAND vf2_player_14640_bit4set_live_tests)
+
+    add_executable(vf2_player_14640_escape_live_tests tests/recovered/test_player_14640_escape_live.c)
+    target_link_libraries(vf2_player_14640_escape_live_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_player_14640_escape_live_tests)
+    add_test(NAME vf2_player_14640_escape_live COMMAND vf2_player_14640_escape_live_tests)
+
+    add_executable(vf2_player_14640_compare_live_tests tests/recovered/test_player_14640_compare_live.c)
+    target_link_libraries(vf2_player_14640_compare_live_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_player_14640_compare_live_tests)
+    add_test(NAME vf2_player_14640_compare_live COMMAND vf2_player_14640_compare_live_tests)
+
+    add_executable(vf2_player_14640_compare_escape_live_tests tests/recovered/test_player_14640_compare_escape_live.c)
+    target_link_libraries(vf2_player_14640_compare_escape_live_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_player_14640_compare_escape_live_tests)
+    add_test(NAME vf2_player_14640_compare_escape_live COMMAND vf2_player_14640_compare_escape_live_tests)
+
+    add_executable(vf2_player_14640_state13_live_tests tests/recovered/test_player_14640_state13_live.c)
+    target_link_libraries(vf2_player_14640_state13_live_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_player_14640_state13_live_tests)
+    add_test(NAME vf2_player_14640_state13_live COMMAND vf2_player_14640_state13_live_tests)
+
+    add_executable(vf2_player_14640_compare_less_live_tests tests/recovered/test_player_14640_compare_less_live.c)
+    target_link_libraries(vf2_player_14640_compare_less_live_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_player_14640_compare_less_live_tests)
+    add_test(NAME vf2_player_14640_compare_less_live COMMAND vf2_player_14640_compare_less_live_tests)
+
+    add_executable(vf2_player_14640_compare_tail_live_tests tests/recovered/test_player_14640_compare_tail_live.c)
+    target_link_libraries(vf2_player_14640_compare_tail_live_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_player_14640_compare_tail_live_tests)
+    add_test(NAME vf2_player_14640_compare_tail_live COMMAND vf2_player_14640_compare_tail_live_tests)
+
     if(EXISTS "${VF2_ROM_DIR}")
         add_test(NAME vf2_phase17_zero_differential COMMAND vf2_phase17_zero_tests "${VF2_ROM_DIR}")
         add_test(NAME vf2_post_boot_input_profiles_differential COMMAND vf2_post_boot_input_profile_tests "${VF2_ROM_DIR}")
         add_test(NAME vf2_object_handlers_differential COMMAND vf2_object_handler_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_polygon_object_submit_differential COMMAND vf2_polygon_object_submit_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_pol_test_path_a_differential COMMAND vf2_pol_test_path_a_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_coli_225cc_live_differential COMMAND vf2_coli_225cc_live_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_coli_22404_live_differential COMMAND vf2_coli_22404_live_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_coli_midbody_tail_live_differential COMMAND vf2_coli_midbody_tail_live_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_coli_238a4_live_differential COMMAND vf2_coli_238a4_live_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_coli_whole_task_live_differential COMMAND vf2_coli_whole_task_live_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_player_4505_live_differential COMMAND vf2_player_4505_live_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_player_142c0_live_differential COMMAND vf2_player_142c0_live_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_player_selector1_live_differential COMMAND vf2_player_selector1_live_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_player_1442c_live_differential COMMAND vf2_player_1442c_live_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_player_1442c_state16_live_differential COMMAND vf2_player_1442c_state16_live_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_player_1453c_live_differential COMMAND vf2_player_1453c_live_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_player_14640_state27_live_differential COMMAND vf2_player_14640_state27_live_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_player_14640_state28_live_differential COMMAND vf2_player_14640_state28_live_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_player_14640_bit4set_live_differential COMMAND vf2_player_14640_bit4set_live_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_player_14640_escape_live_differential COMMAND vf2_player_14640_escape_live_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_player_14640_compare_live_differential COMMAND vf2_player_14640_compare_live_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_player_14640_compare_escape_live_differential COMMAND vf2_player_14640_compare_escape_live_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_player_14640_state13_live_differential COMMAND vf2_player_14640_state13_live_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_player_14640_compare_less_live_differential COMMAND vf2_player_14640_compare_less_live_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_player_14640_compare_tail_live_differential COMMAND vf2_player_14640_compare_tail_live_tests "${VF2_ROM_DIR}")
         add_test(NAME vf2_boot_differential COMMAND vf2i960 compare-boot "${VF2_ROM_DIR}")
         add_test(NAME vf2_initialization_differential COMMAND vf2i960 compare-init "${VF2_ROM_DIR}")
         add_test(NAME vf2_task_registry_differential COMMAND vf2i960 compare-task-registry "${VF2_ROM_DIR}")
@@ -346,6 +483,7 @@ if(VF2_BUILD_TESTS)
         add_test(NAME vf2_native_fifth_dispatch COMMAND vf2i960 native-fifth-dispatch "${VF2_ROM_DIR}")
         add_test(NAME vf2_native_sixth_dispatch COMMAND vf2i960 native-sixth-dispatch "${VF2_ROM_DIR}")
         add_test(NAME vf2_native_eleventh_dispatch COMMAND vf2i960 native-nth-dispatch "${VF2_ROM_DIR}" 11)
+        add_test(NAME vf2_native_twelfth_dispatch COMMAND vf2i960 native-nth-dispatch "${VF2_ROM_DIR}" 12)
         add_test(NAME vf2_texture_bridge_differential COMMAND vf2i960 compare-texture-bridge "${VF2_ROM_DIR}")
         add_test(NAME vf2_post_frame_bridge_differential COMMAND vf2i960 compare-post-frame-bridge "${VF2_ROM_DIR}")
         add_test(NAME vf2_geometry_boundary_differential COMMAND vf2i960 compare-geometry-boundary "${VF2_ROM_DIR}")
@@ -361,6 +499,7 @@ if(VF2_BUILD_TESTS)
             vf2_native_third_dispatch vf2_native_fourth_dispatch
             vf2_native_fifth_dispatch vf2_native_sixth_dispatch
             vf2_native_eleventh_dispatch
+            vf2_native_twelfth_dispatch
             vf2_texture_bridge_differential vf2_post_frame_bridge_differential
             vf2_geometry_boundary_differential vf2_second_scheduler_entry_differential
             vf2_game_geometry_helpers_differential vf2_third_sweep_observation

@@ -214,6 +214,34 @@ static inline void set_signed_condition(
     cpu->compare_result = result;
 }
 
+static inline void set_greater_condition(vf2_i960_cpu *cpu)
+{
+    cpu->arithmetic_control =
+        (cpu->arithmetic_control & ~UINT32_C(7)) | UINT32_C(1);
+    cpu->compare_result = VF2_I960_COMPARE_GREATER;
+}
+
+static inline void set_unsigned_condition(
+    vf2_i960_cpu *cpu,
+    uint32_t left,
+    uint32_t right
+)
+{
+    uint32_t condition = UINT32_C(2);
+    vf2_i960_compare_result result = VF2_I960_COMPARE_EQUAL;
+
+    if (left < right) {
+        condition = UINT32_C(4);
+        result = VF2_I960_COMPARE_LESS;
+    } else if (left > right) {
+        condition = UINT32_C(1);
+        result = VF2_I960_COMPARE_GREATER;
+    }
+    cpu->arithmetic_control =
+        (cpu->arithmetic_control & ~UINT32_C(7)) | condition;
+    cpu->compare_result = result;
+}
+
 static inline void account_nested_procedure(
     vf2_i960_cpu *cpu,
     uint64_t calls,

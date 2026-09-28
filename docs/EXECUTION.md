@@ -3,6 +3,12 @@
 The executor validates recovered C and discovers the next evidence boundary. It
 is not intended to become the native game runtime.
 
+The same rule applies to the public game facade: `vf2_game_run_native_frame`
+is a validation/oracle entry point, while `vf2_game_update` must not execute
+i960 instructions. Until the portable gameplay pipeline is complete, an
+attached oracle runtime makes `vf2_game_update` fail closed with
+`VF2_ERROR_UNSUPPORTED`.
+
 ## Accepted differential checkpoints
 
 | Original path/function | Accepted C | Result |
@@ -11,10 +17,16 @@ is not intended to become the native game runtime.
 | `0x000001b0` → `0x0000052c` | `vf2_recovered_boot_stage2_execute` | MATCH |
 | function `0x00010cbc` | `vf2_recovered_task_registry_initialize` | MATCH |
 | interrupt handler `0x00000d50` | `vf2_recovered_timer_irq_dispatch` | MATCH |
+| interrupt handler `0x00000d30` → `0x00000040` | `vf2_recovered_interrupt_ack_dispatch` | UNIT MATCH |
 
 The timer comparison enters the same architectural interrupt frame on both
 machines, interprets the original handler on one side and executes accepted C
 on the other, then compares every modeled mutable region.
+
+The `0x00000d30` row is an isolated four-instruction differential fixture. It
+is accepted only for an already-entered procedure frame and is not yet claimed
+as a complete interrupt-dispatch corridor; the neighboring `0x00000e10` and
+`0x00000e30` handlers remain unsupported.
 
 ## External interrupts
 

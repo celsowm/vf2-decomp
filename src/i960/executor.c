@@ -342,6 +342,39 @@ static bool condition_matches(
     return false;
 }
 
+/* COBR test* (op 0x20-0x27): write 0xffffffff/0 into src1 from compare CC. */
+static bool test_condition_matches(
+    const char *mnemonic,
+    vf2_i960_compare_result result
+)
+{
+    if (strcmp(mnemonic, "testno") == 0) {
+        return condition_matches("bno", result);
+    }
+    if (strcmp(mnemonic, "testg") == 0) {
+        return condition_matches("bg", result);
+    }
+    if (strcmp(mnemonic, "teste") == 0) {
+        return condition_matches("be", result);
+    }
+    if (strcmp(mnemonic, "testge") == 0) {
+        return condition_matches("bge", result);
+    }
+    if (strcmp(mnemonic, "testl") == 0) {
+        return condition_matches("bl", result);
+    }
+    if (strcmp(mnemonic, "testne") == 0) {
+        return condition_matches("bne", result);
+    }
+    if (strcmp(mnemonic, "testle") == 0) {
+        return condition_matches("ble", result);
+    }
+    if (strcmp(mnemonic, "testo") == 0) {
+        return condition_matches("bo", result);
+    }
+    return false;
+}
+
 static bool direct_compare_condition(
     const char *mnemonic,
     uint32_t left,
@@ -1122,6 +1155,15 @@ static vf2_status execute_instruction(
         cpu->ip = instruction->target;
         return VF2_OK;
     }
+    if (instruction->format == VF2_I960_FORMAT_COBR &&
+        instruction->operand_count == 1u &&
+        strncmp(mnemonic, "test", 4u) == 0) {
+        const uint32_t value =
+            test_condition_matches(mnemonic, cpu->compare_result)
+                ? UINT32_MAX
+                : 0u;
+        return set_register(cpu, &instruction->operands[0], value);
+    }
     if (instruction->flow == VF2_I960_FLOW_BRANCH && instruction->conditional &&
         instruction->format == VF2_I960_FORMAT_CTRL) {
         if (condition_matches(mnemonic, cpu->compare_result)) {
@@ -1138,6 +1180,28 @@ static vf2_status execute_instruction(
         status = operand_value(cpu, &instruction->operands[1], &second);
         if (status != VF2_OK) {
             return status;
+        }
+        /* Hardware COBR cmpo/cmpi set condition codes; a following be/bne/bl
+         * observes this compare. Recovered-C exits must pin the same CC.
+         * Keep compare_result and AC low condition bits in lockstep. */
+        if (strncmp(mnemonic, "cmpo", 4u) == 0 ||
+            strncmp(mnemonic, "cmpi", 4u) == 0) {
+            const int is_signed = strncmp(mnemonic, "cmpi", 4u) == 0;
+            uint32_t condition_bits = 0u;
+            if (first == second) {
+                cpu->compare_result = VF2_I960_COMPARE_EQUAL;
+                condition_bits = 2u;
+            } else if (is_signed
+                           ? ((int32_t)first < (int32_t)second)
+                           : (first < second)) {
+                cpu->compare_result = VF2_I960_COMPARE_LESS;
+                condition_bits = 4u;
+            } else {
+                cpu->compare_result = VF2_I960_COMPARE_GREATER;
+                condition_bits = 1u;
+            }
+            cpu->arithmetic_control =
+                (cpu->arithmetic_control & ~UINT32_C(7)) | condition_bits;
         }
         if (direct_compare_condition(mnemonic, first, second)) {
             cpu->ip = instruction->target;
