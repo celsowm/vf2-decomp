@@ -54,13 +54,14 @@ compact predicate that preserves those corrections. The exhaustive-run driver is
 
 The v0689 measured scan-6 shapes are now native: `9389/17/18` (fighter-0
 single live), `9524/18/19` (fighter-0 bilateral) and `9389/17/18` (fighter-1
-single live). Whole-task instruction-trace diffs against the committed scan-2
-and F1 scan-5 witnesses proved the reference streams are identical except the
-tests skipped at `0x2232c` (three for scan 2, two for scan 5), so the measured
-scan-2 shell `-2` and F1 scan-5 `-1` accounting corrections cover scan 6 as
-well; that residual is the v0689 `+2` attribution, now closed. The
-ordering-fail child admits scan 6 with body 18 and the whole-task whitelist
-admits both counter shapes with full live-state equality. The measured
+single live), each proven across the measured `field_0822` sweep
+`{0, 1, 16, 256}` with full live-state equality. Whole-task instruction-trace
+diffs against the committed scan-2 and F1 scan-5 witnesses proved the
+reference streams are identical except the tests skipped at `0x2232c` (three
+for scan 2, two for scan 5), so the measured scan-2 shell `-2` and F1 scan-5
+`-1` accounting corrections cover scan 6 as well; that residual is the v0689
+`+2` attribution, now closed. The ordering-fail child admits scan 6 with body
+18 and the whole-task whitelist admits both counter shapes. The measured
 bilateral 6/6 shape (`9528/18/19`, first-call `0xffff` tail, final state
 delta vs 6/0 is exactly `fighter0+0x6dc == 0xffff` and `+4` instructions)
 remains fail-closed: the recovered children are exact for it, so the residual

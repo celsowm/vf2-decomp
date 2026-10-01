@@ -43,6 +43,15 @@ corrections over exact children would be curve-fitting, so 6/6 remains
 **fail-closed** (verified: the native path returns `VF2_ERROR_UNSUPPORTED`
 for it; `9531` is no whitelisted triple).
 
+## `field_0822` sweep (field-independent)
+
+The recovered ordering-fail path stores `0xffff` at `+0x6dc` before the
+`0x22404` contact sequence, so `field_0822` cannot influence it. Measured:
+F0 single and F1 single scan-6 both stay `9389/17/18`, and F0 bilateral
+scan-6 stays `9524/18/19`, for `field_0822 ∈ {0, 1, 16, 256}` — the same
+field axis the v0683/v0684 matrices cover for scans 0/1/4/5. The ROM-backed
+matrix now drives all twelve cells with full live-state equality.
+
 ## Trace attribution of the v0689 `+2`
 
 Full `--trace` runs of the scan-6 and scan-2 shapes were diffed for both

@@ -416,7 +416,7 @@ static void run_rom(const char *dir){
         }
     }
     {
-        const uint8_t scans[] = {2u, 6u};
+        const uint8_t scans[] = {2u};
         for (size_t scan = 0u; scan < sizeof(scans); ++scan) {
             test_matrix_case(
                 rom, rs, data, ds, &matrix_snapshot,
@@ -431,12 +431,28 @@ static void run_rom(const char *dir){
         }
     }
     {
-        /* v0691 measured F1 scan-6 single shape: 9389/17/18. */
-        test_matrix_case(
-            rom, rs, data, ds, &matrix_snapshot,
-            0u, 0x100u, 0u, 0u, 0u,
-            0u, 6u, 0u
-        );
+        /* v0691 measured scan-6 shapes across the field_0822 sweep:
+         * F0 single 9389, F0 bilateral 9524, F1 single 9389; the counts are
+         * field-independent (the ordering-fail path stores 0xffff at +0x6dc
+         * before the 0x22404 contact sequence). */
+        const uint16_t fields[] = {0u, 1u, 16u, 256u};
+        for (size_t field = 0u; field < sizeof(fields) / sizeof(fields[0]); ++field) {
+            test_matrix_case(
+                rom, rs, data, ds, &matrix_snapshot,
+                0x100u, 0u, 0u, 6u, fields[field],
+                0u, 0u, 0u
+            );
+            test_matrix_case(
+                rom, rs, data, ds, &matrix_snapshot,
+                0x100u, 0x100u, 0u, 6u, fields[field],
+                0u, 0u, 0u
+            );
+            test_matrix_case(
+                rom, rs, data, ds, &matrix_snapshot,
+                0u, 0x100u, 0u, 0u, 0u,
+                0u, 6u, fields[field]
+            );
+        }
     }
     for (uint32_t f0_flag = 0u; f0_flag <= 0x100u; f0_flag += 0x100u) {
         for (uint32_t f1_flag = 0u; f1_flag <= 0x100u; f1_flag += 0x100u) {

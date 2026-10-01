@@ -5,15 +5,16 @@
 - Recover the measured `fa_coli` whole-task `field_0821 = 6` ordering-fail
   shapes: fighter-0 single live `9389/17/18`, fighter-0 bilateral
   `9524/18/19` and the fighter-1 single live sibling `9389/17/18` now match
-  the ROM with complete live-state equality through `0x10dcc`. Whole-task
-  instruction-trace diffs against the committed scan-2 / F1 scan-5 witnesses
-  prove the reference executes instruction-identical streams except the tests
-  skipped at `0x2232c`, closing the v0689 `+2` attribution question: the
-  measured scan-2 shell `-2` and F1 scan-5 `-1` accounting corrections cover
-  scan 6, and the ordering-fail child uses body 18. The whole-task whitelist
-  admits the two new counter shapes; the measured bilateral 6/6 shape
-  (`9528/18/19`) and other unmeasured scan values/compositions remain
-  fail-closed. See
+  the ROM with complete live-state equality through `0x10dcc`, each across
+  the measured `field_0822` sweep `{0, 1, 16, 256}` (12 matrix cells).
+  Whole-task instruction-trace diffs against the committed scan-2 / F1
+  scan-5 witnesses prove the reference executes instruction-identical streams
+  except the tests skipped at `0x2232c`, closing the v0689 `+2` attribution
+  question: the measured scan-2 shell `-2` and F1 scan-5 `-1` accounting
+  corrections cover scan 6, and the ordering-fail child uses body 18. The
+  whole-task whitelist admits the two new counter shapes; the measured
+  bilateral 6/6 shape (`9528/18/19`) and other unmeasured scan
+  values/compositions remain fail-closed. See
   `decomp/i960/notes/fa_coli_whole_task_scan821_f0_scan6_recovered_v0691.md`.
 
 - Consolidate the `fa_player` `0x19ef8` 49-value `state_ok` enumeration
