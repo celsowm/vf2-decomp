@@ -18,6 +18,37 @@ runs through the eleventh-dispatch validation corridor, but it remains one evide
 sequence rather than a complete game implementation. Unsupported paths return
 `VF2_ERROR_UNSUPPORTED` instead of falling back to i960 interpretation.
 
+## v0689 `fa_game_info` positive bit-6 gate is an accounting selector
+
+The positive state-8 bit-6 predicate `measured_positive_state8_bit6_mask` was
+measured against pristine `master` for the families `v0127` documents as
+fail-closed: isolated/pairwise high-bit masks without bit 8, high-bit masks
+mixed with low bits, and wider high-bit triples/quads. Every tested composition
+matched the ROM across the three physical distributions, both countdown values
+and both mode-bit-6 settings, with snapshot, counter and live-state equality.
+The predicate therefore selects the mask-specific dispatcher *accounting*
+corrections rather than admitting or rejecting the corridor, and no behaviour
+change results from widening it. No code change was committed; the residual
+question is whether the hand-written correction mask list can be replaced by a
+compact predicate that preserves those corrections. The exhaustive-run driver is
+`decomp/i960/tools/validate_game_info_positive_bit6_sweep.py`. See
+`decomp/i960/notes/game_info_18644_positive_bit6_gate_scope_v0689.md`.
+
+## v0689 `fa_coli` whole-task `field_0821 = 6` measured, still fail-closed
+
+The parked `0x221e8` snapshot with fighter-0 `field_0821 = 6` was measured
+independently: `9389/17/18` (fighter-0 scan, single live) and `9524/18/19`
+(fighter-0 scan, both live), confirming v0686. The ROM branch at `0x2232c`
+sends `r6 == 6` straight to the `0x2233c` loop entry, skipping the three tests
+scan 2 walks, and the measured zero ordering then takes the same `0x223a8`
+`0xffff` tail three instructions shorter. The native `coli_22298_body` still
+rejects scan 6 in its ordering-fail branch, and admitting it with the derived
+body is not sufficient: the recovered whole task reports `+2` against the
+reference because the `hybrid_execute_coli_body` `g6 == (1U << 2)` adjustment
+also applies to this shape. The shape remains fail-closed pending that `+2`
+attribution. See
+`decomp/i960/notes/fa_coli_whole_task_scan821_f0_scan6_v0689.md`.
+
 ## v0688 whole-task `fa_coli` stale-empty witness `9398/17/18`
 
 The complete `0x000221e8` → `0x00010dcc` corridor now admits one additional

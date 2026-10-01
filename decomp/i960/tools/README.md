@@ -321,3 +321,32 @@ python3 decomp/i960/tools/compare_snapshot_counters.py \
 ```
 
 This exists because `compare-snapshots` is primarily a CPU/mutable-memory comparison and must not be used as the sole proof for serialized meta counters.
+
+## Positive state-8 bit-6 sweep
+
+`validate_game_info_positive_bit6_sweep.py` wraps `validate_game_info_state4.py`
+to enumerate every flag mask that has bit 6 set inside the measured positive
+composition space (low bits 1/2/4, bit 8, and high bits 21/26/29/30/31) and emit
+one JSONL record per mask. It is resumable and parallelizable so a full
+exhaustive proof can be split across shards.
+
+```bash
+python3 decomp/i960/tools/validate_game_info_positive_bit6_sweep.py \
+  ./build/vf2i960 /path/to/vf2-roms out/posbit6-shard0.jsonl \
+  --base out/state8-positive.boundary.vf2snap \
+  --shard 0 --shards 8
+
+# or a curated mask list (hex accepted)
+python3 decomp/i960/tools/validate_game_info_positive_bit6_sweep.py \
+  ./build/vf2i960 /path/to/vf2-roms out/posbit6-curated.jsonl \
+  --base out/state8-positive.boundary.vf2snap \
+  --masks 16,23,24,31 --shard 0 --shards 1
+```
+
+The tool never decides behaviour; it only runs the ROM-backed differential
+validator and aggregates the result. Unit test (ROM-independent):
+
+```bash
+python3 decomp/i960/tools/test_validate_game_info_positive_bit6_sweep.py
+```
+

@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- Record that the `fa_game_info` positive state-8 bit-6 predicate
+  `measured_positive_state8_bit6_mask` is an accounting selector rather than an
+  admission gate. The families documented as fail-closed by v0127 (high-bit
+  masks without bit 8, high+low mixes, wider high-bit triples/quads) match the
+  ROM on pristine `master`, so no behaviour change was committed. Adds the
+  reproducible sweep driver
+  `decomp/i960/tools/validate_game_info_positive_bit6_sweep.py` with its
+  ROM-independent unit test
+  `decomp/i960/tools/test_validate_game_info_positive_bit6_sweep.py`. See
+  `decomp/i960/notes/game_info_18644_positive_bit6_gate_scope_v0689.md`.
+
+- Record the independently measured `fa_coli` whole-task `field_0821 = 6`
+  boundary (`9389/17/18` single live, `9524/18/19` both live) and the exact
+  `0x2232c` ROM branch semantics. The shape stays fail-closed: admitting scan 6
+  with the disassembly-derived body still reports `+2` because the
+  `hybrid_execute_coli_body` `g6 == (1U << 2)` adjustment also applies. See
+  `decomp/i960/notes/fa_coli_whole_task_scan821_f0_scan6_v0689.md`.
+
 - Add measured F0 `field_0821 = 2` neighbors to the whole-task fixture:
   single-live `9392/17/18` and bilateral `9527/18/19` now match the ROM and
   native C with complete live-state equality. The neighboring scan-6 branch
