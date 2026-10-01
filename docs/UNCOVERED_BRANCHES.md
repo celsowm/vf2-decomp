@@ -50,20 +50,36 @@ compact predicate that preserves those corrections. The exhaustive-run driver is
 `decomp/i960/tools/validate_game_info_positive_bit6_sweep.py`. See
 `decomp/i960/notes/game_info_18644_positive_bit6_gate_scope_v0689.md`.
 
-## v0689 `fa_coli` whole-task `field_0821 = 6` measured, still fail-closed
+## v0691 `fa_coli` whole-task `field_0821 = 6` recovered
+
+The v0689 measured scan-6 shapes are now native: `9389/17/18` (fighter-0
+single live), `9524/18/19` (fighter-0 bilateral) and `9389/17/18` (fighter-1
+single live). Whole-task instruction-trace diffs against the committed scan-2
+and F1 scan-5 witnesses proved the reference streams are identical except the
+tests skipped at `0x2232c` (three for scan 2, two for scan 5), so the measured
+scan-2 shell `-2` and F1 scan-5 `-1` accounting corrections cover scan 6 as
+well; that residual is the v0689 `+2` attribution, now closed. The
+ordering-fail child admits scan 6 with body 18 and the whole-task whitelist
+admits both counter shapes with full live-state equality. The measured
+bilateral 6/6 shape (`9528/18/19`, first-call `0xffff` tail) remains
+fail-closed pending decomposition of the lumped bilateral both-gate
+accounting; the native path rejects it today. Other unmeasured scan values
+and compositions remain fail-closed. See
+`decomp/i960/notes/fa_coli_whole_task_scan821_f0_scan6_recovered_v0691.md`.
+
+## v0689 `fa_coli` whole-task `field_0821 = 6` measured boundary (superseded)
 
 The parked `0x221e8` snapshot with fighter-0 `field_0821 = 6` was measured
 independently: `9389/17/18` (fighter-0 scan, single live) and `9524/18/19`
 (fighter-0 scan, both live), confirming v0686. The ROM branch at `0x2232c`
 sends `r6 == 6` straight to the `0x2233c` loop entry, skipping the three tests
 scan 2 walks, and the measured zero ordering then takes the same `0x223a8`
-`0xffff` tail three instructions shorter. The native `coli_22298_body` still
-rejects scan 6 in its ordering-fail branch, and admitting it with the derived
-body is not sufficient: the recovered whole task reports `+2` against the
-reference because the `hybrid_execute_coli_body` `g6 == (1U << 2)` adjustment
-also applies to this shape. The shape remains fail-closed pending that `+2`
-attribution. See
-`decomp/i960/notes/fa_coli_whole_task_scan821_f0_scan6_v0689.md`.
+`0xffff` tail three instructions shorter. The v0689 residual `+2` attribution
+question was closed by trace diff in v0691: the reference shell/tail streams
+are instruction-identical to scan 2, so the measured scan-2 shell correction
+applies, and both shapes are now native. See
+`decomp/i960/notes/fa_coli_whole_task_scan821_f0_scan6_v0689.md` and
+`decomp/i960/notes/fa_coli_whole_task_scan821_f0_scan6_recovered_v0691.md`.
 
 ## v0688 whole-task `fa_coli` stale-empty witness `9398/17/18`
 

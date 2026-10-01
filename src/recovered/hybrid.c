@@ -23359,18 +23359,24 @@ static vf2_status coli_22298_body(
                 second_loop_candidate = false;
             }
             if (!second_loop_candidate && half_61c == UINT16_C(0) &&
-                (scan_821 == UINT8_C(2) ||
+                (scan_821 == UINT8_C(2) || scan_821 == UINT8_C(6) ||
                  (flags_g7 == (UINT32_C(1) << 8u) &&
                   flags_g8 == (UINT32_C(1) << 8u) &&
                   scan_821 == UINT8_C(5)))) {
                 /* v0495: the measured ordering-fail sibling selects the
-                 * 0xffff common tail before the second 16-trip loop. */
+                 * 0xffff common tail before the second 16-trip loop.
+                 * v0691: the measured scan-6 witness takes the same tail;
+                 * 0x2232c jumps straight to the 0x2233c ordering check,
+                 * skipping the three tests scan 2 walks, so its body is
+                 * three instructions shorter (whole-task trace diff
+                 * single/bilateral: identical prefix and suffix, delta -3). */
                 if (hybrid_write_u16(
                         machine, g7 + VF2_COLI_BITMASK_RESULT_OFFSET,
                         UINT16_C(0xffff)) != VF2_OK) {
                     return VF2_ERROR_UNSUPPORTED;
                 }
                 *body_out =
+                    scan_821 == UINT8_C(6) ? UINT64_C(18) :
                     (flags_g7 == (UINT32_C(1) << 8u) &&
                      flags_g8 == (UINT32_C(1) << 8u) &&
                      scan_821 == UINT8_C(5))
@@ -30633,7 +30639,13 @@ vf2_status vf2_hybrid_coli_23524_execute(
             } else if ((flags0 & (UINT32_C(1) << 8u)) == 0u &&
                        (flags1 & (UINT32_C(1) << 8u)) != 0u &&
                        field_820_other == UINT8_C(0) &&
-                       scan_821_other == UINT8_C(5)) {
+                       (scan_821_other == UINT8_C(5) ||
+                        scan_821_other == UINT8_C(6))) {
+                /* v0684 measured the F1 scan-5 witness; v0691 whole-task
+                 * traces prove the F1 scan-6 single shape runs an
+                 * instruction-identical shell stream (its only delta is
+                 * inside the first 0x22298 call), so the same measured
+                 * correction covers it (9389/17/18). */
                 adjust_g3_scan = true;
             }
         } else if (g6 == (UINT32_C(1) << 2u) &&
@@ -30673,7 +30685,7 @@ vf2_status vf2_hybrid_coli_23524_execute(
              g6 == (UINT32_C(1) << 2u)) &&
             (flags0 & (UINT32_C(1) << 8u)) != 0u &&
             field_820 == UINT8_C(0) &&
-            scan_821 == UINT8_C(2) &&
+            (scan_821 == UINT8_C(2) || scan_821 == UINT8_C(6)) &&
             ((g6 == (UINT32_C(1) << 1u) &&
               (flags1 & (UINT32_C(1) << 8u)) == 0u) ||
              (g6 == (UINT32_C(1) << 2u) &&
@@ -30681,7 +30693,11 @@ vf2_status vf2_hybrid_coli_23524_execute(
               field_820_other == UINT8_C(0) &&
               scan_821_other == UINT8_C(0)))) {
             /* Measured scan-2 witnesses remove two accounting instructions
-             * in the single-live and F0-scan-2 bilateral shapes. */
+             * in the single-live and F0-scan-2 bilateral shapes. v0691:
+             * whole-task traces prove the reference executes identical
+             * instruction streams for fighter-0 scans 2 and 6 outside the
+             * 0x2232c three-test shortcut, so the same measured correction
+             * covers the scan-6 witnesses (single 9389, bilateral 9524). */
             body -= UINT64_C(2);
         }
     }
@@ -31304,7 +31320,10 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
                   * 0x22298 live/warm). v0678 adds the measured f0-bit8,
                   * field_0820=0, field_0821=5 sibling at 9391/17/18.
                   * v0679 adds the both-live field_0804 bit-15 sibling at
-                  * 9520/18/19.
+                  * 9520/18/19. v0691 adds the measured f0-bit8, field_0820=0,
+                  * field_0821=6 ordering-fail siblings at 9389/17/18 (single)
+                  * and 9524/18/19 (bilateral), exactly three instructions
+                  * shorter than the scan-2 shapes.
                   * Both clear is 9214/18/19.
                   * Live g0=1→0x225cc midbody-park shape is measured at
                   * 380 steps / 12 call-instructions / 10 rets
@@ -31338,6 +31357,12 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
                     !(coli_instructions == UINT64_C(9391) &&
                       coli_calls == UINT64_C(17) &&
                       coli_returns == UINT64_C(18)) &&
+                    !(coli_instructions == UINT64_C(9389) &&
+                      coli_calls == UINT64_C(17) &&
+                      coli_returns == UINT64_C(18)) &&
+                    !(coli_instructions == UINT64_C(9524) &&
+                      coli_calls == UINT64_C(18) &&
+                      coli_returns == UINT64_C(19)) &&
                     !(coli_instructions == UINT64_C(9398) &&
                       coli_calls == UINT64_C(17) &&
                       coli_returns == UINT64_C(18))) {
