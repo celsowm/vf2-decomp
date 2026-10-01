@@ -70,7 +70,144 @@ static uint32_t test_selector = UINT32_C(0x00000505);
 static int test_corridor_only = 0;
 static int test_expect_unsupported = 0;
 static int test_quadruple_only = 0;
+static int test_mask_family_only = 0;
 static uint32_t test_quadruple_mask = UINT32_C(0x0000000f);
+
+/* v0690: reserved fail-closed control bit.  Bit 12 appears in no row of
+ * the recovered 0x19ef8 measured-mask enumeration, so row | (1 << 12) is
+ * always an unmeasured superset that the native guard must reject. */
+#define PLAYER_19EF8_FAMILY_CONTROL_BIT (UINT32_C(1) << 12u)
+
+/* v0690: fail-closed negative control for one measured mask.  The
+ * earlier nested-ternary chain added the next "nearby" bit, which walks
+ * straight back into the measured family (0x9f -> 0x19f, 0x19f -> 0x59f),
+ * so --six-low and --seven-low regressed; adding the reserved bit 12
+ * instead is rejected for all 49 rows. */
+/* v0690: the 49 individually measured 0x19ef8 large-mask rows, in the same
+ * order as the recovered enumeration.  This literal is the fixture's
+ * independent restatement of the accepted set: the ROM-backed family sweep
+ * drives every row below, so adding a shape to C without adding its ROM
+ * measurement here turns the unit table check red. */
+static const uint32_t measured_mask_family_rows[] = {
+    UINT32_C(0x0000000f), UINT32_C(0x00000017),
+    UINT32_C(0x0000001b), UINT32_C(0x0000001d),
+    UINT32_C(0x0000001e), UINT32_C(0x0000001f),
+    UINT32_C(0x0000009f), UINT32_C(0x0000019f),
+    UINT32_C(0x0000059f), UINT32_C(0x0001059f),
+    UINT32_C(0x0005059f), UINT32_C(0x0008059f),
+    UINT32_C(0x0018059f), UINT32_C(0x0002059f),
+    UINT32_C(0x0004059f), UINT32_C(0x0006059f),
+    UINT32_C(0x000a059f), UINT32_C(0x0012059f),
+    UINT32_C(0x000c059f), UINT32_C(0x0014059f),
+    UINT32_C(0x0048059f), UINT32_C(0x0050059f),
+    UINT32_C(0x0108059f), UINT32_C(0x0110059f),
+    UINT32_C(0x0042059f), UINT32_C(0x0102059f),
+    UINT32_C(0x0402059f), UINT32_C(0x0410059f),
+    UINT32_C(0x0802059f), UINT32_C(0x0810059f),
+    UINT32_C(0x1002059f), UINT32_C(0x1010059f),
+    UINT32_C(0x8010059f), UINT32_C(0x0140059f),
+    UINT32_C(0x0440059f), UINT32_C(0x1040059f),
+    UINT32_C(0x0500059f), UINT32_C(0x0900059f),
+    UINT32_C(0x0550059f), UINT32_C(0x4002059f),
+    UINT32_C(0x8002059f), UINT32_C(0x0040059f),
+    UINT32_C(0x0100059f), UINT32_C(0x0200059f),
+    UINT32_C(0x0400059f), UINT32_C(0x0800059f),
+    UINT32_C(0x1000059f), UINT32_C(0x4000059f),
+    UINT32_C(0x8000059f)
+};
+
+static uint32_t test_mask_family_control(uint32_t mask_family_row)
+{
+    return mask_family_row | PLAYER_19EF8_FAMILY_CONTROL_BIT;
+}
+
+/* v0690: ROM-independent proof for the measured 0x19ef8 mask family.  The
+ * C API exposes the recovered enumeration itself, so this asserts shape,
+ * not phrases: exactly 49 duplicate-free rows with no branch bits, no
+ * control bit, each admitted by the guard; each row plus the control bit
+ * rejected; the non-monotone witness 0x11f rejected although it is a
+ * strict subset of admitted 0x59f. */
+
+static void test_unit_mask_family_table(void)
+{
+    const uint32_t branch_bits =
+        (UINT32_C(1) << 5u) | (UINT32_C(1) << 6u) |
+        (UINT32_C(1) << 21u) | (UINT32_C(1) << 23u);
+    const size_t row_count =
+        vf2_hybrid_player_19ef8_measured_mask_count_for_test();
+    const size_t row_literal_count =
+        sizeof(measured_mask_family_rows) /
+        sizeof(measured_mask_family_rows[0]);
+    size_t row = 0u;
+    size_t other = 0u;
+
+    if (row_count != ((size_t)49)) {
+        fprintf(
+            stderr, "FAILED %s:%d: player-19ef8 mask family count %zu\n",
+            __FILE__, __LINE__, row_count);
+        ++failures;
+        return;
+    }
+    if (row_count != row_literal_count) {
+        fprintf(
+            stderr,
+            "FAILED %s:%d: fixture family literal %zu vs C %zu\n",
+            __FILE__, __LINE__, row_literal_count, row_count);
+        ++failures;
+        return;
+    }
+    for (row = 0u; row < row_count; ++row) {
+        const uint32_t flags =
+            vf2_hybrid_player_19ef8_measured_mask_at_for_test(row);
+        uint32_t remaining = flags;
+        unsigned popcount = 0u;
+
+        if ((flags & branch_bits) != 0u || flags == 0u ||
+            (flags & PLAYER_19EF8_FAMILY_CONTROL_BIT) != 0u ||
+            flags != measured_mask_family_rows[row] ||
+            vf2_hybrid_player_19ef8_mask_admitted_for_test(flags) == 0 ||
+            vf2_hybrid_player_19ef8_mask_admitted_for_test(
+                test_mask_family_control(flags)) != 0) {
+            fprintf(
+                stderr,
+                "FAILED %s:%d: player-19ef8 mask family row %zu flags=0x%08x\n",
+                __FILE__, __LINE__, row, (unsigned)flags);
+            ++failures;
+        }
+        while (remaining != 0u) {
+            remaining &= remaining - 1u;
+            ++popcount;
+        }
+        if (popcount < 4u) {
+            fprintf(
+                stderr,
+                "FAILED %s:%d: player-19ef8 mask family row %zu popcount %u\n",
+                __FILE__, __LINE__, row, popcount);
+            ++failures;
+        }
+        for (other = row + 1u; other < row_count; ++other) {
+            if (flags ==
+                vf2_hybrid_player_19ef8_measured_mask_at_for_test(other)) {
+                fprintf(
+                    stderr,
+                    "FAILED %s:%d: player-19ef8 mask family duplicate 0x%08x\n",
+                    __FILE__, __LINE__, (unsigned)flags);
+                ++failures;
+            }
+        }
+    }
+    if (vf2_hybrid_player_19ef8_measured_mask_at_for_test(row_count) != 0u ||
+        vf2_hybrid_player_19ef8_mask_admitted_for_test(
+            UINT32_C(0x0000011f)) != 0 ||
+        vf2_hybrid_player_19ef8_mask_admitted_for_test(
+            UINT32_C(0x0000059f)) == 0) {
+        fprintf(
+            stderr,
+            "FAILED %s:%d: player-19ef8 mask family boundary check\n",
+            __FILE__, __LINE__);
+        ++failures;
+    }
+}
 
 static uint64_t expected_corridor_delta(void)
 {
@@ -125,6 +262,7 @@ static void test_unit_invalid_arguments(void)
         vf2_hybrid_first_dispatch_task_execute(&machine, NULL, 0u, NULL) !=
         VF2_OK
     );
+    test_unit_mask_family_table();
 }
 
 static void run_rom_case(
@@ -401,6 +539,43 @@ static void run_rom_differential(const char *rom_directory)
         return;
     }
 
+    if (test_mask_family_only) {
+        /* v0690: the ROM-backed proof for every individually measured row:
+         * all sixteen branch-bit subsets must reach 0x1428c with exact
+         * CPU/frame/procedure/Model-2A equality, and the same row plus the
+         * reserved fail-closed bit must be refused by native while the
+         * reference still completes the full corridor + head span. */
+        size_t row = 0u;
+
+        test_snapshot_path = NULL;
+        test_selector = UINT32_C(0x00000505);
+        test_corridor_only = 1;
+        for (row = 0u; row < sizeof(measured_mask_family_rows) /
+                                sizeof(measured_mask_family_rows[0]);
+             ++row) {
+            size_t branch_index = 0u;
+
+            test_expect_unsupported = 0;
+            for (branch_index = 0u; branch_index < 16u; ++branch_index) {
+                const uint32_t branch_bits =
+                    ((branch_index & 1u) != 0u ? (UINT32_C(1) << 5u) : 0u) |
+                    ((branch_index & 2u) != 0u ? (UINT32_C(1) << 6u) : 0u) |
+                    ((branch_index & 4u) != 0u ? (UINT32_C(1) << 21u) : 0u) |
+                    ((branch_index & 8u) != 0u ? (UINT32_C(1) << 23u) : 0u);
+                test_initial_state_flags =
+                    measured_mask_family_rows[row] | branch_bits;
+                run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
+            }
+            test_expect_unsupported = 1;
+            test_initial_state_flags =
+                test_mask_family_control(measured_mask_family_rows[row]);
+            run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
+        }
+        free(main_rom);
+        free(main_data);
+        return;
+    }
+
     if (test_quadruple_only) {
         size_t branch_index = 0u;
         test_snapshot_path = NULL;
@@ -416,21 +591,13 @@ static void run_rom_differential(const char *rom_directory)
             test_initial_state_flags = test_quadruple_mask | branch_bits;
             run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
         }
+        /* v0690: the same reserved control bit for every row.  The earlier
+         * nested-ternary chain added the next "nearby" bit and walked back
+         * into the measured family for 0x9f (-> 0x19f) and 0x19f (-> 0x59f),
+         * so those negative controls regressed against their own guard. */
         test_expect_unsupported = 1;
-        test_initial_state_flags = test_quadruple_mask |
-            ((test_quadruple_mask & (UINT32_C(1) << 8u)) != 0u
-                 ? ((test_quadruple_mask & (UINT32_C(1) << 10u)) != 0u
-                        ? ((test_quadruple_mask & (UINT32_C(1) << 12u)) != 0u
-                               ? ((test_quadruple_mask & (UINT32_C(1) << 14u)) != 0u
-                               ? ((test_quadruple_mask & (UINT32_C(1) << 15u)) != 0u
-                                      ? ((test_quadruple_mask & (UINT32_C(1) << 16u)) != 0u
-                                             ? (UINT32_C(1) << 17u)
-                                             : (UINT32_C(1) << 16u))
-                                      : (UINT32_C(1) << 15u))
-                                      : (UINT32_C(1) << 14u))
-                               : (UINT32_C(1) << 12u))
-                        : (UINT32_C(1) << 10u))
-                 : (UINT32_C(1) << 8u));
+        test_initial_state_flags =
+            test_mask_family_control(test_quadruple_mask);
         run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
         free(main_rom);
         free(main_data);
@@ -584,11 +751,16 @@ static void run_rom_differential(const char *rom_directory)
             (UINT32_C(1) << 0u) | (UINT32_C(1) << 1u) |
             (UINT32_C(1) << 2u) | (UINT32_C(1) << 3u);
         run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
+        /* v0690: the 0x1f superset was admitted as measured (see the
+         * five-low note), so it cannot be the fail-closed control.  Drive
+         * the reserved bit on the same base instead.  Both stay inside the
+         * pre-0x1a1e4 corridor unit, whose ROM side still reaches the same
+         * 0x1428c return while native must now refuse. */
         test_expect_unsupported = 1;
         test_initial_state_flags =
             (UINT32_C(1) << 0u) | (UINT32_C(1) << 1u) |
             (UINT32_C(1) << 2u) | (UINT32_C(1) << 3u) |
-            (UINT32_C(1) << 4u);
+            (UINT32_C(1) << 4u) | PLAYER_19EF8_FAMILY_CONTROL_BIT;
         run_rom_case(main_rom, main_rom_size, main_data, main_data_size);
         test_expect_unsupported = 0;
     }
@@ -763,6 +935,11 @@ int main(int argc, char **argv)
     } else if (argc == 3 && strcmp(argv[2], "--mask-8000059f") == 0) {
         test_quadruple_only = 1;
         test_quadruple_mask = UINT32_C(0x8000059f);
+    } else if (argc == 3 && strcmp(argv[2], "--mask-family") == 0) {
+        /* v0690: ROM-backed proof for the whole measured family in one
+         * run (49 rows x 16 branch subsets + 49 reserved-bit controls).
+         * Registered as vf2_player_4505_mask_family_differential. */
+        test_mask_family_only = 1;
     } else if (argc == 3) {
         return EXIT_SUCCESS;
     }

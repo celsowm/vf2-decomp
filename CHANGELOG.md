@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Consolidate the `fa_player` `0x19ef8` 49-value `state_ok` enumeration
+  into the declared `vf2_hybrid_player_19ef8_measured_masks` table with the
+  identical accept/reject set, and prove the residual A3 question
+  negatively: the accepted set is non-monotone (`0x11f` subsets admitted
+  `0x59f` yet stays fail-closed), so no compact predicate can reproduce
+  it.  Repair the three stale fail-closed controls (`--six-low`,
+  `--seven-low`, the default sweep's `0x1f` tail), which drove measured
+  masks as supposedly-unsupported neighbors, by switching them to the
+  reserved control bit 12 that appears in no row.  Add `--mask-family`
+  (49 rows x 16 branch subsets + 49 controls), registered as
+  `vf2_player_4505_mask_family_differential`, plus a ROM-independent unit
+  test pinning the enumeration's shape.  See
+  `decomp/i960/notes/fa_player_19ef8_mask_family_audit_v0690.md`.
+
 - Record that the `fa_game_info` positive state-8 bit-6 predicate
   `measured_positive_state8_bit6_mask` is an accounting selector rather than an
   admission gate. The families documented as fail-closed by v0127 (high-bit

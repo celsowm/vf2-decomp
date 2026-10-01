@@ -351,6 +351,18 @@ vf2_status vf2_hybrid_player_19ef8_execute_for_test(
     vf2_i960_cpu *cpu
 );
 
+/* v0690: test-only access to the measured 0x19ef8 large-mask family
+ * (vf2_hybrid_player_19ef8_measured_masks in the recovered corridor).
+ * Admitted() answers whether a branch-bit-masked state word is one of the
+ * individually measured rows; the count/at accessors expose the
+ * enumeration itself.  The masks carry no semantics and must stay
+ * evidence-backed. */
+int vf2_hybrid_player_19ef8_mask_admitted_for_test(
+    uint32_t non_branch_state_flags
+);
+size_t vf2_hybrid_player_19ef8_measured_mask_count_for_test(void);
+uint32_t vf2_hybrid_player_19ef8_measured_mask_at_for_test(size_t index);
+
 /* v0673: test-only selector-1 setup boundary from the nonzero fa_rob arm.
  * The CPU must be parked at 0x1a044 with g0 == 1 and g7 the fighter base.
  * On success the measured 0x1a1e4 call returns at 0x1a048 after 167

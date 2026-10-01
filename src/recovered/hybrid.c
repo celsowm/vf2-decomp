@@ -1104,6 +1104,94 @@ static vf2_status hybrid_execute_selector1_nested_27250(
     uint32_t scratch_base
 );
 
+/* v0690: measured `0x19ef8` large-mask family.
+ *
+ * Each entry is a value of `player + 0x1a4` with the four branch bits
+ * (5, 6, 21, 23) masked off.  Every row was measured independently and
+ * carries a decomp/i960/notes/fa_player_19ef8_* note; the ROM-backed
+ * mask-family differential in tests/recovered/test_player_4505_live.c
+ * replays all sixteen branch-bit subsets of every row.
+ *
+ * The accepted set is deliberately *non-monotone*, which is why it is an
+ * enumeration rather than a predicate: 0x0000011f is a strict subset of
+ * the admitted 0x0000059f yet stays fail-closed, because measured bit 8
+ * (0x0000009f) selects a ROM branch that 0x0000001f alone does not.
+ * Subset/bitmask rules of the form `mask & ~S == 0` therefore cannot
+ * reproduce this set, and no compact rule is derivable from the current
+ * evidence.
+ *
+ * Bit 12 (0x00001000) appears in no row and is reserved as the
+ * fail-closed control bit: `row | (1 << 12)` is the negative control used
+ * by the ROM-backed family differential. */
+static const uint32_t vf2_hybrid_player_19ef8_measured_masks[] = {
+    UINT32_C(0x0000000f), UINT32_C(0x00000017),
+    UINT32_C(0x0000001b), UINT32_C(0x0000001d),
+    UINT32_C(0x0000001e), UINT32_C(0x0000001f),
+    UINT32_C(0x0000009f), UINT32_C(0x0000019f),
+    UINT32_C(0x0000059f), UINT32_C(0x0001059f),
+    UINT32_C(0x0005059f), UINT32_C(0x0008059f),
+    UINT32_C(0x0018059f), UINT32_C(0x0002059f),
+    UINT32_C(0x0004059f), UINT32_C(0x0006059f),
+    UINT32_C(0x000a059f), UINT32_C(0x0012059f),
+    UINT32_C(0x000c059f), UINT32_C(0x0014059f),
+    UINT32_C(0x0048059f), UINT32_C(0x0050059f),
+    UINT32_C(0x0108059f), UINT32_C(0x0110059f),
+    UINT32_C(0x0042059f), UINT32_C(0x0102059f),
+    UINT32_C(0x0402059f), UINT32_C(0x0410059f),
+    UINT32_C(0x0802059f), UINT32_C(0x0810059f),
+    UINT32_C(0x1002059f), UINT32_C(0x1010059f),
+    UINT32_C(0x8010059f), UINT32_C(0x0140059f),
+    UINT32_C(0x0440059f), UINT32_C(0x1040059f),
+    UINT32_C(0x0500059f), UINT32_C(0x0900059f),
+    UINT32_C(0x0550059f), UINT32_C(0x4002059f),
+    UINT32_C(0x8002059f), UINT32_C(0x0040059f),
+    UINT32_C(0x0100059f), UINT32_C(0x0200059f),
+    UINT32_C(0x0400059f), UINT32_C(0x0800059f),
+    UINT32_C(0x1000059f), UINT32_C(0x4000059f),
+    UINT32_C(0x8000059f)
+};
+
+static int vf2_hybrid_player_19ef8_mask_admitted(uint32_t non_branch_state_flags)
+{
+    size_t index = 0u;
+
+    for (index = 0u;
+         index < sizeof(vf2_hybrid_player_19ef8_measured_masks) /
+                     sizeof(vf2_hybrid_player_19ef8_measured_masks[0]);
+         ++index) {
+        if (non_branch_state_flags ==
+            vf2_hybrid_player_19ef8_measured_masks[index]) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/* v0690: test-only access to the admission predicate above, so a
+ * ROM-independent unit test can prove the enumeration's shape (size,
+ * uniqueness, fail-closed negative controls, non-monotone witness)
+ * without touching the corridor's memory contract. */
+int vf2_hybrid_player_19ef8_mask_admitted_for_test(
+    uint32_t non_branch_state_flags
+)
+{
+    return vf2_hybrid_player_19ef8_mask_admitted(non_branch_state_flags);
+}
+
+size_t vf2_hybrid_player_19ef8_measured_mask_count_for_test(void)
+{
+    return sizeof(vf2_hybrid_player_19ef8_measured_masks) /
+           sizeof(vf2_hybrid_player_19ef8_measured_masks[0]);
+}
+
+uint32_t vf2_hybrid_player_19ef8_measured_mask_at_for_test(size_t index)
+{
+    if (index >= vf2_hybrid_player_19ef8_measured_mask_count_for_test()) {
+        return 0u;
+    }
+    return vf2_hybrid_player_19ef8_measured_masks[index];
+}
+
 static vf2_status hybrid_execute_player_19ef8(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu
@@ -1294,16 +1382,11 @@ static vf2_status hybrid_execute_player_19ef8(
         const uint32_t table_selector = selector & UINT32_C(0x1fff);
     /* v0559: the ROM preserves the incoming state word in +0xbd4 and
      * consumes the measured low flag siblings before the selector setup.
-     * The branch-sensitive bits are handled below. The bounded matrix now
+     * The branch-sensitive bits are handled below. The bounded matrix
      * admits up to three non-branch bits with any branch subset, plus the
-     * measured non-branch masks 0x0f, 0x17, 0x1b, 0x1d, 0x1e, 0x1f and
-     * 0x9f, 0x19f, 0x59f, 0x1059f, 0x5059f, 0x8059f, 0x18059f,
-     * 0x0002059f, 0x0006059f, 0x000a059f, 0x0012059f, 0x0042059f,
-     * 0x0004059f, 0x000c059f, 0x0014059f, 0x0048059f, 0x0050059f, 0x0108059f, 0x0110059f, 0x0102059f, 0x0402059f, 0x0410059f, 0x0802059f, 0x0810059f, 0x1002059f,
-     * 0x4002059f, 0x8002059f, 0x1010059f, 0x8010059f, 0x0140059f, 0x0440059f, 0x1040059f, 0x0500059f, 0x0900059f, 0x0550059f and
-     * 0x0040059f, 0x0100059f, 0x0200059f, 0x0400059f, 0x0800059f,
-     * 0x1000059f, 0x4000059f and 0x8000059f with their branch-bit
-     * matrices; other larger combinations remain closed. */
+     * individually measured larger rows declared in
+     * vf2_hybrid_player_19ef8_measured_masks (v0690); other larger
+     * combinations remain fail-closed. */
     initial_state_flags = player_state_flags;
     {
         const uint32_t branch_state_mask =
@@ -1317,56 +1400,11 @@ static vf2_status hybrid_execute_player_19ef8(
             remaining_non_branch &= remaining_non_branch - 1u;
             ++non_branch_count;
         }
+        /* v0690: up to three non-branch bits compose freely with any
+         * branch subset; larger shapes must be one of the individually
+         * measured rows in vf2_hybrid_player_19ef8_measured_masks. */
         const int state_ok = non_branch_count <= 3u ||
-            non_branch_state_flags == UINT32_C(0x0000000f) ||
-            non_branch_state_flags == UINT32_C(0x00000017) ||
-            non_branch_state_flags == UINT32_C(0x0000001b) ||
-            non_branch_state_flags == UINT32_C(0x0000001d) ||
-            non_branch_state_flags == UINT32_C(0x0000001e) ||
-            non_branch_state_flags == UINT32_C(0x0000001f) ||
-            non_branch_state_flags == UINT32_C(0x0000009f) ||
-            non_branch_state_flags == UINT32_C(0x0000019f) ||
-            non_branch_state_flags == UINT32_C(0x0000059f) ||
-            non_branch_state_flags == UINT32_C(0x0001059f) ||
-            non_branch_state_flags == UINT32_C(0x0005059f) ||
-            non_branch_state_flags == UINT32_C(0x0008059f) ||
-            non_branch_state_flags == UINT32_C(0x0018059f) ||
-            non_branch_state_flags == UINT32_C(0x0002059f) ||
-            non_branch_state_flags == UINT32_C(0x0004059f) ||
-            non_branch_state_flags == UINT32_C(0x0006059f) ||
-            non_branch_state_flags == UINT32_C(0x000a059f) ||
-            non_branch_state_flags == UINT32_C(0x0012059f) ||
-            non_branch_state_flags == UINT32_C(0x000c059f) ||
-            non_branch_state_flags == UINT32_C(0x0014059f) ||
-            non_branch_state_flags == UINT32_C(0x0048059f) ||
-            non_branch_state_flags == UINT32_C(0x0050059f) ||
-            non_branch_state_flags == UINT32_C(0x0108059f) ||
-            non_branch_state_flags == UINT32_C(0x0110059f) ||
-            non_branch_state_flags == UINT32_C(0x0042059f) ||
-            non_branch_state_flags == UINT32_C(0x0102059f) ||
-            non_branch_state_flags == UINT32_C(0x0402059f) ||
-            non_branch_state_flags == UINT32_C(0x0410059f) ||
-            non_branch_state_flags == UINT32_C(0x0802059f) ||
-            non_branch_state_flags == UINT32_C(0x0810059f) ||
-            non_branch_state_flags == UINT32_C(0x1002059f) ||
-            non_branch_state_flags == UINT32_C(0x1010059f) ||
-            non_branch_state_flags == UINT32_C(0x8010059f) ||
-            non_branch_state_flags == UINT32_C(0x0140059f) ||
-            non_branch_state_flags == UINT32_C(0x0440059f) ||
-            non_branch_state_flags == UINT32_C(0x1040059f) ||
-            non_branch_state_flags == UINT32_C(0x0500059f) ||
-            non_branch_state_flags == UINT32_C(0x0900059f) ||
-            non_branch_state_flags == UINT32_C(0x0550059f) ||
-            non_branch_state_flags == UINT32_C(0x4002059f) ||
-            non_branch_state_flags == UINT32_C(0x8002059f) ||
-            non_branch_state_flags == UINT32_C(0x0040059f) ||
-            non_branch_state_flags == UINT32_C(0x0100059f) ||
-            non_branch_state_flags == UINT32_C(0x0200059f) ||
-            non_branch_state_flags == UINT32_C(0x0400059f) ||
-            non_branch_state_flags == UINT32_C(0x0800059f) ||
-            non_branch_state_flags == UINT32_C(0x1000059f) ||
-            non_branch_state_flags == UINT32_C(0x4000059f) ||
-            non_branch_state_flags == UINT32_C(0x8000059f);
+            vf2_hybrid_player_19ef8_mask_admitted(non_branch_state_flags);
         const int flags_ok =
             ((player_flags & (
                 (UINT32_C(1) << 6u) | (UINT32_C(1) << 5u) |

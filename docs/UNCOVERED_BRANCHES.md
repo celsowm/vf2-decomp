@@ -18,6 +18,22 @@ runs through the eleventh-dispatch validation corridor, but it remains one evide
 sequence rather than a complete game implementation. Unsupported paths return
 `VF2_ERROR_UNSUPPORTED` instead of falling back to i960 interpretation.
 
+## v0690 `fa_player` `0x19ef8` mask family audited and continuously proven
+
+The 49-value `state_ok` enumeration is now a declared table with the
+identical accept/reject set; the residual A3 question ("derive one rule")
+closed with a measured negative: the accepted set is non-monotone
+(`0x11f` is a strict subset of admitted `0x59f` yet stays fail-closed), so
+no subset/bitmask predicate can reproduce it and the enumeration is the
+honest recovery.  Repaired three stale negative controls that used
+measured masks as their supposedly-unsupported neighbor (`0x9f`,
+`0x19f`, and the default sweep's `0x1f` tail), all now driving the
+reserved control bit 12 that appears in no row.  Added `--mask-family`
+(49 rows x 16 branch subsets + 49 controls), registered as
+`vf2_player_4505_mask_family_differential`, plus a ROM-independent unit
+test pinning the enumeration's shape.  See
+`decomp/i960/notes/fa_player_19ef8_mask_family_audit_v0690.md`.
+
 ## v0689 `fa_game_info` positive bit-6 gate is an accounting selector
 
 The positive state-8 bit-6 predicate `measured_positive_state8_bit6_mask` was
