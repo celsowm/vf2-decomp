@@ -32,10 +32,16 @@ against the zero-step baseline `procedure_calls=44717`,
 `procedure_returns=44712`). The F1 single and bilateral 6/6 measurements are
 new evidence; the 6/6 shape takes the `0x22298` first-call `0xffff`
 ordering-fail tail (span 20 vs the scan-0 quick tail's 16, i.e. `+4` with a
-different `fighter+0x6dc` store) that the lumped bilateral both-gate recovery
-does not decompose, so 6/6 remains **fail-closed** (verified: the native path
-returns `VF2_ERROR_UNSUPPORTED` for it, since its composed count misses every
-whitelisted triple).
+different `fighter+0x6dc` store — reference final state differs from 6/0 only
+in `fighter0+0x6dc = 0xffff` vs `0` and the `+4` count). The native
+composition reaches `9531` for it; the recovered ordering-fail children are
+exact for scan 6 (body 18 both calls), so the residual `+3` is the bilateral
+shell `-2` correction gate (measured for F1 scan 0 only) plus the pre-existing
+one-instruction F1-scan-0 first-call modeling gap that the measured
+corrections absorb for the admitted shapes. Stacking a `6/6`-keyed pair of
+corrections over exact children would be curve-fitting, so 6/6 remains
+**fail-closed** (verified: the native path returns `VF2_ERROR_UNSUPPORTED`
+for it; `9531` is no whitelisted triple).
 
 ## Trace attribution of the v0689 `+2`
 

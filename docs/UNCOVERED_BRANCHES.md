@@ -61,10 +61,12 @@ scan-2 shell `-2` and F1 scan-5 `-1` accounting corrections cover scan 6 as
 well; that residual is the v0689 `+2` attribution, now closed. The
 ordering-fail child admits scan 6 with body 18 and the whole-task whitelist
 admits both counter shapes with full live-state equality. The measured
-bilateral 6/6 shape (`9528/18/19`, first-call `0xffff` tail) remains
-fail-closed pending decomposition of the lumped bilateral both-gate
-accounting; the native path rejects it today. Other unmeasured scan values
-and compositions remain fail-closed. See
+bilateral 6/6 shape (`9528/18/19`, first-call `0xffff` tail, final state
+delta vs 6/0 is exactly `fighter0+0x6dc == 0xffff` and `+4` instructions)
+remains fail-closed: the recovered children are exact for it, so the residual
+`+3` is pre-existing shell/child modeling gap corrections measured on other
+shapes, not new semantics to stack blindly. Other unmeasured scan values and
+compositions remain fail-closed. See
 `decomp/i960/notes/fa_coli_whole_task_scan821_f0_scan6_recovered_v0691.md`.
 
 ## v0689 `fa_coli` whole-task `field_0821 = 6` measured boundary (superseded)
