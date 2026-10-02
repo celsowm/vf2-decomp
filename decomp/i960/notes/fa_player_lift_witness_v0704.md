@@ -68,6 +68,10 @@ baseline `+0x1a8 = 0x0505`, `+0x0c4c-word = 0`). `--until 0x28184`,
 
 Step counts decompose the guard prefix (3/5/8), and the all-true row
 returns into the `0x179xx` caller region instead of the `0x28184`
-chain. Guard semantics are proven at the oracle level; native
-recovery is still open (it needs native coverage through `0x1abf4`
-first, so no C is claimed here).
+chain. The four fail rows are now NATIVE (`hybrid_execute_player_
+27ce0_prefix` fail path: taken-cmpobne leaves loads in frame-local
+r15/r14, GREATER + AC bit 1 on every fighter, measured 3/5/8 costs;
+the F1-only compare hack is retired), proven by
+`test_player_27ce0_gate_fail_matrix_rom_pin` in
+`tests/recovered/test_native_runtime.c` (ip + live-state equal on all
+rows, strict build green).

@@ -3460,10 +3460,26 @@ static vf2_status hybrid_execute_player_27ce0_prefix(
         cpu->executed_instructions += UINT64_C(9);
         return VF2_OK;
     }
+    /* v0705 gate-fail siblings: the taken cmpobne leaves its compared
+     * loads in frame-local r15/r14, pins GREATER + AC bit 1 on every
+     * fighter (measured 3/3/3/3 on the F0 park rows, not just F1),
+     * and keeps the 0x27ce0 frame the call above entered. Costs are
+     * the measured call-through-divert prefix totals. */
     cpu->ip = UINT32_C(0x00027d00);
-    if (cpu->registers[VF2_I960_G0_REGISTER + 7u] == UINT32_C(0x00512980))
-        hybrid_set_compare_result(cpu, VF2_I960_COMPARE_GREATER);
-    cpu->executed_instructions += UINT64_C(5);
+    hybrid_set_compare_result(cpu, VF2_I960_COMPARE_GREATER);
+    cpu->registers[15] = (uint32_t)counter;
+    if (counter != UINT16_C(1)) {
+        cpu->executed_instructions += UINT64_C(3);
+        return VF2_OK;
+    }
+    cpu->registers[15] = (uint32_t)ready;
+    if (ready != UINT16_C(1)) {
+        cpu->executed_instructions += UINT64_C(5);
+        return VF2_OK;
+    }
+    cpu->registers[15] = (uint32_t)current_selector;
+    cpu->registers[14] = (uint32_t)requested_selector;
+    cpu->executed_instructions += UINT64_C(8);
     return VF2_OK;
 }
 
