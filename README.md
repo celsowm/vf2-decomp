@@ -18,14 +18,24 @@ validation between recovered C and the original program.
 The validated native corridor now preserves exact CPU, condition-code,
 procedure-count and mutable-memory state through the repeated scheduler and
 gameplay dispatches, with measured `native-nth-dispatch` coverage through
-dispatch 40 and a CTest pin at dispatch 12. The strict post-scheduler corridor
-contains 1,270,824 recovered instructions and zero interpreted instructions.
+dispatch 40 and CTest pins at dispatches 11 and 12 (the strict sixth-dispatch
+base ends at the tenth `fa_game_info` entry, so dispatches 7-10 are covered
+per-block inside the sixth command and `native-nth-dispatch 11` proves one
+further 37-block / 2,166-instruction cycle exact). The strict post-scheduler
+corridor contains 1,270,824 recovered instructions and zero interpreted
+instructions.
 
-Recent recovery work has expanded the measured state-8 positive-mask families
-in `fa_game_info`, the `fa_player` geometry and collision/state-exchange
-corridors, and selected `fa_coli` continuations. These are accepted only for
-the measured combinations; neighboring or unverified branches still return
-`VF2_ERROR_UNSUPPORTED`.
+Recent recovery work has completed the measured `fa_coli` bilateral
+`field_0821` scan matrix: every composition except 6/6 is native under the
+additive per-side rule `9520 + delta(F0) + delta(F1)` with full live-state
+equality through `0x10dcc`, while bilateral 6/6 stays pinned fail-closed
+pending the 20-step scan-6 ordering-fail child tail. The `fa_player` `0x19ef8`
+49-value mask family is audited and continuously proven, and the
+model2recomp-guided interrupt acknowledge at `0x0000d30` is recovered. These
+are accepted only for the measured combinations; neighboring or unverified
+branches still return `VF2_ERROR_UNSUPPORTED`. See
+[`docs/UNCOVERED_BRANCHES.md`](docs/UNCOVERED_BRANCHES.md) for the current
+frontier (v0695).
 
 The project is still a clean-room recovery and validation effort, not a
 complete playable port. Character/arena selection, the complete match state
@@ -100,6 +110,17 @@ cmake --build build-san
 ctest --test-dir build-san --output-on-failure
 ```
 
+On native Windows (MSVC, the canonical agent workflow), build and test
+from the repository root with:
+
+```powershell
+cmake --build build --config Debug --parallel
+ctest --test-dir build -C Debug --output-on-failure
+```
+
+and adapt binary paths to the `build\Debug\...` output layout (for example
+`build\Debug\vf2probe.exe`).
+
 ## Main tools
 
 ### `vf2rom`
@@ -134,6 +155,8 @@ build/vf2i960 native-third-dispatch /path/to/vf2
 build/vf2i960 native-fourth-dispatch /path/to/vf2
 build/vf2i960 native-fifth-dispatch /path/to/vf2
 build/vf2i960 native-sixth-dispatch /path/to/vf2
+build/vf2i960 native-nth-dispatch /path/to/vf2 11
+build/vf2i960 native-nth-dispatch /path/to/vf2 12
 ```
 
 Use `vf2i960 --help` for the full command set.
@@ -152,6 +175,26 @@ build/vf2cycles \
 ```
 
 A strict run stops on the first unsupported native block, reference failure or state mismatch. `--boundary-probe` is available for longer scouting runs where complete equality is checked at cycle boundaries rather than after every recovered block.
+
+### `vf2probe`
+
+Reproducible machine-readable experiments: restore a snapshot, patch
+registers/memory, stop at a guest address, and emit instruction and Model 2A
+memory-access traces:
+
+```sh
+build/vf2probe \
+  --rom-dir /path/to/vf2 \
+  --snapshot checkpoint.vf2snap \
+  --until 0x000164c4 \
+  --trace \
+  --memory-trace
+```
+
+### `vf2recover`
+
+Human-readable recovery reports around a checkpoint, for analyst inspection
+rather than bulk machine processing.
 
 ### `vf2m68k`
 
@@ -193,8 +236,17 @@ src/hardware/           bounded Sega Model 2A memory/device model
 src/recovered/          accepted semantic C recoveries
 tools/vf2rom/           ROM validation and region reconstruction
 tools/vf2i960/          analysis and differential-validation CLI
+tools/vf2probe/         machine-readable controlled experiments
+tools/vf2recover/       human-readable recovery reports
+tools/vf2cycles/        repeated recovered/reference cycle runner
+tools/python/           analysis-only sweep/explore/trace/frontier tooling
 tests/                   ROM-independent and optional ROM-backed tests
 ```
+
+The automated probing workflow (`make_game_info_probe_scenario.py`,
+`check_scenario.py`, `sweep_state.py`, `infer_rules.py`, `explore_state.py`,
+`minimize_case.py`, `trace_case.py`, `infer_structs.py`, `frontier.py`) is
+documented in [`docs/PROBE_AUTOMATION_PLAN.md`](docs/PROBE_AUTOMATION_PLAN.md).
 
 ## Documentation
 
@@ -207,6 +259,9 @@ Start here:
 - [`docs/NATIVE_RUNTIME.md`](docs/NATIVE_RUNTIME.md) — recovered runtime design.
 - [`docs/NATIVE_DIFFERENTIAL.md`](docs/NATIVE_DIFFERENTIAL.md) — differential-validation contract.
 - [`docs/FIRST_DISPATCH_TASKS.md`](docs/FIRST_DISPATCH_TASKS.md) — task/scheduler recovery notes.
+- [`docs/PROBE_AUTOMATION_PLAN.md`](docs/PROBE_AUTOMATION_PLAN.md) — automated probing/exploration workflow.
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — milestone roadmap including first playable scope.
+- [`docs/STATUS.md`](docs/STATUS.md) — component-level status table.
 - [`docs/UNCOVERED_BRANCHES.md`](docs/UNCOVERED_BRANCHES.md) — known remaining recovery boundaries.
 - [`CHANGELOG.md`](CHANGELOG.md) — chronological project progress.
 
