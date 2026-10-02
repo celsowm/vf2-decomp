@@ -115,9 +115,15 @@ vf2_status execute_frame_geometry_gate(
         return status;
     }
     if (alt_byte != 0u) {
-        /* ld, bbs(26,taken), ldob, cmpobe(17,taken), ldob, cmpobne(0,taken),
-         * ret = 7 instructions. CMPobne leaves 0 < alt_byte in CC. */
-        status = finish_recovered_procedure(machine, cpu, UINT64_C(7));
+        /* ld, bbs(26,*), [bbs(2,taken)], ldob, cmpobe(17,taken), ldob,
+         * cmpobne(0,taken), ret. Bit26 set skips the second BBS
+         * (7 instructions, corridor-measured); bit26 clear with bit2
+         * set executes both (8, TEST-menu measured). The trailing
+         * CMPobne decides CC either way (0 < alt_byte). */
+        const uint64_t taken_count =
+            (flags & (UINT32_C(1) << 26u)) != 0u ? UINT64_C(7)
+                                                 : UINT64_C(8);
+        status = finish_recovered_procedure(machine, cpu, taken_count);
         if (status != VF2_OK) {
             return status;
         }
@@ -126,7 +132,7 @@ vf2_status execute_frame_geometry_gate(
         report->entry_address = VF2_FRAME_GEOMETRY_GATE_ENTRY;
         report->exit_address = cpu->ip;
         report->iterations = UINT64_C(1);
-        report->recovered_instruction_count = UINT64_C(7);
+        report->recovered_instruction_count = taken_count;
         report->recovered_procedure_returns = UINT64_C(1);
         report->cpu_poststate_applied = 1;
         return VF2_OK;
