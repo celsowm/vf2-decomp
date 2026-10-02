@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- 0x28184 head siblings native (v0707): bit17 x bit0 x edge==counter
+  tree measured (12/14/16 steps to 0x28268, float fall-through in 10
+  to 0x281b0); S1/S2 join S0 natively with r14/r13 loads, tail EQUAL
+  on every fighter (F1-only NONE hack retired), status-bit0 and
+  bit20-set-sibling holes closed fail-closed. 6-row ROM matrix + float
+  fail-closed pin green. See
+  `decomp/i960/notes/fa_player_28184_head_siblings_v0707.md`.
+
 - Downstream dual-base witness (v0706): all-true 27ce0 guard drive
   runs 4811 steps into 179xx caller code touching both fighters; new
   field_0008 (same-ip 0x10e3c dual 4B R), 0018/0020 + 0000 + 01b1 +

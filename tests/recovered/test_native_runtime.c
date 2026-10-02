@@ -7598,10 +7598,10 @@ static void test_player_27ce0_equal_selector_rom_pin(const char *rom_dir)
     vf2_i960_cpu native_cpu;
     vf2_i960_run_options options;
     vf2_i960_run_result result;
-    vf2_i960_snapshot_diff diff;
-    const uint32_t player = UINT32_C(0x00510980);
-    const uint32_t stack = UINT32_C(0x005ff500);
-    vf2_status status = VF2_OK;
+        vf2_i960_snapshot_diff diff;
+        const uint32_t player = UINT32_C(0x00510980);
+        const uint32_t stack = UINT32_C(0x005ff500);
+        vf2_status status = VF2_OK;
 
     CHECK(vf2_romset_build_region(
               rom_dir, VF2_REGION_MAINCPU, &main_rom, &main_rom_size) ==
@@ -7793,6 +7793,218 @@ static void test_player_27ce0_gate_fail_matrix_rom_pin(const char *rom_dir)
     free(main_rom);
 }
 
+/* v0707 ROM matrix: the 0x28184 head siblings vs oracle. Each row
+ * drives (mode bit17, 0x500092, +0x0800) from the 0x27d00 call with
+ * counter +0x1aa == 1 and bit20 clear; the reference must reach
+ * 0x28268 in 12/14/16 steps and native must match ip, counters and
+ * live state there. The float fall-through row must stay unsupported
+ * while the reference provably takes it (0x281b0 in 10). */
+static void test_player_28184_head_matrix_rom_pin(const char *rom_dir)
+{
+    static const struct {
+        uint32_t fighter;
+        uint32_t mode;
+        uint16_t sense;
+        uint16_t edge;
+        uint64_t ref_steps;
+    } rows[] = {
+        {UINT32_C(0x00510980), UINT32_C(0x80004400), 0u, 0x78u, 12u},
+        {UINT32_C(0x00510980), UINT32_C(0x80004400), 0x101u, 1u, 12u},
+        {UINT32_C(0x00510980), UINT32_C(0x80024400), 0x100u, 0x78u, 14u},
+        {UINT32_C(0x00510980), UINT32_C(0x80024400), 0x100u, 1u, 14u},
+        {UINT32_C(0x00510980), UINT32_C(0x80024400), 0x101u, 1u, 16u},
+        {UINT32_C(0x00512980), UINT32_C(0x80004400), 0u, 0x78u, 12u},
+    };
+    uint8_t *main_rom = NULL;
+    size_t main_rom_size = 0u;
+    size_t row = 0u;
+
+    CHECK(vf2_romset_build_region(
+              rom_dir, VF2_REGION_MAINCPU, &main_rom, &main_rom_size) ==
+          VF2_OK);
+    if (main_rom == NULL) {
+        return;
+    }
+    for (row = 0u; row < sizeof(rows) / sizeof(rows[0]); ++row) {
+        vf2_model2a ref_machine;
+        vf2_model2a native_machine;
+        vf2_i960_cpu ref_cpu;
+        vf2_i960_cpu native_cpu;
+        vf2_i960_run_options options;
+        vf2_i960_run_result result;
+        vf2_i960_snapshot_diff diff;
+        const uint32_t player = rows[row].fighter;
+        const uint32_t stack = UINT32_C(0x005ff500);
+        vf2_status status = VF2_OK;
+
+        memset(&ref_machine, 0, sizeof(ref_machine));
+        memset(&native_machine, 0, sizeof(native_machine));
+        CHECK(vf2_model2a_initialize(&ref_machine));
+        CHECK(vf2_model2a_initialize(&native_machine));
+        CHECK(vf2_model2a_attach_main_rom(
+                  &ref_machine, main_rom, main_rom_size) == VF2_OK);
+        CHECK(vf2_model2a_attach_main_rom(
+                  &native_machine, main_rom, main_rom_size) == VF2_OK);
+        CHECK(test_write_u16(
+                  &ref_machine, player + UINT32_C(0x1aa), 1u) == VF2_OK);
+        CHECK(test_write_u16(
+                  &native_machine, player + UINT32_C(0x1aa),
+                  1u) == VF2_OK);
+        CHECK(vf2_model2a_write_u32(
+                  &ref_machine, UINT32_C(0x00500068),
+                  rows[row].mode) == VF2_OK);
+        CHECK(vf2_model2a_write_u32(
+                  &native_machine, UINT32_C(0x00500068),
+                  rows[row].mode) == VF2_OK);
+        CHECK(test_write_u16(
+                  &ref_machine, UINT32_C(0x00500092),
+                  rows[row].sense) == VF2_OK);
+        CHECK(test_write_u16(
+                  &native_machine, UINT32_C(0x00500092),
+                  rows[row].sense) == VF2_OK);
+        CHECK(test_write_u16(
+                  &ref_machine, player + UINT32_C(0x800),
+                  rows[row].edge) == VF2_OK);
+        CHECK(test_write_u16(
+                  &native_machine, player + UINT32_C(0x800),
+                  rows[row].edge) == VF2_OK);
+
+        vf2_i960_cpu_reset(&ref_cpu, 0u, 0u, UINT32_C(0x00027d00));
+        vf2_i960_cpu_reset(&native_cpu, 0u, 0u, UINT32_C(0x00027d00));
+        ref_cpu.registers[1] = stack;
+        native_cpu.registers[1] = stack;
+        ref_cpu.registers[VF2_I960_FP_REGISTER] = stack - UINT32_C(0x100);
+        native_cpu.registers[VF2_I960_FP_REGISTER] = stack - UINT32_C(0x100);
+        ref_cpu.registers[VF2_I960_G0_REGISTER + 7u] = player;
+        native_cpu.registers[VF2_I960_G0_REGISTER + 7u] = player;
+        memset(&options, 0, sizeof(options));
+        options.stop_address = UINT32_C(0x00028268);
+        options.max_steps = 24u;
+        options.stop_on_self_branch = false;
+        memset(&result, 0, sizeof(result));
+        status = vf2_i960_run(&ref_cpu, &ref_machine, &options, &result);
+        if (status != VF2_OK || ref_cpu.ip != UINT32_C(0x00028268) ||
+            result.executed_instructions != rows[row].ref_steps) {
+            fprintf(stderr,
+                    "FAILED 28184 row %zu ref ip=%08x steps=%llu want %llu\n",
+                    row, (unsigned)ref_cpu.ip,
+                    (unsigned long long)result.executed_instructions,
+                    (unsigned long long)rows[row].ref_steps);
+            ++failures;
+        }
+        status = vf2_hybrid_player_28184_execute_for_test(
+            &native_machine, &native_cpu
+        );
+        if (status != VF2_OK ||
+            native_cpu.ip != UINT32_C(0x00028268)) {
+            fprintf(stderr,
+                    "FAILED 28184 row %zu native status=%d ip=%08x\n",
+                    row, (int)status, (unsigned)native_cpu.ip);
+            ++failures;
+        }
+        CHECK(vf2_i960_compare_live_state(
+                  &ref_cpu, &ref_machine, &native_cpu, &native_machine,
+                  &diff) == VF2_OK);
+        if (!diff.equal) {
+            fprintf(stderr,
+                    "FAILED 28184 row %zu diff component=%s offset=%zu expected=%08x actual=%08x\n",
+                    row, diff.component, diff.first_offset,
+                    (unsigned)diff.expected_value,
+                    (unsigned)diff.actual_value);
+            ++failures;
+        }
+        vf2_model2a_shutdown(&ref_machine);
+        vf2_model2a_shutdown(&native_machine);
+    }
+    free(main_rom);
+}
+
+/* v0707 fail-closed row: bit17 set, bit0 set, +0x0800 != counter takes
+ * the float path (reference reaches 0x281b0 in 10 steps); native must
+ * refuse while the reference provably leaves the branch-only head. */
+static void test_player_28184_float_fail_closed_rom_pin(const char *rom_dir)
+{
+    uint8_t *main_rom = NULL;
+    size_t main_rom_size = 0u;
+    vf2_model2a ref_machine;
+    vf2_model2a native_machine;
+    vf2_i960_cpu ref_cpu;
+    vf2_i960_cpu native_cpu;
+    vf2_i960_run_options options;
+    vf2_i960_run_result result;
+    const uint32_t player = UINT32_C(0x00510980);
+    const uint32_t stack = UINT32_C(0x005ff500);
+    vf2_status status = VF2_OK;
+
+    CHECK(vf2_romset_build_region(
+              rom_dir, VF2_REGION_MAINCPU, &main_rom, &main_rom_size) ==
+          VF2_OK);
+    if (main_rom == NULL) {
+        return;
+    }
+    memset(&ref_machine, 0, sizeof(ref_machine));
+    memset(&native_machine, 0, sizeof(native_machine));
+    CHECK(vf2_model2a_initialize(&ref_machine));
+    CHECK(vf2_model2a_initialize(&native_machine));
+    CHECK(vf2_model2a_attach_main_rom(
+              &ref_machine, main_rom, main_rom_size) == VF2_OK);
+    CHECK(vf2_model2a_attach_main_rom(
+              &native_machine, main_rom, main_rom_size) == VF2_OK);
+    CHECK(test_write_u16(
+              &ref_machine, player + UINT32_C(0x1aa), 1u) == VF2_OK);
+    CHECK(test_write_u16(
+              &native_machine, player + UINT32_C(0x1aa), 1u) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(
+              &ref_machine, UINT32_C(0x00500068),
+              UINT32_C(0x80024400)) == VF2_OK);
+    CHECK(vf2_model2a_write_u32(
+              &native_machine, UINT32_C(0x00500068),
+              UINT32_C(0x80024400)) == VF2_OK);
+    CHECK(test_write_u16(
+              &ref_machine, UINT32_C(0x00500092), 0x101u) == VF2_OK);
+    CHECK(test_write_u16(
+              &native_machine, UINT32_C(0x00500092), 0x101u) == VF2_OK);
+    CHECK(test_write_u16(
+              &ref_machine, player + UINT32_C(0x800), 0x78u) == VF2_OK);
+    CHECK(test_write_u16(
+              &native_machine, player + UINT32_C(0x800), 0x78u) == VF2_OK);
+
+    vf2_i960_cpu_reset(&ref_cpu, 0u, 0u, UINT32_C(0x00027d00));
+    vf2_i960_cpu_reset(&native_cpu, 0u, 0u, UINT32_C(0x00027d00));
+    ref_cpu.registers[1] = stack;
+    native_cpu.registers[1] = stack;
+    ref_cpu.registers[VF2_I960_FP_REGISTER] = stack - UINT32_C(0x100);
+    native_cpu.registers[VF2_I960_FP_REGISTER] = stack - UINT32_C(0x100);
+    ref_cpu.registers[VF2_I960_G0_REGISTER + 7u] = player;
+    native_cpu.registers[VF2_I960_G0_REGISTER + 7u] = player;
+    memset(&options, 0, sizeof(options));
+    options.stop_address = UINT32_C(0x000281b0);
+    options.max_steps = 24u;
+    options.stop_on_self_branch = false;
+    memset(&result, 0, sizeof(result));
+    status = vf2_i960_run(&ref_cpu, &ref_machine, &options, &result);
+    if (status != VF2_OK || ref_cpu.ip != UINT32_C(0x000281b0) ||
+        result.executed_instructions != UINT64_C(10)) {
+        fprintf(stderr,
+                "FAILED 28184 float ref ip=%08x steps=%llu want 281b0/10\n",
+                (unsigned)ref_cpu.ip,
+                (unsigned long long)result.executed_instructions);
+        ++failures;
+    }
+    status = vf2_hybrid_player_28184_execute_for_test(
+        &native_machine, &native_cpu
+    );
+    if (status != VF2_ERROR_UNSUPPORTED) {
+        fprintf(stderr,
+                "FAILED 28184 float native status=%d want unsupported\n",
+                (int)status);
+        ++failures;
+    }
+    vf2_model2a_shutdown(&ref_machine);
+    vf2_model2a_shutdown(&native_machine);
+    free(main_rom);
+}
+
 /* v0359 ROM pin: five 0x270d4 slots vs oracle with COBR CC (9235 insns). */
 static void test_player_270d4_five_slot_rom_pin(const char *rom_dir)
 {
@@ -7947,6 +8159,8 @@ int main(int argc, char **argv) {
     if (argc >= 2) {
         test_player_27ce0_equal_selector_rom_pin(argv[1]);
         test_player_27ce0_gate_fail_matrix_rom_pin(argv[1]);
+        test_player_28184_head_matrix_rom_pin(argv[1]);
+        test_player_28184_float_fail_closed_rom_pin(argv[1]);
         test_player_270d4_five_slot_rom_pin(argv[1]);
     }
     test_post_boot_delay();

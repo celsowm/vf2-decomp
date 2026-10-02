@@ -84,6 +84,17 @@ vf2_status vf2_hybrid_player_27ce0_execute_for_test(
     vf2_i960_cpu *cpu
 );
 
+/* v0707: test-only entry to the 0x27d00 -> 0x28184 chain head.  The CPU
+ * must be parked at 0x27d00 with g7 pointing at the player record.
+ * Accepted shapes end at 0x28268 (bbc-17-taken, bbc-0-taken, or
+ * cmpobe-taken siblings, all bit-20-clear with null table and status
+ * bit0 clear); the float fall-through and every other shape is
+ * VF2_ERROR_UNSUPPORTED. */
+vf2_status vf2_hybrid_player_28184_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 /* v0392: test-only entry to the measured 0x142c0 geometry-expansion
  * body (command 0x550000 family + bit-21 flag set + 0x4b5d0 table
  * lookup).  The CPU must be parked at 0x142c0 with g7 the player base

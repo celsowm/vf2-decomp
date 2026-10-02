@@ -2036,6 +2036,16 @@ static vf2_status hybrid_execute_player_27ce0_prefix(
     vf2_i960_cpu *cpu
 );
 
+static vf2_status hybrid_execute_player_27d00_call(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
+static vf2_status hybrid_execute_player_28184_prefix(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 /* v0389 test-only entry to the recovered 0x14288 -> 0x19ef8 corridor
  * unit (see hybrid.h).  Thin wrapper: the static unit above already
  * fails closed on every unmeasured shape. */
@@ -2247,6 +2257,21 @@ vf2_status vf2_hybrid_player_27ce0_execute_for_test(
 )
 {
     return hybrid_execute_player_27ce0_prefix(machine, cpu);
+}
+
+/* v0707 test-only chain over the 0x27d00 call and the 0x28184 head
+ * (see hybrid.h).  Thin wrapper: both static units already fail
+ * closed on every unmeasured shape. */
+vf2_status vf2_hybrid_player_28184_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    vf2_status status = hybrid_execute_player_27d00_call(machine, cpu);
+    if (status != VF2_OK) {
+        return status;
+    }
+    return hybrid_execute_player_28184_prefix(machine, cpu);
 }
 
 static vf2_status hybrid_execute_player_142c0(
@@ -3517,6 +3542,9 @@ static vf2_status hybrid_execute_player_28184_prefix(
     uint32_t mode = 0u;
     uint32_t curve = 0u;
     uint8_t status_byte = 0u;
+    uint16_t sense = 0u;
+    uint16_t edge = 0u;
+    unsigned int sibling = 0u;
     vf2_status result = VF2_OK;
 
     if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x00028184) ||
@@ -3550,9 +3578,36 @@ static vf2_status hybrid_execute_player_28184_prefix(
             machine, player + UINT32_C(0xbdd), &status_byte
         );
     }
+    /* v0707 siblings: bit17 set falls through to the 0x500092 bit0
+     * test. Bit0 clear diverts to the same 0x281c8 merge (sibling 1);
+     * bit0 set compares +0x0800 against the counter and diverts on
+     * equal (sibling 2) or takes the float path (unsupported). The
+     * 0x28264 bbs diverts on status bit0, so every sibling refuses it:
+     * the old code accepted that shape as 0x28268 without proof. */
+    if (result == VF2_OK &&
+        (mode & (UINT32_C(1) << 17u)) != 0u) {
+        result = hybrid_read_u16(
+            machine, UINT32_C(0x00500092), &sense
+        );
+    }
+    if (result == VF2_OK &&
+        (mode & (UINT32_C(1) << 17u)) != 0u) {
+        if ((sense & UINT16_C(1)) == 0u) {
+            sibling = 1u;
+        } else {
+            result = hybrid_read_u16(
+                machine, player + UINT32_C(0x800), &edge
+            );
+            if (result == VF2_OK && edge == counter) {
+                sibling = 2u;
+            }
+        }
+    }
     if (result != VF2_OK || counter != 1u ||
-        (mode & (UINT32_C(1) << 17u)) != 0u ||
-        ((mode & (UINT32_C(1) << 20u)) == 0u && curve != 0u)) {
+        ((mode & (UINT32_C(1) << 17u)) != 0u && sibling == 0u) ||
+        (sibling != 0u && (mode & (UINT32_C(1) << 20u)) != 0u) ||
+        ((mode & (UINT32_C(1) << 20u)) == 0u && curve != 0u) ||
+        (status_byte & UINT8_C(1)) != 0u) {
         return VF2_ERROR_UNSUPPORTED;
     }
     cpu->registers[VF2_I960_G0_REGISTER + 6u] = counter;
@@ -3561,11 +3616,24 @@ static vf2_status hybrid_execute_player_28184_prefix(
     cpu->registers[10] = (mode & (UINT32_C(1) << 20u)) != 0u
         ? mode : curve;
     cpu->registers[15] = status_byte;
-    if (player == UINT32_C(0x00512980)) { cpu->arithmetic_control &= ~UINT32_C(7); cpu->compare_result = VF2_I960_COMPARE_NONE; }
+    if (sibling >= 1u) {
+        cpu->registers[14] = sense;
+    }
+    if (sibling >= 2u) {
+        cpu->registers[13] = edge;
+    }
+    /* The 0x2820c cmpobe-taken pins EQUAL on every fighter (measured
+     * F0 + F1 rows, not just F0): the old F1-only NONE clear is retired. */
+    hybrid_set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
     cpu->ip = UINT32_C(0x00028268);
+    /* Call-through-0x28268 oracle totals minus the modeled call:
+     * bit-20-set 11, sibling 0 measured 12, sibling 1 measured 14,
+     * sibling 2 measured 16 (bit-20-clear rows). */
     cpu->executed_instructions +=
         (mode & (UINT32_C(1) << 20u)) != 0u
-            ? UINT64_C(10) : UINT64_C(11);
+            ? UINT64_C(10) :
+        sibling == 1u ? UINT64_C(13) :
+        sibling == 2u ? UINT64_C(15) : UINT64_C(11);
     return VF2_OK;
 }
 

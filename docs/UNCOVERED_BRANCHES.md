@@ -1,5 +1,19 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0707 0x28184 head siblings native: S1/S2 join S0 at 0x28268
+
+The `0x28184` branch-only head is fully mapped (bit17 x bit0 x
+edge==counter, counter == 1): taken-17 (S0, was native), taken-0
+(S1, +2 steps, `r14` loaded), cmpobe-taken (S2, +4 steps,
+`r13`/`r14` loaded) all merge through the `0x281c8`/`0x2825c`
+tail to `0x28268` with complete live-state equality (6-row ROM
+matrix: 5 F0 + F1 readout; tail EQUAL pinned on every fighter,
+retiring the F1-only NONE hack). The float fall-through stays
+unsupported with its own fail-closed pin (reference provably
+reaches `0x281b0`). Two latent holes closed: status-bit0-set
+`bbs` shape and bit20-set siblings (unmeasured combos now
+refused). See `fa_player_28184_head_siblings_v0707.md`.
+
 ## v0706 downstream dual-base: field_0008 new; 0018/0020/0000/01b1/1200 dual
 
 All-true `0x27ce0` guard drive runs 4811 steps into `0x179xx` caller
