@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- Recover the residual `fa_coli` bilateral `field_0821` scan mixes
+  (v0695): the opponent-side scan-2/6 mixes without an F0-side special
+  and the double-special mixes (2,2)/(2,5)/(2,6)/(6,2)/(6,5) now match
+  the ROM with complete live-state equality through `0x10dcc`. Whole-task
+  trace alignments prove every divergence is confined to a `0x22298`
+  call region with step deltas exactly equal to the measured per-side
+  rule deltas, so the measured F1-special `-1` shell gate now accepts
+  opponent scans `{2, 5, 6}` and the measured F0-special `-2` gate drops
+  its opponent-set restriction; the whole-task whitelist admits the new
+  totals 9530/9531/9533/9534. The v0694 measured-matrix strictening gate
+  is replaced by the permanent bilateral 6/6 admission gate (ref
+  `9528/18/19` needs the unrecovered 20-step scan-6 ordering-fail child
+  tail; the whitelisted 9531 total of (2,6)/(6,2) would otherwise accept
+  it). The entire measured bilateral scan matrix except 6/6 is now
+  native. See
+  `decomp/i960/notes/fa_coli_whole_task_scan821_residual_v0695.md`.
+
 - Measure the complete `fa_coli` bilateral `field_0821` scan matrix
   (48 pairs x `field_0822` sweep `{0, 1, 16, 256}` plus single-live
   scan-3 witnesses, 502 cells): the whole matrix fits the additive

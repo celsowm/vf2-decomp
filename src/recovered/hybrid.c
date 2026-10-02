@@ -30631,20 +30631,15 @@ vf2_status vf2_hybrid_coli_23524_execute(
             (flags1 & (UINT32_C(1) << 8u)) != 0u &&
             field_820 == UINT8_C(0) &&
             field_820_other == UINT8_C(0) &&
-            ((scan_821_other == UINT8_C(2) &&
-              (scan_821 == UINT8_C(0) || scan_821 == UINT8_C(1) ||
-               scan_821 == UINT8_C(3) || scan_821 == UINT8_C(4))) ||
-             (scan_821 == UINT8_C(6) &&
-              scan_821_other == UINT8_C(5)))) {
-            /* v0694 measured-matrix strictening. The full bilateral
-             * scan sweep proves these compositions must land on the
-             * additive per-side rule totals, but the current shell
-             * accounting produces whitelisted totals one or two
-             * instructions above the reference ((0..4 except 2/6, scan 2)
-             * counts 9528 vs measured 9527; (6,5) counts 9532 vs
-             * measured 9530). Without the missing trace-backed
-             * corrections those totals would be wrongly accepted, so
-             * keep the compositions fail-closed. */
+            scan_821 == UINT8_C(6) &&
+            scan_821_other == UINT8_C(6)) {
+            /* v0692/v0695 measured bilateral 6/6 fail-closed pin. The
+             * reference reaches 0x10dcc at 9528/18/19, but its first
+             * 0x22298 call takes a 20-step scan-6 ordering-fail tail the
+             * recovered child does not model (v0692 measured 9531
+             * without a matching child). Refuse at the admission gate so
+             * the whitelisted 9531 total of the v0695-admitted
+             * (2,6)/(6,2) mixes cannot accept this composition. */
             return VF2_ERROR_UNSUPPORTED;
         }
         if (g6 == (UINT32_C(1) << 1u)) {
@@ -30706,10 +30701,17 @@ vf2_status vf2_hybrid_coli_23524_execute(
             (flags1 & (UINT32_C(1) << 8u)) != 0u &&
             field_820 == UINT8_C(0) &&
             field_820_other == UINT8_C(0) &&
-            scan_821_other == UINT8_C(5)) {
+            (scan_821_other == UINT8_C(2) ||
+             scan_821_other == UINT8_C(5) ||
+             scan_821_other == UINT8_C(6))) {
             /* Every measured bilateral F1 scan-5 witness removes one further
              * instruction; the ordinary F0 correction, when applicable, is
-             * kept separately above. */
+             * kept separately above. v0695: whole-task traces prove the
+             * bilateral F1 scan-2 and scan-6 shells instruction-identical to
+             * the admitted F1 scan-5 witness outside the first 0x22298 call
+             * (only the measured 0x2232c three-test shortcut block differs:
+             * +1 step for scan 2, -2 for scan 6), so the same measured
+             * correction covers them. */
             body -= UINT64_C(1);
         }
         if ((g6 == (UINT32_C(1) << 1u) ||
@@ -30721,11 +30723,7 @@ vf2_status vf2_hybrid_coli_23524_execute(
               (flags1 & (UINT32_C(1) << 8u)) == 0u) ||
               (g6 == (UINT32_C(1) << 2u) &&
                (flags1 & (UINT32_C(1) << 8u)) != 0u &&
-               field_820_other == UINT8_C(0) &&
-               (scan_821_other == UINT8_C(0) ||
-                scan_821_other == UINT8_C(1) ||
-                scan_821_other == UINT8_C(3) ||
-                scan_821_other == UINT8_C(4))))) {
+               field_820_other == UINT8_C(0)))) {
             /* Measured scan-2 witnesses remove two accounting instructions
              * in the single-live and F0-scan-2 bilateral shapes. v0691:
              * whole-task traces prove the reference executes identical
@@ -30738,7 +30736,13 @@ vf2_status vf2_hybrid_coli_23524_execute(
              * same measured correction covers those mixes (9527/9524).
              * v0694: whole-task traces prove the bilateral (2,3) stream
              * instruction-identical to (2,0) (0 divergent steps), so the
-             * same measured correction covers the scan-3 mixes. */
+             * same measured correction covers the scan-3 mixes.
+             * v0695: whole-task traces prove the double-special mixes
+             * (2,2)/(2,5)/(2,6)/(6,2)/(6,5) run shells instruction-identical
+             * to their F1-scan-0 counterparts outside the first 0x22298
+             * call, where the measured opponent-scan bodies apply, so the
+             * same measured correction now covers every F1 scan value.
+             * Bilateral 6/6 is refused at the admission gate above. */
             body -= UINT64_C(2);
         }
     }
@@ -31365,6 +31369,13 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
                   * field_0821=6 ordering-fail siblings at 9389/17/18 (single)
                   * and 9524/18/19 (bilateral), exactly three instructions
                   * shorter than the scan-2 shapes.
+                  * v0695 adds the trace-proven residual bilateral scan
+                  * mixes under the measured additive per-side rule:
+                  * opponent-side scan 2 with a non-special F0 lands at
+                  * 9527/18/19, opponent-side scan 6 at 9524/18/19, the
+                  * (5,2)/(5,6) mixes at 9533/9530, and the double-special
+                  * mixes (2,2)/(2,5)/(2,6)/(6,2)/(6,5) at 9534/9533/9531/
+                  * 9531/9530, all 18/19.
                   * Both clear is 9214/18/19.
                   * Live g0=1→0x225cc midbody-park shape is measured at
                   * 380 steps / 12 call-instructions / 10 rets
@@ -31381,6 +31392,18 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
                       coli_calls == UINT64_C(18) &&
                       coli_returns == UINT64_C(19)) &&
                     !(coli_instructions == UINT64_C(9532) &&
+                      coli_calls == UINT64_C(18) &&
+                      coli_returns == UINT64_C(19)) &&
+                    !(coli_instructions == UINT64_C(9530) &&
+                      coli_calls == UINT64_C(18) &&
+                      coli_returns == UINT64_C(19)) &&
+                    !(coli_instructions == UINT64_C(9531) &&
+                      coli_calls == UINT64_C(18) &&
+                      coli_returns == UINT64_C(19)) &&
+                    !(coli_instructions == UINT64_C(9533) &&
+                      coli_calls == UINT64_C(18) &&
+                      coli_returns == UINT64_C(19)) &&
+                    !(coli_instructions == UINT64_C(9534) &&
                       coli_calls == UINT64_C(18) &&
                       coli_returns == UINT64_C(19)) &&
                     !(coli_instructions == UINT64_C(9520) &&

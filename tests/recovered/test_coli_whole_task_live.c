@@ -279,25 +279,18 @@ static uint64_t coli_scan_821_delta(uint8_t scan)
     return UINT64_C(0);
 }
 
-/* v0694 native admission boundary for the bilateral scan matrix. The
- * additive rule is reference-proven for every cell, but native whole-task
- * accounting is only trace-admitted for compositions where the F0-side
- * shell corrections apply. Compositions with the opponent-side scan in
- * {2,6} unless the F0 side is also in {2,6}, and compositions with F0 in
- * {2,6} but the opponent in {2,5,6}, are pinned fail-closed pending
- * per-side trace evidence; (6,6) is pinned separately as measured
- * fail-closed (v0692). */
+/* v0695 native admission boundary for the bilateral scan matrix. The
+ * additive rule is reference-proven for every cell, and whole-task trace
+ * diffs prove every non-(6,6) composition runs a shell
+ * instruction-identical to its scan-0/scan-5 admitted neighbors with only
+ * the measured 0x22298 child-body deltas inside the 0x2232c shortcut, so
+ * the native recovery now admits the full matrix. 6/6 stays pinned
+ * fail-closed (v0692): its first 0x22298 call takes a 20-step scan-6
+ * ordering-fail tail the recovered child does not model, so the shell
+ * admission gate refuses it before accounting. */
 static int coli_bilateral_native_supported(uint8_t scan0, uint8_t scan1)
 {
-    const int scan0_special = scan0 == 2u || scan0 == 6u;
-    if ((scan1 == 2u || scan1 == 6u) && !scan0_special) {
-        return 0;
-    }
-    if (scan0_special &&
-        (scan1 == 2u || scan1 == 5u || scan1 == 6u)) {
-        return 0;
-    }
-    return 1;
+    return !(scan0 == 6u && scan1 == 6u);
 }
 
 static void test_matrix_case(
@@ -617,11 +610,13 @@ static void run_rom(const char *dir){
         }
     }
     {
-        /* v0694 full bilateral scan grid under the measured additive
+        /* v0694/v0695 full bilateral scan grid under the measured additive
          * per-side rule (9520 + delta(F0 scan) + delta(F1 scan), proven
          * exact for every measured pair; 6/6 stays pinned unsupported by
-         * test_bilateral_66_unsupported). Cells the native side has not
-         * trace-admitted are asserted reference-exact AND fail-closed. */
+         * test_bilateral_66_unsupported). v0695 admits the residual
+         * opponent-side and double-special mixes on trace evidence, so
+         * every cell except 6/6 asserts native equality plus complete
+         * live-state equality. */
         const uint16_t grid_fields[] = {0u, 1u, 16u, 256u};
         for (uint32_t f0_scan = 0u; f0_scan <= 6u; ++f0_scan) {
             for (uint32_t f1_scan = 0u; f1_scan <= 6u; ++f1_scan) {

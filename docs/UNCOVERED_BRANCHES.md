@@ -1,5 +1,20 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0695 `fa_coli` whole-task residual scan mixes recovered
+
+The v0694 residual bilateral frontier is native: whole-task trace
+alignments prove the opponent-side scan-2/6 and double-special mixes run
+shells instruction-identical to their admitted scan-0/scan-5 neighbors
+with divergence confined to a `0x22298` call region (window deltas equal
+the measured per-side rule deltas), so the measured F1-special `-1` gate
+now accepts opponent scans `{2, 5, 6}` and the F0-special `-2` gate
+covers any opponent scan. The whitelist admits 9530/9531/9533/9534. The
+entire measured bilateral `field_0821` matrix except 6/6 is recovered
+under the additive rule; 6/6 keeps its reference-exact fail-closed pin
+(now enforced at the shell admission gate, since the whitelisted 9531
+would otherwise accept it). See
+`decomp/i960/notes/fa_coli_whole_task_scan821_residual_v0695.md`.
+
 ## v0694 `fa_coli` whole-task additive scan-821 rule; scan-3 mixes recovered
 
 The complete bilateral `field_0821` scan matrix is measured (48 pairs x
