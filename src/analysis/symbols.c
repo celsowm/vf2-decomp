@@ -132,6 +132,18 @@ vf2_status vf2_i960_apply_symbol_overlays(
     if (status == VF2_OK) {
         status = apply_file(analysis, path, 1u, 0u, false);
     }
+    if (status != VF2_OK) {
+        return status;
+    }
+    /* Applied last so it wins: these are the shipped i960 symbol names, which
+     * are evidence rather than the provisional names the other three files
+     * carry. Records that name a label inside a function rather than a
+     * function entry simply find no function and are ignored. See
+     * docs/ORIGINAL_SYMBOLS.md. */
+    status = vf2_join_path(path, sizeof(path), directory, "original_symbols.csv");
+    if (status == VF2_OK) {
+        status = apply_file(analysis, path, 1u, 0u, false);
+    }
     return status;
 }
 

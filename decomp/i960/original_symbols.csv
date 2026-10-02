@@ -1,0 +1,302 @@
+address,name,kind,status,notes
+0x000000b0,start_ip,original-symbol,verified,Shipped i960 symbol table record 1; supersedes provisional name boot_entry
+0x00000530,make_lay_col_256_tbl_demon,original-symbol,verified,Shipped i960 symbol table record 2; supersedes provisional name frame_shadow_verify
+0x000005e8,make_lay_col_256_tbl,original-symbol,verified,Shipped i960 symbol table record 3
+0x00000b58,move_data,original-symbol,verified,Shipped i960 symbol table record 4; supersedes provisional name iac_reinitialize_candidate
+0x00000bc0,VsyncScr,original-symbol,verified,Shipped i960 symbol table record 5; supersedes provisional name interrupt_save_prefix
+0x00000d30,VsyncObj,original-symbol,verified,Shipped i960 symbol table record 6
+0x00000d50,Timer,original-symbol,verified,Shipped i960 symbol table record 7
+0x00000e10,Other,original-symbol,verified,Shipped i960 symbol table record 8
+0x00000e30,IntrHalt,original-symbol,verified,Shipped i960 symbol table record 9
+0x00000e60,copro_down,original-symbol,verified,Shipped i960 symbol table record 10
+0x00000ea4,cop_initialize,original-symbol,verified,Shipped i960 symbol table record 11
+0x00000ed0,geo_func,original-symbol,verified,Shipped i960 symbol table record 12
+0x00000f0c,geo_initialize,original-symbol,verified,Shipped i960 symbol table record 13
+0x00000f7c,interrupt_wait,original-symbol,verified,Shipped i960 symbol table record 14
+0x00000fa0,io_request_chk,original-symbol,verified,Shipped i960 symbol table record 15
+0x00001064,read_sw,original-symbol,verified,Shipped i960 symbol table record 16; supersedes provisional name video_register_compose
+0x00001200,seclet_command_check,original-symbol,verified,Shipped i960 symbol table record 17
+0x00001290,write_sw,original-symbol,verified,Shipped i960 symbol table record 18; supersedes provisional name video_input_latch_write
+0x000012bc,init_data_bd_fifo,original-symbol,verified,Shipped i960 symbol table record 19
+0x000012d8,read_data_bd_fifo,original-symbol,verified,Shipped i960 symbol table record 20; supersedes provisional name input_ring_poll
+0x00001314,write_data_bd_fifo,original-symbol,verified,Shipped i960 symbol table record 21
+0x00001344,player_entry,original-symbol,verified,Shipped i960 symbol table record 22
+0x00001384,pushed_st1,original-symbol,verified,Shipped i960 symbol table record 23
+0x00001438,vs_mode1,original-symbol,verified,Shipped i960 symbol table record 24
+0x000014d8,pushed_st2,original-symbol,verified,Shipped i960 symbol table record 25
+0x00001598,vs_mode2,original-symbol,verified,Shipped i960 symbol table record 26
+0x00001610,check_credit,original-symbol,verified,Shipped i960 symbol table record 27
+0x0000245c,coin_current_clear,original-symbol,verified,Shipped i960 symbol table record 28
+0x0000281c,chute_setting_check,original-symbol,verified,Shipped i960 symbol table record 29; supersedes provisional name game_state_classify
+0x00002b4c,chg_scr_color_req,original-symbol,verified,Shipped i960 symbol table record 30
+0x00002edc,set_end_mark,original-symbol,verified,Shipped i960 symbol table record 31
+0x00002f5c,set_window_data,original-symbol,verified,Shipped i960 symbol table record 32
+0x00007b18,set_mmode,original-symbol,verified,Shipped i960 symbol table record 33
+0x00007c60,set_obj,original-symbol,verified,Shipped i960 symbol table record 34
+0x00007dc4,set_obj_fifo,original-symbol,verified,Shipped i960 symbol table record 35
+0x00007ef0,window_data_init,original-symbol,verified,Shipped i960 symbol table record 36
+0x00007f24,set_window,original-symbol,verified,Shipped i960 symbol table record 37
+0x00007f7c,set_viewing_data,original-symbol,verified,Shipped i960 symbol table record 38
+0x00007fc0,print_mes,original-symbol,verified,Shipped i960 symbol table record 39
+0x00008f1c,dsp_pattern,original-symbol,verified,Shipped i960 symbol table record 40
+0x000094d0,rand,original-symbol,verified,Shipped i960 symbol table record 41
+0x00009798,main,original-symbol,verified,Shipped i960 symbol table record 42
+0x00009fa4,siw_loop,original-symbol,verified,Shipped i960 symbol table record 43
+0x00009fb0,main_loop,original-symbol,verified,Shipped i960 symbol table record 44; supersedes provisional name main_clear_prefix
+0x0000a048,init_ram,original-symbol,verified,Shipped i960 symbol table record 45
+0x0000a0c4,init_adv_rep_ram,original-symbol,verified,Shipped i960 symbol table record 46
+0x0000a154,clear_buffer_ptr,original-symbol,verified,Shipped i960 symbol table record 47
+0x0000a6c0,mode_control,original-symbol,verified,Shipped i960 symbol table record 48; supersedes provisional name frame_dispatch_tick
+0x0000a748,test_sw_chk,original-symbol,verified,Shipped i960 symbol table record 49; supersedes provisional name frame_geometry_gate
+0x0000a804,WARNING_INT,original-symbol,verified,Shipped i960 symbol table record 50
+0x0000a974,WARNING_DSP,original-symbol,verified,Shipped i960 symbol table record 51
+0x0000ab0c,ADV_INT,original-symbol,verified,Shipped i960 symbol table record 52
+0x0000acf8,ADV_DSP,original-symbol,verified,Shipped i960 symbol table record 53
+0x0000ae78,ADV_RECYCLE_PIC_INT,original-symbol,verified,Shipped i960 symbol table record 54
+0x0000afe0,ADV_RECYCLE_PIC_DSP,original-symbol,verified,Shipped i960 symbol table record 55
+0x0000b0d8,ADV_SEGA_PIC_INT,original-symbol,verified,Shipped i960 symbol table record 56
+0x0000b394,ADV_SEGA_PIC_DSP,original-symbol,verified,Shipped i960 symbol table record 57
+0x0000b3f8,ADV_MOVIE_INT,original-symbol,verified,Shipped i960 symbol table record 58
+0x0000b4f0,ADV_MOVIE_DSP,original-symbol,verified,Shipped i960 symbol table record 59
+0x0000b588,ADV_REPLAY_PIC,original-symbol,verified,Shipped i960 symbol table record 60
+0x0000b66c,ADV_REPLAY_INT,original-symbol,verified,Shipped i960 symbol table record 61
+0x0000b9b8,ADV_REPLAY_WAIT1A,original-symbol,verified,Shipped i960 symbol table record 62
+0x0000baec,ADV_REPLAY_WAIT1B,original-symbol,verified,Shipped i960 symbol table record 63
+0x0000bc10,ADV_REPLAY_DSP,original-symbol,verified,Shipped i960 symbol table record 64
+0x0000bcb0,ADV_REPLAY_WAIT2,original-symbol,verified,Shipped i960 symbol table record 65
+0x0000bce4,ADV_REPLAY_PIC2,original-symbol,verified,Shipped i960 symbol table record 66
+0x0000bdc8,ADV_CPU_BATTLE_INT,original-symbol,verified,Shipped i960 symbol table record 67
+0x0000c0a4,ADV_CPU_BATTLE_WAIT1,original-symbol,verified,Shipped i960 symbol table record 68
+0x0000c268,ADV_CPU_BATTLE_DSP,original-symbol,verified,Shipped i960 symbol table record 69
+0x0000c414,ADV_CPU_BATTLE_WAIT2,original-symbol,verified,Shipped i960 symbol table record 70
+0x0000c448,ADV_REPEAT,original-symbol,verified,Shipped i960 symbol table record 71
+0x0000c45c,INFO_DSP,original-symbol,verified,Shipped i960 symbol table record 72
+0x0000c45c,INFO_INT,original-symbol,verified,Shipped i960 symbol table record 73
+0x0000c474,SEL_INT,original-symbol,verified,Shipped i960 symbol table record 74
+0x0000c7ec,SEL_DSP,original-symbol,verified,Shipped i960 symbol table record 75
+0x0000d014,GAME_INT,original-symbol,verified,Shipped i960 symbol table record 76
+0x0000d380,GAME_DSP,original-symbol,verified,Shipped i960 symbol table record 77
+0x0000d4ac,ROUND_MASK_INT,original-symbol,verified,Shipped i960 symbol table record 78
+0x0000d844,ROUND_MASK_DSP,original-symbol,verified,Shipped i960 symbol table record 79
+0x0000d918,drank_init,original-symbol,verified,Shipped i960 symbol table record 80
+0x0000d94c,ROUND_INT,original-symbol,verified,Shipped i960 symbol table record 81
+0x0000db80,ROUND_DSP,original-symbol,verified,Shipped i960 symbol table record 82
+0x0000db98,SET_INT,original-symbol,verified,Shipped i960 symbol table record 83
+0x0000de64,SET_DSP,original-symbol,verified,Shipped i960 symbol table record 84
+0x0000deb0,READY_INT,original-symbol,verified,Shipped i960 symbol table record 85
+0x0000df38,READY_DSP,original-symbol,verified,Shipped i960 symbol table record 86
+0x0000df60,FIGHT_INT,original-symbol,verified,Shipped i960 symbol table record 87
+0x0000e474,FIGHT_DSP,original-symbol,verified,Shipped i960 symbol table record 88
+0x0000e544,JUDGE_INT,original-symbol,verified,Shipped i960 symbol table record 89
+0x0000e590,JUDGE_WAIT,original-symbol,verified,Shipped i960 symbol table record 90
+0x0000e5a8,JUDGE_DSP_INT,original-symbol,verified,Shipped i960 symbol table record 91
+0x0000eb44,JUDGE_DSP,original-symbol,verified,Shipped i960 symbol table record 92
+0x0000edf4,REPLAY_INT,original-symbol,verified,Shipped i960 symbol table record 93
+0x0000f0d8,game_sub_ex,original-symbol,verified,Shipped i960 symbol table record 94
+0x0000f0f4,REPLAY_DSP,original-symbol,verified,Shipped i960 symbol table record 95
+0x0000f208,next_program,original-symbol,verified,Shipped i960 symbol table record 96
+0x0000f61c,VIC_INT,original-symbol,verified,Shipped i960 symbol table record 97
+0x0000f918,VIC_DSP,original-symbol,verified,Shipped i960 symbol table record 98
+0x0000f980,INTRUDE_INT,original-symbol,verified,Shipped i960 symbol table record 99
+0x0000fa50,INTRUDE_DSP,original-symbol,verified,Shipped i960 symbol table record 100
+0x0000fae0,CONTINUE_INT,original-symbol,verified,Shipped i960 symbol table record 101
+0x0000fcf4,CONTINUE_DSP,original-symbol,verified,Shipped i960 symbol table record 102
+0x0000ff24,vs_conti,original-symbol,verified,Shipped i960 symbol table record 103
+0x0000ffc4,pl1_conti_alone,original-symbol,verified,Shipped i960 symbol table record 104
+0x0000fff8,pl2_conti_alone,original-symbol,verified,Shipped i960 symbol table record 105
+0x00010088,OVER_INT,original-symbol,verified,Shipped i960 symbol table record 106
+0x0001018c,OVER_DSP,original-symbol,verified,Shipped i960 symbol table record 107
+0x000102a4,ENDING_INT,original-symbol,verified,Shipped i960 symbol table record 108
+0x00010404,ENDING_DSP,original-symbol,verified,Shipped i960 symbol table record 109
+0x00010490,ENDSUB_INT,original-symbol,verified,Shipped i960 symbol table record 110
+0x00010548,ENDSUB_WAIT_1,original-symbol,verified,Shipped i960 symbol table record 111
+0x00010564,ENDSUB_DSP,original-symbol,verified,Shipped i960 symbol table record 112
+0x00010754,ENDSUB_WAIT_2,original-symbol,verified,Shipped i960 symbol table record 113
+0x00010784,NAME_INT,original-symbol,verified,Shipped i960 symbol table record 114
+0x00010898,NAME_DSP,original-symbol,verified,Shipped i960 symbol table record 115
+0x00010958,all_end,original-symbol,verified,Shipped i960 symbol table record 116
+0x00010a0c,TEST_INT,original-symbol,verified,Shipped i960 symbol table record 117
+0x00010b5c,TEST_DSP,original-symbol,verified,Shipped i960 symbol table record 118
+0x00010bc0,RANK_INT,original-symbol,verified,Shipped i960 symbol table record 119
+0x00010c48,RANK_DSP,original-symbol,verified,Shipped i960 symbol table record 120
+0x00010cbc,init_event,original-symbol,verified,Shipped i960 symbol table record 121; supersedes provisional name task_registry_initialize
+0x00010d54,event_loop,original-symbol,verified,Shipped i960 symbol table record 122; supersedes provisional name scheduler_dispatch
+0x00010ea4,dsp_exad,original-symbol,verified,Shipped i960 symbol table record 123
+0x00010ee4,del_exad,original-symbol,verified,Shipped i960 symbol table record 124
+0x00010f08,interrupt_wait_b,original-symbol,verified,Shipped i960 symbol table record 125; supersedes provisional name frame_timer_prefix
+0x000110b0,start_check,original-symbol,verified,Shipped i960 symbol table record 126; supersedes provisional name frame_buffer_gate
+0x000110f4,debug_sw_check,original-symbol,verified,Shipped i960 symbol table record 127; supersedes provisional name video_input_sync
+0x0001128c,variable_diff_init,original-symbol,verified,Shipped i960 symbol table record 128
+0x000112f8,variable_diff_calc,original-symbol,verified,Shipped i960 symbol table record 129; supersedes provisional name frame_counter_advance
+0x000113f4,set_game_setting,original-symbol,verified,Shipped i960 symbol table record 130
+0x00011a8c,init_scroll,original-symbol,verified,Shipped i960 symbol table record 131
+0x00011b48,init_fix,original-symbol,verified,Shipped i960 symbol table record 132
+0x000142f4,rob_action,original-symbol,verified,Shipped i960 symbol table record 133
+0x0001442c,decide_command,original-symbol,verified,Shipped i960 symbol table record 134
+0x00014640,decide_my_command,original-symbol,verified,Shipped i960 symbol table record 135
+0x000146ec,exec_command,original-symbol,verified,Shipped i960 symbol table record 136
+0x0001499c,exec_action,original-symbol,verified,Shipped i960 symbol table record 137
+0x0001645c,get_game_info,original-symbol,verified,Shipped i960 symbol table record 138; supersedes provisional name task_game_info
+0x00016504,calc_unit_mat,original-symbol,verified,Shipped i960 symbol table record 139
+0x000176a0,set_coli_ball_data,original-symbol,verified,Shipped i960 symbol table record 140
+0x00017710,rob_revise_yang,original-symbol,verified,Shipped i960 symbol table record 141
+0x0001791c,rob_spd_control,original-symbol,verified,Shipped i960 symbol table record 142
+0x000180bc,action_after,original-symbol,verified,Shipped i960 symbol table record 143
+0x00018144,get_my_info,original-symbol,verified,Shipped i960 symbol table record 144
+0x00018644,get_en_info,original-symbol,verified,Shipped i960 symbol table record 145
+0x00018c64,calc_land_time,original-symbol,verified,Shipped i960 symbol table record 146
+0x00018d44,calc_stage_limit_dist,original-symbol,verified,Shipped i960 symbol table record 147
+0x00018e00,calc_gyang_from_fu_vec2,original-symbol,verified,Shipped i960 symbol table record 148
+0x00018e08,calc_gyang_from_fu_vec,original-symbol,verified,Shipped i960 symbol table record 149
+0x00018ef8,rob_disp,original-symbol,verified,Shipped i960 symbol table record 150
+0x00019008,rdn_loop,original-symbol,verified,Shipped i960 symbol table record 151
+0x00019d28,set_ashi_ptn,original-symbol,verified,Shipped i960 symbol table record 152
+0x00019e34,set_te_ptn,original-symbol,verified,Shipped i960 symbol table record 153
+0x00019e6c,disp_hiji_ptn,original-symbol,verified,Shipped i960 symbol table record 154
+0x00019ebc,rob_area_check,original-symbol,verified,Shipped i960 symbol table record 155
+0x00019ef0,comp_set_motion,original-symbol,verified,Shipped i960 symbol table record 156
+0x00019ef8,set_motion,original-symbol,verified,Shipped i960 symbol table record 157
+0x00019efc,set_motion_comm,original-symbol,verified,Shipped i960 symbol table record 158
+0x0001a1e4,set_mot_dat,original-symbol,verified,Shipped i960 symbol table record 159
+0x0001ab34,calc_mht_adr,original-symbol,verified,Shipped i960 symbol table record 160
+0x0001ab74,play_motion,original-symbol,verified,Shipped i960 symbol table record 161
+0x0001b568,shift_mot_control,original-symbol,verified,Shipped i960 symbol table record 162
+0x0001b5c8,air_mot_control,original-symbol,verified,Shipped i960 symbol table record 163
+0x0001b74c,sui_ta_kamae_set,original-symbol,verified,Shipped i960 symbol table record 164
+0x0001b9ac,control_init,original-symbol,verified,Shipped i960 symbol table record 165
+0x0001b9dc,rob_control,original-symbol,verified,Shipped i960 symbol table record 166
+0x0001d458,camera_control,original-symbol,verified,Shipped i960 symbol table record 167
+0x0001e52c,calc_effect_matrix,original-symbol,verified,Shipped i960 symbol table record 168
+0x0001e9bc,cc_strobo_mode,original-symbol,verified,Shipped i960 symbol table record 169
+0x0001ee34,ken_camera,original-symbol,verified,Shipped i960 symbol table record 170
+0x0001eeb8,poly_test_camera,original-symbol,verified,Shipped i960 symbol table record 171
+0x0001eff0,calc_rob_light,original-symbol,verified,Shipped i960 symbol table record 172; supersedes provisional name camera_project_fighter_ranges
+0x0001f03c,calc_rob_light_sub,original-symbol,verified,Shipped i960 symbol table record 173
+0x0001f148,game_camera_init,original-symbol,verified,Shipped i960 symbol table record 174; supersedes provisional name camera_state_reset
+0x0001f1c0,game_camera,original-symbol,verified,Shipped i960 symbol table record 175
+0x0001f24c,game_calc_virtua_position_init,original-symbol,verified,Shipped i960 symbol table record 176
+0x0001f3dc,gcvp_init,original-symbol,verified,Shipped i960 symbol table record 177
+0x0001f40c,game_calc_camera_position,original-symbol,verified,Shipped i960 symbol table record 178
+0x0001facc,get_ikada_poly,original-symbol,verified,Shipped i960 symbol table record 179; supersedes provisional name camera_fill_viewport_table
+0x0001fbb4,get_ikada_kage_pos,original-symbol,verified,Shipped i960 symbol table record 180; supersedes provisional name camera_range_window
+0x0001fc00,send_lay_realtime,original-symbol,verified,Shipped i960 symbol table record 181; supersedes provisional name camera_mode_dispatch
+0x0001fcc0,change_scene,original-symbol,verified,Shipped i960 symbol table record 182; supersedes provisional name display_profile_apply
+0x0001fee4,set_default_rob_light,original-symbol,verified,Shipped i960 symbol table record 183; supersedes provisional name display_profile_unit_fill
+0x00020064,stage_disp,original-symbol,verified,Shipped i960 symbol table record 184
+0x00020400,mirror_disp,original-symbol,verified,Shipped i960 symbol table record 185
+0x00020488,mirror_rob_disp,original-symbol,verified,Shipped i960 symbol table record 186
+0x00020708,ground_disp,original-symbol,verified,Shipped i960 symbol table record 187
+0x000214dc,area_check,original-symbol,verified,Shipped i960 symbol table record 188; supersedes provisional name camera_classify_range
+0x0002173c,make_kage_matrix,original-symbol,verified,Shipped i960 symbol table record 189
+0x00021864,name_char_disp,original-symbol,verified,Shipped i960 symbol table record 190
+0x00021904,name_char_kage_disp,original-symbol,verified,Shipped i960 symbol table record 191
+0x000221e8,collision,original-symbol,verified,Shipped i960 symbol table record 192
+0x00023398,dck_special_check,original-symbol,verified,Shipped i960 symbol table record 193
+0x000233d0,decide_coli_kind,original-symbol,verified,Shipped i960 symbol table record 194
+0x00023524,coli_cont_cop,original-symbol,verified,Shipped i960 symbol table record 195
+0x0002364c,decide_dir,original-symbol,verified,Shipped i960 symbol table record 196
+0x00023694,coli_recalc_pos,original-symbol,verified,Shipped i960 symbol table record 197
+0x00023878,area_flag_conv_sub,original-symbol,verified,Shipped i960 symbol table record 198
+0x000238a4,calc_attack_flag,original-symbol,verified,Shipped i960 symbol table record 199
+0x000238f8,coli_flag_conv,original-symbol,verified,Shipped i960 symbol table record 200
+0x0002396c,area_coli,original-symbol,verified,Shipped i960 symbol table record 201
+0x00024568,Calc_pos,original-symbol,verified,Shipped i960 symbol table record 202
+0x00027130,smooth_int,original-symbol,verified,Shipped i960 symbol table record 203
+0x0002776c,rear_smooth_int,original-symbol,verified,Shipped i960 symbol table record 204
+0x00027ce0,calc_rob_angle,original-symbol,verified,Shipped i960 symbol table record 205
+0x00027d04,calc_rob_angle_cont,original-symbol,verified,Shipped i960 symbol table record 206
+0x00028184,get_frame_dat,original-symbol,verified,Shipped i960 symbol table record 207
+0x00028780,get_start_value,original-symbol,verified,Shipped i960 symbol table record 208
+0x00028848,get_end_value,original-symbol,verified,Shipped i960 symbol table record 209
+0x00028918,get_fcurve_value,original-symbol,verified,Shipped i960 symbol table record 210
+0x0002891c,get_fcurve_value_f,original-symbol,verified,Shipped i960 symbol table record 211
+0x00028af8,set_mirror,original-symbol,verified,Shipped i960 symbol table record 212
+0x0002901c,calc_unit_1,original-symbol,verified,Shipped i960 symbol table record 213
+0x00029414,adj_taikaku,original-symbol,verified,Shipped i960 symbol table record 214
+0x0002954c,chk_slow_stage,original-symbol,verified,Shipped i960 symbol table record 215
+0x000295fc,chk_ai_stage,original-symbol,verified,Shipped i960 symbol table record 216
+0x00029648,chk_ai_switch,original-symbol,verified,Shipped i960 symbol table record 217
+0x0002eed0,happa_disp,original-symbol,verified,Shipped i960 symbol table record 218
+0x0002f138,happa_lp_01,original-symbol,verified,Shipped i960 symbol table record 219
+0x0002fa14,yasi_disp,original-symbol,verified,Shipped i960 symbol table record 220
+0x000313d8,chk_input,original-symbol,verified,Shipped i960 symbol table record 221
+0x00031adc,sel_disp,original-symbol,verified,Shipped i960 symbol table record 222
+0x00032090,select_init,original-symbol,verified,Shipped i960 symbol table record 223
+0x000324a0,select_pl,original-symbol,verified,Shipped i960 symbol table record 224
+0x000324d0,sel_pl_p2,original-symbol,verified,Shipped i960 symbol table record 225
+0x000327cc,sel_pl_p2r,original-symbol,verified,Shipped i960 symbol table record 226
+0x00032ac8,sel_pl_p2l,original-symbol,verified,Shipped i960 symbol table record 227
+0x00032c7c,sel_pl_p2_go,original-symbol,verified,Shipped i960 symbol table record 228
+0x00032c94,sel_pl_p2_nise_add_skip,original-symbol,verified,Shipped i960 symbol table record 229
+0x00033480,sel_pl_p1_nise_add_skip,original-symbol,verified,Shipped i960 symbol table record 230
+0x00039c40,key_rec_init,original-symbol,verified,Shipped i960 symbol table record 231
+0x00039c6c,key_rec_disp,original-symbol,verified,Shipped i960 symbol table record 232
+0x00039d0c,key_play_init,original-symbol,verified,Shipped i960 symbol table record 233
+0x00039d5c,key_play_disp,original-symbol,verified,Shipped i960 symbol table record 234
+0x00039e34,save_ending_rep_data,original-symbol,verified,Shipped i960 symbol table record 235
+0x00039f08,ending_send_next_tex,original-symbol,verified,Shipped i960 symbol table record 236
+0x00039f60,load_ending_rep_data,original-symbol,verified,Shipped i960 symbol table record 237
+0x0003a2e0,make_ending_cam_mat,original-symbol,verified,Shipped i960 symbol table record 238
+0x0003a728,rec_init,original-symbol,verified,Shipped i960 symbol table record 239
+0x0003a76c,rec_disp,original-symbol,verified,Shipped i960 symbol table record 240
+0x0003a824,play_init,original-symbol,verified,Shipped i960 symbol table record 241
+0x0003a830,play_init2,original-symbol,verified,Shipped i960 symbol table record 242
+0x0003a9a8,rep_start_chk,original-symbol,verified,Shipped i960 symbol table record 243
+0x0003aadc,play_disp,original-symbol,verified,Shipped i960 symbol table record 244
+0x0003ac10,put_last_replay,original-symbol,verified,Shipped i960 symbol table record 245
+0x0003ace8,load,original-symbol,verified,Shipped i960 symbol table record 246
+0x0003d4b8,enemy_control,original-symbol,verified,Shipped i960 symbol table record 247
+0x00043abc,sound_queue_output,original-symbol,verified,Shipped i960 symbol table record 248
+0x00043c38,sqo_chicago,original-symbol,verified,Shipped i960 symbol table record 249
+0x0004afb4,check_timer_4,original-symbol,verified,Shipped i960 symbol table record 250
+0x0004b020,send_tex_default,original-symbol,verified,Shipped i960 symbol table record 251
+0x0004b410,send_tex_stage,original-symbol,verified,Shipped i960 symbol table record 252; supersedes provisional name video_command_submit
+0x0004b640,face_mot_control,original-symbol,verified,Shipped i960 symbol table record 253
+0x0004b820,send_tex_efc,original-symbol,verified,Shipped i960 symbol table record 254
+0x0004b838,send_tex_rob,original-symbol,verified,Shipped i960 symbol table record 255
+0x0004b9b8,unp_send_tex_req,original-symbol,verified,Shipped i960 symbol table record 256
+0x0004bb18,unp_send_tex_para,original-symbol,verified,Shipped i960 symbol table record 257; supersedes provisional name texture_orchestrator_save_call
+0x0004bcd4,unp_send_tex_para_sub,original-symbol,verified,Shipped i960 symbol table record 258; supersedes provisional name texture_frame_gate_call
+0x0004c180,unpack_lod_data,original-symbol,verified,Shipped i960 symbol table record 259; supersedes provisional name texture_header_decode
+0x0004c928,make_huf_8bit,original-symbol,verified,Shipped i960 symbol table record 260
+0x0004c9dc,send_beta_data,original-symbol,verified,Shipped i960 symbol table record 261
+0x0004cb64,send_lod_data,original-symbol,verified,Shipped i960 symbol table record 262; supersedes provisional name texture_word_prepare
+0x0004cd18,send_lod_data_q,original-symbol,verified,Shipped i960 symbol table record 263; supersedes provisional name texture_color_prepare
+0x0004ce88,send_lod_data_q_sub_norm,original-symbol,verified,Shipped i960 symbol table record 264
+0x0004cfc4,send_lod_data_q_sub_anim,original-symbol,verified,Shipped i960 symbol table record 265
+0x0004d2c0,dsp_send_msg,original-symbol,verified,Shipped i960 symbol table record 266; supersedes provisional name texture_status_line
+0x00051d3c,sampling_init,original-symbol,verified,Shipped i960 symbol table record 267
+0x00051e7c,sampling,original-symbol,verified,Shipped i960 symbol table record 268
+0x00051f98,hit_and_guard_check,original-symbol,verified,Shipped i960 symbol table record 269
+0x000520d0,make_action_table,original-symbol,verified,Shipped i960 symbol table record 270
+0x00052378,recog_sample,original-symbol,verified,Shipped i960 symbol table record 271
+0x000523b0,recog_sample_loop,original-symbol,verified,Shipped i960 symbol table record 272
+0x000523c0,recog_sample_loop1,original-symbol,verified,Shipped i960 symbol table record 273
+0x000523e8,recog_sample_skip,original-symbol,verified,Shipped i960 symbol table record 274
+0x000523fc,recog_sample_next_sample,original-symbol,verified,Shipped i960 symbol table record 275
+0x00052418,recog_sample_next_sample2,original-symbol,verified,Shipped i960 symbol table record 276
+0x0005242c,recog_sample_scan_end1,original-symbol,verified,Shipped i960 symbol table record 277
+0x0005243c,recog_sample_scan_end1_1,original-symbol,verified,Shipped i960 symbol table record 278
+0x00052488,recog_sample_scan_end1_2,original-symbol,verified,Shipped i960 symbol table record 279
+0x000524ac,recog_sample_scan_end1_3,original-symbol,verified,Shipped i960 symbol table record 280
+0x000524d8,recog_sample_scan_end2,original-symbol,verified,Shipped i960 symbol table record 281
+0x00052974,rank_check,original-symbol,verified,Shipped i960 symbol table record 282
+0x00052e7c,make_personal_table,original-symbol,verified,Shipped i960 symbol table record 283
+0x00053884,reject_sample,original-symbol,verified,Shipped i960 symbol table record 284
+0x00053cb8,name_entry,original-symbol,verified,Shipped i960 symbol table record 285
+0x0006010c,sram_clear_for_game_assign,original-symbol,verified,Shipped i960 symbol table record 286
+0x00060330,sram_clear_for_coin_assign,original-symbol,verified,Shipped i960 symbol table record 287
+0x00061684,rob_kage_set_flag,original-symbol,verified,Shipped i960 symbol table record 288
+0x00061b88,rob_kage_disp_outside,original-symbol,verified,Shipped i960 symbol table record 289
+0x00062fac,hat_off_disp,original-symbol,verified,Shipped i960 symbol table record 290
+0x000640f4,osage_init,original-symbol,verified,Shipped i960 symbol table record 291; supersedes provisional name task_osage
+0x0006428c,osage_dsp,original-symbol,verified,Shipped i960 symbol table record 292
+0x00064864,os_set_matrix,original-symbol,verified,Shipped i960 symbol table record 293
+0x00064ca0,os_set_tsukene,original-symbol,verified,Shipped i960 symbol table record 294
+0x00064e5c,os_set_coli,original-symbol,verified,Shipped i960 symbol table record 295
+0x000651bc,os_set_osage,original-symbol,verified,Shipped i960 symbol table record 296
+0x00065318,os_set_etc,original-symbol,verified,Shipped i960 symbol table record 297
+0x00065384,osage_copro,original-symbol,verified,Shipped i960 symbol table record 298
+0x0006b19c,vic_camera_init,original-symbol,verified,Shipped i960 symbol table record 299
+0x0006ca84,object_control,original-symbol,verified,Shipped i960 symbol table record 300
+0x0006dd4c,check_sram_all,original-symbol,verified,Shipped i960 symbol table record 301
