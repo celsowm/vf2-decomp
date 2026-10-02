@@ -1,5 +1,20 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0701 player corridor: nonzero entry normalized, three candidate fields added
+
+Driving admitted mask `0x59f` at corridor entry `+0x1a4` produces the
+identical 1622/4/4 stream with final `+0x1a4 == 0x200`: the 0x14288
+corridor normalizes nonzero entry state, so frontier item "19ef8
+nonzero-state siblings" is retired as a measured negative on top of
+the v0690 mask-family proof; remaining player frontier is 0x29414
+non-zero, geometry after 0x28780, and physics/hitboxes. A fresh
+pre14288->0x10dcc memory trace adds provisional `field_001c` (4B),
+`field_0804` (4B), `field_0bdc` (1B census) with single-corridor
+provenance, upgrades 0000/01a4/01a8 to RW, and records 01aa
+byte-substructure without changing its width. See
+`decomp/i960/notes/fa_player_19ef8_nonzero_entry_v0701.md` and
+`decomp/i960/notes/fa_player_corridor_structs_v0701.md`.
+
 ## v0700 `fa_coli` bilateral 6/6 admitted; `field_0821` matrix fully native
 
 The last `field_0821` gap is closed: bilateral (6,6) is native with

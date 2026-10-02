@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Player corridor scouting + candidate fields (v0701): nonzero entry
+  mask 0x59f takes the identical 1622/4/4 corridor (entry state
+  normalized; frontier item retired as measured negative), and a fresh
+  pre14288 memory trace adds provisional fighter fields 001c/0804/0bdc,
+  upgrades 0000/01a4/01a8 to RW, notes 01aa byte-substructure. Player
+  4505 + planar suites green.
+
 - Admit bilateral `fa_coli` 6/6 (v0700): section-split reference
   (9528/18/19, 2298 regions 20/20, 2404 31/31, non-call 9488) matches
   the native decomposition exactly, so the v0692 fail-closed pin is

@@ -77,6 +77,30 @@
  * corridor-dependent (4B words here vs 2B in v0387); existing widths
  * and field types are unchanged.
  *
+ * v0701 fa_player corridor pre14288 -> 0x10dcc (bases 0x00510980 /
+ * 0x00512980, 5004 memory accesses via infer_structs.py --min-count 5,
+ * see decomp/i960/notes/fa_player_corridor_structs_v0701.md):
+ *   +0x0000 4B RW both bases (was R; +9W at 0x19f0c/0x19f14/0x19f20/
+ *     0x19f28/0x1a3a4 alongside the known 0x146b0 readers)
+ *   +0x01a4 4B RW both bases (was R; +3W, same 0x19f18/0x1a234-family ips)
+ *   +0x0018/+0x0020 4B RW fighter0 (same width/role as v0696, new ips
+ *     0x1791c/0x17axx/0x17bxx game-info-expansion functions)
+ *   +0x001c 4B RW fighter0 NEW (0x1791c/0x17ac0/0x17ac8/0x16568; 0018-column
+ *     neighbor with identical width/role, single-corridor provenance
+ *     like the v0302 single-object fields)
+ *   +0x01a8 2B RW fighter0 (was R; +1W at 0x1a038/0x26ef0-family ips)
+ *   +0x01aa mixed 1B/2B (2x 1B + 10x 2B at 0x1ad84/0x1b318/0x27ce0):
+ *     width stays 2B (header type unchanged); the 1B accesses are
+ *     recorded as byte-substructure evidence, not a width change
+ *   +0x0804 4B RW fighter0 NEW (0x1a23c/0x1a2f0/0x1a318 19ef8-corridor
+ *     readers + 0x28278/0x1b470; single-corridor provenance)
+ *   +0x0bdc 1B RW fighter0 NEW (0x29118 x3, 0x26fac/0x26fe8/0x26ff0;
+ *     census byte, corroborates the v0389 `+0xbdc = 0x20` store)
+ *   +0x0026 2B R fighter0 corroborated (0x16570/0x1664c/0x166d8/0x1690c/
+ *     0x16998/0x16b9c, same width/role as v0351)
+ * Unmatched accesses (4168/5004) are non-fighter traffic (texture,
+ * work RAM, FIFO); the fighter window attribution is unchanged.
+ *
  * The window 0x2000 covers all above (max offset 0x1200).
  * Field names remain field_XXXX until independent behavioral proof
  * assigns semantic names (health, animation_state, etc. are forbidden
@@ -89,6 +113,7 @@
 #define VF2_FIGHTER_OFF_0000 0x0000u
 #define VF2_FIGHTER_OFF_0004 0x0004u
 #define VF2_FIGHTER_OFF_0018 0x0018u
+#define VF2_FIGHTER_OFF_001C 0x001cu
 #define VF2_FIGHTER_OFF_0020 0x0020u
 #define VF2_FIGHTER_OFF_0026 0x0026u
 #define VF2_FIGHTER_OFF_0084 0x0084u
@@ -110,10 +135,12 @@
 #define VF2_FIGHTER_OFF_064C 0x064cu
 #define VF2_FIGHTER_OFF_0650 0x0650u
 #define VF2_FIGHTER_OFF_06DC 0x06dcu
+#define VF2_FIGHTER_OFF_0804 0x0804u
 #define VF2_FIGHTER_OFF_0808 0x0808u
 #define VF2_FIGHTER_OFF_0820 0x0820u
 #define VF2_FIGHTER_OFF_0821 0x0821u
 #define VF2_FIGHTER_OFF_0844 0x0844u
+#define VF2_FIGHTER_OFF_0BDC 0x0bdcu
 #define VF2_FIGHTER_OFF_0C50 0x0c50u
 #define VF2_FIGHTER_OFF_0D00 0x0d00u
 #define VF2_FIGHTER_OFF_0D04 0x0d04u
@@ -125,8 +152,10 @@
 #define VF2_FIGHTER_WIDTH_0000 4u
 #define VF2_FIGHTER_WIDTH_0004 1u
 #define VF2_FIGHTER_WIDTH_0018 4u
+#define VF2_FIGHTER_WIDTH_001C 4u
 #define VF2_FIGHTER_WIDTH_0020 4u
 #define VF2_FIGHTER_WIDTH_0026 2u
+#define VF2_FIGHTER_WIDTH_0804 4u
 #define VF2_FIGHTER_WIDTH_0808 2u
 #define VF2_FIGHTER_WIDTH_0084 4u
 #define VF2_FIGHTER_WIDTH_017C 2u
@@ -150,6 +179,7 @@
 #define VF2_FIGHTER_WIDTH_0820 1u
 #define VF2_FIGHTER_WIDTH_0821 1u
 #define VF2_FIGHTER_WIDTH_0844 4u
+#define VF2_FIGHTER_WIDTH_0BDC 1u
 #define VF2_FIGHTER_WIDTH_0C50 4u
 #define VF2_FIGHTER_WIDTH_0D00 2u
 #define VF2_FIGHTER_WIDTH_0D04 2u
@@ -164,11 +194,11 @@
  *   branch 0x0002949c depends on fighter0 + 0x1a4 bit 19
  */
 struct vf2_fighter_candidate {
-    uint32_t field_0000;                 /* +0x0000  R 4B */
+    uint32_t field_0000;                 /* +0x0000  RW 4B v0701 */
     uint8_t  field_0004;                 /* +0x0004  R 1B coli slot */
     uint8_t  _pad_0005[0x0018 - 0x0005];
     uint32_t field_0018;                 /* +0x0018  RW 4B v0696 */
-    uint8_t  _pad_001c[0x0020 - 0x001c];
+    uint32_t field_001c;                 /* +0x001c  RW 4B v0701 */
     uint32_t field_0020;                 /* +0x0020  RW 4B v0696 */
     uint8_t  _pad_0024[0x0084 - 0x0024];
     uint32_t field_0084;                 /* +0x0084  R 4B */
@@ -179,8 +209,8 @@ struct vf2_fighter_candidate {
     uint8_t  _pad_018c[0x019F - 0x018c];
     uint8_t  field_019f;                 /* +0x019f  R 1B */
     uint8_t  _pad_01a0[0x01a4 - 0x01a0];
-    uint32_t field_01a4;                 /* +0x01a4  R 4B state/flags */
-    uint16_t field_01a8;                 /* +0x01a8  R 2B */
+    uint32_t field_01a4;                 /* +0x01a4  RW 4B state/flags v0701 */
+    uint16_t field_01a8;                 /* +0x01a8  RW 2B v0701 */
     uint16_t field_01aa;                 /* +0x01aa  R 2B unsigned window */
     uint8_t  _pad_01ac[0x01b1 - 0x01ac];
     uint8_t  field_01b1;                 /* +0x01b1  R 1B type 0/6/8/10 */
@@ -204,14 +234,17 @@ struct vf2_fighter_candidate {
     uint16_t field_0650;                 /* +0x0650  RW 2B v0387 */
     uint8_t  _pad_0652[0x06dc - 0x0652];
     uint16_t field_06dc;                 /* +0x06dc  W 2B coli contact clear */
-    uint8_t  _pad_06de[0x0808 - 0x06de];
+    uint8_t  _pad_06de[0x0804 - 0x06de];
+    uint32_t field_0804;                 /* +0x0804  RW 4B v0701 */
     uint16_t field_0808;                 /* +0x0808  R 2B v0696 */
     uint8_t  _pad_080a[0x0820 - 0x080a];
     uint8_t  field_0820;                 /* +0x0820  R 1B v0696 */
     uint8_t  field_0821;                 /* +0x0821  R 1B coli scan */
     uint8_t  _pad_0822[0x0844 - 0x0822];
     uint32_t field_0844;                 /* +0x0844  R 4B */
-    uint8_t  _pad_0848[0x0c50 - 0x0848];
+    uint8_t  _pad_0848[0x0bdc - 0x0848];
+    uint8_t  field_0bdc;                 /* +0x0bdc  RW 1B census v0701 */
+    uint8_t  _pad_0bdd[0x0c50 - 0x0bdd];
     uint32_t field_0c50;                 /* +0x0c50  W 4B float result */
     uint8_t  _pad_0c54[0x0d00 - 0x0c54];
     uint16_t field_0d00;                 /* +0x0d00  RW 2B v0387 */
@@ -227,6 +260,7 @@ struct vf2_fighter_candidate {
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0000) == 0x0000, "fighter field_0000 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0004) == 0x0004, "fighter field_0004 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0018) == 0x0018, "fighter field_0018 offset");
+_Static_assert(offsetof(struct vf2_fighter_candidate, field_001c) == 0x001c, "fighter field_001c offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0020) == 0x0020, "fighter field_0020 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0084) == 0x0084, "fighter field_0084 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_017c) == 0x017c, "fighter field_017c offset");
@@ -247,10 +281,12 @@ _Static_assert(offsetof(struct vf2_fighter_candidate, field_0644) == 0x0644, "fi
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_064c) == 0x064c, "fighter field_064c offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0650) == 0x0650, "fighter field_0650 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_06dc) == 0x06dc, "fighter field_06dc offset");
+_Static_assert(offsetof(struct vf2_fighter_candidate, field_0804) == 0x0804, "fighter field_0804 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0808) == 0x0808, "fighter field_0808 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0820) == 0x0820, "fighter field_0820 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0821) == 0x0821, "fighter field_0821 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0844) == 0x0844, "fighter field_0844 offset");
+_Static_assert(offsetof(struct vf2_fighter_candidate, field_0bdc) == 0x0bdc, "fighter field_0bdc offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0c50) == 0x0c50, "fighter field_0c50 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0d00) == 0x0d00, "fighter field_0d00 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0d04) == 0x0d04, "fighter field_0d04 offset");
