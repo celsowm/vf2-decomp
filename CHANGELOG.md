@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Decompose the measured `fa_coli` bilateral `field_0821 = 6/6` boundary
+  and pin it fail-closed. Full-trace diff against the admitted 6/0
+  neighbor proves the `9528/18/19` reference (stable across the
+  `field_0822` sweep `{0, 1, 16, 256}`) differs only inside the first
+  `0x22298` call (20-step scan-6 ordering-fail tail vs the 16-step
+  scan-0 quick tail); the shell is instruction-identical. Native counts
+  `9531` (`+2` shell gate scoped to F1 scan 0 plus a `+1`
+  scan-0-child-relative gap) and stays `VF2_ERROR_UNSUPPORTED`, since a
+  differential correction on identical streams would be curve-fitting.
+  Adds the ROM-backed `test_bilateral_66_unsupported` pin (reference
+  measurement plus fail-closed assertion). See
+  `decomp/i960/notes/fa_coli_whole_task_scan821_bilateral66_v0692.md`.
+
 - Recover the measured `fa_coli` whole-task `field_0821 = 6` ordering-fail
   shapes: fighter-0 single live `9389/17/18`, fighter-0 bilateral
   `9524/18/19` and the fighter-1 single live sibling `9389/17/18` now match

@@ -358,6 +358,77 @@ static void test_matrix_case(
     vf2_model2a_shutdown(&nat_m);
 }
 
+/* v0692 measured bilateral 6/6 boundary (fail-closed pin). With both
+ * fighter bit-8 flags set and both field_0821 values at 6, the reference
+ * reaches 0x10dcc at 9528/18/19: the F0-side first 0x22298 call takes the
+ * scan-6 ordering-fail tail (20 steps, 0xffff at fighter0+0x6dc) where the
+ * 6/0 neighbor takes the 16-step scan-0 quick tail. Native counts 9531
+ * for this composition (+2 bilateral shell gate keyed on F1 scan 0, plus
+ * a +1 scan-0-child-relative gap), and 9531 is not a whitelisted triple,
+ * so the shape stays VF2_ERROR_UNSUPPORTED. This pins the reference
+ * measurement and the fail-closed behavior across the same field_0822
+ * sweep the admitted scan-6 shapes cover. */
+static void test_bilateral_66_unsupported(
+    const uint8_t *rom,
+    size_t rs,
+    const uint8_t *data,
+    size_t ds,
+    const vf2_i960_snapshot *source_snapshot,
+    uint16_t f0_822
+)
+{
+    vf2_model2a ref_m = {0};
+    vf2_model2a nat_m = {0};
+    vf2_i960_cpu ref_cpu = {0};
+    vf2_i960_cpu nat_cpu = {0};
+    vf2_hybrid_task_report report = {0};
+    uint64_t ref_ins = 0u;
+    uint64_t ref_calls = 0u;
+    uint64_t ref_rets = 0u;
+    size_t steps = 0u;
+
+    CHECK(vf2_model2a_initialize(&ref_m));
+    CHECK(vf2_model2a_initialize(&nat_m));
+    CHECK(vf2_model2a_attach_main_rom(&ref_m, rom, rs) == VF2_OK);
+    CHECK(vf2_model2a_attach_main_rom(&nat_m, rom, rs) == VF2_OK);
+    CHECK(vf2_model2a_attach_main_data(&ref_m, data, ds) == VF2_OK);
+    CHECK(vf2_model2a_attach_main_data(&nat_m, data, ds) == VF2_OK);
+    CHECK(vf2_i960_snapshot_restore(source_snapshot, &ref_cpu, &ref_m) == VF2_OK);
+    CHECK(vf2_i960_snapshot_restore(source_snapshot, &nat_cpu, &nat_m) == VF2_OK);
+    CHECK(vf2_model2a_attach_main_rom(&ref_m, rom, rs) == VF2_OK);
+    CHECK(vf2_model2a_attach_main_rom(&nat_m, rom, rs) == VF2_OK);
+    CHECK(vf2_model2a_attach_main_data(&ref_m, data, ds) == VF2_OK);
+    CHECK(vf2_model2a_attach_main_data(&nat_m, data, ds) == VF2_OK);
+    CHECK(apply_matrix_case_for_fighters(
+        &ref_m, 0x100u, 0x100u, 0u, 6u, f0_822,
+        0u, 6u, 0u
+    ) == VF2_OK);
+    CHECK(apply_matrix_case_for_fighters(
+        &nat_m, 0x100u, 0x100u, 0u, 6u, f0_822,
+        0u, 6u, 0u
+    ) == VF2_OK);
+
+    while (ref_cpu.ip != 0x00010dcc && steps < 10000u) {
+        CHECK(vf2_i960_step(&ref_cpu, &ref_m, NULL) == VF2_OK);
+        ++steps;
+    }
+    CHECK(ref_cpu.ip == 0x00010dcc);
+    ref_ins = ref_cpu.executed_instructions - source_snapshot->cpu.executed_instructions;
+    ref_calls = ref_cpu.procedure_calls - source_snapshot->cpu.procedure_calls;
+    ref_rets = ref_cpu.procedure_returns - source_snapshot->cpu.procedure_returns;
+
+    CHECK(ref_ins == UINT64_C(9528));
+    CHECK(ref_calls == UINT64_C(18));
+    CHECK(ref_rets == UINT64_C(19));
+
+    CHECK(nat_cpu.ip == 0x000221e8);
+    CHECK(vf2_hybrid_first_dispatch_task_execute(
+        &nat_m, &nat_cpu, nat_cpu.registers[29], &report
+    ) == VF2_ERROR_UNSUPPORTED);
+    vf2_model2a_shutdown(&ref_m);
+    vf2_model2a_shutdown(&nat_m);
+}
+
 static void run_rom(const char *dir){
     uint8_t *rom=NULL,*data=NULL; size_t rs=0,ds=0;
     vf2_i960_snapshot matrix_snapshot;
@@ -451,6 +522,14 @@ static void run_rom(const char *dir){
                 rom, rs, data, ds, &matrix_snapshot,
                 0u, 0x100u, 0u, 0u, 0u,
                 0u, 6u, fields[field]
+            );
+        }
+        /* v0692 measured bilateral 6/6 boundary: reference 9528/18/19,
+         * native stays fail-closed (counts 9531, not whitelisted). */
+        for (size_t field = 0u; field < sizeof(fields) / sizeof(fields[0]); ++field) {
+            test_bilateral_66_unsupported(
+                rom, rs, data, ds, &matrix_snapshot,
+                fields[field]
             );
         }
     }

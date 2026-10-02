@@ -50,6 +50,28 @@ compact predicate that preserves those corrections. The exhaustive-run driver is
 `decomp/i960/tools/validate_game_info_positive_bit6_sweep.py`. See
 `decomp/i960/notes/game_info_18644_positive_bit6_gate_scope_v0689.md`.
 
+## v0692 bilateral 6/6 measured fail-closed attribution
+
+The bilateral `field_0821 = 6/6` shape is now precisely decomposed and
+pinned fail-closed. The reference reaches `0x10dcc` at `9528/18/19`
+across the `field_0822` sweep `{0, 1, 16, 256}`, with the only state
+delta versus the admitted 6/0 neighbor (`9524/18/19`) being
+`fighter0+0x6dc == 0xffff`. Full-trace diff proves the whole-task
+streams are instruction-identical outside the first `0x22298` call:
+call 1 takes the scan-6 ordering-fail tail (20 steps) where 6/0 takes
+the 16-step scan-0 quick tail (`+4`), and call 2 is an identical 20-step
+span in both. Native counts `9531` (`+5` children bodies 18 vs 13 plus
+the `+2` bilateral shell gate keyed on F1 scan 0, against the true `+4`),
+and `9531` is not whitelisted, so the composition returns
+`VF2_ERROR_UNSUPPORTED`. Admitting it would need differential shell
+corrections on trace-identical streams or a joint refit of the scan-0
+child and every admitted scan-0 correction — both rejected. The
+reference measurement and the fail-closed behavior are now pinned by
+`test_bilateral_66_unsupported` (4 sweep cells). Resolving the residual
+`+1` child-relative gap needs an independent trace-proven decomposition
+of the scan-0 quick-tail child against the shell base. See
+`decomp/i960/notes/fa_coli_whole_task_scan821_bilateral66_v0692.md`.
+
 ## v0691 `fa_coli` whole-task `field_0821 = 6` recovered
 
 The v0689 measured scan-6 shapes are now native: `9389/17/18` (fighter-0
