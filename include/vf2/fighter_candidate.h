@@ -254,7 +254,7 @@ struct vf2_fighter_candidate {
     uint8_t  _pad_0652[0x06dc - 0x0652];
     uint16_t field_06dc;                 /* +0x06dc  W 2B coli contact clear */
     uint8_t  _pad_06de[0x0804 - 0x06de];
-    uint32_t field_0804;                 /* +0x0804  RW 4B v0701 */
+    uint32_t field_0804;                 /* +0x0804  RW 4B two-window v0704 */
     uint16_t field_0808;                 /* +0x0808  R 2B v0696 */
     uint8_t  _pad_080a[0x0820 - 0x080a];
     uint8_t  field_0820;                 /* +0x0820  R 1B v0696 */
@@ -262,7 +262,7 @@ struct vf2_fighter_candidate {
     uint8_t  _pad_0822[0x0844 - 0x0822];
     uint32_t field_0844;                 /* +0x0844  R 4B */
     uint8_t  _pad_0848[0x0bdc - 0x0848];
-    uint8_t  field_0bdc;                 /* +0x0bdc  RW 1B census v0701 */
+    uint8_t  field_0bdc;                 /* +0x0bdc  RW 1B census two-window v0704 */
     uint8_t  _pad_0bdd[0x0c50 - 0x0bdd];
     uint32_t field_0c50;                 /* +0x0c50  W 4B float result */
     uint8_t  _pad_0c54[0x0d00 - 0x0c54];
