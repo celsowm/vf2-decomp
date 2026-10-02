@@ -256,6 +256,50 @@ static vf2_status apply_matrix_case_for_fighters(
     return status;
 }
 
+/* v0694 measured per-side scan-821 accounting delta. Whole-task
+ * instruction-trace analysis proves each live side contributes an
+ * additive delta selected by its field_0821 value at the 0x2232c
+ * three-test shortcut (second 0x22298 call region): scans 0/1/3/4 take
+ * the quick tail (+0; scan-3 streams are instruction-identical to
+ * scan-0 on both single sides), scan 2 walks the full 11-step block
+ * (+7), scan 5 skips only the cmpibne-2 test (+6) and scan 6 joins the
+ * block mid-way (+4). Bilateral totals are 9520 plus both sides'
+ * deltas; single-live totals are 9385 plus the active side's delta. */
+static uint64_t coli_scan_821_delta(uint8_t scan)
+{
+    if (scan == 2u) {
+        return UINT64_C(7);
+    }
+    if (scan == 5u) {
+        return UINT64_C(6);
+    }
+    if (scan == 6u) {
+        return UINT64_C(4);
+    }
+    return UINT64_C(0);
+}
+
+/* v0694 native admission boundary for the bilateral scan matrix. The
+ * additive rule is reference-proven for every cell, but native whole-task
+ * accounting is only trace-admitted for compositions where the F0-side
+ * shell corrections apply. Compositions with the opponent-side scan in
+ * {2,6} unless the F0 side is also in {2,6}, and compositions with F0 in
+ * {2,6} but the opponent in {2,5,6}, are pinned fail-closed pending
+ * per-side trace evidence; (6,6) is pinned separately as measured
+ * fail-closed (v0692). */
+static int coli_bilateral_native_supported(uint8_t scan0, uint8_t scan1)
+{
+    const int scan0_special = scan0 == 2u || scan0 == 6u;
+    if ((scan1 == 2u || scan1 == 6u) && !scan0_special) {
+        return 0;
+    }
+    if (scan0_special &&
+        (scan1 == 2u || scan1 == 5u || scan1 == 6u)) {
+        return 0;
+    }
+    return 1;
+}
+
 static void test_matrix_case(
     const uint8_t *rom,
     size_t rs,
@@ -269,7 +313,8 @@ static void test_matrix_case(
     uint16_t f0_822,
     uint32_t f1_804,
     uint8_t f1_821,
-    uint16_t f1_822
+    uint16_t f1_822,
+    int expect_native_ok
 )
 {
     vf2_model2a ref_m = {0};
@@ -285,21 +330,13 @@ static void test_matrix_case(
     uint64_t nat_calls = 0u;
     uint64_t nat_rets = 0u;
     size_t steps = 0u;
-    const uint32_t active_flag = f0_flag != 0u ? f0_flag : f1_flag;
     const uint64_t expected_ins =
         f0_flag == 0u && f1_flag == 0u ? UINT64_C(9214) :
         f0_flag != 0u && f1_flag != 0u ?
-            (f0_821 == 5u && f1_821 == 5u ? UINT64_C(9532) :
-             f0_821 == 2u ? UINT64_C(9527) :
-             f0_821 == 6u ? UINT64_C(9524) :
-             f0_821 == 5u || f1_821 == 5u ? UINT64_C(9526) : UINT64_C(9520)) :
-        (active_flag != 0u &&
-         (f0_flag != 0u ? f0_821 : f1_821) == 2u ? UINT64_C(9392) :
-         active_flag != 0u &&
-         (f0_flag != 0u ? f0_821 : f1_821) == 6u ? UINT64_C(9389) :
-         active_flag != 0u &&
-         (f0_flag != 0u ? f0_821 : f1_821) == 5u
-            ? UINT64_C(9391) : UINT64_C(9385));
+            UINT64_C(9520) + coli_scan_821_delta(f0_821) +
+                coli_scan_821_delta(f1_821) :
+        UINT64_C(9385) + coli_scan_821_delta(
+            f0_flag != 0u ? f0_821 : f1_821);
     const uint64_t expected_calls =
         f0_flag != f1_flag ? UINT64_C(17) : UINT64_C(18);
     const uint64_t expected_rets = expected_calls + UINT64_C(1);
@@ -338,8 +375,6 @@ static void test_matrix_case(
     vf2_status native_status = vf2_hybrid_first_dispatch_task_execute(
         &nat_m, &nat_cpu, nat_cpu.registers[29], &report
     );
-    CHECK(native_status == VF2_OK);
-    CHECK(nat_cpu.ip == 0x00010dcc);
     nat_ins = nat_cpu.executed_instructions - source_snapshot->cpu.executed_instructions;
     nat_calls = nat_cpu.procedure_calls - source_snapshot->cpu.procedure_calls;
     nat_rets = nat_cpu.procedure_returns - source_snapshot->cpu.procedure_returns;
@@ -347,13 +382,22 @@ static void test_matrix_case(
     CHECK(ref_ins == expected_ins);
     CHECK(ref_calls == expected_calls);
     CHECK(ref_rets == expected_rets);
-    CHECK(nat_ins == ref_ins);
-    CHECK(nat_calls == ref_calls);
-    CHECK(nat_rets == ref_rets);
-    CHECK(vf2_i960_compare_live_state(
-        &ref_cpu, &ref_m, &nat_cpu, &nat_m, &diff
-    ) == VF2_OK);
-    CHECK(diff.equal);
+    if (expect_native_ok) {
+        CHECK(native_status == VF2_OK);
+        CHECK(nat_cpu.ip == 0x00010dcc);
+        CHECK(nat_ins == ref_ins);
+        CHECK(nat_calls == ref_calls);
+        CHECK(nat_rets == ref_rets);
+        CHECK(vf2_i960_compare_live_state(
+            &ref_cpu, &ref_m, &nat_cpu, &nat_m, &diff
+        ) == VF2_OK);
+        CHECK(diff.equal);
+    } else {
+        /* Measured fail-closed pin: the reference triple is proven by
+         * the additive rule, but the native composition is not yet
+         * trace-admitted, so the dispatch must stay unsupported. */
+        CHECK(native_status == VF2_ERROR_UNSUPPORTED);
+    }
     vf2_model2a_shutdown(&ref_m);
     vf2_model2a_shutdown(&nat_m);
 }
@@ -467,7 +511,7 @@ static void run_rom(const char *dir){
                             rom, rs, data, ds, &matrix_snapshot,
                             f0_flag, f1_flag, f0_804,
                             scans[scan], fields[field],
-                            0u, 0u, 0u
+                            0u, 0u, 0u, 1
                         );
                     }
                 }
@@ -481,7 +525,7 @@ static void run_rom(const char *dir){
                 test_matrix_case(
                     rom, rs, data, ds, &matrix_snapshot,
                     0x100u, 0x100u, 0u, scans[f0_scan], 0u,
-                    0u, scans[f1_scan], 0u
+                    0u, scans[f1_scan], 0u, 1
                 );
             }
         }
@@ -492,12 +536,12 @@ static void run_rom(const char *dir){
             test_matrix_case(
                 rom, rs, data, ds, &matrix_snapshot,
                 0x100u, 0u, 0u, scans[scan], 0u,
-                0u, 0u, 0u
+                0u, 0u, 0u, 1
             );
             test_matrix_case(
                 rom, rs, data, ds, &matrix_snapshot,
                 0x100u, 0x100u, 0u, scans[scan], 0u,
-                0u, 0u, 0u
+                0u, 0u, 0u, 1
             );
         }
     }
@@ -511,17 +555,17 @@ static void run_rom(const char *dir){
             test_matrix_case(
                 rom, rs, data, ds, &matrix_snapshot,
                 0x100u, 0u, 0u, 6u, fields[field],
-                0u, 0u, 0u
+                0u, 0u, 0u, 1
             );
             test_matrix_case(
                 rom, rs, data, ds, &matrix_snapshot,
                 0x100u, 0x100u, 0u, 6u, fields[field],
-                0u, 0u, 0u
+                0u, 0u, 0u, 1
             );
             test_matrix_case(
                 rom, rs, data, ds, &matrix_snapshot,
                 0u, 0x100u, 0u, 0u, 0u,
-                0u, 6u, fields[field]
+                0u, 6u, fields[field], 1
             );
         }
         /* v0692 measured bilateral 6/6 boundary: reference 9528/18/19,
@@ -549,7 +593,7 @@ static void run_rom(const char *dir){
                     test_matrix_case(
                         rom, rs, data, ds, &matrix_snapshot,
                         0x100u, 0x100u, 0u, f0_scans[f0], mix_fields[field],
-                        0u, f1_scans[f1], 0u
+                        0u, f1_scans[f1], 0u, 1
                     );
                 }
             }
@@ -565,11 +609,52 @@ static void run_rom(const char *dir){
                         test_matrix_case(
                             rom, rs, data, ds, &matrix_snapshot,
                             f0_flag, f1_flag, 0u, 0u, 0u,
-                            f1_804, scans[scan], fields[field]
+                            f1_804, scans[scan], fields[field], 1
                         );
                     }
                 }
             }
+        }
+    }
+    {
+        /* v0694 full bilateral scan grid under the measured additive
+         * per-side rule (9520 + delta(F0 scan) + delta(F1 scan), proven
+         * exact for every measured pair; 6/6 stays pinned unsupported by
+         * test_bilateral_66_unsupported). Cells the native side has not
+         * trace-admitted are asserted reference-exact AND fail-closed. */
+        const uint16_t grid_fields[] = {0u, 1u, 16u, 256u};
+        for (uint32_t f0_scan = 0u; f0_scan <= 6u; ++f0_scan) {
+            for (uint32_t f1_scan = 0u; f1_scan <= 6u; ++f1_scan) {
+                if (f0_scan == 6u && f1_scan == 6u) {
+                    continue;
+                }
+                for (size_t field = 0u; field < sizeof(grid_fields) / sizeof(grid_fields[0]); ++field) {
+                    test_matrix_case(
+                        rom, rs, data, ds, &matrix_snapshot,
+                        0x100u, 0x100u, 0u, (uint8_t)f0_scan, grid_fields[field],
+                        0u, (uint8_t)f1_scan, 0u,
+                        coli_bilateral_native_supported(
+                            (uint8_t)f0_scan, (uint8_t)f1_scan
+                        )
+                    );
+                }
+            }
+        }
+        /* v0694 single-live scan-3 witnesses: whole-task traces prove
+         * the streams instruction-identical to scan 0 on both sides
+         * (0 divergent steps), same 9385/17/18 counts, so the native
+         * recovery admits them through the shared scan-0/1/4 gates. */
+        for (size_t field = 0u; field < sizeof(grid_fields) / sizeof(grid_fields[0]); ++field) {
+            test_matrix_case(
+                rom, rs, data, ds, &matrix_snapshot,
+                0x100u, 0u, 0u, 3u, grid_fields[field],
+                0u, 0u, 0u, 1
+            );
+            test_matrix_case(
+                rom, rs, data, ds, &matrix_snapshot,
+                0u, 0x100u, 0u, 0u, 0u,
+                0u, 3u, grid_fields[field], 1
+            );
         }
     }
     vf2_i960_snapshot_destroy(&matrix_snapshot);

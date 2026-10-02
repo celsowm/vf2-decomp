@@ -30626,14 +30626,40 @@ vf2_status vf2_hybrid_coli_23524_execute(
             return VF2_ERROR_UNSUPPORTED;
         }
         bool adjust_g3_scan = false;
+        if (g6 == (UINT32_C(1) << 2u) &&
+            (flags0 & (UINT32_C(1) << 8u)) != 0u &&
+            (flags1 & (UINT32_C(1) << 8u)) != 0u &&
+            field_820 == UINT8_C(0) &&
+            field_820_other == UINT8_C(0) &&
+            ((scan_821_other == UINT8_C(2) &&
+              (scan_821 == UINT8_C(0) || scan_821 == UINT8_C(1) ||
+               scan_821 == UINT8_C(3) || scan_821 == UINT8_C(4))) ||
+             (scan_821 == UINT8_C(6) &&
+              scan_821_other == UINT8_C(5)))) {
+            /* v0694 measured-matrix strictening. The full bilateral
+             * scan sweep proves these compositions must land on the
+             * additive per-side rule totals, but the current shell
+             * accounting produces whitelisted totals one or two
+             * instructions above the reference ((0..4 except 2/6, scan 2)
+             * counts 9528 vs measured 9527; (6,5) counts 9532 vs
+             * measured 9530). Without the missing trace-backed
+             * corrections those totals would be wrongly accepted, so
+             * keep the compositions fail-closed. */
+            return VF2_ERROR_UNSUPPORTED;
+        }
         if (g6 == (UINT32_C(1) << 1u)) {
             if ((flags0 & (UINT32_C(1) << 8u)) != 0u &&
                 (flags1 & (UINT32_C(1) << 8u)) == 0u &&
                 field_820 == UINT8_C(0)) {
                 if (scan_821 == UINT8_C(0) ||
                     scan_821 == UINT8_C(1) ||
+                    scan_821 == UINT8_C(3) ||
                     scan_821 == UINT8_C(4) ||
                     scan_821 == UINT8_C(5)) {
+                    /* v0694: whole-task traces prove the single-live
+                     * scan-3 stream instruction-identical to scan-0
+                     * (0 divergent steps), so the same measured
+                     * correction covers it. */
                     adjust_g3_scan = true;
                 }
             } else if ((flags0 & (UINT32_C(1) << 8u)) == 0u &&
@@ -30654,7 +30680,12 @@ vf2_status vf2_hybrid_coli_23524_execute(
                    field_820 == UINT8_C(0)) {
             if (scan_821 == UINT8_C(0) ||
                 scan_821 == UINT8_C(1) ||
+                scan_821 == UINT8_C(3) ||
                 scan_821 == UINT8_C(4)) {
+                /* v0694: whole-task traces prove the bilateral (3,0)
+                 * stream instruction-identical to (0,0) (0 divergent
+                 * steps), so the same measured correction covers the
+                 * bilateral scan-3 mixes. */
                 adjust_g3_scan = true;
             } else if (scan_821 == UINT8_C(0) &&
                        field_820_other == UINT8_C(0) &&
@@ -30688,12 +30719,13 @@ vf2_status vf2_hybrid_coli_23524_execute(
             (scan_821 == UINT8_C(2) || scan_821 == UINT8_C(6)) &&
             ((g6 == (UINT32_C(1) << 1u) &&
               (flags1 & (UINT32_C(1) << 8u)) == 0u) ||
-             (g6 == (UINT32_C(1) << 2u) &&
-              (flags1 & (UINT32_C(1) << 8u)) != 0u &&
-              field_820_other == UINT8_C(0) &&
-              (scan_821_other == UINT8_C(0) ||
-               scan_821_other == UINT8_C(1) ||
-               scan_821_other == UINT8_C(4))))) {
+              (g6 == (UINT32_C(1) << 2u) &&
+               (flags1 & (UINT32_C(1) << 8u)) != 0u &&
+               field_820_other == UINT8_C(0) &&
+               (scan_821_other == UINT8_C(0) ||
+                scan_821_other == UINT8_C(1) ||
+                scan_821_other == UINT8_C(3) ||
+                scan_821_other == UINT8_C(4))))) {
             /* Measured scan-2 witnesses remove two accounting instructions
              * in the single-live and F0-scan-2 bilateral shapes. v0691:
              * whole-task traces prove the reference executes identical
@@ -30703,7 +30735,10 @@ vf2_status vf2_hybrid_coli_23524_execute(
              * v0693: whole-task traces prove the bilateral (2/6,1) and
              * (2/6,4) reference streams instruction-identical to (2/6,0)
              * (`cmpibne 2` takes for F1 scans 0, 1 and 4 alike), so the
-             * same measured correction covers those mixes (9527/9524). */
+             * same measured correction covers those mixes (9527/9524).
+             * v0694: whole-task traces prove the bilateral (2,3) stream
+             * instruction-identical to (2,0) (0 divergent steps), so the
+             * same measured correction covers the scan-3 mixes. */
             body -= UINT64_C(2);
         }
     }

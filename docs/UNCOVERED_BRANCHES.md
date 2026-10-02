@@ -1,5 +1,25 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0694 `fa_coli` whole-task additive scan-821 rule; scan-3 mixes recovered
+
+The complete bilateral `field_0821` scan matrix is measured (48 pairs x
+`field_0822` sweep `{0, 1, 16, 256}` plus single-live witnesses, 502
+cells) and fits the additive per-side rule `9520 + delta(F0) +
+delta(F1)` with `delta = {2: +7, 5: +6, 6: +4, 0/1/3/4: +0}`
+(single-live `9385 + delta(active)`) with zero misses. Whole-task traces
+prove scan-3 streams instruction-identical to scan-0 on both sides (0
+divergent steps) and `(2,3)` identical to `(2,0)`, so the measured
+quick-tail and F0-special shell gates now admit scan 3: the bilateral
+scan-3 mixes, `(2,3)`/`(6,3)` and the single-live scan-3 witnesses are
+native with full live-state equality. Two compositions whose previous
+accounting produced wrong-but-whitelisted totals (F1 scan 2 with F0 in
+`{0,1,3,4}`; `(6,5)`) are now explicitly fail-closed; the remaining
+unproven compositions — opponent-side scan-2/6 mixes without an F0-side
+special, the double-special mixes, and `(6,6)` (v0692) — are pinned with
+exact rule-derived reference counts AND `VF2_ERROR_UNSUPPORTED` pending
+trace-backed opponent-side corrections. See
+`decomp/i960/notes/fa_coli_whole_task_scan821_additive_v0694.md`.
+
 ## model2recomp-guided interrupt acknowledge 0x00000d30
 
 The external static lifter identified 0x00000d30 as an independent interrupt

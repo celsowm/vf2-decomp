@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- Measure the complete `fa_coli` bilateral `field_0821` scan matrix
+  (48 pairs x `field_0822` sweep `{0, 1, 16, 256}` plus single-live
+  scan-3 witnesses, 502 cells): the whole matrix fits the additive
+  per-side rule `9520 + delta(F0) + delta(F1)` with
+  `delta = {2: +7, 5: +6, 6: +4, 0/1/3/4: +0}` (single-live
+  `9385 + delta(active)`) with zero misses, replacing the per-shape hand
+  table in the differential test. Whole-task trace diffs prove scan-3
+  streams instruction-identical to scan-0 on both sides (0 divergent
+  steps) and the bilateral (2,3) stream identical to (2,0), so the
+  measured quick-tail `-1` and F0-special `-2` shell gates now admit
+  scan 3; the bilateral scan-3 mixes, (2,3)/(6,3) and both single-live
+  scan-3 witnesses now match the ROM with complete live-state equality
+  through `0x10dcc`. Two compositions whose previous accounting produced
+  wrong-but-whitelisted totals (F1 scan 2 with F0 scan in {0,1,3,4}, and
+  (6,5)) are now explicitly fail-closed, and every remaining unproven
+  composition is pinned reference-exact AND `VF2_ERROR_UNSUPPORTED`,
+  including the (6,6) v0692 pin. See
+  `decomp/i960/notes/fa_coli_whole_task_scan821_additive_v0694.md`.
+
 - Recover the measured `fa_coli` bilateral scan mixes with fighter-0
   scan 2/6 and fighter-1 scan 1/4. Whole-task trace diffs prove each
   reference stream instruction-identical to its F1-scan-0 counterpart,
