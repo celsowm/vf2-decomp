@@ -98,8 +98,27 @@
  *     census byte, corroborates the v0389 `+0xbdc = 0x20` store)
  *   +0x0026 2B R fighter0 corroborated (0x16570/0x1664c/0x166d8/0x1690c/
  *     0x16998/0x16b9c, same width/role as v0351)
- * Unmatched accesses (4168/5004) are non-fighter traffic (texture,
- * work RAM, FIFO); the fighter window attribution is unchanged.
+ * v0702 bilateral promotion (see
+ * decomp/i960/notes/fighter_candidate_dual_base_v0702.md):
+ *   +0x001c dual-base: coli corridor ip 0x239bc reads 4B from BOTH
+ *     fighters (1x each, symmetric), plus v0701 player-corridor RW.
+ *     Full dual-base status; comment updated below.
+ *   +0x01a8 dual-base corroborated: coli ips 0x22410/0x23398/0x2339c
+ *     (both bases, 2B R) alongside the v0701 player-corridor RW.
+ *   +0x01a4 dual-base in a third window: coli midbody->tail
+ *     (out/coli-midbody-22210.vf2snap -> 0x10dcc, 56 steps) reads 4B
+ *     from both fighters at 0x2229c/0x222a0/0x2241c.
+ *   +0x0804/+0x0bdc stay single-corridor (player only): the 0x14288
+ *     trajectory issues a SINGLE 0x19ef8 pass (F0 deep, F1 shallow --
+ *     F1 mask 0 vs 0x59f yields byte-identical streams); F1's deep pass
+ *     needs a frame advance with no established probe workflow.
+ * Earlier bilateral whole-task fa_coli trace (out/trace-both.jsonl ->
+ * out/fields-both.json, 144 candidate fields, git-ignored raw data)
+ * independently shows dual-base +0x0000/+0x0004/+0x0018/+0x0020/
+ * +0x01a4/+0x01a8/+0x01aa/+0x001c, consistent with the header below.
+ * Unmatched accesses in the v0701 trace (4168/5004) are non-fighter
+ * traffic (texture, work RAM, FIFO); the fighter window attribution
+ * is unchanged.
  *
  * The window 0x2000 covers all above (max offset 0x1200).
  * Field names remain field_XXXX until independent behavioral proof
@@ -198,7 +217,7 @@ struct vf2_fighter_candidate {
     uint8_t  field_0004;                 /* +0x0004  R 1B coli slot */
     uint8_t  _pad_0005[0x0018 - 0x0005];
     uint32_t field_0018;                 /* +0x0018  RW 4B v0696 */
-    uint32_t field_001c;                 /* +0x001c  RW 4B v0701 */
+    uint32_t field_001c;                 /* +0x001c  RW 4B dual-base v0702 */
     uint32_t field_0020;                 /* +0x0020  RW 4B v0696 */
     uint8_t  _pad_0024[0x0084 - 0x0024];
     uint32_t field_0084;                 /* +0x0084  R 4B */
@@ -210,7 +229,7 @@ struct vf2_fighter_candidate {
     uint8_t  field_019f;                 /* +0x019f  R 1B */
     uint8_t  _pad_01a0[0x01a4 - 0x01a0];
     uint32_t field_01a4;                 /* +0x01a4  RW 4B state/flags v0701 */
-    uint16_t field_01a8;                 /* +0x01a8  RW 2B v0701 */
+    uint16_t field_01a8;                 /* +0x01a8  RW 2B dual-base v0702 */
     uint16_t field_01aa;                 /* +0x01aa  R 2B unsigned window */
     uint8_t  _pad_01ac[0x01b1 - 0x01ac];
     uint8_t  field_01b1;                 /* +0x01b1  R 1B type 0/6/8/10 */
