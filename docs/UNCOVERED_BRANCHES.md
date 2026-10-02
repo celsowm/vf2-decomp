@@ -1,5 +1,31 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0698 `fa_coli` scan-821 joint refit landed; F1 scan-2 admitted, 6/6 still pinned
+
+The v0696/v0697 joint refit is implemented and proven. The scan-0
+fall-through `0x22298` child is trace-exact (body 14, 15 in-call
+including `ret`), the spurious single-live +1 dispatch compensation is
+removed, and the both-live +2 is removed for the measured
+`field_0820 == 0` matrix (kept narrowly for `field_0820 != 0`
+bilaterals, whose distinct 0x22404/shell structure the matrix battery
+does not cover — the test_one `both` pin keeps its proven +2). Every
+shell gate is re-derived from section-split reference data under the
+measured invariant that everything-except-2298-calls is
+scan-independent (9361 single / 9488 both): the bilateral F0 adjust now
+covers scans {0,1,3,4,5} uniformly, the bilateral F1-special -1 is
+gone, the F0-special -2 is relaxed to -1, the single-live F1 scan-5/6
+adjust is gone, and the F0-single-5 -1 lives in the shell (its old
+midbody pair refuted by scan-identical 0x22404 regions) instead of the
+midbody. The midbody long-resolver `+1 when c_calls != 0` is removed
+(the measured dispatch is cmpobe/cmpobe/mov/mov, already covered).
+Single-live F1 scan 2 is admitted and lands its measured 9392/17/18
+with complete live-state equality; bilateral 6/6 stays refused at the
+admission gate (unmodeled 20-step scan-6 ordering-fail tail). The
+`field_0820 != 0` world (native 2404a body-35/40 shapes) is explicitly
+out of scope and keeps status quo ante pending its own section
+battery. See
+`decomp/i960/notes/fa_coli_whole_task_scan821_joint_refit_v0698.md`.
+
 ## v0696 `fa_coli` single-live inactive scans recovered; F1 scan-2 pinned fail-closed
 
 The inactive fighter's `field_0821` is fully inert in single-live

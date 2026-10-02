@@ -680,13 +680,13 @@ static void run_rom(const char *dir){
                     0x100u, 0u, 0u, 2u, 0u,
                     0u, inactive_pair[k], 0u, 1
                 );
-                /* v0696 F1-live scan-2 fail-closed pin: reference
-                 * 9392/17/18, native 9393 (exact children, scan-0-shape
-                 * rest compensation kept). Pending the joint refit. */
+                /* v0697 joint refit: F1-live scan-2 admitted (reference
+                 * 9392/17/18, native exact with the trace-exact scan-0
+                 * child and no dispatch compensation). */
                 test_matrix_case(
                     rom, rs, data, ds, &matrix_snapshot,
                     0u, 0x100u, 0u, inactive_pair[k], 0u,
-                    0u, 2u, 0u, 0
+                    0u, 2u, 0u, 1
                 );
             }
             {

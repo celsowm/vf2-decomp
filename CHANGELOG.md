@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- Land the `fa_coli` scan-821 joint refit (v0698): the scan-0
+  fall-through `0x22298` child is trace-exact (body 14), the spurious
+  single-live +1 dispatch compensation is removed, the both-live +2 is
+  removed for the measured `field_0820 == 0` matrix (preserved narrowly
+  for `field_0820 != 0` bilaterals such as the test_one `both` pin),
+  and every shell gate is re-derived from section-split reference data
+  (bilateral F0 adjust covers {0,1,3,4,5}, bilateral F1-special -1 gone,
+  F0-special -2 relaxed to -1, single-live F1 scan-5/6 adjust gone,
+  F0-single-5 -1 moved from midbody to shell, midbody long-resolver
+  `+1 when c_calls != 0` removed). Single-live F1 scan 2 is admitted at
+  its measured 9392/17/18; bilateral 6/6 stays fail-closed. The full
+  whole-task matrix, all `coli` differentials, the native runtime and
+  the dispatch/scheduler/task-recovery suites pass. The
+  `field_0820 != 0` world is documented as the next section-battery
+  slice. See
+  `decomp/i960/notes/fa_coli_whole_task_scan821_joint_refit_v0698.md`.
+
 - Recover the `fa_coli` single-live inactive-scan matrix (v0696): the
   inactive fighter's `field_0821` is reference-inert in every
   single-live shape, so all measured cells match the ROM with complete

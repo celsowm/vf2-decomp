@@ -23144,7 +23144,9 @@ vf2_status vf2_hybrid_coli_contact_query_execute(
 
 /* Body-only recovery of 0x22298: no CPU frame, no ret accounting.
  * Warm (bit 8 clear): body 6. Sibling (bit 8 and bit 1 set): body 7.
- * Live v0351 (bit 8 set, bit 1 clear + measured gates): body 13.
+ * Live v0351 (bit 8 set, bit 1 clear + measured gates): v0497 bit-14-set
+ * zero-mask tail body 13; scan-0/1/3/4 fall-through tail body 14
+ * (v0697: 14 pre-ret insns measured).
  * The measured single-live and both-live scan-5 ordering misses store 0xffff
  * with body 20.
  * All accepted shapes store their measured result into g7+0x6dc; other
@@ -23441,7 +23443,13 @@ static vf2_status coli_22298_body(
             scan_821 == UINT8_C(6)) {
             return VF2_ERROR_UNSUPPORTED;
         }
-        *body_out = UINT64_C(13);
+        /* v0697 joint refit: the v0696 6/0 call-1 listing measures 14
+         * pre-ret insns on this fall-through (bbc14 taken, ldos,
+         * cmpobne, bbs14, cmpibe 6, cmpibe 5, cmpibne 2 taken, stos);
+         * 15 in-call including ret, matching the v0697 section battery
+         * (scan-0/1/3/4 tail region 16). The old 13 fitted the
+         * single-live +1 dispatch compensation, now removed. */
+        *body_out = UINT64_C(14);
     }
     if (hybrid_write_u16(
             machine, g7 + VF2_COLI_BITMASK_RESULT_OFFSET, 0u) != VF2_OK) {
@@ -28668,11 +28676,13 @@ vf2_status vf2_hybrid_coli_midbody_tail_execute(
         }
         body = UINT64_C(16) + child_2298_1 + 1u + child_2298_2 + 1u +
                child_22404_1 + 1u + child_22404_2 + 1u + c225 + 1u;
-        /* Live long is 371, compact is 144; the extra 1 accounts for
-         * the cmpobe/bbs dispatch that selects the long resolver. */
-        if (c_calls != 0u) {
-            body += UINT64_C(1);
-        }
+        /* v0697 joint refit: REMOVED the old `+1 when c_calls != 0`
+         * (was below). The v0383 reference trace selects the long
+         * resolver with a cmpobe/cmpobe/mov/mov dispatch (recs
+         * 125-128, no bbs) already covered by the prefix; the extra
+         * +1 compensated the scan-0 child undercount (13 vs 14
+         * pre-ret), now corrected at the child. The compact
+         * (c_calls == 0) shapes never took it. */
         if (c_cc != VF2_I960_COMPARE_NONE) {
             hybrid_set_compare_result(cpu, c_cc);
         }
@@ -28690,6 +28700,14 @@ vf2_status vf2_hybrid_coli_midbody_tail_execute(
     cpu->registers[VF2_I960_G0_REGISTER + 7u] = fighter1;
     cpu->registers[VF2_I960_G0_REGISTER + 8u] = fighter0;
 
+    /* v0697 joint refit: the F0-live-single scan-5 midbody -1 is gone
+     * (was below). The v0697 section battery measures the single-live
+     * 0x22404 regions scan-identical (31/15 for scans 0 and 5 alike),
+     * so no alternate 0x22404 scan path removes a parent instruction;
+     * the old -1 compensated the removed single-live dispatch +1. The
+     * -1 this shape genuinely needs lives in the 0x23524 adjust gate,
+     * matching the measured scan-identical reference shells. The reads
+     * stay (fail-closed input validation, unchanged). */
     {
         uint32_t flags0 = 0u;
         uint32_t flags1 = 0u;
@@ -28708,14 +28726,10 @@ vf2_status vf2_hybrid_coli_midbody_tail_execute(
                 VF2_OK) {
             return VF2_ERROR_UNSUPPORTED;
         }
-        if ((flags0 & (UINT32_C(1) << 8u)) != 0u &&
-            (flags1 & (UINT32_C(1) << 8u)) == 0u &&
-            field_820 == UINT8_C(0) && scan_821 == UINT8_C(5)) {
-            /* The alternate 0x22404 scan path removes one parent
-             * instruction while the 0x22298 child gains seven; the
-             * measured tail total remains equal to the scan-0 sibling. */
-            body -= UINT64_C(1);
-        }
+        (void)flags0;
+        (void)flags1;
+        (void)field_820;
+        (void)scan_821;
     }
 
     return hybrid_complete_procedure(machine, cpu, body, 4u, 4u);
@@ -30643,6 +30657,15 @@ vf2_status vf2_hybrid_coli_23524_execute(
             return VF2_ERROR_UNSUPPORTED;
         }
         if (g6 == (UINT32_C(1) << 1u)) {
+            /* v0697 joint refit: only the F0-live scan-0/1/3/4 shapes
+             * take the -1 below. F0-live scan 5 needs none (its 0x22298
+             * ordering-fail child is trace-exact at body 20 and the
+             * single-live non-call section is measured scan-independent
+             * at 9361). F1-live singles need none for the same reason
+             * (scan-5 region 22, scan-6 region 20, scan-2 region 23):
+             * the old F1 scan-5/6 -1 and the F1 scan-2 fail-closed pin
+             * were compensating the scan-0 child undercount and the
+             * spurious single-live +1, both now corrected. */
             if ((flags0 & (UINT32_C(1) << 8u)) != 0u &&
                 (flags1 & (UINT32_C(1) << 8u)) == 0u &&
                 field_820 == UINT8_C(0)) {
@@ -30654,38 +30677,14 @@ vf2_status vf2_hybrid_coli_23524_execute(
                     /* v0694: whole-task traces prove the single-live
                      * scan-3 stream instruction-identical to scan-0
                      * (0 divergent steps), so the same measured
-                     * correction covers it. */
+                     * correction covers it. v0697 joint refit: scan 5
+                     * stays in this gate. Its 0x22298 ordering-fail
+                     * child is trace-exact (body 20, region 22) and the
+                     * reference shell is measured scan-identical, so
+                     * the -1 belongs here in the shell; the removed
+                     * midbody -1 below was its coupled compensation. */
                     adjust_g3_scan = true;
                 }
-            } else if ((flags0 & (UINT32_C(1) << 8u)) == 0u &&
-                       (flags1 & (UINT32_C(1) << 8u)) != 0u &&
-                       field_820_other == UINT8_C(0) &&
-                       (scan_821_other == UINT8_C(5) ||
-                        scan_821_other == UINT8_C(6))) {
-                /* v0684 measured the F1 scan-5 witness; v0691 whole-task
-                 * traces prove the F1 scan-6 single shape runs an
-                 * instruction-identical shell stream (its only delta is
-                 * inside the first 0x22298 call), so the same measured
-                 * correction covers it (9389/17/18). */
-                adjust_g3_scan = true;
-            } else if ((flags0 & (UINT32_C(1) << 8u)) == 0u &&
-                       (flags1 & (UINT32_C(1) << 8u)) != 0u &&
-                       field_820_other == UINT8_C(0) &&
-                       scan_821_other == UINT8_C(2)) {
-                /* v0696 measured single-live F1 scan-2 fail-closed pin.
-                 * The reference reaches 0x10dcc at 9392/17/18, but the
-                 * native path counts 9393: its midbody children are
-                 * reference-exact (21+6) while the shell keeps the
-                 * scan-0-shape +1 rest compensation that the scan-0
-                 * fall-through child undercount (13 vs 14 pre-ret
-                 * insns) requires. A shell -1 here would be
-                 * curve-fitting on trace-identical shells (9298 both);
-                 * the honest fix is the joint refit (child 13->14,
-                 * single +1->0, rebalanced special gates, full matrix
-                 * re-proof). Refuse explicitly so the whitelisted 9393
-                 * total of the admitted F0-single-2 shape cannot accept
-                 * this composition. */
-                return VF2_ERROR_UNSUPPORTED;
             }
         } else if (g6 == (UINT32_C(1) << 2u) &&
                    (flags0 & (UINT32_C(1) << 8u)) != 0u &&
@@ -30694,44 +30693,36 @@ vf2_status vf2_hybrid_coli_23524_execute(
             if (scan_821 == UINT8_C(0) ||
                 scan_821 == UINT8_C(1) ||
                 scan_821 == UINT8_C(3) ||
-                scan_821 == UINT8_C(4)) {
+                scan_821 == UINT8_C(4) ||
+                scan_821 == UINT8_C(5)) {
                 /* v0694: whole-task traces prove the bilateral (3,0)
                  * stream instruction-identical to (0,0) (0 divergent
                  * steps), so the same measured correction covers the
-                 * bilateral scan-3 mixes. */
-                adjust_g3_scan = true;
-            } else if (scan_821 == UINT8_C(0) &&
-                       field_820_other == UINT8_C(0) &&
-                       scan_821_other == UINT8_C(5)) {
+                 * bilateral scan-3 mixes. v0697 joint refit: scan 5
+                 * joins this set (native shell body measured uniform
+                 * 9409 across F0 scans, so every bilateral needs the
+                 * same -1; the old F1-special -1 and both-live +2 that
+                 * covered (5,2)/(5,5)/(5,6) compensated the scan-0
+                 * child undercount, now corrected at the child). */
                 adjust_g3_scan = true;
             }
         }
         if (adjust_g3_scan) {
             /* Measured generic g3-scan shells omit one accounting
-             * instruction relative to the shared candidate.  The single-live
-             * scan-0/1/4/5 and bilateral scan-0/1/4 cases are pinned by the
-             * complete whole-task sweeps; the measured bilateral F1 scan-5
-             * witness has its extra correction immediately below. */
+             * instruction relative to the shared candidate. The
+             * single-live F0 scan-0/1/3/4 and bilateral F0
+             * scan-0/1/3/4/5 cases are pinned by the complete
+             * whole-task sweeps (v0697: native shell body uniform
+             * 9408/9297 after this correction, matching the measured
+             * scan-independent reference shells). */
             body -= UINT64_C(1);
         }
-        if (g6 == (UINT32_C(1) << 2u) &&
-            (flags0 & (UINT32_C(1) << 8u)) != 0u &&
-            (flags1 & (UINT32_C(1) << 8u)) != 0u &&
-            field_820 == UINT8_C(0) &&
-            field_820_other == UINT8_C(0) &&
-            (scan_821_other == UINT8_C(2) ||
-             scan_821_other == UINT8_C(5) ||
-             scan_821_other == UINT8_C(6))) {
-            /* Every measured bilateral F1 scan-5 witness removes one further
-             * instruction; the ordinary F0 correction, when applicable, is
-             * kept separately above. v0695: whole-task traces prove the
-             * bilateral F1 scan-2 and scan-6 shells instruction-identical to
-             * the admitted F1 scan-5 witness outside the first 0x22298 call
-             * (only the measured 0x2232c three-test shortcut block differs:
-             * +1 step for scan 2, -2 for scan 6), so the same measured
-             * correction covers them. */
-            body -= UINT64_C(1);
-        }
+        /* v0697 joint refit: REMOVED the bilateral F1 scan-{2,5,6} -1
+         * (was below). It compensated the scan-0 child undercount on the
+         * F0-side plain call plus the spurious both-live +2; with the
+         * child trace-exact and the dispatch removed, the v0697 battery
+         * (bilateral non-call section scan-independent at 9488) leaves
+         * it no measured basis. */
         if ((g6 == (UINT32_C(1) << 1u) ||
              g6 == (UINT32_C(1) << 2u)) &&
             (flags0 & (UINT32_C(1) << 8u)) != 0u &&
@@ -30742,8 +30733,12 @@ vf2_status vf2_hybrid_coli_23524_execute(
               (g6 == (UINT32_C(1) << 2u) &&
                (flags1 & (UINT32_C(1) << 8u)) != 0u &&
                field_820_other == UINT8_C(0)))) {
-            /* Measured scan-2 witnesses remove two accounting instructions
-             * in the single-live and F0-scan-2 bilateral shapes. v0691:
+            /* Measured scan-2 witnesses remove one accounting instruction
+             * in the single-live and F0-scan-2 bilateral shapes. v0697
+             * joint refit: was -2 (one real shell correction plus one
+             * scan-0-child/dispatch compensation); the compensation is
+             * gone with the trace-exact child and removed dispatch, so
+             * only the real -1 remains. v0691:
              * whole-task traces prove the reference executes identical
              * instruction streams for fighter-0 scans 2 and 6 outside the
              * 0x2232c three-test shortcut, so the same measured correction
@@ -30761,7 +30756,7 @@ vf2_status vf2_hybrid_coli_23524_execute(
              * call, where the measured opponent-scan bodies apply, so the
              * same measured correction now covers every F1 scan value.
              * Bilateral 6/6 is refused at the admission gate above. */
-            body -= UINT64_C(2);
+            body -= UINT64_C(1);
         }
     }
 
@@ -30800,30 +30795,42 @@ static vf2_status hybrid_execute_coli_body(
     }
     if (status == VF2_OK) {
         hybrid_set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
-        /* Live single/both need one/two extra counted compares that warm
-         * does not. The midbody tail's final compare is part of its 56
-         * for warm, but live single's 86 and both's 87 include an extra
-         * bbs/bbc dispatch (1 for single, 2 for both) that sets the final
-         * EQUAL. Pin the observed delta. */
+        /* v0697 joint refit: the old single-live +1 is gone (it
+         * compensated the scan-0 fall-through child undercount, now
+         * trace-exact; dispatch tails identical across shapes in the
+         * v0697 section battery). The both-live +2 is gone for the
+         * measured field_0820 == 0 matrix (bilateral non-call section
+         * scan-independent at 9488 with trace-exact children) but stays
+         * for field_0820 != 0 bilaterals: the test_one `both` pin
+         * (F0_820 = 1, scans 0/0, reference 9528/18/19) runs a different
+         * 0x22404/shell structure the matrix battery does not cover,
+         * and was proven exact with the +2. Narrower than the old
+         * unconditional +2 (fail-closed-er); the 820 != 0 world keeps
+         * its status quo ante pending its own section-battery slice. */
         uint32_t g6 = cpu->registers[VF2_I960_G0_REGISTER + 6u];
         if (g6 == (UINT32_C(1) << 1u)) {
-            cpu->executed_instructions += UINT64_C(1);
+            /* No extra counted compare on the single-live path. */
         } else if (g6 == (UINT32_C(1) << 2u)) {
             uint32_t fighter0 = 0u;
-            uint8_t scan_821 = 0u;
+            uint32_t fighter1 = 0u;
             uint8_t field_820 = 0u;
+            uint8_t field_820_other = 0u;
             if (vf2_model2a_read_u32(
                     machine, VF2_COLI_SHELL_FIGHTER_PTR0, &fighter0) !=
                     VF2_OK ||
-                hybrid_read_u8(
-                    machine, fighter0 + UINT32_C(0x821), &scan_821) !=
+                vf2_model2a_read_u32(
+                    machine, VF2_COLI_SHELL_FIGHTER_PTR1, &fighter1) !=
                     VF2_OK ||
                 hybrid_read_u8(
                     machine, fighter0 + UINT32_C(0x820), &field_820) !=
-                    VF2_OK) {
+                    VF2_OK ||
+                hybrid_read_u8(
+                    machine, fighter1 + UINT32_C(0x820),
+                    &field_820_other) != VF2_OK) {
                 return VF2_ERROR_UNSUPPORTED;
             }
-            if (scan_821 != UINT8_C(5) || field_820 != UINT8_C(0)) {
+            if (field_820 != UINT8_C(0) ||
+                field_820_other != UINT8_C(0)) {
                 cpu->executed_instructions += UINT64_C(2);
             }
         }

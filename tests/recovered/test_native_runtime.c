@@ -2557,7 +2557,9 @@ static void test_coli_bitmask_22298_early_path(void) {
     CHECK(read_test_u16(&machine, fighter0 + UINT32_C(0x6dc)) == UINT16_C(0));
 
     /* v0351 live sibling: bit 8 set, bit 1 clear, g7 bit14 clear,
-     * g7+0x61c==0, g8+0x821 not in {2,5,6} → body 13 + ret = 14. */
+     * g7+0x61c==0, g8+0x821 not in {2,5,6} → body 14 + ret = 15
+     * (v0696/v0697: the 6/0 call-1 reference listing measures 14
+     * pre-ret insns on this fall-through). */
     CHECK(vf2_model2a_write(&machine, fighter0 + UINT32_C(0x6dc), poison,
                             sizeof(poison)) == VF2_OK);
     CHECK(vf2_model2a_write_u32(&machine, fighter1 + UINT32_C(0x1a4),
@@ -2579,7 +2581,7 @@ static void test_coli_bitmask_22298_early_path(void) {
     start_returns = cpu.procedure_returns;
     CHECK(vf2_hybrid_coli_bitmask_execute(&machine, &cpu) == VF2_OK);
     CHECK(cpu.ip == UINT32_C(0x00022214));
-    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(14));
+    CHECK(cpu.executed_instructions - start_instructions == UINT64_C(15));
     CHECK(cpu.procedure_returns - start_returns == UINT64_C(1));
     CHECK(read_test_u16(&machine, fighter0 + UINT32_C(0x6dc)) == UINT16_C(0));
 
