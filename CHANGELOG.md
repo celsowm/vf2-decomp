@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Recover the measured `fa_coli` bilateral scan mixes with fighter-0
+  scan 2/6 and fighter-1 scan 1/4. Whole-task trace diffs prove each
+  reference stream instruction-identical to its F1-scan-0 counterpart,
+  so the measured bilateral `-2` shell correction gate now admits F1
+  scans 1 and 4 with no new constant. All 16 `field_0822` sweep cells
+  match the ROM with complete live-state equality through `0x10dcc`
+  (`9527/18/19` for F0 scan 2, `9524/18/19` for F0 scan 6). Other
+  compositions remain fail-closed. See
+  `decomp/i960/notes/fa_coli_whole_task_scan821_mixes_v0693.md`.
+
 - Decompose the measured `fa_coli` bilateral `field_0821 = 6/6` boundary
   and pin it fail-closed. Full-trace diff against the admitted 6/0
   neighbor proves the `9528/18/19` reference (stable across the

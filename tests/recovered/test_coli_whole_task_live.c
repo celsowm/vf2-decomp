@@ -533,6 +533,28 @@ static void run_rom(const char *dir){
             );
         }
     }
+    {
+        /* v0693 measured bilateral scan mixes: F0 scan 2/6 with F1 scan
+         * 1/4. Whole-task traces prove each reference stream
+         * instruction-identical to its F1-scan-0 counterpart (`cmpibne 2`
+         * takes for F1 scans 0, 1 and 4 alike), so the counts match those
+         * shapes (9527 for F0 scan 2, 9524 for F0 scan 6) with complete
+         * live-state equality, field-independently. */
+        const uint8_t f0_scans[] = {2u, 6u};
+        const uint8_t f1_scans[] = {1u, 4u};
+        const uint16_t mix_fields[] = {0u, 1u, 16u, 256u};
+        for (size_t f0 = 0u; f0 < sizeof(f0_scans); ++f0) {
+            for (size_t f1 = 0u; f1 < sizeof(f1_scans); ++f1) {
+                for (size_t field = 0u; field < sizeof(mix_fields) / sizeof(mix_fields[0]); ++field) {
+                    test_matrix_case(
+                        rom, rs, data, ds, &matrix_snapshot,
+                        0x100u, 0x100u, 0u, f0_scans[f0], mix_fields[field],
+                        0u, f1_scans[f1], 0u
+                    );
+                }
+            }
+        }
+    }
     for (uint32_t f0_flag = 0u; f0_flag <= 0x100u; f0_flag += 0x100u) {
         for (uint32_t f1_flag = 0u; f1_flag <= 0x100u; f1_flag += 0x100u) {
             for (uint32_t f1_804 = 0u; f1_804 <= 0x8000u; f1_804 += 0x8000u) {

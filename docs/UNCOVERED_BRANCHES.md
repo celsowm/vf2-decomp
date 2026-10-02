@@ -50,6 +50,21 @@ compact predicate that preserves those corrections. The exhaustive-run driver is
 `decomp/i960/tools/validate_game_info_positive_bit6_sweep.py`. See
 `decomp/i960/notes/game_info_18644_positive_bit6_gate_scope_v0689.md`.
 
+## v0693 bilateral scan mixes recovered
+
+The bilateral mixes with fighter-0 scan 2/6 and fighter-1 scan 1/4 are
+now native: `(2,1)`, `(2,4)` at `9527/18/19` and `(6,1)`, `(6,4)` at
+`9524/18/19`, each across the `field_0822` sweep `{0, 1, 16, 256}` with
+full live-state equality (16 cells). Whole-task instruction-trace diffs
+prove each reference stream instruction-identical to its F1-scan-0
+counterpart (`cmpibne 2` at `0x22334` takes for F1 scans 0, 1 and 4
+alike), so the measured bilateral `-2` shell correction covers them
+with no new constant and no child/whitelist change. The single-live
+sub-clause is untouched; F1 scans 2/5/6 in these bilateral slots, the
+symmetric F0-scan-1/4 column and nonzero scans on inactive fighters
+remain fail-closed. See
+`decomp/i960/notes/fa_coli_whole_task_scan821_mixes_v0693.md`.
+
 ## v0692 bilateral 6/6 measured fail-closed attribution
 
 The bilateral `field_0821 = 6/6` shape is now precisely decomposed and

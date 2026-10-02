@@ -30691,13 +30691,19 @@ vf2_status vf2_hybrid_coli_23524_execute(
              (g6 == (UINT32_C(1) << 2u) &&
               (flags1 & (UINT32_C(1) << 8u)) != 0u &&
               field_820_other == UINT8_C(0) &&
-              scan_821_other == UINT8_C(0)))) {
+              (scan_821_other == UINT8_C(0) ||
+               scan_821_other == UINT8_C(1) ||
+               scan_821_other == UINT8_C(4))))) {
             /* Measured scan-2 witnesses remove two accounting instructions
              * in the single-live and F0-scan-2 bilateral shapes. v0691:
              * whole-task traces prove the reference executes identical
              * instruction streams for fighter-0 scans 2 and 6 outside the
              * 0x2232c three-test shortcut, so the same measured correction
-             * covers the scan-6 witnesses (single 9389, bilateral 9524). */
+             * covers the scan-6 witnesses (single 9389, bilateral 9524).
+             * v0693: whole-task traces prove the bilateral (2/6,1) and
+             * (2/6,4) reference streams instruction-identical to (2/6,0)
+             * (`cmpibne 2` takes for F1 scans 0, 1 and 4 alike), so the
+             * same measured correction covers those mixes (9527/9524). */
             body -= UINT64_C(2);
         }
     }
