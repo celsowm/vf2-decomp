@@ -1,5 +1,21 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0702-v0704 fighter fields: 001c dual-base; geometry attributed; lift witness defined
+
+`field_001c` (4B) is dual-base (coli `0x239bc` symmetric reads plus
+player-corridor RW); `01a8` dual-base corroborated; `01a4` dual-base
+in a third window (coli midbody tail). `0804`/`0bdc` corroborated in
+the lift window but still fighter0-only. New note-only candidates:
+`0c4c`/`0c4e` (27ce0 guard immediates), `0be6`, `002c`/`0034`/`0080`,
+and the `186c-1880` word cluster. Geometry chain attributed exactly
+(`28268 -> 28780` once; `2901c` x3; `29414` after; `27b5c` 5-station
+sequence; `176a0` x16 sweep). The `0x27ce0` lift guard shape is
+measured (`1aa==1 && 0c4e==1 && 1a8==word(0c4c)` else `28184` chain)
+with a bounded 2x2x2 differential contract; no native physics claimed.
+See `fighter_candidate_dual_base_v0702.md`,
+`fa_player_geometry_call_attribution_v0703.md`,
+`fa_player_lift_witness_v0704.md`.
+
 ## v0701 player corridor: nonzero entry normalized, three candidate fields added
 
 Driving admitted mask `0x59f` at corridor entry `+0x1a4` produces the

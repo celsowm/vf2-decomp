@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Fighter dual-base + physics scouting (v0702-v0704): field_001c
+  dual-base (coli 0x239bc symmetric + player RW), 01a8/01a4
+  corroborated in further windows, 0804/0bdc second-window
+  corroboration, exact geometry call attribution (28268->28780 etc.),
+  measured 27ce0 lift-guard shape with a bounded differential
+  contract. Fighter-candidate unit test green; no native claim beyond
+  proven ground.
+
 - Player corridor scouting + candidate fields (v0701): nonzero entry
   mask 0x59f takes the identical 1622/4/4 corridor (entry state
   normalized; frontier item retired as measured negative), and a fresh
