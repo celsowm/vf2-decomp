@@ -66,6 +66,17 @@
  * Unilateral on this drive: +0x0828, +0x1234, +0x06d4/+0x06d8,
  * +0x0700, +0x082a, +0x019f, +0x01aa, +0x05b4/+0x05b8.
  *
+ * v0696 whole-task fa_coli (bases 0x00510980 / 0x00512980, cases
+ * F0 scan 6 / F1 scan 0 and F0 scan 2 / F1 scan 2, see
+ * decomp/i960/notes/fighter_candidate_whole_task_v0696.md):
+ *   +0x0018 4B RW ips 0x2380c/0x2381c/0x23824/0x23834 (both cases)
+ *   +0x0020 4B RW ips 0x23810/0x23820/0x23828/0x23838 (both cases)
+ *   +0x0808 2B R  ips 0x238b8/0x22440 (both cases)
+ *   +0x0820 1B R  ips 0x238c0/0x22450 (both cases)
+ * Widths at +0x0644/+0x064c/+0x0650 and the +0x0d00 cluster are
+ * corridor-dependent (4B words here vs 2B in v0387); existing widths
+ * and field types are unchanged.
+ *
  * The window 0x2000 covers all above (max offset 0x1200).
  * Field names remain field_XXXX until independent behavioral proof
  * assigns semantic names (health, animation_state, etc. are forbidden
@@ -77,6 +88,8 @@
 /* Stable offsets measured above */
 #define VF2_FIGHTER_OFF_0000 0x0000u
 #define VF2_FIGHTER_OFF_0004 0x0004u
+#define VF2_FIGHTER_OFF_0018 0x0018u
+#define VF2_FIGHTER_OFF_0020 0x0020u
 #define VF2_FIGHTER_OFF_0026 0x0026u
 #define VF2_FIGHTER_OFF_0084 0x0084u
 #define VF2_FIGHTER_OFF_017C 0x017cu
@@ -87,21 +100,34 @@
 #define VF2_FIGHTER_OFF_01AA 0x01aau
 #define VF2_FIGHTER_OFF_01B1 0x01b1u
 #define VF2_FIGHTER_OFF_01F4 0x01f4u
+#define VF2_FIGHTER_OFF_01F8 0x01f8u
 #define VF2_FIGHTER_OFF_01FC 0x01fcu
 #define VF2_FIGHTER_OFF_05B4 0x05b4u
 #define VF2_FIGHTER_OFF_05B8 0x05b8u
 #define VF2_FIGHTER_OFF_05F4 0x05f4u
 #define VF2_FIGHTER_OFF_0614 0x0614u
+#define VF2_FIGHTER_OFF_0644 0x0644u
+#define VF2_FIGHTER_OFF_064C 0x064cu
+#define VF2_FIGHTER_OFF_0650 0x0650u
 #define VF2_FIGHTER_OFF_06DC 0x06dcu
+#define VF2_FIGHTER_OFF_0808 0x0808u
+#define VF2_FIGHTER_OFF_0820 0x0820u
 #define VF2_FIGHTER_OFF_0821 0x0821u
 #define VF2_FIGHTER_OFF_0844 0x0844u
 #define VF2_FIGHTER_OFF_0C50 0x0c50u
+#define VF2_FIGHTER_OFF_0D00 0x0d00u
+#define VF2_FIGHTER_OFF_0D04 0x0d04u
+#define VF2_FIGHTER_OFF_0D08 0x0d08u
 #define VF2_FIGHTER_OFF_1200 0x1200u
 
-/* Widths as observed in the measured corridor (state-8, 0x18644 prefix) */
+/* Widths as observed in the measured corridor (state-8, 0x18644 prefix);
+ * v0696 whole-task fa_coli widths for 0018/0020/0808 (0820 already 1u) */
 #define VF2_FIGHTER_WIDTH_0000 4u
 #define VF2_FIGHTER_WIDTH_0004 1u
+#define VF2_FIGHTER_WIDTH_0018 4u
+#define VF2_FIGHTER_WIDTH_0020 4u
 #define VF2_FIGHTER_WIDTH_0026 2u
+#define VF2_FIGHTER_WIDTH_0808 2u
 #define VF2_FIGHTER_WIDTH_0084 4u
 #define VF2_FIGHTER_WIDTH_017C 2u
 #define VF2_FIGHTER_WIDTH_018A 2u
@@ -140,7 +166,11 @@
 struct vf2_fighter_candidate {
     uint32_t field_0000;                 /* +0x0000  R 4B */
     uint8_t  field_0004;                 /* +0x0004  R 1B coli slot */
-    uint8_t  _pad_0005[0x0084 - 0x0005];
+    uint8_t  _pad_0005[0x0018 - 0x0005];
+    uint32_t field_0018;                 /* +0x0018  RW 4B v0696 */
+    uint8_t  _pad_001c[0x0020 - 0x001c];
+    uint32_t field_0020;                 /* +0x0020  RW 4B v0696 */
+    uint8_t  _pad_0024[0x0084 - 0x0024];
     uint32_t field_0084;                 /* +0x0084  R 4B */
     uint8_t  _pad_0088[0x017c - 0x0088];
     uint16_t field_017c;                 /* +0x017c  RW 2B */
@@ -174,7 +204,10 @@ struct vf2_fighter_candidate {
     uint16_t field_0650;                 /* +0x0650  RW 2B v0387 */
     uint8_t  _pad_0652[0x06dc - 0x0652];
     uint16_t field_06dc;                 /* +0x06dc  W 2B coli contact clear */
-    uint8_t  _pad_06de[0x0821 - 0x06de];
+    uint8_t  _pad_06de[0x0808 - 0x06de];
+    uint16_t field_0808;                 /* +0x0808  R 2B v0696 */
+    uint8_t  _pad_080a[0x0820 - 0x080a];
+    uint8_t  field_0820;                 /* +0x0820  R 1B v0696 */
     uint8_t  field_0821;                 /* +0x0821  R 1B coli scan */
     uint8_t  _pad_0822[0x0844 - 0x0822];
     uint32_t field_0844;                 /* +0x0844  R 4B */
@@ -193,6 +226,8 @@ struct vf2_fighter_candidate {
 
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0000) == 0x0000, "fighter field_0000 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0004) == 0x0004, "fighter field_0004 offset");
+_Static_assert(offsetof(struct vf2_fighter_candidate, field_0018) == 0x0018, "fighter field_0018 offset");
+_Static_assert(offsetof(struct vf2_fighter_candidate, field_0020) == 0x0020, "fighter field_0020 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0084) == 0x0084, "fighter field_0084 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_017c) == 0x017c, "fighter field_017c offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_018a) == 0x018a, "fighter field_018a offset");
@@ -212,6 +247,8 @@ _Static_assert(offsetof(struct vf2_fighter_candidate, field_0644) == 0x0644, "fi
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_064c) == 0x064c, "fighter field_064c offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0650) == 0x0650, "fighter field_0650 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_06dc) == 0x06dc, "fighter field_06dc offset");
+_Static_assert(offsetof(struct vf2_fighter_candidate, field_0808) == 0x0808, "fighter field_0808 offset");
+_Static_assert(offsetof(struct vf2_fighter_candidate, field_0820) == 0x0820, "fighter field_0820 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0821) == 0x0821, "fighter field_0821 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0844) == 0x0844, "fighter field_0844 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0c50) == 0x0c50, "fighter field_0c50 offset");
