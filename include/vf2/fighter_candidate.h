@@ -120,6 +120,28 @@
  * traffic (texture, work RAM, FIFO); the fighter window attribution
  * is unchanged.
  *
+ * v0706 downstream dual-base (see
+ * decomp/i960/notes/fa_player_downstream_dual_base_v0706.md):
+ * tmp-lift-27ce0 park, all-true guard (F0 +0x0c4e=1, w(+0x0c4c)=0x0505),
+ * 4811 steps to an idle self-branch; 2825 accesses, 615 fighter-window.
+ *   +0x0008 4B R NEW dual-base from birth: same ip 0x10e3c reads both.
+ *   +0x0018/+0x0020 4B dual-base: same-ip-both R at 0x1f274/0x1f278;
+ *     F0 RW elsewhere (0x1791c/0x17axx/0x17bxx/0x16568), F1 R-only here.
+ *   +0x0000 4B dual-base R (F1 at 0x10dbc/0x16470); writes stay F0-only.
+ *   +0x01a4 fourth window: F1 R at 0x17718 (pairs F0 0x17714) and same-ip
+ *     0x1f258; write stays F0-only (0x1b4c8).
+ *   +0x01b1 1B dual-base R: F1 at 0x1d628 beside F0 0x1d60c (same loop).
+ *   +0x1200 1B dual-base W: F1 0x164d4 / F0 0x164e0 (same zeroing loop;
+ *     both ips were already listed, now attributed per fighter).
+ *   +0x0804 third window (0x1b470/0x17bec 4B R), still F0-only: stays.
+ *   +0x0bdc untouched downstream: stays note-only.
+ *   0x186c-0x188c cluster extends to 0x1884-0x188c + 0x18a8-0x18b0
+ *   (same 0x16fbc/0x17024/0x17040 RW ips), still F0-only: struct
+ *   extension deferred until dual-base or native need.
+ * Negative: g7-swapped F1 subject faults at 0x28944 (F1+0x0bd8 chain
+ *   dereferences near-null); cross-fighter object swap is not a faithful
+ *   experiment, no promotion from it (fail closed).
+ *
  * The window 0x2000 covers all above (max offset 0x1200).
  * Field names remain field_XXXX until independent behavioral proof
  * assigns semantic names (health, animation_state, etc. are forbidden
@@ -131,6 +153,7 @@
 /* Stable offsets measured above */
 #define VF2_FIGHTER_OFF_0000 0x0000u
 #define VF2_FIGHTER_OFF_0004 0x0004u
+#define VF2_FIGHTER_OFF_0008 0x0008u
 #define VF2_FIGHTER_OFF_0018 0x0018u
 #define VF2_FIGHTER_OFF_001C 0x001cu
 #define VF2_FIGHTER_OFF_0020 0x0020u
@@ -170,6 +193,7 @@
  * v0696 whole-task fa_coli widths for 0018/0020/0808 (0820 already 1u) */
 #define VF2_FIGHTER_WIDTH_0000 4u
 #define VF2_FIGHTER_WIDTH_0004 1u
+#define VF2_FIGHTER_WIDTH_0008 4u
 #define VF2_FIGHTER_WIDTH_0018 4u
 #define VF2_FIGHTER_WIDTH_001C 4u
 #define VF2_FIGHTER_WIDTH_0020 4u
@@ -213,12 +237,14 @@
  *   branch 0x0002949c depends on fighter0 + 0x1a4 bit 19
  */
 struct vf2_fighter_candidate {
-    uint32_t field_0000;                 /* +0x0000  RW 4B v0701 */
+    uint32_t field_0000;                 /* +0x0000  RW 4B dual-base R v0706 */
     uint8_t  field_0004;                 /* +0x0004  R 1B coli slot */
-    uint8_t  _pad_0005[0x0018 - 0x0005];
-    uint32_t field_0018;                 /* +0x0018  RW 4B v0696 */
+    uint8_t  _pad_0005[0x0008 - 0x0005];
+    uint32_t field_0008;                 /* +0x0008  R 4B dual-base v0706 */
+    uint8_t  _pad_000c[0x0018 - 0x000c];
+    uint32_t field_0018;                 /* +0x0018  RW 4B dual-base v0706 */
     uint32_t field_001c;                 /* +0x001c  RW 4B dual-base v0702 */
-    uint32_t field_0020;                 /* +0x0020  RW 4B v0696 */
+    uint32_t field_0020;                 /* +0x0020  RW 4B dual-base v0706 */
     uint8_t  _pad_0024[0x0084 - 0x0024];
     uint32_t field_0084;                 /* +0x0084  R 4B */
     uint8_t  _pad_0088[0x017c - 0x0088];
@@ -232,7 +258,7 @@ struct vf2_fighter_candidate {
     uint16_t field_01a8;                 /* +0x01a8  RW 2B dual-base v0702 */
     uint16_t field_01aa;                 /* +0x01aa  R 2B unsigned window */
     uint8_t  _pad_01ac[0x01b1 - 0x01ac];
-    uint8_t  field_01b1;                 /* +0x01b1  R 1B type 0/6/8/10 */
+    uint8_t  field_01b1;                 /* +0x01b1  R 1B dual-base v0706 */
     uint8_t  _pad_01b2[0x01f4 - 0x01b2];
     uint32_t field_01f4;                 /* +0x01f4  R 4B */
     uint32_t field_01f8;                 /* +0x01f8  R 4B v0387 */
@@ -254,7 +280,7 @@ struct vf2_fighter_candidate {
     uint8_t  _pad_0652[0x06dc - 0x0652];
     uint16_t field_06dc;                 /* +0x06dc  W 2B coli contact clear */
     uint8_t  _pad_06de[0x0804 - 0x06de];
-    uint32_t field_0804;                 /* +0x0804  RW 4B two-window v0704 */
+    uint32_t field_0804;                 /* +0x0804  RW 4B F0-only 3 windows v0706 */
     uint16_t field_0808;                 /* +0x0808  R 2B v0696 */
     uint8_t  _pad_080a[0x0820 - 0x080a];
     uint8_t  field_0820;                 /* +0x0820  R 1B v0696 */
@@ -272,12 +298,13 @@ struct vf2_fighter_candidate {
     uint8_t  _pad_0d06[0x0d08 - 0x0d06];
     uint16_t field_0d08;                 /* +0x0d08  RW 2B v0387 */
     uint8_t  _pad_0d0a[0x1200 - 0x0d0a];
-    uint8_t  field_1200;                 /* +0x1200  W 1B */
+    uint8_t  field_1200;                 /* +0x1200  W 1B dual-base v0706 */
     uint8_t  _pad_1201[VF2_FIGHTER_CANDIDATE_WINDOW - 0x1201];
 };
 
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0000) == 0x0000, "fighter field_0000 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0004) == 0x0004, "fighter field_0004 offset");
+_Static_assert(offsetof(struct vf2_fighter_candidate, field_0008) == 0x0008, "fighter field_0008 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0018) == 0x0018, "fighter field_0018 offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_001c) == 0x001c, "fighter field_001c offset");
 _Static_assert(offsetof(struct vf2_fighter_candidate, field_0020) == 0x0020, "fighter field_0020 offset");

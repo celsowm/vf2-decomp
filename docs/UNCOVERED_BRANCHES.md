@@ -1,5 +1,18 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0706 downstream dual-base: field_0008 new; 0018/0020/0000/01b1/1200 dual
+
+All-true `0x27ce0` guard drive runs 4811 steps into `0x179xx` caller
+code touching both fighters (615 fighter-window accesses).
+`field_0008` (4B R) is new, dual-base from birth (same ip `0x10e3c`).
+`0018`/`0020` dual (same-ip-both R `0x1f274`/`0x1f278`, F0 RW
+elsewhere), `0000` dual-base R (W F0-only), `01b1` dual-base R,
+`1200` dual-base W, `01a4` fourth window. `0804` third window but
+still fighter0-only; `0bdc` untouched downstream; `186c-188c`
+extension recorded with struct change deferred. g7-swap F1 subject
+faults at `0x28944` (measured negative, fail closed). See
+`fa_player_downstream_dual_base_v0706.md`.
+
 ## v0702-v0704 fighter fields: 001c dual-base; geometry attributed; lift witness defined
 
 `field_001c` (4B) is dual-base (coli `0x239bc` symmetric reads plus

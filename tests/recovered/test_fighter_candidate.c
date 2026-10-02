@@ -15,6 +15,9 @@ static void test_offsets(void)
 {
     assert(VF2_FIGHTER_CANDIDATE_WINDOW == 0x2000u);
     assert(VF2_FIGHTER_OFF_0004 == 0x0004u);
+    assert(VF2_FIGHTER_OFF_0008 == 0x0008u);
+    assert(VF2_FIGHTER_OFF_0018 == 0x0018u);
+    assert(VF2_FIGHTER_OFF_0020 == 0x0020u);
     assert(VF2_FIGHTER_OFF_01A4 == 0x01a4u);
     assert(VF2_FIGHTER_OFF_01AA == 0x01aau);
     assert(VF2_FIGHTER_OFF_01B1 == 0x01b1u);
@@ -25,6 +28,9 @@ static void test_offsets(void)
 
     assert(sizeof(struct vf2_fighter_candidate) == VF2_FIGHTER_CANDIDATE_WINDOW);
     assert(offsetof(struct vf2_fighter_candidate, field_0004) == 0x0004u);
+    assert(offsetof(struct vf2_fighter_candidate, field_0008) == 0x0008u);
+    assert(offsetof(struct vf2_fighter_candidate, field_0018) == 0x0018u);
+    assert(offsetof(struct vf2_fighter_candidate, field_0020) == 0x0020u);
     assert(offsetof(struct vf2_fighter_candidate, field_01a4) == 0x01a4u);
     assert(offsetof(struct vf2_fighter_candidate, field_01a8) == 0x01a8u);
     assert(offsetof(struct vf2_fighter_candidate, field_01aa) == 0x01aau);
@@ -36,6 +42,8 @@ static void test_offsets(void)
     assert(offsetof(struct vf2_fighter_candidate, field_1200) == 0x1200u);
 
     assert(vf2_fighter_candidate_offset_valid(0x01a4u, 4u));
+    assert(vf2_fighter_candidate_offset_valid(0x0008u, 4u));
+    assert(vf2_fighter_candidate_offset_valid(0x0018u, 4u));
     assert(vf2_fighter_candidate_offset_valid(0x05b4u, 2u));
     assert(vf2_fighter_candidate_offset_valid(0x0c50u, 4u));
     assert(!vf2_fighter_candidate_offset_valid(0x2000u, 1u));

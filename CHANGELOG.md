@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Downstream dual-base witness (v0706): all-true 27ce0 guard drive
+  runs 4811 steps into 179xx caller code touching both fighters; new
+  field_0008 (same-ip 0x10e3c dual 4B R), 0018/0020 + 0000 + 01b1 +
+  1200 dual-base, 01a4 fourth window, 0804 third window (still F0-only),
+  0bdc untouched, 186c-188c cluster extension recorded without struct
+  change. g7-swap fault recorded as a measured negative. See
+  `decomp/i960/notes/fa_player_downstream_dual_base_v0706.md`.
+
 - Fighter dual-base + physics scouting (v0702-v0704): field_001c
   dual-base (coli 0x239bc symmetric + player RW), 01a8/01a4
   corroborated in further windows, 0804/0bdc second-window
