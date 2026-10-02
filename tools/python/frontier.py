@@ -123,6 +123,7 @@ class EdgeRecord:
         "mem_reads",
         "mem_writes",
         "mem_addresses",
+        "mem_widths",
         "call_hits",
     )
 
@@ -133,6 +134,7 @@ class EdgeRecord:
         self.mem_reads = 0
         self.mem_writes = 0
         self.mem_addresses: Counter = Counter()
+        self.mem_widths: Counter = Counter()
         self.call_hits = 0
 
 
@@ -154,7 +156,9 @@ class Frontier:
         self.fighter_bases = list(bases)
         self.fighter_window = window
 
-    def _note_fighter_access(self, address: int, kind: str, ip: int) -> None:
+    def _note_fighter_access(
+        self, address: int, kind: str, ip: int, width: int = 0
+    ) -> None:
         if not self.fighter_bases:
             return
         for base in self.fighter_bases:
@@ -167,6 +171,7 @@ class Frontier:
                         "reads": 0,
                         "writes": 0,
                         "ips": Counter(),
+                        "widths": Counter(),
                     },
                 )
                 rec["bases"].add(base)
@@ -175,6 +180,8 @@ class Frontier:
                 else:
                     rec["reads"] += 1
                 rec["ips"][ip] += 1
+                if width > 0:
+                    rec["widths"][width] += 1
                 break
 
     def top_fighter_offsets(self, limit: int = 40) -> List[dict]:
@@ -188,6 +195,7 @@ class Frontier:
                     "writes": rec["writes"],
                     "total": rec["reads"] + rec["writes"],
                     "top_ips": [hex32(ip) for ip, _ in rec["ips"].most_common(4)],
+                    "widths": {str(w): c for w, c in rec["widths"].most_common()},
                 }
             )
         rows.sort(key=lambda r: (-r["base_count"], -r["total"], r["offset"]))
@@ -235,6 +243,10 @@ class Frontier:
                                 acc_addr = parse_int(acc_addr)
                             except Exception:
                                 acc_addr = 0
+                            try:
+                                acc_width = int(acc.get("size", 0))
+                            except Exception:
+                                acc_width = 0
                             if acc_kind == "write":
                                 record_edge.mem_writes += 1
                                 self.address_writes[ip_before] += 1
@@ -243,14 +255,20 @@ class Frontier:
                                 record_edge.mem_reads += 1
                                 self.address_reads[ip_before] += 1
                                 stats["memory_reads"] += 1
+                            if acc_width > 0:
+                                record_edge.mem_widths[acc_width] += 1
                             if acc_addr:
                                 record_edge.mem_addresses[acc_addr] += 1
                                 self._note_fighter_access(
-                                    acc_addr, acc_kind, ip_before
+                                    acc_addr, acc_kind, ip_before, acc_width
                                 )
                 elif kind == "memory":
                     pending_memory[parse_int(record["step"])].append(
-                        {"kind": str(record.get("kind", "read")), "address": record.get("address", 0)}
+                        {
+                            "kind": str(record.get("kind", "read")),
+                            "address": record.get("address", 0),
+                            "size": record.get("size", 0),
+                        }
                     )
                 elif kind == "final":
                     stats["finals"] += 1
@@ -381,6 +399,7 @@ class Frontier:
                     "mem_total": mem_total,
                     "call_hits": record.call_hits,
                     "top_addresses": [hex32(a) for a, _ in record.mem_addresses.most_common(3)],
+                    "top_widths": {str(w): c for w, c in record.mem_widths.most_common(4)},
                 }
             )
         ranked.sort(key=lambda item: (-item["score"], item["from"], item["to"]))
@@ -746,10 +765,13 @@ def main() -> int:
                 output.write("\nfighter-relative offsets:\n")
                 for item in fighter_rows:
                     ips = ",".join(item["top_ips"])
+                    widths = ",".join(
+                        f"{w}x{c}" for w, c in item["widths"].items()
+                    )
                     output.write(
                         f"  {item['offset']}  bases={item['base_count']} "
                         f"R:{item['reads']} W:{item['writes']} "
-                        f"ips:{ips}\n"
+                        f"widths:{widths} ips:{ips}\n"
                     )
         if args.as_json and frontier.fighter_offsets:
             for item in frontier.top_fighter_offsets(40):

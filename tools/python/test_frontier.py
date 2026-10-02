@@ -89,7 +89,32 @@ def test_memory_rw_and_call():
         assert edge_ld.mem_reads == 1
         edge_st = frontier.edges[(0x1864c, 0x18650)]
         assert edge_st.mem_writes == 1
+        assert dict(edge_ld.mem_widths) == {4: 1}
+        assert dict(edge_st.mem_widths) == {4: 1}
     print("ok: memory R/W separation and call-target attribution")
+
+
+def test_memory_width_and_fighter_widths():
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        trace = Path(tmp) / "case.jsonl"
+        records = [
+            {"type": "memory", "step": 1, "kind": "read", "address": 0x510000, "size": 1},
+            {"type": "step", "step": 1, "ip_before": 0x18644, "ip_after": 0x18648, "mnemonic": "ldob"},
+            {"type": "memory", "step": 2, "kind": "write", "address": 0x510004, "size": 2},
+            {"type": "step", "step": 2, "ip_before": 0x18648, "ip_after": 0x1864c, "mnemonic": "stis"},
+            {"type": "final", "status": "ok", "halt_reason": "stop address", "ip": 0x10dcc},
+        ]
+        trace.write_text("\n".join(json.dumps(r) for r in records) + "\n")
+        frontier = Frontier()
+        frontier.set_fighter_bases([0x510000])
+        frontier.ingest_trace(trace, "case.jsonl")
+        assert dict(frontier.edges[(0x18644, 0x18648)].mem_widths) == {1: 1}
+        assert dict(frontier.edges[(0x18648, 0x1864c)].mem_widths) == {2: 1}
+        rows = {r["offset"]: r for r in frontier.top_fighter_offsets(10)}
+        assert rows[hex32(0)]["widths"] == {"1": 1}
+        assert rows[hex32(4)]["widths"] == {"2": 1}
+    print("ok: access-width tracking per edge and fighter offset")
 
 
 def test_rank_call_edges_crosses_boundary():
@@ -266,6 +291,7 @@ def main() -> int:
     test_function_table_lookup()
     test_trace_ingestion()
     test_memory_rw_and_call()
+    test_memory_width_and_fighter_widths()
     test_rank_call_edges_crosses_boundary()
     test_unsupported_final_attribution()
     test_corpus_manifest_ingestion(True)
