@@ -30668,6 +30668,24 @@ vf2_status vf2_hybrid_coli_23524_execute(
                  * inside the first 0x22298 call), so the same measured
                  * correction covers it (9389/17/18). */
                 adjust_g3_scan = true;
+            } else if ((flags0 & (UINT32_C(1) << 8u)) == 0u &&
+                       (flags1 & (UINT32_C(1) << 8u)) != 0u &&
+                       field_820_other == UINT8_C(0) &&
+                       scan_821_other == UINT8_C(2)) {
+                /* v0696 measured single-live F1 scan-2 fail-closed pin.
+                 * The reference reaches 0x10dcc at 9392/17/18, but the
+                 * native path counts 9393: its midbody children are
+                 * reference-exact (21+6) while the shell keeps the
+                 * scan-0-shape +1 rest compensation that the scan-0
+                 * fall-through child undercount (13 vs 14 pre-ret
+                 * insns) requires. A shell -1 here would be
+                 * curve-fitting on trace-identical shells (9298 both);
+                 * the honest fix is the joint refit (child 13->14,
+                 * single +1->0, rebalanced special gates, full matrix
+                 * re-proof). Refuse explicitly so the whitelisted 9393
+                 * total of the admitted F0-single-2 shape cannot accept
+                 * this composition. */
+                return VF2_ERROR_UNSUPPORTED;
             }
         } else if (g6 == (UINT32_C(1) << 2u) &&
                    (flags0 & (UINT32_C(1) << 8u)) != 0u &&

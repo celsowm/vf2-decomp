@@ -1,5 +1,23 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0696 `fa_coli` single-live inactive scans recovered; F1 scan-2 pinned fail-closed
+
+The inactive fighter's `field_0821` is fully inert in single-live
+shapes (identical absolute counters across inactive scans 0-6 on
+both sides), and no native single-live gate constrains it, so every
+measured cell is native with full live-state equality — except
+single-live F1 scan 2 (`9392/17/18` reference, native `9393`).
+Section-split traces prove its midbody children reference-exact
+while the shell keeps the scan-0-shape rest +1 that the scan-0
+fall-through child undercount requires; a shell correction would be
+curve-fitting on identical shells, so the shape is refused at the
+admission gate pending the joint refit (child 13->14, single +1->0,
+rebalanced special gates). The scan-0 child decomposition itself is
+now also measured. See
+`decomp/i960/notes/fa_coli_whole_task_scan821_f1_single2_v0696.md`
+and
+`decomp/i960/notes/fa_coli_whole_task_scan821_scan0_child_decomp_v0696.md`.
+
 ## v0695 `fa_coli` whole-task residual scan mixes recovered
 
 The v0694 residual bilateral frontier is native: whole-task trace

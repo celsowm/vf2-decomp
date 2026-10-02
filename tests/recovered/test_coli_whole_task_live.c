@@ -651,6 +651,61 @@ static void run_rom(const char *dir){
                 0u, 3u, grid_fields[field], 1
             );
         }
+        /* v0696 single-live inactive-scan matrix: the reference never
+         * reads the inactive fighter's field_0821 in single-live
+         * shapes (identical absolute counters across inactive scans,
+         * not just equal totals), and no native single-live gate
+         * constrains it, so every measured cell below asserts native
+         * equality plus complete live-state equality. Only probed
+         * cells are driven (field_0822 = 0 on both sides). */
+        {
+            const uint8_t inactive_all[] = {0u, 1u, 2u, 3u, 4u, 5u, 6u};
+            const uint8_t inactive_pair[] = {0u, 6u};
+            size_t k = 0u;
+            for (k = 0u; k < sizeof(inactive_all); ++k) {
+                test_matrix_case(
+                    rom, rs, data, ds, &matrix_snapshot,
+                    0x100u, 0u, 0u, 0u, 0u,
+                    0u, inactive_all[k], 0u, 1
+                );
+                test_matrix_case(
+                    rom, rs, data, ds, &matrix_snapshot,
+                    0u, 0x100u, 0u, inactive_all[k], 0u,
+                    0u, 0u, 0u, 1
+                );
+            }
+            for (k = 0u; k < sizeof(inactive_pair); ++k) {
+                test_matrix_case(
+                    rom, rs, data, ds, &matrix_snapshot,
+                    0x100u, 0u, 0u, 2u, 0u,
+                    0u, inactive_pair[k], 0u, 1
+                );
+                /* v0696 F1-live scan-2 fail-closed pin: reference
+                 * 9392/17/18, native 9393 (exact children, scan-0-shape
+                 * rest compensation kept). Pending the joint refit. */
+                test_matrix_case(
+                    rom, rs, data, ds, &matrix_snapshot,
+                    0u, 0x100u, 0u, inactive_pair[k], 0u,
+                    0u, 2u, 0u, 0
+                );
+            }
+            {
+                const uint8_t active_mid[] = {1u, 3u, 4u, 5u, 6u};
+                size_t m = 0u;
+                for (m = 0u; m < sizeof(active_mid); ++m) {
+                    test_matrix_case(
+                        rom, rs, data, ds, &matrix_snapshot,
+                        0x100u, 0u, 0u, active_mid[m], 0u,
+                        0u, 6u, 0u, 1
+                    );
+                    test_matrix_case(
+                        rom, rs, data, ds, &matrix_snapshot,
+                        0u, 0x100u, 0u, 6u, 0u,
+                        0u, active_mid[m], 0u, 1
+                    );
+                }
+            }
+        }
     }
     vf2_i960_snapshot_destroy(&matrix_snapshot);
     free(rom); free(data);

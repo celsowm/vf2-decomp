@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Recover the `fa_coli` single-live inactive-scan matrix (v0696): the
+  inactive fighter's `field_0821` is reference-inert in every
+  single-live shape, so all measured cells match the ROM with complete
+  live-state equality through `0x10dcc` — except single-live F1 scan 2
+  (`9392/17/18` reference vs native `9393`), which is now refused at
+  the admission gate with a reference-exact fail-closed pin.
+  Section-split traces attribute the +1 to a scan-0-child/rest
+  compensation pair (child body 13 vs 14 pre-`ret` insns, single-live
+  rest +1) that cancels for scan-0 shapes but surfaces for exact-child
+  scan-2; the joint refit is specified but deferred. See
+  `decomp/i960/notes/fa_coli_whole_task_scan821_f1_single2_v0696.md`.
+
 - Recover the residual `fa_coli` bilateral `field_0821` scan mixes
   (v0695): the opponent-side scan-2/6 mixes without an F0-side special
   and the double-special mixes (2,2)/(2,5)/(2,6)/(6,2)/(6,5) now match
