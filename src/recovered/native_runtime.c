@@ -5086,8 +5086,12 @@ execute_post_boot_copro_helper(vf2_model2a *machine, vf2_i960_cpu *cpu) {
     size_t index = 0u;
     vf2_status status = VF2_OK;
 
+    /* v0708: the live boot session nests one helper frame under the
+     * depth-1 copro-init shape (depth 2); the corridor nests under
+     * depth 4 (depth 5). The helper body is stack-independent (fixed
+     * copro port protocol + g5 cursor); other depths stay unsupported. */
     if (machine == NULL || cpu == NULL || cpu->ip != VF2_NATIVE_POST_BOOT_COPRO_HELPER_ENTRY ||
-        cpu->local_frame_depth != 5u ||
+        (cpu->local_frame_depth != 5u && cpu->local_frame_depth != 2u) ||
         (g5 != UINT32_C(0x0050e000) && g5 != UINT32_C(0x0050e800))) {
         return VF2_ERROR_UNSUPPORTED;
     }
@@ -5198,8 +5202,14 @@ execute_post_boot_copro_init(vf2_model2a *machine, vf2_i960_cpu *cpu,
     uint32_t right = UINT32_C(0x0050e800);
     vf2_status status = VF2_OK;
 
+    /* v0708: the live boot session reaches this block at depth 1 via
+     * main-loop-init from depth 0 (outer frame carries the documented
+     * 0x9a00..0x9f70 caller state); the corridor reaches it at depth 4.
+     * Both shapes are oracle-measured (13,324 steps, 10 calls / 11 rets
+     * from either entry). Other depths stay unsupported. */
     if (machine == NULL || cpu == NULL || report == NULL ||
-        cpu->ip != VF2_NATIVE_POST_BOOT_COPRO_INIT_ENTRY || cpu->local_frame_depth != 4u ||
+        cpu->ip != VF2_NATIVE_POST_BOOT_COPRO_INIT_ENTRY ||
+        (cpu->local_frame_depth != 4u && cpu->local_frame_depth != 1u) ||
         cpu->registers[27] + cpu->registers[28] != VF2_COPRO_PORT_BASE + UINT32_C(0x4000)) {
         return VF2_ERROR_UNSUPPORTED;
     }
@@ -5282,7 +5292,11 @@ execute_post_boot_delay(vf2_model2a *machine, vf2_i960_cpu *cpu,
         cpu->ip != VF2_NATIVE_POST_BOOT_DELAY_ENTRY) {
         return VF2_ERROR_INVALID_ARGUMENT;
     }
-    if (cpu->local_frame_depth != 3u) {
+    /* v0708: the live boot session enters the delay at depth 0 (straight
+     * post-copro return); the corridor enters at depth 3. The body is a
+     * fixed store + 700000-iteration divr loop plus one balanced text
+     * thunk: stack-independent, so both depths are accepted. */
+    if (cpu->local_frame_depth != 3u && cpu->local_frame_depth != 0u) {
         return VF2_ERROR_UNSUPPORTED;
     }
 

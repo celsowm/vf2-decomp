@@ -16,7 +16,9 @@ static void print_usage(const char *program)
         stderr,
         "Usage: %s --rom-dir <directory> "
         "[--native-snapshot <snapshot>] [--frames <count>] "
-        "[--input <mask>] [--pulse-input] [--trace-geometry]\n",
+        "[--input <mask>] [--pulse-input] [--trace-geometry]\n"
+        " [--trace-state] [--failure-snapshot <file>]\n"
+        " [--snapshot-at <frame> --snapshot-path <file>]\n",
         program
     );
 }
@@ -37,6 +39,81 @@ static int parse_u32(const char *text, uint32_t *value)
     return 1;
 }
 
+static void trace_frame_state(struct vf2_game *game, uint32_t frame)
+{
+    uint32_t dispatch_base = 0u;
+    uint32_t game_mode_word = 0u;
+    uint32_t game_flags_word = 0u;
+    uint32_t input_flags_word = 0u;
+    uint32_t task0_pointer = 0u;
+    uint32_t task1_pointer = 0u;
+    uint32_t f0_head = 0u;
+    uint32_t f1_head = 0u;
+    uint32_t ret_addr = 0u;
+    uint8_t dispatch_mode = 0u;
+    uint8_t dispatch_phase = 0u;
+
+    if (game == NULL || game->native_machine == NULL) {
+        return;
+    }
+    (void)vf2_model2a_read_u32(
+        game->native_machine, UINT32_C(0x0050016c), &dispatch_base
+    );
+    (void)vf2_model2a_read_u32(
+        game->native_machine, UINT32_C(0x00500804), &task0_pointer
+    );
+    (void)vf2_model2a_read_u32(
+        game->native_machine, UINT32_C(0x00500808), &task1_pointer
+    );
+    (void)vf2_model2a_read(
+        game->native_machine, dispatch_base + UINT32_C(0x3350),
+        &dispatch_mode, sizeof(dispatch_mode)
+    );
+    (void)vf2_model2a_read(
+        game->native_machine, dispatch_base + UINT32_C(0x3351),
+        &dispatch_phase, sizeof(dispatch_phase)
+    );
+    (void)vf2_model2a_read_u32(
+        game->native_machine, dispatch_base + UINT32_C(0x3324),
+        &game_mode_word
+    );
+    (void)vf2_model2a_read_u32(
+        game->native_machine, dispatch_base + UINT32_C(0x3320),
+        &game_flags_word
+    );
+    (void)vf2_model2a_read_u32(
+        game->native_machine, UINT32_C(0x00500704), &input_flags_word
+    );
+    (void)vf2_model2a_read_u32(
+        game->native_machine, UINT32_C(0x00510980), &f0_head
+    );
+    (void)vf2_model2a_read_u32(
+        game->native_machine, UINT32_C(0x00512980), &f1_head
+    );
+    if (game->native_cpu != NULL) {
+        ret_addr = game->native_cpu->registers[2];
+    }
+    printf(
+        "State frame %u: game_mode=%u mode=%u phase=0x%02x flags=0x%08x "
+        "input=0x%08x task0=0x%08x task1=0x%08x f0h=0x%08x f1h=0x%08x "
+        "base16c=0x%08x depth=%u r2=0x%08x r27=0x%08x r28=0x%08x ip=0x%08x\n",
+        (unsigned)frame, (unsigned)game_mode_word,
+        (unsigned)dispatch_mode, (unsigned)dispatch_phase,
+        (unsigned)game_flags_word, (unsigned)input_flags_word,
+        (unsigned)task0_pointer, (unsigned)task1_pointer,
+        (unsigned)f0_head, (unsigned)f1_head,
+        (unsigned)dispatch_base,
+        (unsigned)(game->native_cpu != NULL
+                       ? game->native_cpu->local_frame_depth : 0u),
+        (unsigned)ret_addr,
+        (unsigned)(game->native_cpu != NULL
+                       ? game->native_cpu->registers[27] : 0u),
+        (unsigned)(game->native_cpu != NULL
+                       ? game->native_cpu->registers[28] : 0u),
+        (unsigned)(game->native_cpu != NULL ? game->native_cpu->ip : 0u)
+    );
+}
+
 static vf2_status run_native_session(
     const char *rom_directory,
     const char *snapshot_path,
@@ -44,7 +121,11 @@ static vf2_status run_native_session(
     uint32_t input,
     int input_set,
     int trace_geometry,
-    int pulse_input
+    int pulse_input,
+    int trace_state,
+    const char *failure_snapshot_path,
+    uint32_t snapshot_at_frame,
+    const char *snapshot_at_path
 )
 {
     static const uint32_t width = 496u;
@@ -191,6 +272,25 @@ static vf2_status run_native_session(
                 (unsigned long long)report.recovered_instruction_count,
                 (unsigned)report.final_address
             );
+            if (trace_state != 0) {
+                trace_frame_state(&game, frame + 1u);
+            }
+            if (snapshot_at_path != NULL && frame + 1u == snapshot_at_frame &&
+                game.native_cpu != NULL && game.native_machine != NULL) {
+                vf2_i960_snapshot checkpoint;
+                vf2_i960_snapshot_init(&checkpoint);
+                if (vf2_i960_snapshot_capture(
+                        &checkpoint, game.native_cpu,
+                        game.native_machine) == VF2_OK &&
+                    vf2_i960_snapshot_write_file(
+                        &checkpoint, snapshot_at_path) == VF2_OK) {
+                    fprintf(
+                        stderr, "Checkpoint snapshot: %s (frame %u)\n",
+                        snapshot_at_path, (unsigned)(frame + 1u)
+                    );
+                }
+                vf2_i960_snapshot_destroy(&checkpoint);
+            }
         } else {
                 fprintf(
                     stderr,
@@ -200,6 +300,22 @@ static vf2_status run_native_session(
                     (unsigned)report.final_address, game.native_copro_word_count,
                     (int)report.last_step_kind, (int)report.last_bridge_kind
                 );
+            if (failure_snapshot_path != NULL && game.native_cpu != NULL &&
+                game.native_machine != NULL) {
+                vf2_i960_snapshot failed;
+                vf2_i960_snapshot_init(&failed);
+                if (vf2_i960_snapshot_capture(
+                        &failed, game.native_cpu,
+                        game.native_machine) == VF2_OK &&
+                    vf2_i960_snapshot_write_file(
+                        &failed, failure_snapshot_path) == VF2_OK) {
+                    fprintf(
+                        stderr, "Failure snapshot: %s\n",
+                        failure_snapshot_path
+                    );
+                }
+                vf2_i960_snapshot_destroy(&failed);
+            }
             if (game.native_cpu != NULL) {
                 uint32_t runtime_flags = 0u;
                 uint32_t dispatch_selector = 0u;
@@ -374,11 +490,15 @@ int main(int argc, char **argv)
 {
     const char *rom_directory = NULL;
     const char *native_snapshot = NULL;
+    const char *failure_snapshot = NULL;
+    const char *snapshot_at_path = NULL;
+    uint32_t snapshot_at_frame = 0u;
     uint32_t native_frames = 1u;
     uint32_t native_input = 0u;
     int native_input_set = 0;
     int trace_geometry = 0;
     int pulse_input = 0;
+    int trace_state = 0;
     vf2_verify_summary summary;
     uint8_t *maincpu = NULL;
     size_t maincpu_size = 0u;
@@ -406,6 +526,18 @@ int main(int argc, char **argv)
             native_input_set = 1;
         } else if (strcmp(argv[index], "--trace-geometry") == 0) {
             trace_geometry = 1;
+        } else if (strcmp(argv[index], "--trace-state") == 0) {
+            trace_state = 1;
+        } else if (strcmp(argv[index], "--failure-snapshot") == 0 &&
+                   index + 1 < argc) {
+            failure_snapshot = argv[++index];
+        } else if (strcmp(argv[index], "--snapshot-at") == 0 &&
+                   index + 1 < argc &&
+                   parse_u32(argv[++index], &snapshot_at_frame)) {
+            /* parsed */
+        } else if (strcmp(argv[index], "--snapshot-path") == 0 &&
+                   index + 1 < argc) {
+            snapshot_at_path = argv[++index];
         } else if (strcmp(argv[index], "--pulse-input") == 0) {
             pulse_input = 1;
         } else {
@@ -489,7 +621,9 @@ int main(int argc, char **argv)
     if (native_snapshot != NULL) {
         status = run_native_session(
             rom_directory, native_snapshot, native_frames,
-            native_input, native_input_set, trace_geometry, pulse_input
+            native_input, native_input_set, trace_geometry, pulse_input,
+            trace_state, failure_snapshot, snapshot_at_frame,
+            snapshot_at_path
         );
         if (status != VF2_OK) {
             fprintf(stderr, "Native session failed: %s\n",
