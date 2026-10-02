@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Admit bilateral `fa_coli` 6/6 (v0700): section-split reference
+  (9528/18/19, 2298 regions 20/20, 2404 31/31, non-call 9488) matches
+  the native decomposition exactly, so the v0692 fail-closed pin is
+  removed and the full 49-pair scan grid asserts native equality with
+  live-state proof. The `field_0821` matrix has no pins left. Also
+  record the `field_0820 != 0` section battery (v0699): test_one `f0`
+  /`both` reference splits vs native correspondence, pins preserved,
+  residual named. See
+  `decomp/i960/notes/fa_coli_whole_task_scan821_bilateral66_v0700.md`
+  and `decomp/i960/notes/fa_coli_whole_task_820_battery_v0699.md`.
+
 - Land the `fa_coli` scan-821 joint refit (v0698): the scan-0
   fall-through `0x22298` child is trace-exact (body 14), the spurious
   single-live +1 dispatch compensation is removed, the both-live +2 is

@@ -1,5 +1,30 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0700 `fa_coli` bilateral 6/6 admitted; `field_0821` matrix fully native
+
+The last `field_0821` gap is closed: bilateral (6,6) is native with
+complete live-state equality at its measured 9528/18/19. Section-split
+reference shows fully standard structure (2298 regions 20/20 via the
+scan-6 ordering-fail tails, 2404 31/31, non-call 9488), and the native
+decomposition matches exactly (ordering-fail bodies 18/18, F0-special
+-1 on the uniform shell, midbody rest identical to (2,6)), so the
+v0692 fail-closed pin (gate + test) is removed and the full 49-pair
+grid asserts equality. The single + bilateral `field_0821` matrix
+(820 == 0) has no pins left. See
+`decomp/i960/notes/fa_coli_whole_task_scan821_bilateral66_v0700.md`.
+
+## v0699 `fa_coli` `field_0820 != 0` section battery: structure decomposed, pins preserved
+
+Reference section splits for the test_one `f0` (9393: 2298 8/16,
+2404 37/15, non-call 9369) and `both` (9528: 2298 16/16, 2404 37/31,
+non-call 9496) shapes show `F0_820 = 1` costs +8 over the matrix
+analogs (+6 in the F0-side 0x22404 call, +2 shell/rest remainder),
+matched natively in totals and live-state with no source change
+(2404a body-35 path size-exact; `both` via the measured 110-tail early
+return + preserved 820-scoped +2). Residual named explicitly: the two
+internal region-vs-path diffs are not instruction-diffed. See
+`decomp/i960/notes/fa_coli_whole_task_820_battery_v0699.md`.
+
 ## v0698 `fa_coli` scan-821 joint refit landed; F1 scan-2 admitted, 6/6 still pinned
 
 The v0696/v0697 joint refit is implemented and proven. The scan-0

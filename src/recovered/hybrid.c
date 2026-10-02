@@ -30640,28 +30640,17 @@ vf2_status vf2_hybrid_coli_23524_execute(
             return VF2_ERROR_UNSUPPORTED;
         }
         bool adjust_g3_scan = false;
-        if (g6 == (UINT32_C(1) << 2u) &&
-            (flags0 & (UINT32_C(1) << 8u)) != 0u &&
-            (flags1 & (UINT32_C(1) << 8u)) != 0u &&
-            field_820 == UINT8_C(0) &&
-            field_820_other == UINT8_C(0) &&
-            scan_821 == UINT8_C(6) &&
-            scan_821_other == UINT8_C(6)) {
-            /* v0692/v0695 measured bilateral 6/6 fail-closed pin. The
-             * reference reaches 0x10dcc at 9528/18/19, but its first
-             * 0x22298 call takes a 20-step scan-6 ordering-fail tail the
-             * recovered child does not model (v0692 measured 9531
-             * without a matching child). Refuse at the admission gate so
-             * the whitelisted 9531 total of the v0695-admitted
-             * (2,6)/(6,2) mixes cannot accept this composition. */
-            return VF2_ERROR_UNSUPPORTED;
-        }
+        /* v0700: bilateral 6/6 admitted (was the v0692/v0695 fail-closed
+         * pin). Section-split reference (9528/18/19: 2298 regions 20/20,
+         * 2404 31/31, non-call 9488) matches the native decomposition
+         * exactly (scan-6 ordering-fail bodies 18/18, F0-special -1 on
+         * the uniform 9409 shell base): native counts 9528 with complete
+         * live-state equality, so no gate is needed. */
         if (g6 == (UINT32_C(1) << 1u)) {
-            /* v0697 joint refit: only the F0-live scan-0/1/3/4 shapes
-             * take the -1 below. F0-live scan 5 needs none (its 0x22298
-             * ordering-fail child is trace-exact at body 20 and the
-             * single-live non-call section is measured scan-independent
-             * at 9361). F1-live singles need none for the same reason
+            /* v0697 joint refit: only F0-live singles take the -1 below
+             * (scans 0/1/3/4/5; scan 5 rejoined in the composition fix
+             * since its ordering-fail child is trace-exact and reference
+             * shells are scan-identical). F1-live singles need none
              * (scan-5 region 22, scan-6 region 20, scan-2 region 23):
              * the old F1 scan-5/6 -1 and the F1 scan-2 fail-closed pin
              * were compensating the scan-0 child undercount and the
@@ -30710,7 +30699,7 @@ vf2_status vf2_hybrid_coli_23524_execute(
         if (adjust_g3_scan) {
             /* Measured generic g3-scan shells omit one accounting
              * instruction relative to the shared candidate. The
-             * single-live F0 scan-0/1/3/4 and bilateral F0
+             * single-live F0 scan-0/1/3/4/5 and bilateral F0
              * scan-0/1/3/4/5 cases are pinned by the complete
              * whole-task sweeps (v0697: native shell body uniform
              * 9408/9297 after this correction, matching the measured
