@@ -52,3 +52,22 @@ reference-vs-native through `ret 0x27cfc` vs `call 0x28184`: 2x2x2
 input matrix x branch outcome + downstream steps. The guard is 5
 instructions; the contract is bounded and excludes the `0x28184`
 chain until the guard itself is native.
+
+## Measured matrix (v0705, oracle-level proof)
+
+Re-ran the guard from `--set-ip 0x27ce0` (`tmp-lift-27ce0` park;
+baseline `+0x1a8 = 0x0505`, `+0x0c4c-word = 0`). `--until 0x28184`,
+`--max-steps 200`:
+
+| `+0x1aa` | `+0x0c4e` | `+0x1a8==w(+0x0c4c)` | steps | outcome |
+| 0 | 0 | no | 3 | `call 0x28184` (fails check 1) |
+| 0 | 1 | no | 3 | `call 0x28184` (fails check 1) |
+| 1 | 0 | no | 5 | `call 0x28184` (fails check 2) |
+| 1 | 1 | no | 8 | `call 0x28184` (fails check 3) |
+| 1 | 1 | yes (`w(+0x0c4c)=0x0505`) | 200-max, ends `0x179f8` | `ret`, caller continues |
+
+Step counts decompose the guard prefix (3/5/8), and the all-true row
+returns into the `0x179xx` caller region instead of the `0x28184`
+chain. Guard semantics are proven at the oracle level; native
+recovery is still open (it needs native coverage through `0x1abf4`
+first, so no C is claimed here).
