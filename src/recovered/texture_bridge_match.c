@@ -4583,6 +4583,7 @@ static vf2_status execute_frame_phase17_bit7_index4(
     int test_nav5_entry = 0;
     int test_nav6_entry = 0;
     int test_nav7_entry = 0;
+    int test_nav8_entry = 0;
     int test_cursor1_entry = 0;
     int test_cursor2_entry = 0;
     int test_cursor3_entry = 0;
@@ -4590,6 +4591,7 @@ static vf2_status execute_frame_phase17_bit7_index4(
     int test_cursor8_entry = 0;
     int test_cursor9_entry = 0;
     int test_cursor10_entry = 0;
+    int test_cursor11_entry = 0;
     uint32_t test_held_g1 = 0u;
     uint32_t test_held_g2 = 0u;
     uint32_t test_held_g6 = 0u;
@@ -4614,6 +4616,9 @@ static vf2_status execute_frame_phase17_bit7_index4(
     uint32_t test_nav7_g1 = 0u;
     uint32_t test_nav7_g2 = 0u;
     uint32_t test_nav7_g6 = 0u;
+    uint32_t test_nav8_g1 = 0u;
+    uint32_t test_nav8_g2 = 0u;
+    uint32_t test_nav8_g6 = 0u;
     uint32_t test_cursor1_g1 = 0u;
     uint32_t test_cursor1_g2 = 0u;
     uint32_t test_cursor1_g6 = 0u;
@@ -4635,6 +4640,9 @@ static vf2_status execute_frame_phase17_bit7_index4(
     uint32_t test_cursor10_g1 = 0u;
     uint32_t test_cursor10_g2 = 0u;
     uint32_t test_cursor10_g6 = 0u;
+    uint32_t test_cursor11_g1 = 0u;
+    uint32_t test_cursor11_g2 = 0u;
+    uint32_t test_cursor11_g6 = 0u;
     uint64_t instructions = UINT64_C(3044);
     uint64_t calls = UINT64_C(38);
     uint64_t characters = 0u;
@@ -4875,6 +4883,28 @@ static vf2_status execute_frame_phase17_bit7_index4(
         test_nav7_g2 = cpu->registers[VF2_I960_G0_REGISTER + 2u];
         test_nav7_g6 = cpu->registers[VF2_I960_G0_REGISTER + 6u];
     }
+    /* TEST+DOWN navigation cursor 10->11 (measured from the 0x9ff8
+     * failure state): the same latch triple as the earlier single-step
+     * advances, at a5=10. The measured oracle run is the same 3282
+     * steps with the identical observed tail (0x5a7b8 loop, stob
+     * cursor 10->11 to 0x5000a5, ret/0x10b78/0x10b84/0xa6f4 chain to
+     * 0xa010); the row-10 marker word at 0x01000d98 ends 0x8020 and
+     * r25 carries the row-10 text destination 0x01000d98. Own flag;
+     * siblings stay unsupported. */
+    test_nav8_entry = (input_flags == test_down_input &&
+                       previous_flags == test_released_input &&
+                       released_flags == 0u &&
+                       navigation_flags == UINT32_C(0x1004) &&
+                       phase_a5 == UINT8_C(10) &&
+                       phase_a6 == UINT8_C(0xff)) ? 1 : 0;
+    if (test_nav8_entry != 0) {
+        input_match = 1;
+        /* Globals are flat across frames: snapshot the entry values now
+         * (gate does reads only); the exit pins below do not apply. */
+        test_nav8_g1 = cpu->registers[VF2_I960_G0_REGISTER + 1u];
+        test_nav8_g2 = cpu->registers[VF2_I960_G0_REGISTER + 2u];
+        test_nav8_g6 = cpu->registers[VF2_I960_G0_REGISTER + 6u];
+    }
     /* Post-DOWN release frame on cursor 1 (measured from the 0x9ff8
      * failure state): input 0x0f000000, previous still 0x0f001004,
      * released 0x1004 (TEST+DOWN edges), nav 0, a5=1/a6=0xff. The
@@ -5090,6 +5120,37 @@ static vf2_status execute_frame_phase17_bit7_index4(
         test_cursor10_g2 = cpu->registers[VF2_I960_G0_REGISTER + 2u];
         test_cursor10_g6 = cpu->registers[VF2_I960_G0_REGISTER + 6u];
     }
+    /* Post-DOWN release/idle on cursor 11 (predicted same
+     * special-assignment path as cursor 10 — row 11 shares the
+     * a5==10/11 finish in the base code, and packed_bit is -1 for
+     * a5=11; the differential below proves it): release triple
+     * 0x0f000000/0x0f001004/0x1004 plus the settled idle triple,
+     * nav 0, a5=11/a6=0xff. r25 is descriptor-driven (0x01000e98).
+     * Pinned exactly; edit siblings stay unsupported. */
+    test_cursor11_entry = (input_flags == test_released_input &&
+                           previous_flags == test_down_input &&
+                           released_flags == UINT32_C(0x1004) &&
+                           navigation_flags == 0u &&
+                           phase_a5 == UINT8_C(11) &&
+                           phase_a6 == UINT8_C(0xff)) ? 1 : 0;
+    if (test_cursor11_entry == 0) {
+        /* Settled idle on cursor 11: 0x0f000000/0x0f000000/0, same
+         * predicted path as the release frame above. */
+        test_cursor11_entry = (input_flags == test_released_input &&
+                               previous_flags == test_released_input &&
+                               released_flags == 0u &&
+                               navigation_flags == 0u &&
+                               phase_a5 == UINT8_C(11) &&
+                               phase_a6 == UINT8_C(0xff)) ? 1 : 0;
+    }
+    if (test_cursor11_entry != 0) {
+        input_match = 1;
+        /* Globals are flat across frames: snapshot the entry values now
+         * (gate does reads only); the exit pins below do not apply. */
+        test_cursor11_g1 = cpu->registers[VF2_I960_G0_REGISTER + 1u];
+        test_cursor11_g2 = cpu->registers[VF2_I960_G0_REGISTER + 2u];
+        test_cursor11_g6 = cpu->registers[VF2_I960_G0_REGISTER + 6u];
+    }
     if (test_held_entry != 0) {
         input_match = 1;
         /* Globals are flat across frames: snapshot the entry values now
@@ -5104,7 +5165,7 @@ static vf2_status execute_frame_phase17_bit7_index4(
          test_cursor2_entry == 0 && test_cursor3_entry == 0 &&
          test_cursor7_entry == 0 && test_cursor8_entry == 0 &&
          test_cursor9_entry == 0 && test_cursor10_entry == 0 &&
-         released_flags != 0u) ||
+         test_cursor11_entry == 0 && released_flags != 0u) ||
         selector_mask != UINT32_C(0x00020000) ||
         (diagnostic_flags & (UINT32_C(1) << 14u)) != 0u ||
         phase_a5 > UINT8_C(15) || phase_a6 != UINT8_C(0xff)) {
@@ -5130,7 +5191,7 @@ static vf2_status execute_frame_phase17_bit7_index4(
     } else if (navigation_flags == UINT32_C(0x1000) ||
                ((test_nav2_entry != 0 || test_nav3_entry != 0 ||
                  test_nav5_entry != 0 || test_nav6_entry != 0 ||
-                 test_nav7_entry != 0) &&
+                 test_nav7_entry != 0 || test_nav8_entry != 0) &&
                 navigation_flags == UINT32_C(0x1004))) {
         /* The oracle masks nav (0x08001008) and decodes the direction
          * helper identically for 0x1000/0x1004 (both +1); the 0x1004
@@ -5750,25 +5811,46 @@ static vf2_status execute_frame_phase17_bit7_index4(
         /* TEST-held entry spills the live g1 to this frame slot, as do
          * the TEST+DOWN navigation, post-DOWN cursor and nav advance
          * entries; the base combo instead spills its own 0x7ae10 value
-         * here. */
+         * here. (If/else chain: one arm per exact combo, all mutually
+         * exclusive by construction of the gates above.) */
+        uint32_t spill_g1 = UINT32_C(0x0007ae10);
+        if (test_held_entry != 0) {
+            spill_g1 = test_held_g1;
+        } else if (test_nav_entry != 0) {
+            spill_g1 = test_nav_g1;
+        } else if (test_cursor1_entry != 0) {
+            spill_g1 = test_cursor1_g1;
+        } else if (test_cursor2_entry != 0) {
+            spill_g1 = test_cursor2_g1;
+        } else if (test_cursor3_entry != 0) {
+            spill_g1 = test_cursor3_g1;
+        } else if (test_cursor7_entry != 0) {
+            spill_g1 = test_cursor7_g1;
+        } else if (test_cursor8_entry != 0) {
+            spill_g1 = test_cursor8_g1;
+        } else if (test_cursor9_entry != 0) {
+            spill_g1 = test_cursor9_g1;
+        } else if (test_cursor10_entry != 0) {
+            spill_g1 = test_cursor10_g1;
+        } else if (test_cursor11_entry != 0) {
+            spill_g1 = test_cursor11_g1;
+        } else if (test_nav2_entry != 0) {
+            spill_g1 = test_nav2_g1;
+        } else if (test_nav3_entry != 0) {
+            spill_g1 = test_nav3_g1;
+        } else if (test_nav4_entry != 0) {
+            spill_g1 = test_nav4_g1;
+        } else if (test_nav5_entry != 0) {
+            spill_g1 = test_nav5_g1;
+        } else if (test_nav6_entry != 0) {
+            spill_g1 = test_nav6_g1;
+        } else if (test_nav7_entry != 0) {
+            spill_g1 = test_nav7_g1;
+        } else if (test_nav8_entry != 0) {
+            spill_g1 = test_nav8_g1;
+        }
         status = vf2_model2a_write_u32(
-            machine, UINT32_C(0x005ff684),
-            test_held_entry != 0 ? test_held_g1 :
-            (test_nav_entry != 0 ? test_nav_g1 :
-             (test_cursor1_entry != 0 ? test_cursor1_g1 :
-              (test_cursor2_entry != 0 ? test_cursor2_g1 :
-               (test_cursor3_entry != 0 ? test_cursor3_g1 :
-                (test_cursor7_entry != 0 ? test_cursor7_g1 :
-                  (test_cursor8_entry != 0 ? test_cursor8_g1 :
-                   (test_cursor9_entry != 0 ? test_cursor9_g1 :
-                    (test_cursor10_entry != 0 ? test_cursor10_g1 :
-                     (test_nav2_entry != 0 ? test_nav2_g1 :
-                    (test_nav3_entry != 0 ? test_nav3_g1 :
-                     (test_nav4_entry != 0 ? test_nav4_g1 :
-                      (test_nav5_entry != 0 ? test_nav5_g1 :
-                        (test_nav6_entry != 0 ? test_nav6_g1 :
-                         (test_nav7_entry != 0 ? test_nav7_g1 :
-                          UINT32_C(0x0007ae10)))))))))))))))
+            machine, UINT32_C(0x005ff684), spill_g1
         );
     }
     if (status != VF2_OK) {
@@ -5857,18 +5939,20 @@ static vf2_status execute_frame_phase17_bit7_index4(
             machine, cpu, report, phase_a5, 0, 0u, characters
         );
     }
-    if (phase_a5 == UINT8_C(10) || phase_a5 == UINT8_C(11)) {
+    if ((phase_a5 == UINT8_C(10) || phase_a5 == UINT8_C(11)) &&
+        test_nav8_entry == 0) {
         status = finish_frame_phase17_index4_special_assignment(
             machine, cpu, report, phase_a5, 0, 0u, characters
         );
-        if (status == VF2_OK && test_cursor10_entry != 0) {
-            /* Post-DOWN release/idle on cursor 10 (measured from the
-             * 0x9ff8 failure state): the string-indexed row renders
-             * via the special-assignment finish (3277 steps, string
-             * glyphs + arrow 0x801c at the row-10 marker 0x01000d98,
-             * CC EQUAL), not match_count. The base combo pins
-             * r25 = descriptor - 4 = 0x01000d98 already; the oracle
-             * additionally leaves r9=0xffffffff / r15=0x8a00,
+        if (status == VF2_OK &&
+            (test_cursor10_entry != 0 || test_cursor11_entry != 0)) {
+            /* Post-DOWN release/idle on cursor 10/11 (measured for 10,
+             * predicted same shape for 11 -- the differential below
+             * proves it): the string-indexed row 10 and the packed-bit
+             * row 11 (packed_bit is -1 for a5=11) both render via the
+             * special-assignment finish. The base combo pins
+             * r25 = descriptor - 4 already; the oracle additionally
+             * leaves r9=0xffffffff / r15=0x8a00,
              * r14 = frame-counter-minus-one and live g1/g2/g6 entry
              * values, same override shape as the match_count stable
              * frames. Scoped to these exact combos. */
@@ -5886,11 +5970,14 @@ static vf2_status execute_frame_phase17_bit7_index4(
             cpu->registers[14] = frame_counter - UINT32_C(1);
             cpu->registers[15] = UINT32_C(0x00008a00);
             cpu->registers[VF2_I960_G0_REGISTER + 1u] =
-                test_cursor10_g1;
+                test_cursor10_entry != 0 ? test_cursor10_g1 :
+                test_cursor11_g1;
             cpu->registers[VF2_I960_G0_REGISTER + 2u] =
-                test_cursor10_g2;
+                test_cursor10_entry != 0 ? test_cursor10_g2 :
+                test_cursor11_g2;
             cpu->registers[VF2_I960_G0_REGISTER + 6u] =
-                test_cursor10_g6;
+                test_cursor10_entry != 0 ? test_cursor10_g6 :
+                test_cursor11_g6;
         }
         return status;
     }
@@ -6106,6 +6193,31 @@ static vf2_status execute_frame_phase17_bit7_index4(
             cpu->registers[VF2_I960_G0_REGISTER + 2u] = test_nav7_g2;
             cpu->registers[VF2_I960_G0_REGISTER + 6u] = test_nav7_g6;
             cpu->registers[25] = UINT32_C(0x01000c98);
+        }
+    }
+    if (status == VF2_OK && test_nav8_entry != 0) {
+        /* TEST+DOWN navigation cursor 10->11 (measured): the same
+         * observed exit and poststate shape as the earlier
+         * single-step advances (3282-step oracle tail: 0x5a7b8
+         * loop, stob 0x0b, ret/0x10b78/0x10b84/0xa6f4 chain);
+         * from cursor 10, r25 carries the row-10 text destination
+         * instead of the base pin. */
+        uint32_t frame_counter = 0u;
+        status = vf2_model2a_read_u32(
+            machine, UINT32_C(0x00500020), &frame_counter
+        );
+        if (status == VF2_OK && frame_counter == 0u) {
+            status = VF2_ERROR_UNSUPPORTED;
+        }
+        if (status == VF2_OK) {
+            cpu->registers[14] = frame_counter - UINT32_C(1);
+        }
+        if (status == VF2_OK) {
+            cpu->registers[15] = UINT32_C(0x00008a00);
+            cpu->registers[VF2_I960_G0_REGISTER + 1u] = test_nav8_g1;
+            cpu->registers[VF2_I960_G0_REGISTER + 2u] = test_nav8_g2;
+            cpu->registers[VF2_I960_G0_REGISTER + 6u] = test_nav8_g6;
+            cpu->registers[25] = UINT32_C(0x01000d98);
         }
     }
     return status;

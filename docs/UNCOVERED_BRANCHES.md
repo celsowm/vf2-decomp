@@ -1,5 +1,18 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0720 TEST+DOWN cursor 10->11 and cursor-11 corridor native
+
+Row 11 (packed bit 2, but packed_bit=-1 for a5=11): 10->11 DOWN
+MATCHes on the observed exit at 3282 steps (3050 body) with r25 =
+row-10 destination 0x01000d98; cursor-11 release + idle render via the
+special-assignment finish (predicted shape proven by MATCH,
+descriptor-driven r25=0x01000e98, 36-frame chain all MATCH). Routing:
+nav8 bypasses the special-assignment branch (new guard); spill chain
+refactored from a 16-level nested ternary to an if/else chain
+(identical order, proven by differentials). Next: 11->12 DOWN
+(fail-closed, failure state captured), then rows 12-14, UP family,
+per-row edits. See `playable_test_down_cursor11_v0720.md`.
+
 ## v0719 TEST+DOWN cursor 9->10 and cursor-10 corridor native
 
 String-indexed settings row: 9->10 DOWN MATCHes on the observed exit
