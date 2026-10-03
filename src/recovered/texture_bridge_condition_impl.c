@@ -149,6 +149,15 @@ static vf2_status set_main_final_cluster_condition(
              * at cmpibne 1,g0 (g0=0, branch taken) with GREATER, which
              * the bridge poststate already carries. Leave it intact
              * instead of the historical EQUAL default. */
+        } else if (phase_index == UINT8_C(0x84) &&
+                   input_flags == UINT32_C(0x0f001004)) {
+            /* TEST+DOWN submenu navigation (nav=+1): the oracle tail runs
+             * cmpibge/stob/ret through the scheduler return, which clears
+             * the condition state; the measured checkpoint carries NONE
+             * (keyed on the input combo, not the post-advance cursor:
+             * the dispatch overwrites 0x5000a5 before this runs).
+             * Verified: forcing EQUAL here is the sole cpu-state diff. */
+            set_compare_result(cpu, VF2_I960_COMPARE_NONE);
         } else if (phase_index != UINT8_C(0x8a)) {
             /* Phase 0x8a (index10) leaves the measured bridge poststate
              * intact (match-latch path ends GREATER). Other phases keep

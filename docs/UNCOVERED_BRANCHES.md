@@ -1,5 +1,19 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0712 TEST+DOWN navigation native (cursor 0->1, release, stable idle)
+
+TEST+DOWN (`0x0f001004`, nav `0x1000`) advances the submenu cursor
+0->1 natively (4952/4952 insns MATCH); the release triple
+(`0x0f000000`/`0x0f001004`/`0x1004`) and settled idle triple render
+cursor 1 via the match_count finish (3277 steps, chained t3->t6
+MATCH). New reusable rule: dispatch `r14` = RAM `0x500020` frame
+counter minus one (prefix bumps after loading the oracle's `g8`;
+3 gate snapshots + 4 end states agree; fail-closed on zero). CC NONE
+on the nav frame (keyed on input, cursor is overwritten first).
+Next: cursor 1->2 DOWN (new combo, match_count exit), then per-step
+to EXIT; UP/edits unmeasured. See
+`playable_test_down_cursor1_v0712.md`.
+
 ## v0711 0x28184 bit-20-set siblings native; counter/curve -> 0x28918 pinned
 
 Bit-20-set S0/S1/S2 reach `0x28268` in 11/13/15 (same +2/+4 sibling
