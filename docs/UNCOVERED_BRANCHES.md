@@ -1,5 +1,17 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0719 TEST+DOWN cursor 9->10 and cursor-10 corridor native
+
+String-indexed settings row: 9->10 DOWN MATCHes on the observed exit
+at 3282 steps (3050 body) with r25 = row-9 destination 0x01000c98;
+cursor-10 release + idle render via the special-assignment finish
+(3277 steps, string glyphs + arrow at 0x01000d98, 33-frame chain all
+MATCH). The initial match_count prediction for this row was wrong and
+the differential caught it pre-commit; cursor-10 keeps the
+descriptor-driven r25 with the standard stable overrides. Next:
+10->11 DOWN (fail-closed, failure state captured), then rows 11-14,
+UP family, per-row edits. See `playable_test_down_cursor10_v0719.md`.
+
 ## v0718 TEST+DOWN cursor 8->9 and cursor-9 corridor native
 
 Third packed-bit settings row: 8->9 DOWN MATCHes on the observed exit
