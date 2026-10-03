@@ -1,5 +1,17 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0714 TEST+DOWN cursor 1->2 and cursor-2 corridor native
+
+1->2 DOWN (`0x0f001004`/`0x0f000000`/0/nav `0x1004`, a5 1->2) takes the
+observed exit (same 3282-step tail as 0->1; `a5 in {1,2}+nav` skips
+match_count only via the exact combo) and MATCHes; cursor-2 release +
+stable idle render via match_count (3277, chained ct5->ct9). Rules:
+oracle nav decode is mask `0x08001008` (0x1004 decodes +1 like 0x1000;
+admitted exactly); r25 = row-1 destination on nav2; cursor-2 needs no
+r25 override (selection-based pin already rows correctly). Next:
+2->3 DOWN, UP, per-row edits; attract stays device-blocked
+(v0354/v0366). See `playable_test_down_cursor2_v0714.md`.
+
 ## v0713 0x28918 curve/keyframe evaluator native (counter!=1 route)
 
 The 60-vertex evaluator runs natively via the `0x28270` call, proven
