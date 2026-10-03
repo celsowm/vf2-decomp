@@ -1,5 +1,19 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0715 TEST+DOWN cursor 2->3 and cursor-3 corridor native
+
+2->3 DOWN (`0x0f001004`/`0x0f000000`/0/nav `0x1004`, a5 2->3) takes the
+observed exit (same 3282-step tail as 0->1/1->2; skips match_count only
+via the exact combo) and MATCHes; cursor-3 release + stable idle render
+via match_count (3277, 21-frame chain from sixth-fresh all MATCH).
+Rules: r25 = row-2 destination on nav3; cursor-3 stable needs an
+explicit r25 override — row 3's text destination (`0x01000598`, label
+`0x0100059c`) is off the `0x100` row grid that served rows 1/2; the
+a5=3 test-combo routes to match_count, base-combo difficulty path
+unchanged. Next: 3->4 DOWN (row-4 destination must be measured), UP,
+per-row edits; attract stays device-blocked (v0354/v0366). See
+`playable_test_down_cursor3_v0715.md`.
+
 ## v0714 TEST+DOWN cursor 1->2 and cursor-2 corridor native
 
 1->2 DOWN (`0x0f001004`/`0x0f000000`/0/nav `0x1004`, a5 1->2) takes the
