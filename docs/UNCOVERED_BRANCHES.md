@@ -1,5 +1,19 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0713 0x28918 curve/keyframe evaluator native (counter!=1 route)
+
+The 60-vertex evaluator runs natively via the `0x28270` call, proven
+by a committed 4-row live differential from
+`out/player-14288-natres.vf2snap` (F0/F1 tables, counters 0/2/30;
+step/call/ret lockstep + full live-state equality at `0x28274`).
+Rules: `(g11)[g12]` is a loop-invariant swap temp (any scratch
+faithful); counter!=1 skips the status test (bit0 unread on route);
+per-mode step census (copy 10/zero 12/skip 11/lerp 49). Fail-closed:
+null table, mode 5 (no witness in 1082 snapshots), exhausted walks,
+modes >6, fighter bit6 set, `0x281b0`/`0x28208` float heads,
+post-`0x28274` continuation (interpreter-exact). See
+`fa_player_28918_live_v0713.md`.
+
 ## v0712 TEST+DOWN navigation native (cursor 0->1, release, stable idle)
 
 TEST+DOWN (`0x0f001004`, nav `0x1000`) advances the submenu cursor

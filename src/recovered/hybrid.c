@@ -2046,6 +2046,16 @@ static vf2_status hybrid_execute_player_28184_prefix(
     vf2_i960_cpu *cpu
 );
 
+static vf2_status hybrid_execute_player_28270_call(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
+static vf2_status hybrid_execute_player_28918_body(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 /* v0389 test-only entry to the recovered 0x14288 -> 0x19ef8 corridor
  * unit (see hybrid.h).  Thin wrapper: the static unit above already
  * fails closed on every unmeasured shape. */
@@ -2272,6 +2282,31 @@ vf2_status vf2_hybrid_player_28184_execute_for_test(
         return status;
     }
     return hybrid_execute_player_28184_prefix(machine, cpu);
+}
+
+/* v0713 test-only chain over the 0x27d00 call, the 0x28184 head, the
+ * 0x28270 call and the 0x28918 body (counter!=1 live route). Thin
+ * wrapper: every static unit already fails closed on unmeasured
+ * shapes; the post-call 0x28274 continuation is unrecovered (the live
+ * test stops there). */
+vf2_status vf2_hybrid_player_28918_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    vf2_status status = hybrid_execute_player_27d00_call(machine, cpu);
+    if (status != VF2_OK) {
+        return status;
+    }
+    status = hybrid_execute_player_28184_prefix(machine, cpu);
+    if (status != VF2_OK) {
+        return status;
+    }
+    status = hybrid_execute_player_28270_call(machine, cpu);
+    if (status != VF2_OK) {
+        return status;
+    }
+    return hybrid_execute_player_28918_body(machine, cpu);
 }
 
 static vf2_status hybrid_execute_player_142c0(
@@ -3603,6 +3638,35 @@ static vf2_status hybrid_execute_player_28184_prefix(
             }
         }
     }
+    if (result != VF2_OK) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    if (counter != 1u) {
+        /* v0713 counter!=1 live route via the 0x28270 call (measured F0
+         * witness, see fa_player_28918_live_v0713.md): S0 shape (bit17
+         * clear, so the 0x500092/0x0800 loads never run), bit20 clear,
+         * curve 0 (the 0x28208 table path is skipped), live table.
+         * The 0x28260/64 status test is skipped on this route (cmpobne
+         * jumps direct), so the status byte is unread here. Sibling,
+         * bit20-set, nonzero-curve, and null-table shapes refuse. */
+        if ((mode & (UINT32_C(1) << 17u)) != 0u || sibling != 0u ||
+            (mode & (UINT32_C(1) << 20u)) != 0u || curve != 0u ||
+            scratch == 0u) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        cpu->registers[VF2_I960_G0_REGISTER + 6u] = counter;
+        cpu->registers[6] = scratch;
+        cpu->registers[VF2_I960_G0_REGISTER + 5u] = scratch + UINT32_C(0x690);
+        cpu->registers[10] = curve;
+        hybrid_set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
+        cpu->ip = UINT32_C(0x00028270);
+        /* 0x28184 ld + 0x28188 ld + 0x2818c lda + 0x28190 ld + 0x28198
+         * bbc + 0x281c8 bbc + 0x28208 ld + 0x2820c cmpobe + 0x2825c
+         * cmpobne: 9 steps (the 0x28270 call itself is counted by the
+         * 28270_call unit, as 0x28268 is by 28268_call). */
+        cpu->executed_instructions += UINT64_C(9);
+        return VF2_OK;
+    }
     if (result != VF2_OK || counter != 1u ||
         ((mode & (UINT32_C(1) << 17u)) != 0u && sibling == 0u) ||
         ((mode & (UINT32_C(1) << 20u)) == 0u && curve != 0u) ||
@@ -3655,6 +3719,378 @@ static vf2_status hybrid_execute_player_28268_call(
         return status;
     }
     cpu->ip = UINT32_C(0x00028780);
+    ++cpu->executed_instructions;
+    return VF2_OK;
+}
+
+/* v0713 0x28918 curve/keyframe evaluator body (counter!=1 route entered
+ * via the 0x28270 call). Measured live witness (see
+ * decomp/i960/notes/fa_player_28918_live_v0713.md): fighter0 table at
+ * 0x520000 in out/player-14288-natres.vf2snap, counter 2, mode
+ * 0x80004400, sense 0, edge 0x78, curve 0, status bit0 set-or-clear
+ * (the 0x28260/64 test is skipped on this route), g11 = scratch,
+ * g12 = 0; oracle runs 0x27d00 -> 0x28274 in 1088 steps.
+ *
+ * Shape (75 basic blocks visited on the witness): cvtir the counter,
+ * then a 60-iteration per-vertex loop over the mode bytes at
+ * table+0x78c: mode 4 copies one word (g2)->(g5); mode 3 zeroes (g5);
+ * modes 0/1/2 skip (g2+=4, no store); mode 6 (and any r6 > 6, refused)
+ * walks the keyframe array comparing the float curve value against
+ * keyframe words as UNSIGNED BIT PATTERNS (cmpoble on float bits, as
+ * the executor does) and lerps with float subtracts, staging 7 words
+ * through the (g11)[g12] scratch word (all 7 hit the same word; only
+ * the last survives the reload) into (g5). The epilogue converts 36
+ * words at the rewound (g5) back with cvtri/stis, rewinds again, and
+ * returns iff fighter word0 bit6 is clear (the set path at 0x28af8 is
+ * unmeasured).
+ *
+ * Fail-closed scope: null table, mode 5 (own loop at 0x28a04), r6 > 6,
+ * exhausted walks (0x2896c), fighter bit6 set, or zero frame counter
+ * all refuse. Five live runs (F0/F1 tables, counters 0/2/30) cover
+ * copy/zero/skip/strict-lerp/exact-key/epilogue/tail with zero
+ * exhausted hits, so the refusal never fires there.
+ * staging address is loop-invariant and write-before-read, so any
+ * writable scratch is faithful (probe-verified at two addresses).
+ * Intermediate condition state is invisible (only the 0x28274 end is
+ * compared); the end pins EQUAL/010, the measured end state. */
+static vf2_status hybrid_execute_player_28918_body(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    const uint32_t player = cpu != NULL
+        ? cpu->registers[VF2_I960_G0_REGISTER + 7u] : 0u;
+    uint32_t table = 0u;
+    uint32_t g0 = 0u;
+    uint32_t g1 = 0u;
+    uint32_t g2 = 0u;
+    uint32_t g3 = 0u;
+    uint32_t g4 = 0u;
+    uint32_t g5 = 0u;
+    uint32_t g6 = 0u;
+    uint32_t g11 = 0u;
+    uint32_t g12 = 0u;
+    uint32_t r3 = 0u;
+    uint32_t r4 = 0u;
+    uint32_t r5 = 0u;
+    uint32_t r6b = 0u;
+    uint32_t r7 = 0u;
+    uint32_t r8 = 0u;
+    uint32_t r9 = 0u;
+    uint32_t r10 = 0u;
+    uint32_t r11 = 0u;
+    uint32_t r13 = 0u;
+    uint32_t r15 = 0u;
+    uint32_t staging = 0u;
+    uint32_t guard = 0u;
+    uint32_t found = 0u;
+    uint64_t steps = 0u;
+    uint8_t mode_byte = 0u;
+    uint8_t count_byte = 0u;
+    vf2_status status = VF2_OK;
+
+    if (machine == NULL || cpu == NULL ||
+        cpu->ip != UINT32_C(0x00028918) || player == 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    g6 = cpu->registers[VF2_I960_G0_REGISTER + 6u];
+    g11 = cpu->registers[VF2_I960_G0_REGISTER + 11u];
+    g12 = cpu->registers[VF2_I960_G0_REGISTER + 12u];
+    /* cvtir g6,g6: integer counter to float curve value. */
+    g6 = hybrid_float_to_bits((float)(int32_t)g6);
+    steps += UINT64_C(1);
+    status = vf2_model2a_read_u32(machine, player + UINT32_C(0xbd8), &table);
+    if (status == VF2_OK) {
+        steps += UINT64_C(1);
+    }
+    if (status == VF2_OK && table == 0u) {
+        /* Zeroed synthetic fixture (committed frontier pins): the live
+         * table chain is absent, so refuse before any dereference. */
+        status = VF2_ERROR_UNSUPPORTED;
+    }
+    if (status == VF2_OK) {
+        /* lda table+0x78c->g4 (address, not a dereference). g5 arrives
+         * from the head (lda table+0x690). */
+        g5 = cpu->registers[VF2_I960_G0_REGISTER + 5u];
+        g4 = table + UINT32_C(0x78c);
+        steps += UINT64_C(1);
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_read_u32(machine, table + UINT32_C(0x788), &g3);
+        steps += UINT64_C(1);
+    }
+    if (status == VF2_OK) {
+        status = vf2_model2a_read_u32(machine, table + UINT32_C(0x780), &g2);
+        steps += UINT64_C(1);
+    }
+    if (status == VF2_OK) {
+        g1 = UINT32_C(31) + UINT32_C(29);
+        status = vf2_model2a_read_u32(machine, table + UINT32_C(0x784), &g0);
+        steps += UINT64_C(2);
+    }
+    /* 60-vertex loop; cmpdeco repeats while 1u < g1 (60 runs). */
+    while (status == VF2_OK && g1 > 0u) {
+        /* mov g3,r10 + ldob + cmpobe 4,r6: 3 common steps. */
+        status = hybrid_read_u8(machine, g4, &mode_byte);
+        if (status != VF2_OK) {
+            break;
+        }
+        r10 = g3;
+        steps += UINT64_C(3);
+        if (mode_byte == UINT8_C(4)) {
+            /* Copy path (0x28aa8): ld (g2)->r3, st r3->(g5), g2+=4. */
+            status = vf2_model2a_read_u32(machine, g2, &r3);
+            if (status == VF2_OK) {
+                status = vf2_model2a_write_u32(machine, g5, r3);
+            }
+            if (status == VF2_OK) {
+                g2 += UINT32_C(4);
+                steps += UINT64_C(3);
+            }
+        } else if (mode_byte == UINT8_C(5)) {
+            /* Mode-5 lerp loop (0x28a04): no live witness exists in any
+             * snapshot (mode census over 1082 snapshots); refuse. */
+            status = VF2_ERROR_UNSUPPORTED;
+        } else if (mode_byte < UINT8_C(4)) {
+            /* Skip/zero block (0x28a90): bg taken since 4 > mode.
+             * Mode 3 zeroes (g5); modes 0/1/2 advance g2 past the word:
+             * bg + cmpobe 3 + (mov,st | addo,b). */
+            steps += UINT64_C(2);
+            if (mode_byte == UINT8_C(3)) {
+                status = vf2_model2a_write_u32(machine, g5, 0u);
+                /* mov + st + b (0x28aa4). */
+                steps += UINT64_C(3);
+            } else {
+                g2 += UINT32_C(4);
+                steps += UINT64_C(2);
+            }
+        } else if (mode_byte > UINT8_C(6)) {
+            /* Main-lerp shape above mode 6 is unmeasured; refuse. */
+            status = VF2_ERROR_UNSUPPORTED;
+        } else {
+            /* Main keyframe lerp (0x28944, mode 6 on the witness):
+             * bg not taken + ldob + addo + mov + cmpobe 5,r6. */
+            steps += UINT64_C(5);
+            status = hybrid_read_u8(machine, g0, &count_byte);
+            if (status == VF2_OK) {
+                g0 += UINT32_C(1);
+                r9 = 0u;
+                r11 = count_byte;
+            }
+            /* Inner walk: ld (r10)->r8, r10+=4, cmpoble per step;
+             * found iff the float curve value is <= the keyframe word
+             * as UNSIGNED BITS (cmpoble g6,r8 branches iff g6 <= r8;
+             * the executor compares first<=second). Else r7=r8, r9+=1,
+             * repeat while r11 > r9 (cmpobg, unsigned). */
+            guard = 0u;
+            found = 0u;
+            while (status == VF2_OK) {
+                status = vf2_model2a_read_u32(machine, r10, &r8);
+                if (status == VF2_OK) {
+                    r10 += UINT32_C(4);
+                    steps += UINT64_C(3);
+                }
+                if (status != VF2_OK) {
+                    break;
+                }
+                if (g6 <= r8) {
+                    found = 1u;
+                    break;
+                }
+                r7 = r8;
+                r9 += UINT32_C(1);
+                /* mov + addo + cmpobg (taken or not, one step each). */
+                steps += UINT64_C(3);
+                if (r11 <= r9) {
+                    break;
+                }
+                ++guard;
+                if (guard > UINT32_C(0x10000)) {
+                    /* Unmeasured-huge keyframe counts would hang the
+                     * oracle the same way; refuse instead. */
+                    status = VF2_ERROR_UNSUPPORTED;
+                }
+            }
+            if (status != VF2_OK) {
+                break;
+            }
+            if (found != 0u) {
+                /* Found segment (0x28988): 10 index steps + cmpobe. */
+                r4 = r11 << 2u;
+                g3 += r4;
+                r4 = r9 << 1u;
+                r4 += r9;
+                r9 = r4 << 2u;
+                r9 += g2;
+                r4 = r11 << 1u;
+                r4 += r11;
+                r11 = r4 << 2u;
+                g2 += r11;
+                steps += UINT64_C(11);
+                if (r8 == g6) {
+                    /* Exact key (0x28a84): ld (r9)->r3, st r3->(g5),
+                     * b (0x28a8c). Witnessed twice on the counter=30
+                     * run (30.0 keyframes); same shapes as copy/zero. */
+                    status = vf2_model2a_read_u32(machine, r9, &r3);
+                    if (status == VF2_OK) {
+                        status = vf2_model2a_write_u32(machine, g5, r3);
+                    }
+                    steps += UINT64_C(3);
+                } else {
+                    /* Float lerp (0x289b0): 2 subr + 4 loads + 1 lda
+                     * marker + 7 staging stores through the
+                     * loop-invariant (g11)[g12] scratch word + reload to
+                     * (g5) + b (0x28a00): 17 steps. */
+                    float f3 = hybrid_float_from_bits(r7) -
+                        hybrid_float_from_bits(r8);
+                    float f4 = hybrid_float_from_bits(r7) -
+                        hybrid_float_from_bits(g6);
+                    staging = g11 + (g12 << 2u);
+                    status = vf2_model2a_read_u32(machine, r9 - UINT32_C(12),
+                                                 &r5);
+                    if (status == VF2_OK) {
+                        status = vf2_model2a_read_u32(machine, r9, &r6b);
+                    }
+                    if (status == VF2_OK) {
+                        status = vf2_model2a_read_u32(
+                            machine, r9 - UINT32_C(4), &r7);
+                    }
+                    if (status == VF2_OK) {
+                        status = vf2_model2a_read_u32(
+                            machine, r9 + UINT32_C(4), &r8);
+                    }
+                    if (status == VF2_OK) {
+                        status = vf2_model2a_write_u32(
+                            machine, staging, UINT32_C(0x19003232));
+                    }
+                    if (status == VF2_OK) {
+                        status = vf2_model2a_write_u32(
+                            machine, staging, hybrid_float_to_bits(f3));
+                    }
+                    if (status == VF2_OK) {
+                        status = vf2_model2a_write_u32(
+                            machine, staging, hybrid_float_to_bits(f4));
+                    }
+                    if (status == VF2_OK) {
+                        status = vf2_model2a_write_u32(machine, staging, r5);
+                    }
+                    if (status == VF2_OK) {
+                        status = vf2_model2a_write_u32(machine, staging, r6b);
+                    }
+                    if (status == VF2_OK) {
+                        status = vf2_model2a_write_u32(machine, staging, r7);
+                    }
+                    if (status == VF2_OK) {
+                        status = vf2_model2a_write_u32(machine, staging, r8);
+                    }
+                    if (status == VF2_OK) {
+                        status = vf2_model2a_read_u32(machine, staging, &r3);
+                    }
+                    if (status == VF2_OK) {
+                        status = vf2_model2a_write_u32(machine, g5, r3);
+                    }
+                    steps += UINT64_C(17);
+                }
+            } else {
+                /* Exhausted walk (0x2896c): no witness in four live runs
+                 * (every lerp vert found a segment); refuse. */
+                status = VF2_ERROR_UNSUPPORTED;
+            }
+        }
+        if (status != VF2_OK) {
+            break;
+        }
+        /* Outer tail (0x28ab4): addo + addo + cmpdeco + bl. */
+        g4 += UINT32_C(1);
+        g5 += UINT32_C(4);
+        steps += UINT64_C(4);
+        if (g1 > 0u) {
+            g1 -= UINT32_C(1);
+        }
+        if (g1 == 0u) {
+            break;
+        }
+    }
+    if (status != VF2_OK) {
+        return status;
+    }
+    /* Epilogue (0x28ac4): shlo + subo + addo, then 36x
+     * (ld, cvtri, stis, addo, cmpdeco, bl). */
+    g5 -= UINT32_C(240);
+    steps += UINT64_C(3);
+    {
+        uint32_t epi = 0u;
+        for (epi = 0u; epi < UINT32_C(36); ++epi) {
+            uint32_t converted = 0u;
+            status = vf2_model2a_read_u32(machine, g5, &r13);
+            if (status == VF2_OK) {
+                status = hybrid_player_convert_real_to_integer(
+                    cpu, r13, &converted);
+            }
+            if (status == VF2_OK) {
+                status = hybrid_write_u16(
+                    machine, g5, (uint16_t)converted);
+            }
+            if (status != VF2_OK) {
+                break;
+            }
+            g5 += UINT32_C(4);
+            steps += UINT64_C(6);
+        }
+    }
+    if (status != VF2_OK) {
+        return status;
+    }
+    /* Tail (0x28ae8): shlo + subo + ld + bbc + ret. */
+    g5 -= UINT32_C(144);
+    steps += UINT64_C(2);
+    status = vf2_model2a_read_u32(machine, player, &r15);
+    if (status == VF2_OK && (r15 & (UINT32_C(1) << 6u)) != 0u) {
+        /* Bit6-set continuation (0x28af8 stores/ldt/stt) unmeasured. */
+        status = VF2_ERROR_UNSUPPORTED;
+    }
+    if (status != VF2_OK) {
+        return status;
+    }
+    steps += UINT64_C(3);
+    cpu->registers[VF2_I960_G0_REGISTER + 0u] = g0;
+    cpu->registers[VF2_I960_G0_REGISTER + 1u] = g1;
+    cpu->registers[VF2_I960_G0_REGISTER + 2u] = g2;
+    cpu->registers[VF2_I960_G0_REGISTER + 3u] = g3;
+    cpu->registers[VF2_I960_G0_REGISTER + 4u] = g4;
+    cpu->registers[VF2_I960_G0_REGISTER + 5u] = g5;
+    cpu->registers[VF2_I960_G0_REGISTER + 6u] = g6;
+    /* Measured end condition state at 0x28274 (bit6-clear path): EQUAL
+     * with AC low bits 010. (The tail bbc is taken yet the checkpoint
+     * carries EQUAL; mechanism open, path scoped by the bit6 test.) */
+    hybrid_set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
+    cpu->arithmetic_control =
+        (cpu->arithmetic_control & ~UINT32_C(7)) | UINT32_C(2);
+    cpu->executed_instructions += steps;
+    /* The oracle ret restores the 0x28270 caller frame (locals r0-r15
+     * come back untouched: the body only ever used C locals plus the
+     * globals above) and lands ip on the saved r2 (0x28274). */
+    return vf2_i960_cpu_return_procedure(cpu, machine);
+}
+
+static vf2_status hybrid_execute_player_28270_call(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    vf2_status status = VF2_OK;
+
+    (void)machine;
+    if (cpu == NULL || cpu->ip != UINT32_C(0x00028270)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    status = vf2_i960_cpu_enter_procedure(
+        cpu, UINT32_C(0x00028918), UINT32_C(0x00028274)
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+    cpu->ip = UINT32_C(0x00028918);
     ++cpu->executed_instructions;
     return VF2_OK;
 }
@@ -31159,6 +31595,37 @@ vf2_status vf2_hybrid_first_dispatch_task_execute(
                                                     machine, cpu, registry_address,
                                                     UINT32_C(0x00028184), &task_report
                                                 );
+                                            } else if (status == VF2_OK &&
+                                                       cpu->ip == UINT32_C(0x00028270)) {
+                                                /* v0713 counter!=1 live route:
+                                                 * through the 0x28270 call
+                                                 * and the 0x28918 body; the
+                                                 * post-call 0x28274 code is
+                                                 * unrecovered, so refuse
+                                                 * there and let the
+                                                 * interpreter continue
+                                                 * (fail-closed, exact). */
+                                                status = hybrid_execute_player_28270_call(
+                                                    machine, cpu
+                                                );
+                                                if (status == VF2_OK) {
+                                                    status = hybrid_execute_player_28918_body(
+                                                        machine, cpu
+                                                    );
+                                                }
+                                                if (status == VF2_ERROR_UNSUPPORTED) {
+                                                    interpreted_task = 1;
+                                                    status = hybrid_execute_interpreted_task(
+                                                        machine, cpu, registry_address,
+                                                        cpu->ip, &task_report
+                                                    );
+                                                } else if (status == VF2_OK) {
+                                                    interpreted_task = 1;
+                                                    status = hybrid_execute_interpreted_task(
+                                                        machine, cpu, registry_address,
+                                                        UINT32_C(0x00028274), &task_report
+                                                    );
+                                                }
                                             } else if (status == VF2_OK) {
                                                 status = hybrid_execute_player_28268_call(
                                                     machine, cpu

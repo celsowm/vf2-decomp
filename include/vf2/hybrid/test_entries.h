@@ -95,6 +95,18 @@ vf2_status vf2_hybrid_player_28184_execute_for_test(
     vf2_i960_cpu *cpu
 );
 
+/* v0713: test-only entry to the 0x27d00 -> 0x28184 -> 0x28270 -> 0x28918
+ * counter!=1 live route. The CPU must be parked at 0x27d00 with g7
+ * pointing at the player record, a live curve table at +0xbd8, g11/g12
+ * a writable staging word, and counter/curve/mode/sense/edge routing
+ * the S0 bit20-clear curve==0 shape. Accepted shapes end at 0x28274;
+ * null tables, mode 5, modes above 6, fighter bit6 set, and every
+ * other shape is VF2_ERROR_UNSUPPORTED. */
+vf2_status vf2_hybrid_player_28918_execute_for_test(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 /* v0392: test-only entry to the measured 0x142c0 geometry-expansion
  * body (command 0x550000 family + bit-21 flag set + 0x4b5d0 table
  * lookup).  The CPU must be parked at 0x142c0 with g7 the player base
