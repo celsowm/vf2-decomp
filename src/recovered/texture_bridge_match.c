@@ -4557,6 +4557,7 @@ static vf2_status execute_frame_phase17_bit7_index4(
 {
     const uint32_t table = UINT32_C(0x0005b340);
     const uint32_t base_input = UINT32_C(0x0ff7f700);
+    const uint32_t test_held_input = UINT32_C(0x0f000004);
     uint32_t indirect_target = 0u;
     uint32_t input_flags = 0u;
     uint32_t navigation_flags = 0u;
@@ -4571,6 +4572,11 @@ static vf2_status execute_frame_phase17_bit7_index4(
     int navigation_delta = 0;
     int edit_delta = 0;
     int packed_bit = -1;
+    int input_match = 0;
+    int test_held_entry = 0;
+    uint32_t test_held_g1 = 0u;
+    uint32_t test_held_g2 = 0u;
+    uint32_t test_held_g6 = 0u;
     uint64_t instructions = UINT64_C(3044);
     uint64_t calls = UINT64_C(38);
     uint64_t characters = 0u;
@@ -4623,9 +4629,28 @@ static vf2_status execute_frame_phase17_bit7_index4(
             machine, UINT32_C(0x005000a6), &phase_a6, sizeof(phase_a6)
         );
     }
+    /* TEST-held GAME ASSIGNMENT entry (measured from the 0x9ff8 failure
+     * state): input/previous latch 0x0f000004 while TEST is held, with
+     * nav=0/a5=0/a6=0xff. The oracle takes the same exit_control render
+     * path (input/previous values are unread on it), so admit exactly
+     * that combo; every other TEST-held sibling stays unsupported. */
+    input_match = (input_flags == base_input &&
+                   previous_flags == base_input);
+    test_held_entry = (input_flags == test_held_input &&
+                       previous_flags == test_held_input &&
+                       navigation_flags == 0u &&
+                       phase_a5 == UINT8_C(0)) ? 1 : 0;
+    if (test_held_entry != 0) {
+        input_match = 1;
+        /* Globals are flat across frames: snapshot the entry values now
+         * (gate does reads only); the exit pins below do not apply. */
+        test_held_g1 = cpu->registers[VF2_I960_G0_REGISTER + 1u];
+        test_held_g2 = cpu->registers[VF2_I960_G0_REGISTER + 2u];
+        test_held_g6 = cpu->registers[VF2_I960_G0_REGISTER + 6u];
+    }
     if (status != VF2_OK || indirect_target != UINT32_C(0x0005a680) ||
-        input_flags != base_input || released_flags != 0u ||
-        previous_flags != base_input || selector_mask != UINT32_C(0x00020000) ||
+        input_match == 0 || released_flags != 0u ||
+        selector_mask != UINT32_C(0x00020000) ||
         (diagnostic_flags & (UINT32_C(1) << 14u)) != 0u ||
         phase_a5 > UINT8_C(15) || phase_a6 != UINT8_C(0xff)) {
         return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
@@ -5252,8 +5277,11 @@ static vf2_status execute_frame_phase17_bit7_index4(
         );
     }
     if (status == VF2_OK) {
+        /* TEST-held entry spills the live g1 to this frame slot; the
+         * base combo instead spills its own 0x7ae10 value here. */
         status = vf2_model2a_write_u32(
-            machine, UINT32_C(0x005ff684), UINT32_C(0x0007ae10)
+            machine, UINT32_C(0x005ff684),
+            test_held_entry != 0 ? test_held_g1 : UINT32_C(0x0007ae10)
         );
     }
     if (status != VF2_OK) {
@@ -5286,9 +5314,33 @@ static vf2_status execute_frame_phase17_bit7_index4(
         );
     }
     if (phase_a5 == UINT8_C(0) && navigation_delta == 0) {
-        return finish_frame_phase17_index4_exit_control(
+        /* TEST-held entry (a5=0, nav=0): the oracle runs the whole
+         * dispatch in sub-frames, so the cluster frame's r14/r15 keep
+         * their entry values instead of the base-combo poststate pins.
+         * Capture them from the saved caller frame before the exit
+         * pins land, then restore. The g1/g2/g6 globals likewise keep
+         * entry values (snapshotted at the gate above). */
+        uint32_t caller_r14 = 0u;
+        uint32_t caller_r15 = 0u;
+        uint32_t caller_depth = 0u;
+        if (test_held_entry != 0 && cpu->local_frame_depth > 0u) {
+            caller_depth = cpu->local_frame_depth - 1u;
+            caller_r14 =
+                cpu->local_frames[caller_depth].registers[14];
+            caller_r15 =
+                cpu->local_frames[caller_depth].registers[15];
+        }
+        status = finish_frame_phase17_index4_exit_control(
             machine, cpu, report, edit_delta, characters
         );
+        if (status == VF2_OK && test_held_entry != 0) {
+            cpu->registers[14] = caller_r14;
+            cpu->registers[15] = caller_r15;
+            cpu->registers[VF2_I960_G0_REGISTER + 1u] = test_held_g1;
+            cpu->registers[VF2_I960_G0_REGISTER + 2u] = test_held_g2;
+            cpu->registers[VF2_I960_G0_REGISTER + 6u] = test_held_g6;
+        }
+        return status;
     }
     return finish_frame_phase17_index4_observed(
         machine, cpu, report, navigation_delta,

@@ -113,6 +113,7 @@ static vf2_status set_main_final_cluster_condition(
         uint8_t phase_index = 0u;
         uint8_t phase_state = 0u;
         uint32_t countdown = 0u;
+        uint32_t input_flags = 0u;
 
         status = vf2_model2a_read(
             machine, UINT32_C(0x005000a4), &phase_index, sizeof(phase_index)
@@ -127,6 +128,11 @@ static vf2_status set_main_final_cluster_condition(
                 machine, UINT32_C(0x00500024), &countdown
             );
         }
+        if (status == VF2_OK) {
+            status = vf2_model2a_read_u32(
+                machine, UINT32_C(0x00500700), &input_flags
+            );
+        }
         if (status != VF2_OK) {
             return status;
         }
@@ -134,6 +140,13 @@ static vf2_status set_main_final_cluster_condition(
             phase_state == UINT8_C(0xff) &&
             (int32_t)countdown > 0) {
             set_compare_result(cpu, VF2_I960_COMPARE_LESS);
+        } else if (phase_index == UINT8_C(0x84) &&
+                   phase_state == UINT8_C(0) &&
+                   input_flags == UINT32_C(0x0f000004)) {
+            /* TEST-held GAME ASSIGNMENT entry (a5=0, nav=0): the measured
+             * worker tail ends at cmpibne 1,g0 (g0=0, branch taken) with
+             * GREATER, which the bridge poststate already carries. Leave
+             * it intact instead of the historical EQUAL default. */
         } else if (phase_index != UINT8_C(0x8a)) {
             /* Phase 0x8a (index10) leaves the measured bridge poststate
              * intact (match-latch path ends GREATER). Other phases keep

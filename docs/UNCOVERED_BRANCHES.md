@@ -1,5 +1,18 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0710 TEST-held GAME ASSIGNMENT entry native (selector 0x11, a4=0x84)
+
+The TEST-button frame on the GAME ASSIGNMENT cursor is fully native:
+37 blocks, 5180/5180 instructions, strict MATCH through the second
+scheduler. Three measured gaps closed in existing scaffolding, all
+scoped to the `(input,previous)==0x0f000004 && nav==0 && a5==0` combo:
+index4 gate widening (latch values unread on this path), CC-poststate
+leave-intact (tail `cmpibne 1,g0` ends GREATER), and caller-frame
+restore of `r14/r15` plus entry snapshots of `g1/g2/g6` and the
+`0x5ff684` g1 spill slot (whole dispatch runs in sub-frames).
+Siblings (nav/edit variants, TEST release) stay unsupported. 102/102
+ctest green. See `playable_test_held_index4_v0710.md`.
+
 ## v0707 0x28184 head siblings native: S1/S2 join S0 at 0x28268
 
 The `0x28184` branch-only head is fully mapped (bit17 x bit0 x
