@@ -162,6 +162,14 @@ static vf2_status set_main_final_cluster_condition(
              * the NONE poststate (forcing EQUAL here is otherwise the
              * sole cpu-state diff). */
             set_compare_result(cpu, VF2_I960_COMPARE_NONE);
+        } else if (phase_index == UINT8_C(0x84) &&
+                   (input_flags == UINT32_C(0x0f008004) ||
+                    input_flags == UINT32_C(0x0f004004))) {
+            /* TEST+LEFT/TEST+RIGHT packed-row edits: the measured
+             * checkpoint carries LESS (ac 4) — the packed-flag edit
+             * finish pins it; keep it instead of the historical
+             * EQUAL default. Verified by the row-7 edit MATCHes. */
+            set_compare_result(cpu, VF2_I960_COMPARE_LESS);
         } else if (phase_index != UINT8_C(0x8a)) {
             /* Phase 0x8a (index10) leaves the measured bridge poststate
              * intact (match-latch path ends GREATER). Other phases keep

@@ -1,5 +1,23 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0726 TEST+LEFT/RIGHT per-row edits 7-14 and post-edit releases native
+
+Edit family complete: TEST+LEFT/TEST+RIGHT (`0x0f004004`/`0x0f008004`,
+prev `0x0f000000`, nav `0x4004`/`0x8004`) on all settings rows 7-14
+MATCH (16 frames: packed rows 4943/4945, row-10 4961/4963, row-11
+18421/18423; LEFT and RIGHT take the identical edit_delta>0 path and
+differ only in latch values, CC LESS). Post-edit releases (16 frames)
+MATCH via per-cursor release arms (4575/4578; row 11 via the prefix
+rebuild frame `test_edrel11_entry`, 16116). Also fixed the v0725 up8
+gate-ordering regression: `test_up8_entry` had been listed in the UP
+single-step predicate, shadowing the dedicated 7->3 skip branch, so
+the frame charged 3279 instead of 3297 and the reference stopped 18
+steps short at 0x5a7b8; after the fix the 7->3 frame re-MATCHes (4596)
+with an output bit-identical to the v0725 record. Next: extend the
+parallel evidence tracks (targeted taint, infer_structs aggregation,
+0x28918) and menu-ct snapshot housekeeping. See
+`playable_test_edits_v0726.md`.
+
 ## v0725 TEST+UP full walk 10->0, 0->15 wrap and EXIT-row corridor native
 
 UP family complete: 10->9->8->7->(skip 6/5/4)->3->2->1->0 all MATCH

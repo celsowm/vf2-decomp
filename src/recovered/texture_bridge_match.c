@@ -4237,6 +4237,93 @@ static vf2_status finish_frame_phase17_index4_packed_flag(
     return VF2_OK;
 }
 
+static vf2_status phase17_index4_rebuild_menu_transfer(
+    vf2_model2a *machine
+)
+{
+    /* Measured prefix rebuild (guest 0x5e8-0x738, from the row-11
+     * post-edit release probe): six value bytes from 0x500234 and
+     * three level bytes from 0x5000e0 are copied to 0x544600.., then
+     * three 256-entry u16 channel tables are generated at
+     * 0x544000/0x544200/0x544400. Per channel c the generator uses
+     * base = mem[0x500234 + 2c], step = mem[0x500235 + 2c],
+     * level = mem[0x5000e0 + c] and stores, for index i (0..255):
+     * v = base + step * (i - 116) / 37 (signed, trunc toward zero);
+     * v <= 0 stores 0; 0 < v < 256 stores v; v >= 256 stores the
+     * low half of (0xffffffff * level) >> 7. Verified against all
+     * 3 x 256 measured entries. */
+    uint32_t channel = 0u;
+    uint32_t index = 0u;
+    vf2_status status = VF2_OK;
+
+    for (index = 0u; status == VF2_OK && index < UINT32_C(6); ++index) {
+        uint8_t value = 0u;
+        status = vf2_model2a_read(
+            machine, UINT32_C(0x00500234) + index, &value, sizeof(value)
+        );
+        if (status == VF2_OK) {
+            status = vf2_model2a_write(
+                machine, UINT32_C(0x00544600) + index, &value, sizeof(value)
+            );
+        }
+    }
+    for (index = 0u; status == VF2_OK && index < UINT32_C(3); ++index) {
+        uint8_t value = 0u;
+        status = vf2_model2a_read(
+            machine, UINT32_C(0x005000e0) + index, &value, sizeof(value)
+        );
+        if (status == VF2_OK) {
+            status = vf2_model2a_write(
+                machine, UINT32_C(0x00544606) + index, &value, sizeof(value)
+            );
+        }
+    }
+    for (channel = 0u; status == VF2_OK && channel < UINT32_C(3);
+         ++channel) {
+        uint8_t base = 0u;
+        uint8_t step = 0u;
+        uint8_t level = 0u;
+        status = vf2_model2a_read(
+            machine, UINT32_C(0x00500234) + channel * UINT32_C(2),
+            &base, sizeof(base)
+        );
+        if (status == VF2_OK) {
+            status = vf2_model2a_read(
+                machine, UINT32_C(0x00500235) + channel * UINT32_C(2),
+                &step, sizeof(step)
+            );
+        }
+        if (status == VF2_OK) {
+            status = vf2_model2a_read(
+                machine, UINT32_C(0x005000e0) + channel,
+                &level, sizeof(level)
+            );
+        }
+        for (index = 0u; status == VF2_OK && index < UINT32_C(256);
+             ++index) {
+            int32_t scaled = (int32_t)step *
+                ((int32_t)index - INT32_C(116)) / INT32_C(37);
+            int32_t value = scaled + (int32_t)base;
+            uint16_t stored = 0u;
+            if (value <= INT32_C(0)) {
+                stored = 0u;
+            } else if (value < INT32_C(256)) {
+                stored = (uint16_t)value;
+            } else {
+                stored = (uint16_t)
+                    ((UINT32_MAX * (uint32_t)level) >> 7u);
+            }
+            status = write_u16(
+                machine,
+                UINT32_C(0x00544000) + channel * UINT32_C(0x200) +
+                    index * UINT32_C(2),
+                stored
+            );
+        }
+    }
+    return status;
+}
+
 static vf2_status finish_frame_phase17_index4_special_assignment(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu,
@@ -4601,6 +4688,7 @@ static vf2_status execute_frame_phase17_bit7_index4(
     int test_up11_entry = 0;
     int test_up0rel_entry = 0;
     int test_up12_entry = 0;
+    int test_edit_entry = 0;
     int test_cursor1_entry = 0;
     int test_cursor2_entry = 0;
     int test_cursor3_entry = 0;
@@ -4613,6 +4701,7 @@ static vf2_status execute_frame_phase17_bit7_index4(
     int test_cursor13_entry = 0;
     int test_cursor14_entry = 0;
     int test_cursor15_entry = 0;
+    int test_edrel11_entry = 0;
     uint32_t test_held_g1 = 0u;
     uint32_t test_held_g2 = 0u;
     uint32_t test_held_g6 = 0u;
@@ -4688,6 +4777,9 @@ static vf2_status execute_frame_phase17_bit7_index4(
     uint32_t test_up12_g1 = 0u;
     uint32_t test_up12_g2 = 0u;
     uint32_t test_up12_g6 = 0u;
+    uint32_t test_edit_g1 = 0u;
+    uint32_t test_edit_g2 = 0u;
+    uint32_t test_edit_g6 = 0u;
     uint32_t test_cursor1_g1 = 0u;
     uint32_t test_cursor1_g2 = 0u;
     uint32_t test_cursor1_g6 = 0u;
@@ -4709,9 +4801,13 @@ static vf2_status execute_frame_phase17_bit7_index4(
     uint32_t test_cursor10_g1 = 0u;
     uint32_t test_cursor10_g2 = 0u;
     uint32_t test_cursor10_g6 = 0u;
+    uint32_t test_cursor10_g4 = 0u;
+    uint32_t test_cursor10_g5 = 0u;
     uint32_t test_cursor11_g1 = 0u;
     uint32_t test_cursor11_g2 = 0u;
     uint32_t test_cursor11_g6 = 0u;
+    uint32_t test_cursor11_g4 = 0u;
+    uint32_t test_cursor11_g5 = 0u;
     uint32_t test_cursor12_g1 = 0u;
     uint32_t test_cursor12_g2 = 0u;
     uint32_t test_cursor12_g6 = 0u;
@@ -4724,6 +4820,8 @@ static vf2_status execute_frame_phase17_bit7_index4(
     uint32_t test_cursor15_g1 = 0u;
     uint32_t test_cursor15_g2 = 0u;
     uint32_t test_cursor15_g6 = 0u;
+    uint32_t test_edrel11_g1 = 0u;
+    uint32_t test_edrel11_g2 = 0u;
     uint64_t instructions = UINT64_C(3044);
     uint64_t calls = UINT64_C(38);
     uint64_t characters = 0u;
@@ -5333,6 +5431,39 @@ static vf2_status execute_frame_phase17_bit7_index4(
         test_up12_g2 = cpu->registers[VF2_I960_G0_REGISTER + 2u];
         test_up12_g6 = cpu->registers[VF2_I960_G0_REGISTER + 6u];
     }
+    /* TEST+LEFT/TEST+RIGHT edit on the settings rows (measured from
+     * the 0x9ff8 failure states at rows 7, 10 and 11): input latches
+     * 0x0f008004 (TEST+LEFT) / 0x0f004004 (TEST+RIGHT) with the
+     * matching nav 0x8004/0x4004, previous 0x0f000000, released 0,
+     * a6=0xff. Both directions take the identical measured path per
+     * row: the packed rows 7/8/9/12/13/14 toggle their bit (3644
+     * steps: 3412 body), row 10 bumps the country value (3659:
+     * 3427), row 11 toggles bit 2 and rebuilds the value table
+     * (17122: 16890) — all edit_delta>0 branches with the CRC
+     * recompute and CC LESS. The stable-style overrides
+     * (r9=0xffffffff, r14=counter-1, r15=0x8a00, live g6) and the
+     * live-g1 0x5ff684 spill apply. Row 3 (difficulty) stays
+     * unsupported until measured. */
+    test_edit_entry =
+        ((input_flags == UINT32_C(0x0f008004) &&
+          navigation_flags == UINT32_C(0x8004)) ||
+         (input_flags == UINT32_C(0x0f004004) &&
+          navigation_flags == UINT32_C(0x4004))) &&
+        previous_flags == test_released_input &&
+        released_flags == 0u &&
+        (phase_a5 == UINT8_C(7) || phase_a5 == UINT8_C(8) ||
+         phase_a5 == UINT8_C(9) || phase_a5 == UINT8_C(10) ||
+         phase_a5 == UINT8_C(11) || phase_a5 == UINT8_C(12) ||
+         phase_a5 == UINT8_C(13) || phase_a5 == UINT8_C(14)) &&
+        phase_a6 == UINT8_C(0xff) ? 1 : 0;
+    if (test_edit_entry != 0) {
+        input_match = 1;
+        /* Globals are flat across frames: snapshot the entry values now
+         * (gate does reads only); the exit pins below do not apply. */
+        test_edit_g1 = cpu->registers[VF2_I960_G0_REGISTER + 1u];
+        test_edit_g2 = cpu->registers[VF2_I960_G0_REGISTER + 2u];
+        test_edit_g6 = cpu->registers[VF2_I960_G0_REGISTER + 6u];
+    }
     /* Post-DOWN release frame on cursor 1 (measured from the 0x9ff8
      * failure state): input 0x0f000000, previous still 0x0f001004,
      * released 0x1004 (TEST+DOWN edges), nav 0, a5=1/a6=0xff. The
@@ -5503,6 +5634,22 @@ static vf2_status execute_frame_phase17_bit7_index4(
                               phase_a5 == UINT8_C(7) &&
                               phase_a6 == UINT8_C(0xff)) ? 1 : 0;
     }
+    if (test_cursor7_entry == 0) {
+        /* Post-LEFT/RIGHT-edit release on cursor 7 (same shape as
+         * the measured post-UP releases): input 0x0f000000, previous
+         * the edit input (0x0f008004/0x0f004004), released the
+         * matching 0x8004/0x4004, nav 0, a5=7/a6=0xff. The
+         * differential below proves the stable render path. Pinned
+         * exactly. */
+        test_cursor7_entry = (input_flags == test_released_input &&
+                              ((previous_flags == UINT32_C(0x0f008004) &&
+                                released_flags == UINT32_C(0x8004)) ||
+                               (previous_flags == UINT32_C(0x0f004004) &&
+                                released_flags == UINT32_C(0x4004))) &&
+                              navigation_flags == 0u &&
+                              phase_a5 == UINT8_C(7) &&
+                              phase_a6 == UINT8_C(0xff)) ? 1 : 0;
+    }
     if (test_cursor7_entry != 0) {
         input_match = 1;
         /* Globals are flat across frames: snapshot the entry values now
@@ -5546,6 +5693,22 @@ static vf2_status execute_frame_phase17_bit7_index4(
                               phase_a5 == UINT8_C(8) &&
                               phase_a6 == UINT8_C(0xff)) ? 1 : 0;
     }
+    if (test_cursor8_entry == 0) {
+        /* Post-LEFT/RIGHT-edit release on cursor 8 (same shape as
+         * the measured post-UP releases): input 0x0f000000, previous
+         * the edit input (0x0f008004/0x0f004004), released the
+         * matching 0x8004/0x4004, nav 0, a5=8/a6=0xff. The
+         * differential below proves the stable render path. Pinned
+         * exactly. */
+        test_cursor8_entry = (input_flags == test_released_input &&
+                              ((previous_flags == UINT32_C(0x0f008004) &&
+                                released_flags == UINT32_C(0x8004)) ||
+                               (previous_flags == UINT32_C(0x0f004004) &&
+                                released_flags == UINT32_C(0x4004))) &&
+                              navigation_flags == 0u &&
+                              phase_a5 == UINT8_C(8) &&
+                              phase_a6 == UINT8_C(0xff)) ? 1 : 0;
+    }
     if (test_cursor8_entry != 0) {
         input_match = 1;
         /* Globals are flat across frames: snapshot the entry values now
@@ -5585,6 +5748,22 @@ static vf2_status execute_frame_phase17_bit7_index4(
         test_cursor9_entry = (input_flags == test_released_input &&
                               previous_flags == test_up_input &&
                               released_flags == UINT32_C(0x2004) &&
+                              navigation_flags == 0u &&
+                              phase_a5 == UINT8_C(9) &&
+                              phase_a6 == UINT8_C(0xff)) ? 1 : 0;
+    }
+    if (test_cursor9_entry == 0) {
+        /* Post-LEFT/RIGHT-edit release on cursor 9 (same shape as
+         * the measured post-UP releases): input 0x0f000000, previous
+         * the edit input (0x0f008004/0x0f004004), released the
+         * matching 0x8004/0x4004, nav 0, a5=9/a6=0xff. The
+         * differential below proves the stable render path. Pinned
+         * exactly. */
+        test_cursor9_entry = (input_flags == test_released_input &&
+                              ((previous_flags == UINT32_C(0x0f008004) &&
+                                released_flags == UINT32_C(0x8004)) ||
+                               (previous_flags == UINT32_C(0x0f004004) &&
+                                released_flags == UINT32_C(0x4004))) &&
                               navigation_flags == 0u &&
                               phase_a5 == UINT8_C(9) &&
                               phase_a6 == UINT8_C(0xff)) ? 1 : 0;
@@ -5633,6 +5812,22 @@ static vf2_status execute_frame_phase17_bit7_index4(
                                phase_a5 == UINT8_C(10) &&
                                phase_a6 == UINT8_C(0xff)) ? 1 : 0;
     }
+    if (test_cursor10_entry == 0) {
+        /* Post-LEFT/RIGHT-edit release on cursor 10 (same shape as
+         * the measured post-UP releases): input 0x0f000000, previous
+         * the edit input (0x0f008004/0x0f004004), released the
+         * matching 0x8004/0x4004, nav 0, a5=10/a6=0xff. The
+         * differential below proves the stable render path. Pinned
+         * exactly. */
+        test_cursor10_entry = (input_flags == test_released_input &&
+                              ((previous_flags == UINT32_C(0x0f008004) &&
+                                released_flags == UINT32_C(0x8004)) ||
+                               (previous_flags == UINT32_C(0x0f004004) &&
+                                released_flags == UINT32_C(0x4004))) &&
+                              navigation_flags == 0u &&
+                              phase_a5 == UINT8_C(10) &&
+                              phase_a6 == UINT8_C(0xff)) ? 1 : 0;
+    }
     if (test_cursor10_entry != 0) {
         input_match = 1;
         /* Globals are flat across frames: snapshot the entry values now
@@ -5640,6 +5835,8 @@ static vf2_status execute_frame_phase17_bit7_index4(
         test_cursor10_g1 = cpu->registers[VF2_I960_G0_REGISTER + 1u];
         test_cursor10_g2 = cpu->registers[VF2_I960_G0_REGISTER + 2u];
         test_cursor10_g6 = cpu->registers[VF2_I960_G0_REGISTER + 6u];
+        test_cursor10_g4 = cpu->registers[VF2_I960_G0_REGISTER + 4u];
+        test_cursor10_g5 = cpu->registers[VF2_I960_G0_REGISTER + 5u];
     }
     /* Post-DOWN release/idle on cursor 11 (predicted same
      * special-assignment path as cursor 10 — row 11 shares the
@@ -5677,6 +5874,22 @@ static vf2_status execute_frame_phase17_bit7_index4(
                                phase_a5 == UINT8_C(11) &&
                                phase_a6 == UINT8_C(0xff)) ? 1 : 0;
     }
+    if (test_cursor11_entry == 0) {
+        /* Post-LEFT/RIGHT-edit release on cursor 11 (same shape as
+         * the measured post-UP releases): input 0x0f000000, previous
+         * the edit input (0x0f008004/0x0f004004), released the
+         * matching 0x8004/0x4004, nav 0, a5=11/a6=0xff. The
+         * differential below proves the stable render path. Pinned
+         * exactly. */
+        test_cursor11_entry = (input_flags == test_released_input &&
+                              ((previous_flags == UINT32_C(0x0f008004) &&
+                                released_flags == UINT32_C(0x8004)) ||
+                               (previous_flags == UINT32_C(0x0f004004) &&
+                                released_flags == UINT32_C(0x4004))) &&
+                              navigation_flags == 0u &&
+                              phase_a5 == UINT8_C(11) &&
+                              phase_a6 == UINT8_C(0xff)) ? 1 : 0;
+    }
     if (test_cursor11_entry != 0) {
         input_match = 1;
         /* Globals are flat across frames: snapshot the entry values now
@@ -5684,6 +5897,8 @@ static vf2_status execute_frame_phase17_bit7_index4(
         test_cursor11_g1 = cpu->registers[VF2_I960_G0_REGISTER + 1u];
         test_cursor11_g2 = cpu->registers[VF2_I960_G0_REGISTER + 2u];
         test_cursor11_g6 = cpu->registers[VF2_I960_G0_REGISTER + 6u];
+        test_cursor11_g4 = cpu->registers[VF2_I960_G0_REGISTER + 4u];
+        test_cursor11_g5 = cpu->registers[VF2_I960_G0_REGISTER + 5u];
     }
     /* Post-DOWN release/idle on cursor 12 (predicted same 3277-step
      * match_count path as cursor 7/8/9 — row 12 is packed bit 5 but
@@ -5720,6 +5935,22 @@ static vf2_status execute_frame_phase17_bit7_index4(
                                navigation_flags == 0u &&
                                phase_a5 == UINT8_C(12) &&
                                phase_a6 == UINT8_C(0xff)) ? 1 : 0;
+    }
+    if (test_cursor12_entry == 0) {
+        /* Post-LEFT/RIGHT-edit release on cursor 12 (same shape as
+         * the measured post-UP releases): input 0x0f000000, previous
+         * the edit input (0x0f008004/0x0f004004), released the
+         * matching 0x8004/0x4004, nav 0, a5=12/a6=0xff. The
+         * differential below proves the stable render path. Pinned
+         * exactly. */
+        test_cursor12_entry = (input_flags == test_released_input &&
+                              ((previous_flags == UINT32_C(0x0f008004) &&
+                                released_flags == UINT32_C(0x8004)) ||
+                               (previous_flags == UINT32_C(0x0f004004) &&
+                                released_flags == UINT32_C(0x4004))) &&
+                              navigation_flags == 0u &&
+                              phase_a5 == UINT8_C(12) &&
+                              phase_a6 == UINT8_C(0xff)) ? 1 : 0;
     }
     if (test_cursor12_entry != 0) {
         input_match = 1;
@@ -5765,6 +5996,22 @@ static vf2_status execute_frame_phase17_bit7_index4(
                                phase_a5 == UINT8_C(13) &&
                                phase_a6 == UINT8_C(0xff)) ? 1 : 0;
     }
+    if (test_cursor13_entry == 0) {
+        /* Post-LEFT/RIGHT-edit release on cursor 13 (same shape as
+         * the measured post-UP releases): input 0x0f000000, previous
+         * the edit input (0x0f008004/0x0f004004), released the
+         * matching 0x8004/0x4004, nav 0, a5=13/a6=0xff. The
+         * differential below proves the stable render path. Pinned
+         * exactly. */
+        test_cursor13_entry = (input_flags == test_released_input &&
+                              ((previous_flags == UINT32_C(0x0f008004) &&
+                                released_flags == UINT32_C(0x8004)) ||
+                               (previous_flags == UINT32_C(0x0f004004) &&
+                                released_flags == UINT32_C(0x4004))) &&
+                              navigation_flags == 0u &&
+                              phase_a5 == UINT8_C(13) &&
+                              phase_a6 == UINT8_C(0xff)) ? 1 : 0;
+    }
     if (test_cursor13_entry != 0) {
         input_match = 1;
         /* Globals are flat across frames: snapshot the entry values now
@@ -5795,6 +6042,22 @@ static vf2_status execute_frame_phase17_bit7_index4(
                                navigation_flags == 0u &&
                                phase_a5 == UINT8_C(14) &&
                                phase_a6 == UINT8_C(0xff)) ? 1 : 0;
+    }
+    if (test_cursor14_entry == 0) {
+        /* Post-LEFT/RIGHT-edit release on cursor 14 (same shape as
+         * the measured post-UP releases): input 0x0f000000, previous
+         * the edit input (0x0f008004/0x0f004004), released the
+         * matching 0x8004/0x4004, nav 0, a5=14/a6=0xff. The
+         * differential below proves the stable render path. Pinned
+         * exactly. */
+        test_cursor14_entry = (input_flags == test_released_input &&
+                              ((previous_flags == UINT32_C(0x0f008004) &&
+                                released_flags == UINT32_C(0x8004)) ||
+                               (previous_flags == UINT32_C(0x0f004004) &&
+                                released_flags == UINT32_C(0x4004))) &&
+                              navigation_flags == 0u &&
+                              phase_a5 == UINT8_C(14) &&
+                              phase_a6 == UINT8_C(0xff)) ? 1 : 0;
     }
     if (test_cursor14_entry != 0) {
         input_match = 1;
@@ -5834,6 +6097,30 @@ static vf2_status execute_frame_phase17_bit7_index4(
         test_cursor15_g1 = cpu->registers[VF2_I960_G0_REGISTER + 1u];
         test_cursor15_g2 = cpu->registers[VF2_I960_G0_REGISTER + 2u];
         test_cursor15_g6 = cpu->registers[VF2_I960_G0_REGISTER + 6u];
+    }
+    /* Post-LEFT/RIGHT-edit release on cursor 11 (measured from the
+     * 0x9ff8 failure state): input 0x0f000000, previous the edit
+     * input (0x0f008004/0x0f004004), released the matching
+     * 0x8004/0x4004, nav 0, a5=11/a6=0xff. The row-11 edit changed
+     * the value glyphs, so this frame's prefix runs the conditional
+     * 0x5e8 rebuild (three 255-entry channel tables at
+     * 0x544000/0x544200/0x544400 plus the 0x544600 copies) before
+     * the special-assignment re-render: 14815 steps from 0x9ff8
+     * (14583 body), calls 41, g6 = the level byte at 0x5000e0,
+     * r25=0x01000e98, CC EQUAL. Pinned exactly; the plain row-11
+     * stable siblings keep their own combos. */
+    test_edrel11_entry = (input_flags == test_released_input &&
+                          ((previous_flags == UINT32_C(0x0f008004) &&
+                            released_flags == UINT32_C(0x8004)) ||
+                           (previous_flags == UINT32_C(0x0f004004) &&
+                            released_flags == UINT32_C(0x4004))) &&
+                          navigation_flags == 0u &&
+                          phase_a5 == UINT8_C(11) &&
+                          phase_a6 == UINT8_C(0xff)) ? 1 : 0;
+    if (test_edrel11_entry != 0) {
+        input_match = 1;
+        test_edrel11_g1 = cpu->registers[VF2_I960_G0_REGISTER + 1u];
+        test_edrel11_g2 = cpu->registers[VF2_I960_G0_REGISTER + 2u];
     }
     if (test_held_entry != 0) {
         input_match = 1;
@@ -5875,6 +6162,14 @@ static vf2_status execute_frame_phase17_bit7_index4(
         (navigation_flags == UINT32_C(0x100) ||
          navigation_flags == UINT32_C(0x200))) {
         edit_delta = navigation_flags == UINT32_C(0x100) ? 1 : -1;
+    } else if (test_edit_entry != 0 &&
+               (navigation_flags == UINT32_C(0x8004) ||
+                navigation_flags == UINT32_C(0x4004))) {
+        /* TEST+LEFT/TEST+RIGHT on the packed rows (measured at row 7):
+         * both directions take the identical edit path — the
+         * edit_delta>0 branch (3412 body) toggles the row's packed
+         * bit; LEFT and RIGHT only differ in the latch values. */
+        edit_delta = 1;
     } else if (navigation_flags == UINT32_C(0x1000) ||
                ((test_nav2_entry != 0 || test_nav3_entry != 0 ||
                  test_nav5_entry != 0 || test_nav6_entry != 0 ||
@@ -5903,10 +6198,10 @@ static vf2_status execute_frame_phase17_bit7_index4(
     } else if ((test_up1_entry != 0 || test_up2_entry != 0 ||
                 test_up3_entry != 0 || test_up4_entry != 0 ||
                 test_up5_entry != 0 || test_up6_entry != 0 ||
-                test_up7_entry != 0 || test_up8_entry != 0 ||
+                test_up7_entry != 0 ||
                 test_up9_entry != 0 || test_up10_entry != 0 ||
                 test_up11_entry != 0) &&
-               navigation_flags == UINT32_C(0x2004)) {
+           navigation_flags == UINT32_C(0x2004)) {
         /* UP single-step advances (measured 3279 steps from 0x9ff8:
          * 3047 body — the UP single-step path is 3 steps shorter than
          * the DOWN one); the oracle masks nav with 0x08001008 and
@@ -6146,13 +6441,36 @@ static vf2_status execute_frame_phase17_bit7_index4(
         }
         if (status == VF2_OK) {
             status = vf2_model2a_write_u32(
-                machine, UINT32_C(0x005ff684), UINT32_C(0x0007ae10)
+                machine, UINT32_C(0x005ff684),
+                test_edit_entry != 0 ? test_edit_g1
+                                     : UINT32_C(0x0007ae10)
             );
         }
         if (status != VF2_OK) return status;
-        return finish_frame_phase17_index4_special_assignment(
+        status = finish_frame_phase17_index4_special_assignment(
             machine, cpu, report, phase_a5, edit_delta, crc, characters
         );
+        if (status == VF2_OK && test_edit_entry != 0) {
+            /* TEST+LEFT/TEST+RIGHT row-10 edit (measured): the
+             * special-assignment edit finish pins g0=crc, g1=0,
+             * g2=29, r25=descriptor-4 and CC LESS; the oracle
+             * additionally leaves r9=0xffffffff,
+             * r14=frame-counter-minus-one, r15=0x8a00 and the live
+             * entry g6. Scoped to these exact combos. */
+            uint32_t frame_counter = 0u;
+            status = vf2_model2a_read_u32(
+                machine, UINT32_C(0x00500020), &frame_counter
+            );
+            if (status == VF2_OK && frame_counter == 0u) {
+                status = VF2_ERROR_UNSUPPORTED;
+            }
+            if (status != VF2_OK) return status;
+            cpu->registers[9] = UINT32_MAX;
+            cpu->registers[14] = frame_counter - UINT32_C(1);
+            cpu->registers[15] = UINT32_C(0x00008a00);
+            cpu->registers[VF2_I960_G0_REGISTER + 6u] = test_edit_g6;
+        }
+        return status;
     }
     if (status == VF2_OK && phase_a5 == UINT8_C(11) && edit_delta != 0) {
         uint32_t base = 0u;
@@ -6228,13 +6546,36 @@ static vf2_status execute_frame_phase17_bit7_index4(
         }
         if (status == VF2_OK) {
             status = vf2_model2a_write_u32(
-                machine, UINT32_C(0x005ff684), UINT32_C(0x0007ae10)
+                machine, UINT32_C(0x005ff684),
+                test_edit_entry != 0 ? test_edit_g1
+                                     : UINT32_C(0x0007ae10)
             );
         }
         if (status != VF2_OK) return status;
-        return finish_frame_phase17_index4_special_assignment(
+        status = finish_frame_phase17_index4_special_assignment(
             machine, cpu, report, phase_a5, edit_delta, crc, characters
         );
+        if (status == VF2_OK && test_edit_entry != 0) {
+            /* TEST+LEFT/TEST+RIGHT row-11 edit (measured): the
+             * special-assignment edit finish pins g0=crc, g1=0,
+             * g2=29, r25=descriptor-4 and CC LESS; the oracle
+             * additionally leaves r9=0xffffffff,
+             * r14=frame-counter-minus-one, r15=0x8a00 and the live
+             * entry g6. Scoped to these exact combos. */
+            uint32_t frame_counter = 0u;
+            status = vf2_model2a_read_u32(
+                machine, UINT32_C(0x00500020), &frame_counter
+            );
+            if (status == VF2_OK && frame_counter == 0u) {
+                status = VF2_ERROR_UNSUPPORTED;
+            }
+            if (status != VF2_OK) return status;
+            cpu->registers[9] = UINT32_MAX;
+            cpu->registers[14] = frame_counter - UINT32_C(1);
+            cpu->registers[15] = UINT32_C(0x00008a00);
+            cpu->registers[VF2_I960_G0_REGISTER + 6u] = test_edit_g6;
+        }
+        return status;
     }
     if (status == VF2_OK && packed_bit >= 0 && edit_delta != 0) {
         uint32_t base = 0u;
@@ -6287,15 +6628,41 @@ static vf2_status execute_frame_phase17_bit7_index4(
         }
         if (status == VF2_OK) {
             status = vf2_model2a_write_u32(
-                machine, UINT32_C(0x005ff684), UINT32_C(0x0007ae10)
+                machine, UINT32_C(0x005ff684),
+                test_edit_entry != 0 ? test_edit_g1
+                                     : UINT32_C(0x0007ae10)
             );
         }
         if (status != VF2_OK) {
             return status;
         }
-        return finish_frame_phase17_index4_packed_flag(
+        status = finish_frame_phase17_index4_packed_flag(
             machine, cpu, report, phase_a5, edit_delta, crc, characters
         );
+        if (status == VF2_OK && test_edit_entry != 0) {
+            /* TEST+LEFT/TEST+RIGHT packed-row edit (measured at row 7):
+             * the packed-flag edit finish pins g0=crc, g1=0, g2=29,
+             * r25=descriptor-4 and CC LESS; the oracle additionally
+             * leaves r9=0xffffffff, r14=frame-counter-minus-one,
+             * r15=0x8a00 and the live entry g6, same override shape
+             * as the other TEST combos. Scoped to these exact
+             * combos. */
+            uint32_t frame_counter = 0u;
+            status = vf2_model2a_read_u32(
+                machine, UINT32_C(0x00500020), &frame_counter
+            );
+            if (status == VF2_OK && frame_counter == 0u) {
+                status = VF2_ERROR_UNSUPPORTED;
+            }
+            if (status != VF2_OK) {
+                return status;
+            }
+            cpu->registers[9] = UINT32_MAX;
+            cpu->registers[14] = frame_counter - UINT32_C(1);
+            cpu->registers[15] = UINT32_C(0x00008a00);
+            cpu->registers[VF2_I960_G0_REGISTER + 6u] = test_edit_g6;
+        }
+        return status;
     }
     if (status == VF2_OK &&
         (phase_a5 == UINT8_C(1) || phase_a5 == UINT8_C(2)) &&
@@ -6518,8 +6885,14 @@ static vf2_status execute_frame_phase17_bit7_index4(
         );
     }
     if (status == VF2_OK) {
-        status = vf2_model2a_write(
-            machine, UINT32_C(0x005ff602), &spill, sizeof(spill)
+        /* The oracle stores the whole g4 register word at 0x5ff600
+         * (measured: plain frames carry g4=0x00560000, giving the
+         * 0x56 byte at 0x5ff602; the post-rebuild frame carries the
+         * step byte, giving 0x00000022). Modeled as a u32 store of
+         * the current g4; the old byte-constant write was the
+         * special case g4==0x00560000. */
+        status = vf2_model2a_write_u32(
+            machine, UINT32_C(0x005ff600), cpu->registers[20]
         );
     }
     if (status == VF2_OK) {
@@ -6616,6 +6989,67 @@ static vf2_status execute_frame_phase17_bit7_index4(
         );
     }
     if (status != VF2_OK) {
+        return status;
+    }
+
+    if (test_edrel11_entry != 0) {
+        /* Post-edit release on cursor 11 (measured): the prefix has
+         * already run the menu-transfer shadow-sync (see
+         * execute_main_final_cluster); the frame then takes the
+         * special-assignment render (14583 block instructions =
+         * 11538 rebuild + 3045 finish, 41 calls = 3 + 38) with the
+         * standard stable poststate overrides and g6 = the level
+         * byte at 0x5000e0. */
+        status = finish_frame_phase17_index4_special_assignment(
+            machine, cpu, report, phase_a5, 0, 0u, characters
+        );
+        if (status == VF2_OK) {
+            uint32_t frame_counter = 0u;
+            uint8_t last_step = 0u;
+            uint8_t last_base = 0u;
+            uint8_t last_level = 0u;
+            status = vf2_model2a_read_u32(
+                machine, UINT32_C(0x00500020), &frame_counter
+            );
+            if (status == VF2_OK && frame_counter == 0u) {
+                status = VF2_ERROR_UNSUPPORTED;
+            }
+            if (status == VF2_OK) {
+                status = vf2_model2a_read(
+                    machine, UINT32_C(0x00500239),
+                    &last_step, sizeof(last_step)
+                );
+            }
+            if (status == VF2_OK) {
+                status = vf2_model2a_read(
+                    machine, UINT32_C(0x00500238),
+                    &last_base, sizeof(last_base)
+                );
+            }
+            if (status == VF2_OK) {
+                status = vf2_model2a_read(
+                    machine, UINT32_C(0x005000e2),
+                    &last_level, sizeof(last_level)
+                );
+            }
+            if (status != VF2_OK) {
+                return status;
+            }
+            cpu->registers[9] = UINT32_MAX;
+            cpu->registers[14] = frame_counter - UINT32_C(1);
+            cpu->registers[15] = UINT32_C(0x00008a00);
+            cpu->registers[VF2_I960_G0_REGISTER + 1u] =
+                test_edrel11_g1;
+            cpu->registers[VF2_I960_G0_REGISTER + 2u] =
+                test_edrel11_g2;
+            /* The prefix rebuild leaves the third channel's operands
+             * in g4/g5/g6 (r20-r22), the step byte in the 0x5ff600
+             * spill word and a cleared 0x5ff602 slot (measured). */
+            cpu->registers[20] = (uint32_t)last_step;
+            cpu->registers[21] = (uint32_t)last_base;
+            cpu->registers[VF2_I960_G0_REGISTER + 6u] =
+                (uint32_t)last_level;
+        }
         return status;
     }
 
@@ -6769,6 +7203,17 @@ static vf2_status execute_frame_phase17_bit7_index4(
             cpu->registers[VF2_I960_G0_REGISTER + 6u] =
                 test_cursor10_entry != 0 ? test_cursor10_g6 :
                 test_cursor11_g6;
+            /* g4/g5 (r20/r21) likewise keep live entry values: the
+             * plain chains carry the finish pins so this is
+             * behavior-identical there, and the post-rebuild chain
+             * (row-11 edit followed by idle) carries the rebuild's
+             * step/base operands (measured 0x22/0x75). */
+            cpu->registers[VF2_I960_G0_REGISTER + 4u] =
+                test_cursor10_entry != 0 ? test_cursor10_g4 :
+                test_cursor11_g4;
+            cpu->registers[VF2_I960_G0_REGISTER + 5u] =
+                test_cursor10_entry != 0 ? test_cursor10_g5 :
+                test_cursor11_g5;
         }
         return status;
     }
@@ -21857,7 +22302,84 @@ vf2_status execute_main_final_cluster(
 {
     vf2_hybrid_bridge_report a={0},b={0},d={0},e={0},f={0}; uint64_t i=cpu->executed_instructions,c=cpu->procedure_calls,r=cpu->procedure_returns;
     const uint32_t start_depth=cpu->local_frame_depth;
-    vf2_status status=vf2_i960_cpu_enter_procedure(cpu,VF2_FRAME_SHADOW_VERIFY_ENTRY,UINT32_C(0x00009ffc));
+    vf2_status status;
+    /* Menu value shadow-sync (measured from the row-11 post-edit
+     * release): when the live menu bytes (0x500234-0x500239,
+     * 0x5000e0-0x5000e2) differ from the 0x544600 shadow, the frame
+     * prefix runs the conditional rebuild at guest 0x5e8 before the
+     * shadow verify -- copying live to shadow and regenerating the
+     * three 255-entry channel tables (see
+     * phase17_index4_rebuild_menu_transfer). Measured cost: 11538
+     * instructions and 3 calls (the three 0x6e8 generator calls)
+     * on top of the normal prefix; the sync makes the shadow verify
+     * pass. Scoped to the measured byte set; other live state
+     * stays unverified. */
+    {
+        static const uint32_t sync_addresses[9] = {
+            UINT32_C(0x00500234), UINT32_C(0x00500235),
+            UINT32_C(0x00500236), UINT32_C(0x00500237),
+            UINT32_C(0x00500238), UINT32_C(0x00500239),
+            UINT32_C(0x005000e0), UINT32_C(0x005000e1),
+            UINT32_C(0x005000e2)
+        };
+        uint32_t index = 0u;
+        int dirty = 0;
+        for (index = 0u; index < UINT32_C(9); ++index) {
+            uint8_t live = 0u;
+            uint8_t shadow = 0u;
+            status = vf2_model2a_read(
+                machine, sync_addresses[index], &live, sizeof(live)
+            );
+            if (status == VF2_OK) {
+                status = vf2_model2a_read(
+                    machine, UINT32_C(0x00544600) + index,
+                    &shadow, sizeof(shadow)
+                );
+            }
+            if (status != VF2_OK) {
+                return status;
+            }
+            if (live != shadow) {
+                dirty = 1;
+            }
+        }
+        if (dirty != 0) {
+            uint8_t last_step = 0u;
+            uint8_t last_base = 0u;
+            uint8_t last_level = 0u;
+            status = phase17_index4_rebuild_menu_transfer(machine);
+            if (status == VF2_OK) {
+                status = vf2_model2a_read(
+                    machine, UINT32_C(0x00500239),
+                    &last_step, sizeof(last_step)
+                );
+            }
+            if (status == VF2_OK) {
+                status = vf2_model2a_read(
+                    machine, UINT32_C(0x00500238),
+                    &last_base, sizeof(last_base)
+                );
+            }
+            if (status == VF2_OK) {
+                status = vf2_model2a_read(
+                    machine, UINT32_C(0x005000e2),
+                    &last_level, sizeof(last_level)
+                );
+            }
+            if (status != VF2_OK) {
+                return status;
+            }
+            /* The rebuild leaves the third channel's operands in
+             * g4/g5/g6 (measured r20-r22 poststate). */
+            cpu->registers[20] = (uint32_t)last_step;
+            cpu->registers[21] = (uint32_t)last_base;
+            cpu->registers[22] = (uint32_t)last_level;
+            cpu->executed_instructions += UINT64_C(11538);
+            cpu->procedure_calls += UINT64_C(3);
+            cpu->procedure_returns += UINT64_C(3);
+        }
+    }
+    status=vf2_i960_cpu_enter_procedure(cpu,VF2_FRAME_SHADOW_VERIFY_ENTRY,UINT32_C(0x00009ffc));
     if(status==VF2_OK)status=execute_frame_shadow_verify(machine,cpu,&a);
     if(status!=VF2_OK||cpu->ip!=UINT32_C(0x00009ffc))return status==VF2_OK?VF2_ERROR_UNSUPPORTED:status;
     status=vf2_i960_cpu_enter_procedure(cpu,UINT32_C(0x00029744),UINT32_C(0x0000a000));
