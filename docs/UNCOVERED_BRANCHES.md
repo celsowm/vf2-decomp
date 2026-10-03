@@ -1,5 +1,20 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0716 TEST+DOWN cursor 3->7 (advance-skip) and cursor-7 corridor native
+
+Rows 4/5/6 carry the 0x200 advance-skip flag (0x5b340 row table read
+from the oracle's render), so 3->7 DOWN (`0x0f001004`/`0x0f000000`/0/
+nav `0x1004`, a5 3->7) skips three candidates and MATCHes on the
+observed exit at 3300 steps (3068 body: +6 steps per skip iteration,
+calls stay 37/43 — the skip loop is inline); cursor-7 release + idle
+render via match_count (3277, 24-frame chain all MATCH). Rules: r25 =
+row-3 destination 0x01000598 on nav4; cursor-7 stable r25=0x01000a98
+(off-grid like row 3); stable frames at packed-bit rows take
+match_count, not the packed finish (base-combo paths unchanged). All
+16 row destinations now measured. Next: 7->8 DOWN (pre-measured
+r25 row pins), UP family (fail-closed verified), per-row edits on
+rows 7-14. See `playable_test_down_cursor7_v0716.md`.
+
 ## v0715 TEST+DOWN cursor 2->3 and cursor-3 corridor native
 
 2->3 DOWN (`0x0f001004`/`0x0f000000`/0/nav `0x1004`, a5 2->3) takes the
