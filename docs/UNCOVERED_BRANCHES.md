@@ -1,5 +1,17 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0711 0x28184 bit-20-set siblings native; counter/curve -> 0x28918 pinned
+
+Bit-20-set S0/S1/S2 reach `0x28268` in 11/13/15 (same +2/+4 sibling
+deltas, merging a step earlier via `0x281cc`; native 10/12/14) with
+complete live-state equality, retiring the unmeasured-combo refusal.
+`counter != 1` (via `0x28270 call 0x28918`) and bit-20-clear
+`curve != 0` (via the `0x28208` table path) both leave the head for
+the 25-block float/transform function `0x28918` (also the v0707 float
+path's join point); pinned in-test as oracle-`0x28944` vs native
+refusal. Recovering `0x28918` from the live lift fixture is the next
+28184 slice. See `fa_player_28184_bit20set_v0711.md`.
+
 ## v0710 TEST-held GAME ASSIGNMENT entry native (selector 0x11, a4=0x84)
 
 The TEST-button frame on the GAME ASSIGNMENT cursor is fully native:
@@ -12,6 +24,12 @@ restore of `r14/r15` plus entry snapshots of `g1/g2/g6` and the
 `0x5ff684` g1 spill slot (whole dispatch runs in sub-frames).
 Siblings (nav/edit variants, TEST release) stay unsupported. 102/102
 ctest green. See `playable_test_held_index4_v0710.md`.
+
+Follow-up in the same note: the TEST-released triple
+(`0x0f000000`/`0x0f000004`/released-bit2) and the settled idle triple
+(`0x0f000000`/`0x0f000000`/0) take the identical path and are admitted;
+submenu idles stably native. Next defined combo: TEST+DOWN
+(nav `0x1000`, navigation_delta=+1 with TEST-held latches).
 
 ## v0707 0x28184 head siblings native: S1/S2 join S0 at 0x28268
 

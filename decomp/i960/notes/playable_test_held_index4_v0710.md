@@ -56,3 +56,27 @@ ON/ON/...) — TEST-button operation works natively.
 - TEST-held follow frames (submenu navigation/edit with nav!=0, TEST
   release, EXIT path) — each a new measured combo.
 - Base-combo behavior unchanged (102/102 ctest green, incl. phase17).
+
+## Follow-up: release + idle admitted (same file scope)
+
+Two more latch triples take the identical path (3276 steps incl.
+prefix, same calls, same write set):
+
+| frame | input `0x500700` | prev `0x50070c` | released `0x500708` | nav |
+| --- | --- | --- | --- | --- |
+| TEST held | `0x0f000004` | `0x0f000004` | `0` | `0` |
+| TEST released | `0x0f000000` | `0x0f000004` | `0x4` (TEST edge) | `0` |
+| idle (fixed point) | `0x0f000000` | `0x0f000000` | `0` | `0` |
+
+All values from snapshot-RAM bytes (probe `--read-u32` is unreliable;
+see method notes). Latch/edge values are unread on this path
+(execution memory-trace), so all three share the exit_control render
++ caller-frame `r14/r15` restore + entry `g1/g2/g6` + `0x5ff684`=g1
+poststate. CC leave-intact widened to both input values. Submenu
+idles stably native (t4->t5 MATCH, values rendered).
+
+Next measured combo (defined, not implemented): TEST+DOWN from the
+submenu latches input `0x0f001004`, nav `0x1000` (+1), released `0`,
+previous `0x0f000004`, `a4=0x84` — the handler's navigation_delta=+1
+path (3050/37) with TEST-held latches. Same treatment expected:
+gate + poststate check via cycles.

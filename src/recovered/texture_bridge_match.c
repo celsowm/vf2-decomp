@@ -4558,6 +4558,7 @@ static vf2_status execute_frame_phase17_bit7_index4(
     const uint32_t table = UINT32_C(0x0005b340);
     const uint32_t base_input = UINT32_C(0x0ff7f700);
     const uint32_t test_held_input = UINT32_C(0x0f000004);
+    const uint32_t test_released_input = UINT32_C(0x0f000000);
     uint32_t indirect_target = 0u;
     uint32_t input_flags = 0u;
     uint32_t navigation_flags = 0u;
@@ -4631,15 +4632,33 @@ static vf2_status execute_frame_phase17_bit7_index4(
     }
     /* TEST-held GAME ASSIGNMENT entry (measured from the 0x9ff8 failure
      * state): input/previous latch 0x0f000004 while TEST is held, with
-     * nav=0/a5=0/a6=0xff. The oracle takes the same exit_control render
-     * path (input/previous values are unread on it), so admit exactly
-     * that combo; every other TEST-held sibling stays unsupported. */
+     * nav=0/a5=0/a6=0xff. The TEST-released follow frame latches
+     * input 0x0f000000 / released bit2 with previous still 0x0f000004;
+     * the settled idle frame latches 0x0f000000/0x0f000000/0. All three
+     * take the same exit_control render path (input/previous/released
+     * values are unread on it). Admit exactly those combos; every
+     * other TEST sibling stays unsupported. */
     input_match = (input_flags == base_input &&
                    previous_flags == base_input);
     test_held_entry = (input_flags == test_held_input &&
                        previous_flags == test_held_input &&
+                       released_flags == 0u &&
                        navigation_flags == 0u &&
                        phase_a5 == UINT8_C(0)) ? 1 : 0;
+    if (test_held_entry == 0) {
+        test_held_entry = (input_flags == test_released_input &&
+                           previous_flags == test_held_input &&
+                           released_flags == UINT32_C(4) &&
+                           navigation_flags == 0u &&
+                           phase_a5 == UINT8_C(0)) ? 1 : 0;
+    }
+    if (test_held_entry == 0) {
+        test_held_entry = (input_flags == test_released_input &&
+                           previous_flags == test_released_input &&
+                           released_flags == 0u &&
+                           navigation_flags == 0u &&
+                           phase_a5 == UINT8_C(0)) ? 1 : 0;
+    }
     if (test_held_entry != 0) {
         input_match = 1;
         /* Globals are flat across frames: snapshot the entry values now
@@ -4649,7 +4668,8 @@ static vf2_status execute_frame_phase17_bit7_index4(
         test_held_g6 = cpu->registers[VF2_I960_G0_REGISTER + 6u];
     }
     if (status != VF2_OK || indirect_target != UINT32_C(0x0005a680) ||
-        input_match == 0 || released_flags != 0u ||
+        input_match == 0 ||
+        (test_held_entry == 0 && released_flags != 0u) ||
         selector_mask != UINT32_C(0x00020000) ||
         (diagnostic_flags & (UINT32_C(1) << 14u)) != 0u ||
         phase_a5 > UINT8_C(15) || phase_a6 != UINT8_C(0xff)) {

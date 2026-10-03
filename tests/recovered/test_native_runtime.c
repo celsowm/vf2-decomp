@@ -7806,14 +7806,40 @@ static void test_player_28184_head_matrix_rom_pin(const char *rom_dir)
         uint32_t mode;
         uint16_t sense;
         uint16_t edge;
+        uint16_t counter;
+        uint32_t curve;
         uint64_t ref_steps;
     } rows[] = {
-        {UINT32_C(0x00510980), UINT32_C(0x80004400), 0u, 0x78u, 12u},
-        {UINT32_C(0x00510980), UINT32_C(0x80004400), 0x101u, 1u, 12u},
-        {UINT32_C(0x00510980), UINT32_C(0x80024400), 0x100u, 0x78u, 14u},
-        {UINT32_C(0x00510980), UINT32_C(0x80024400), 0x100u, 1u, 14u},
-        {UINT32_C(0x00510980), UINT32_C(0x80024400), 0x101u, 1u, 16u},
-        {UINT32_C(0x00512980), UINT32_C(0x80004400), 0u, 0x78u, 12u},
+        {UINT32_C(0x00510980), UINT32_C(0x80004400), 0u, 0x78u, 1u, 0u, 12u},
+        {UINT32_C(0x00510980), UINT32_C(0x80004400), 0x101u, 1u, 1u, 0u, 12u},
+        {UINT32_C(0x00510980), UINT32_C(0x80024400), 0x100u, 0x78u, 1u, 0u, 14u},
+        {UINT32_C(0x00510980), UINT32_C(0x80024400), 0x100u, 1u, 1u, 0u, 14u},
+        {UINT32_C(0x00510980), UINT32_C(0x80024400), 0x101u, 1u, 1u, 0u, 16u},
+        {UINT32_C(0x00512980), UINT32_C(0x80004400), 0u, 0x78u, 1u, 0u, 12u},
+        /* MEASURE rows (expectations pending oracle readout): */
+        {UINT32_C(0x00510980), UINT32_C(0x80104400), 0u, 0x78u, 1u, 0u, 11u},
+        {UINT32_C(0x00510980), UINT32_C(0x80124400), 0x100u, 0x78u, 1u, 0u, 13u},
+        {UINT32_C(0x00510980), UINT32_C(0x80124400), 0x101u, 1u, 1u, 0u, 15u},
+    };
+    /* Frontier rows: oracle leaves the branch-only head for 0x28918
+     * (counter!=1 via 0x28270 call; curve!=0 via the 0x28208 table
+     * path); native must refuse. The synthetic fixture faults inside
+     * 0x28918, so only the divergence address is pinned here. */
+    static const struct {
+        uint32_t fighter;
+        uint32_t mode;
+        uint16_t sense;
+        uint16_t edge;
+        uint16_t counter;
+        uint32_t curve;
+        uint32_t ref_ip;
+    } frontier[] = {
+        {UINT32_C(0x00510980), UINT32_C(0x80004400), 0u, 0x78u, 2u, 0u,
+         UINT32_C(0x00028944)},
+        {UINT32_C(0x00510980), UINT32_C(0x80024400), 0x101u, 1u, 2u, 0u,
+         UINT32_C(0x00028944)},
+        {UINT32_C(0x00510980), UINT32_C(0x80004400), 0u, 0x78u, 1u, 1u,
+         UINT32_C(0x00028944)},
     };
     uint8_t *main_rom = NULL;
     size_t main_rom_size = 0u;
@@ -7846,10 +7872,11 @@ static void test_player_28184_head_matrix_rom_pin(const char *rom_dir)
         CHECK(vf2_model2a_attach_main_rom(
                   &native_machine, main_rom, main_rom_size) == VF2_OK);
         CHECK(test_write_u16(
-                  &ref_machine, player + UINT32_C(0x1aa), 1u) == VF2_OK);
+                  &ref_machine, player + UINT32_C(0x1aa),
+                  rows[row].counter) == VF2_OK);
         CHECK(test_write_u16(
                   &native_machine, player + UINT32_C(0x1aa),
-                  1u) == VF2_OK);
+                  rows[row].counter) == VF2_OK);
         CHECK(vf2_model2a_write_u32(
                   &ref_machine, UINT32_C(0x00500068),
                   rows[row].mode) == VF2_OK);
@@ -7868,6 +7895,12 @@ static void test_player_28184_head_matrix_rom_pin(const char *rom_dir)
         CHECK(test_write_u16(
                   &native_machine, player + UINT32_C(0x800),
                   rows[row].edge) == VF2_OK);
+        CHECK(vf2_model2a_write_u32(
+                  &ref_machine, player + UINT32_C(0x854),
+                  rows[row].curve) == VF2_OK);
+        CHECK(vf2_model2a_write_u32(
+                  &native_machine, player + UINT32_C(0x854),
+                  rows[row].curve) == VF2_OK);
 
         vf2_i960_cpu_reset(&ref_cpu, 0u, 0u, UINT32_C(0x00027d00));
         vf2_i960_cpu_reset(&native_cpu, 0u, 0u, UINT32_C(0x00027d00));
@@ -7879,7 +7912,7 @@ static void test_player_28184_head_matrix_rom_pin(const char *rom_dir)
         native_cpu.registers[VF2_I960_G0_REGISTER + 7u] = player;
         memset(&options, 0, sizeof(options));
         options.stop_address = UINT32_C(0x00028268);
-        options.max_steps = 24u;
+        options.max_steps = 64u;
         options.stop_on_self_branch = false;
         memset(&result, 0, sizeof(result));
         status = vf2_i960_run(&ref_cpu, &ref_machine, &options, &result);
@@ -7911,6 +7944,89 @@ static void test_player_28184_head_matrix_rom_pin(const char *rom_dir)
                     row, diff.component, diff.first_offset,
                     (unsigned)diff.expected_value,
                     (unsigned)diff.actual_value);
+            ++failures;
+        }
+        vf2_model2a_shutdown(&ref_machine);
+        vf2_model2a_shutdown(&native_machine);
+    }
+    for (row = 0u; row < sizeof(frontier) / sizeof(frontier[0]); ++row) {
+        vf2_model2a ref_machine;
+        vf2_model2a native_machine;
+        vf2_i960_cpu ref_cpu;
+        vf2_i960_cpu native_cpu;
+        vf2_i960_run_options options;
+        vf2_i960_run_result result;
+        const uint32_t player = frontier[row].fighter;
+        const uint32_t stack = UINT32_C(0x005ff500);
+        vf2_status status = VF2_OK;
+
+        memset(&ref_machine, 0, sizeof(ref_machine));
+        memset(&native_machine, 0, sizeof(native_machine));
+        CHECK(vf2_model2a_initialize(&ref_machine));
+        CHECK(vf2_model2a_initialize(&native_machine));
+        CHECK(vf2_model2a_attach_main_rom(
+                  &ref_machine, main_rom, main_rom_size) == VF2_OK);
+        CHECK(vf2_model2a_attach_main_rom(
+                  &native_machine, main_rom, main_rom_size) == VF2_OK);
+        CHECK(test_write_u16(
+                  &ref_machine, player + UINT32_C(0x1aa),
+                  frontier[row].counter) == VF2_OK);
+        CHECK(test_write_u16(
+                  &native_machine, player + UINT32_C(0x1aa),
+                  frontier[row].counter) == VF2_OK);
+        CHECK(vf2_model2a_write_u32(
+                  &ref_machine, UINT32_C(0x00500068),
+                  frontier[row].mode) == VF2_OK);
+        CHECK(vf2_model2a_write_u32(
+                  &native_machine, UINT32_C(0x00500068),
+                  frontier[row].mode) == VF2_OK);
+        CHECK(test_write_u16(
+                  &ref_machine, UINT32_C(0x00500092),
+                  frontier[row].sense) == VF2_OK);
+        CHECK(test_write_u16(
+                  &native_machine, UINT32_C(0x00500092),
+                  frontier[row].sense) == VF2_OK);
+        CHECK(test_write_u16(
+                  &ref_machine, player + UINT32_C(0x800),
+                  frontier[row].edge) == VF2_OK);
+        CHECK(test_write_u16(
+                  &native_machine, player + UINT32_C(0x800),
+                  frontier[row].edge) == VF2_OK);
+        CHECK(vf2_model2a_write_u32(
+                  &ref_machine, player + UINT32_C(0x854),
+                  frontier[row].curve) == VF2_OK);
+        CHECK(vf2_model2a_write_u32(
+                  &native_machine, player + UINT32_C(0x854),
+                  frontier[row].curve) == VF2_OK);
+
+        vf2_i960_cpu_reset(&ref_cpu, 0u, 0u, UINT32_C(0x00027d00));
+        vf2_i960_cpu_reset(&native_cpu, 0u, 0u, UINT32_C(0x00027d00));
+        ref_cpu.registers[1] = stack;
+        native_cpu.registers[1] = stack;
+        ref_cpu.registers[VF2_I960_FP_REGISTER] = stack - UINT32_C(0x100);
+        native_cpu.registers[VF2_I960_FP_REGISTER] = stack - UINT32_C(0x100);
+        ref_cpu.registers[VF2_I960_G0_REGISTER + 7u] = player;
+        native_cpu.registers[VF2_I960_G0_REGISTER + 7u] = player;
+        memset(&options, 0, sizeof(options));
+        options.stop_address = frontier[row].ref_ip;
+        options.max_steps = 64u;
+        options.stop_on_self_branch = false;
+        memset(&result, 0, sizeof(result));
+        status = vf2_i960_run(&ref_cpu, &ref_machine, &options, &result);
+        if (status != VF2_OK || ref_cpu.ip != frontier[row].ref_ip) {
+            fprintf(stderr,
+                    "FAILED 28184 frontier %zu ref ip=%08x want %08x\n",
+                    row, (unsigned)ref_cpu.ip,
+                    (unsigned)frontier[row].ref_ip);
+            ++failures;
+        }
+        status = vf2_hybrid_player_28184_execute_for_test(
+            &native_machine, &native_cpu
+        );
+        if (status != VF2_ERROR_UNSUPPORTED) {
+            fprintf(stderr,
+                    "FAILED 28184 frontier %zu native status=%d want unsupported\n",
+                    row, (int)status);
             ++failures;
         }
         vf2_model2a_shutdown(&ref_machine);

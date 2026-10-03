@@ -3605,7 +3605,6 @@ static vf2_status hybrid_execute_player_28184_prefix(
     }
     if (result != VF2_OK || counter != 1u ||
         ((mode & (UINT32_C(1) << 17u)) != 0u && sibling == 0u) ||
-        (sibling != 0u && (mode & (UINT32_C(1) << 20u)) != 0u) ||
         ((mode & (UINT32_C(1) << 20u)) == 0u && curve != 0u) ||
         (status_byte & UINT8_C(1)) != 0u) {
         return VF2_ERROR_UNSUPPORTED;
@@ -3627,11 +3626,12 @@ static vf2_status hybrid_execute_player_28184_prefix(
     hybrid_set_compare_result(cpu, VF2_I960_COMPARE_EQUAL);
     cpu->ip = UINT32_C(0x00028268);
     /* Call-through-0x28268 oracle totals minus the modeled call:
-     * bit-20-set 11, sibling 0 measured 12, sibling 1 measured 14,
-     * sibling 2 measured 16 (bit-20-clear rows). */
+     * bit-20-clear: S0 12, S1 14, S2 16; bit-20-set merges a step
+     * earlier via 0x281cc: S0 11, S1 13, S2 15. */
     cpu->executed_instructions +=
         (mode & (UINT32_C(1) << 20u)) != 0u
-            ? UINT64_C(10) :
+            ? (sibling == 1u ? UINT64_C(12) :
+               sibling == 2u ? UINT64_C(14) : UINT64_C(10)) :
         sibling == 1u ? UINT64_C(13) :
         sibling == 2u ? UINT64_C(15) : UINT64_C(11);
     return VF2_OK;

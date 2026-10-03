@@ -142,11 +142,13 @@ static vf2_status set_main_final_cluster_condition(
             set_compare_result(cpu, VF2_I960_COMPARE_LESS);
         } else if (phase_index == UINT8_C(0x84) &&
                    phase_state == UINT8_C(0) &&
-                   input_flags == UINT32_C(0x0f000004)) {
-            /* TEST-held GAME ASSIGNMENT entry (a5=0, nav=0): the measured
-             * worker tail ends at cmpibne 1,g0 (g0=0, branch taken) with
-             * GREATER, which the bridge poststate already carries. Leave
-             * it intact instead of the historical EQUAL default. */
+                   (input_flags == UINT32_C(0x0f000004) ||
+                    input_flags == UINT32_C(0x0f000000))) {
+            /* TEST-held GAME ASSIGNMENT entry (a5=0, nav=0) and its
+             * TEST-released follow frame: the measured worker tail ends
+             * at cmpibne 1,g0 (g0=0, branch taken) with GREATER, which
+             * the bridge poststate already carries. Leave it intact
+             * instead of the historical EQUAL default. */
         } else if (phase_index != UINT8_C(0x8a)) {
             /* Phase 0x8a (index10) leaves the measured bridge poststate
              * intact (match-latch path ends GREATER). Other phases keep
