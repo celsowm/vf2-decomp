@@ -1,5 +1,18 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0724 TEST+UP cursor 14->13->12->11->10 corridor native
+
+UP family, batch 1: four TEST+UP advances (`0x0f002004`/`0x0f000000`/0/
+nav `0x2004`) MATCH on the observed exit at 3279 steps each (3047
+body — 3 steps shorter than DOWN single-step) with r25 = source-row
+destination and g0=-1; post-UP releases (UP-flavored latch triple
+`0x0f000000`/`0x0f002004`/`0x2004`) render via the same finishes as
+their DOWN counterparts (match_count for 13/12, special-assignment
+for 11/10); 12-frame UP-walk all MATCH. CC NONE exception extended to
+the UP input. Next: 10->9 UP (measured, failure+probe captured),
+9->8, 8->7, the 7->3 UP skip, 3->2, 2->1, 1->0, row-0 UP boundary;
+then per-row edits. See `playable_test_up_walk_batch1_v0724.md`.
+
 ## v0723 TEST+DOWN cursor 13->14 and cursor-14 corridor native
 
 Last settings row (packed bit 6): 13->14 DOWN MATCHes on the observed
