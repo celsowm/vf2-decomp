@@ -1,5 +1,18 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0725 TEST+UP full walk 10->0, 0->15 wrap and EXIT-row corridor native
+
+UP family complete: 10->9->8->7->(skip 6/5/4)->3->2->1->0 all MATCH
+(single-step 3279/3047; 7->3 skip 3297/3065; 0->15 wrap 3280/3048,
+r25=source-row destinations); post-UP releases render via the same
+finishes as DOWN (match_count/special-assignment) plus two new
+shapes: row-0 release via exit_control (3276/3044/38, r25=0x01001398,
+CC GREATER intact) and row-15 EXIT stable via initialize
+(r25=0x01001298, CC EQUAL). Probe calls-delta overcounts by 6 vs the
+block contract — differential is authoritative. Fail-closed: DOWN at
+row 15. Next: per-row LEFT/RIGHT edits on rows 7-14. See
+`playable_test_up_walk_complete_v0725.md`.
+
 ## v0724 TEST+UP cursor 14->13->12->11->10 corridor native
 
 UP family, batch 1: four TEST+UP advances (`0x0f002004`/`0x0f000000`/0/
