@@ -1,5 +1,17 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0723 TEST+DOWN cursor 13->14 and cursor-14 corridor native
+
+Last settings row (packed bit 6): 13->14 DOWN MATCHes on the observed
+exit at 3282 steps (3050 body) with r25 = row-13 destination
+0x01001098; cursor-14 release + idle render via match_count
+(predicted shape proven by MATCH, r25=0x01001198, 45-frame chain all
+MATCH). All settings rows 7-14 now have proven stable corridors;
+rows 4/5/6 are advance-skipped by construction; row 15 (EXIT) is the
+only unvisited row. Next: 14->15 DOWN into EXIT (fail-closed, failure
+state captured), UP family, per-row edits. See
+`playable_test_down_cursor14_v0723.md`.
+
 ## v0722 TEST+DOWN cursor 12->13 and cursor-13 corridor native
 
 Row 13 (packed bit 4): 12->13 DOWN MATCHes on the observed exit at
