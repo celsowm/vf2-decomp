@@ -1,5 +1,16 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0722 TEST+DOWN cursor 12->13 and cursor-13 corridor native
+
+Row 13 (packed bit 4): 12->13 DOWN MATCHes on the observed exit at
+3282 steps (3050 body) with r25 = row-12 destination 0x01000f98;
+cursor-13 release + idle render via match_count (predicted shape
+proven by MATCH, r25=0x01001098, 42-frame chain all MATCH). Routing:
+nav10 bypasses the packed-flag finish (guard extended). Next: 13->14
+DOWN into the last settings row (fail-closed, failure state
+captured), then 14->15/EXIT, UP family, per-row edits. See
+`playable_test_down_cursor13_v0722.md`.
+
 ## v0721 TEST+DOWN cursor 11->12 and cursor-12 corridor native
 
 Row 12 (packed bit 5): 11->12 DOWN MATCHes on the observed exit at
