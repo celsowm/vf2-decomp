@@ -1,5 +1,18 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0717 TEST+DOWN cursor 7->8 and cursor-8 corridor native
+
+Second packed-bit settings row: 7->8 DOWN (`0x0f001004`/`0x0f000000`/0/
+nav `0x1004`, a5 7->8) MATCHes on the observed exit at 3282 steps
+(3050 body, single-step path) with r25 = row-7 destination 0x01000a98;
+cursor-8 release + idle render via match_count (predicted shape proven
+by MATCH, r25=0x01000b98, 27-frame chain all MATCH). Routing: the
+nav5 frame bypasses match_count (flag-gated arms) and the packed-flag
+finish (new `test_nav5_entry == 0` guard — first advance from a
+packed-bit row); base-combo paths unchanged. Next: 8->9 DOWN
+(fail-closed, failure state captured), then rows 9-14, UP family,
+per-row edits. See `playable_test_down_cursor8_v0717.md`.
+
 ## v0716 TEST+DOWN cursor 3->7 (advance-skip) and cursor-7 corridor native
 
 Rows 4/5/6 carry the 0x200 advance-skip flag (0x5b340 row table read
