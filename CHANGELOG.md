@@ -43,6 +43,18 @@
   frontier.py v2 to surface the edges that touch them, and taint.py
   to characterise the dependency for the chosen branch.
 
+- infer_rules conservative-refusal unit tests (v0729e):
+  `tools/python/test_infer_rules.py` locks in the AGENTS.md
+  documented contract that infer_rules.py refuses to produce a rule
+  when the selected features do not fully determine the outcome or
+  the truth table is incomplete. 10/10 tests green
+  (stable_outcome, parse_bitfield accept/reject, feature_vector,
+  incomplete-table refusal, non-determining refusal, complete-table
+  happy path with sympy available, blank-line tolerance). The
+  factory runbook now lists `infer_rules.py` as the fifth tool in
+  the chain and explicitly warns against weakening the refusal logic
+  that retired the 15-entry triple/quad table in v0728.
+
 - 0x28184 head siblings native (v0707): bit17 x bit0 x edge==counter
   tree measured (12/14/16 steps to 0x28268, float fall-through in 10
   to 0x281b0); S1/S2 join S0 natively with r14/r13 loads, tail EQUAL

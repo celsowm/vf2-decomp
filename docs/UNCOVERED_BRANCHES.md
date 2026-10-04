@@ -79,6 +79,53 @@ contract on the real `out/trace-bit14.jsonl` corpus (21 branch blocks,
 `fighter + 0xNNNN [bit N]` shape).  It is the gate a measured
 dependency must pass on its way to becoming a recovered semantics.
 
+## v0729d infer_structs dual-base promotion tests
+
+`tools/python/test_infer_structs.py` (4/4) locks in:
+
+- `load_scenario_bases` parses `metadata.fighter0` / `metadata.fighter1`
+  correctly;
+- `summarize_trace` promotes an offset touched from both fighter0 and
+  fighter1 to multi-corridor provenance (`bases == {"fighter0",
+  "fighter1"}`), preserves read/write counts and access widths, and
+  attributes IPs from `step.ip_before`;
+- `field_records` sorts multi-base fields first, then by total access
+  count, then by offset;
+- orphan memory accesses (those without a step record at the same step)
+  stay unmatched but still counted.
+
+Combined with v0729a-c, the next `fa_player` slice can:
+
+1. run `infer_structs.py` on a memory trace to upgrade field candidates;
+2. run `frontier.py v2 --fighter-base` on the same trace to surface the
+   edges that touch them;
+3. run `taint.py` to characterise the dependent branch.
+
+## v0729e infer_rules conservative-refusal tests
+
+`tools/python/test_infer_rules.py` (10/10) locks in the AGENTS.md
+documented contract that infer_rules.py is deliberately conservative:
+
+- `stable_outcome` produces a deterministic signature from the outcome
+  fields alone, and collapses missing outcomes to `probe_failure`;
+- `parse_bitfield` accepts `name:bits` specs and rejects every malformed
+  form (missing colon, empty name, out-of-range bits, duplicates,
+  non-numeric bits);
+- `feature_vector` expands boolean + bitfield inputs into named bits
+  and rejects non-binary boolean inputs;
+- `try_boolean_minimize` refuses an incomplete truth table;
+- `try_boolean_minimize` refuses when the same feature vector resolves
+  to two different outcomes (the conservative core);
+- `try_boolean_minimize` returns a minimized DNF rule on a complete
+  table when sympy is available (or reports sympy-missing cleanly when
+  not);
+- `load_records` skips blank lines in the input JSONL.
+
+The factory runbook now lists `infer_rules.py` as the fifth tool in
+the chain and explicitly warns against weakening its refusal logic,
+which is the same discipline that retired the 15-entry triple/quad
+table in v0728.
+
 ## v0727 COIN ASSIGNMENT natural entry, parent walk, edits and EXIT native
 
 Selector-17 index 5 is now entered naturally from the TEST MENU and
