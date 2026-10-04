@@ -85,7 +85,7 @@ the path fail-closed per AGENTS.md rule 2.
 
 ## Step 4 — gate every promotion with the test suite
 
-Three test suites guard the factory:
+Five test suites guard the factory:
 
 | suite | coverage |
 | --- | --- |
@@ -93,15 +93,26 @@ Three test suites guard the factory:
 | `tools/python/test_taint.py` | 7/7 — taint unit algorithm |
 | `tools/python/test_taint_e2e.py` | 1/1 — taint on real corpus |
 | `tools/python/test_infer_structs.py` | 4/4 — dual-base promotion |
+| `tools/python/test_infer_rules.py` | 10/10 — conservative refusal contract |
 
-Run all four before any promotion:
+Run all five before any promotion:
 
 ```sh
 python tools/python/test_frontier.py \
 && python tools/python/test_taint.py \
 && python tools/python/test_taint_e2e.py \
-&& python tools/python/test_infer_structs.py
+&& python tools/python/test_infer_structs.py \
+&& python tools/python/test_infer_rules.py
 ```
+
+When the frontier edge in step 1 is discovered inside a sweep
+scenario (rather than a hand-rolled trace), `tools/python/infer_rules.py`
+adds a fifth tool to the chain.  It infers a minimized DNF rule
+from the sweep outcomes and the documented contract is conservative:
+if the selected features do not fully determine the outcome, or the
+truth table is incomplete, it refuses to produce a rule.  This is
+exactly the discipline that retired the 15-entry triple/quad table in
+v0728.  Do not weaken `infer_rules.py`'s refusal logic.
 
 ## Step 5 — write the per-slice note
 
