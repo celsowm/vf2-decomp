@@ -119,6 +119,17 @@
   (Test #115). Total factory ctest entries: 11; total Python test
   cases: 83; total ctest time: 11.14 s.
 
+- Factory chain integration test (v0729n):
+  `tools/python/test_factory_chain.py` validates the v0729 factory
+  chain end-to-end through the public Python API: Step 1 (frontier
+  ingest) -> Step 2a (contiguous_fighter_blocks auto-detects the
+  120-field block); Step 2 (infer_structs per-offset roll-up)
+  agrees with Step 2a; Step 2 dual-base promotion (base_count == 2
+  when an offset is touched from both fighter0 and fighter1).
+  3/3 tests green. CMakeLists adds `vf2_python_factory_chain`
+  (Test #116). Total factory ctest entries: 12; total Python test
+  cases: 86; total ctest time: 6.94 s.
+
 - Python factory wired into ctest gate (v0729a-g + v0729f):
   `CMakeLists.txt` adds six `vf2_python_factory_*` ctest entries
   (frontier / taint / taint_e2e / infer_structs / infer_rules /
