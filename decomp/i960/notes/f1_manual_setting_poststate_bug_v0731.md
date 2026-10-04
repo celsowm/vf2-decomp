@@ -116,26 +116,65 @@ differences, the first at offset `0xe` (`expected = 0x1`,
 pins were never differentially proven for this leg — the branch was
 unreachable.
 
-## 4. Disposition
+## 4. Field-level diff: r14 fixed, and what is actually left
 
-The candidate tuple
+`compare-snapshots` printed only a one-line summary, so a `registers` mode
+was added (third argument) to dump every differing field. That immediately
+localised the defect:
 
-```c
-{UINT32_C(0x0f000004), UINT32_C(0x0f000000), 0u, UINT32_C(0x4), UINT8_C(5), 0u, 0u}
+```text
+# before the fix
+Snapshots differ in registers at offset 0xe: expected=0x1 actual=0x1d (550 differences)
+  r14 expected=0x00000001 actual=0x0000001d
 ```
 
-is **not** in the table. A comment at the a5 = 4 TEST row records why. The
-gate reported a mismatch, so per AGENTS.md rule 1 an unproven admission
-must not be added and rule 5 forbids weakening validation to make a
-recovery pass.
+**A single field.** The branch pinned `r14 = 1` (the *parked* value); the
+v0727 natural-latch rule says r14 is the live frame-counter-minus-one.
+Setting `cpu->registers[14] = test_held_r14` (the caller-frame value
+already captured at the gate) fixes it:
 
-To finish: dump the reference poststate at `0xa010` field by field
-(`vf2recover`, or a field-level snapshot diff — `compare-snapshots` only
-prints a summary), correct the pins in the a5 = 5 branch, and re-run the
-recipe until `compare-snapshots` reports a match. The instruction and call
-accounting already agree, so only the poststate needs work.
+```text
+# after the r14 fix
+Snapshots differ in tile-ram at offset 0x2a1: expected=0x80 actual=0x0 (549 differences)
+```
 
-## 5. Validation
+**Every register now matches**, along with `local_frame_depth`, `ip`,
+`arithmetic_control` and `compare_result`, and the instruction/call
+accounting is exact (14295 / 42 on both sides).
+
+What remains is **549 tile-ram words**. The a5 = 5 branch writes `a7 = 0`
+and the two footer lines, but the reference performs a **full MANUAL
+SETTING page render** — consistent with the 2835 tile-plane writes measured
+in `f1_manual_setting_entry_measured_v0731.md` section 2. The branch is an
+incomplete recovery, not a wrong one: it models the state transition and
+forgets the page content. The v0727 note's "the whole nested a7 editor is
+still open" is exactly this gap.
+
+## 5. Disposition
+
+Neither change is in the tree. The candidate tuple is not admitted, and the
+r14 correction is reverted with the branch, because the branch is
+unreachable until the page render is recovered and no test can exercise it
+in isolation. Per AGENTS.md rule 1 an unproven admission must not be added,
+rule 5 forbids weakening validation to make a recovery pass, and rule 9
+prefers the smallest *proven* change.
+
+The precise spec for the remaining work:
+
+1. Recover the MANUAL SETTING page render (the 549 differing tile words).
+   Start from the measured memory trace: 2835 writes into `0x10xxxx`, the
+   footer at screen rows 44/45, `phase_a7 = 0`, selector mask
+   `0x50002c -> 0x00000200`, cursor `0x010011a0 <- 0x801c` with the other
+   five cleared to `0x0020`.
+2. Set `cpu->registers[14] = test_held_r14`, not `1`.
+3. Re-run the recipe; accept only when `compare-snapshots` prints
+   **"Snapshots match."**
+4. Then admit the single tuple row and add the ctest pin.
+
+The tooling from this session (`compare-snapshots ... registers`) is
+committed and is what makes steps 1-3 tractable.
+
+## 6. Validation
 
 - `cmake --build build --config Debug` clean.
 - After the revert: `vf2_phase17_zero_differential`,
@@ -144,7 +183,7 @@ accounting already agree, so only the poststate needs work.
 - Full 117/117 ctest was green earlier in this session; the only source
   change since is the 8-line comment.
 
-## 6. Anti-traps
+## 7. Anti-traps
 
 - Do not treat "the block ran natively and the instruction count matched" as
   proof. The poststate was wrong by 550 fields.
@@ -156,3 +195,4 @@ accounting already agree, so only the poststate needs work.
   entry is `0x00009ff8`.
 - Always run the control (`a5 = 4`) before believing a `compare-snapshots`
   result.
+

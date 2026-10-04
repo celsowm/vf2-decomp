@@ -8098,6 +8098,18 @@ static vf2_status execute_frame_phase17_bit7_index5(
             {UINT32_C(0x0f000004), UINT32_C(0x0f000000), 0u, UINT32_C(0x4), UINT8_C(3), 0u, 0u},
             {UINT32_C(0x0f000004), UINT32_C(0x0f000000), 0u, UINT32_C(0x4), UINT8_C(4), 0u, 0u},
             /* MANUAL SETTING entry (a5 = 5) is deliberately NOT admitted.
+             * v0731 built the mid-menu differential and drove this leg with
+             * a provisional tuple. Two findings, both measured:
+             *   - r14 must be the caller-frame value (reference 0x1d), not
+             *     the parked pin 1 the branch used;
+             *   - with r14 corrected every register, the counters and the
+             *     condition state match exactly (14295 instructions and
+             *     42 calls on both sides), but 549 tile-ram words still
+             *     differ because the branch omits the MANUAL SETTING page
+             *     render the reference performs.
+             * It stays fail-closed until the page render is recovered. See
+             * decomp/i960/notes/f1_manual_setting_poststate_bug_v0731.md. */
+            /* MANUAL SETTING entry (a5 = 5) is deliberately NOT admitted.
              * v0731 proved the tuple, the block shape (14295 instructions
              * and 42 calls to the 0xa010 boundary, exact) and every gate
              * precondition, but the strict native-vs-reference

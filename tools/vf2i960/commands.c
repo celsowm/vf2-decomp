@@ -3877,7 +3877,8 @@ static int command_compare_timer_irq(const char *rom_directory)
 
 static int command_compare_snapshots(
     const char *expected_path,
-    const char *actual_path
+    const char *actual_path,
+    int dump_registers
 )
 {
     vf2_i960_snapshot expected;
@@ -3906,6 +3907,40 @@ static int command_compare_snapshots(
             (unsigned)diff.expected_value,
             (unsigned)diff.actual_value,
             diff.differing_bytes
+        );
+    }
+    if (status == VF2_OK && dump_registers && !diff.equal) {
+        size_t index = 0u;
+        printf("Register differences (expected = first file, actual = second):\n");
+        for (index = 0u; index < VF2_I960_REGISTER_COUNT; ++index) {
+            if (expected.cpu.registers[index] != actual.cpu.registers[index]) {
+                printf(
+                    "  %s%-2u expected=0x%08x actual=0x%08x\n",
+                    index < (size_t)VF2_I960_G0_REGISTER ? "r" : "g",
+                    index < (size_t)VF2_I960_G0_REGISTER
+                        ? (unsigned)index
+                        : (unsigned)(index - (size_t)VF2_I960_G0_REGISTER),
+                    (unsigned)expected.cpu.registers[index],
+                    (unsigned)actual.cpu.registers[index]
+                );
+            }
+        }
+        printf(
+            "  depth expected=%u actual=%u\n",
+            (unsigned)expected.cpu.local_frame_depth,
+            (unsigned)actual.cpu.local_frame_depth
+        );
+        printf(
+            "  ip expected=0x%08x actual=0x%08x\n",
+            (unsigned)expected.cpu.ip,
+            (unsigned)actual.cpu.ip
+        );
+        printf(
+            "  ac expected=0x%08x actual=0x%08x  cc expected=%u actual=%u\n",
+            (unsigned)expected.cpu.arithmetic_control,
+            (unsigned)actual.cpu.arithmetic_control,
+            (unsigned)expected.cpu.compare_result,
+            (unsigned)actual.cpu.compare_result
         );
     }
     vf2_i960_snapshot_destroy(&expected);
@@ -6679,8 +6714,11 @@ int main(int argc, char **argv)
             argv[2], argc == 4 ? argv[3] : NULL);
     }
 
-    if (strcmp(argv[1], "compare-snapshots") == 0 && argc == 4) {
-        return command_compare_snapshots(argv[2], argv[3]);
+    if (strcmp(argv[1], "compare-snapshots") == 0 &&
+        (argc == 4 || argc == 5)) {
+        return command_compare_snapshots(
+            argv[2], argv[3], argc == 5 && strcmp(argv[4], "registers") == 0
+        );
     }
 
     usage(argv[0]);

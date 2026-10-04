@@ -1,5 +1,47 @@
 # Changelog
 
+## v0731e — field-level snapshot diff; r14 defect isolated; page render is the real gap
+
+- **Tooling: `vf2i960 compare-snapshots <expected> <actual> [registers]`**
+  now dumps every differing field (r0-r31 / g0-g15, frame depth, ip,
+  arithmetic control, compare result) instead of only a one-line summary.
+  This is what turned an unactionable "550 differences" into a one-field
+  diagnosis, and it unblocks every future mid-menu differential.
+
+- **r14 defect isolated and measured.** On the a5 = 5 MANUAL SETTING leg
+  the *only* differing register was `r14` — native `0x1` vs reference
+  `0x1d`. The branch pinned the parked value; the v0727 natural-latch rule
+  says r14 is the live frame-counter-minus-one. With
+  `cpu->registers[14] = test_held_r14` (the caller-frame value already
+  captured at the gate), **every register, the frame depth, ip,
+  arithmetic control and compare result match**, and the accounting is
+  exact on both sides: **14295 instructions and 42 calls**.
+
+- **The real remaining gap is 549 tile-ram words**, not the CPU state. The
+  a5 = 5 branch writes `a7 = 0` and the two footer lines, but the
+  reference performs a full MANUAL SETTING page render — consistent with
+  the 2835 tile-plane writes measured earlier. The branch is an
+  **incomplete** recovery, not a wrong one, and the v0727 note's "the
+  whole nested a7 editor is still open" is exactly this gap.
+
+- **Disposition: both changes reverted, path stays fail-closed.** The tuple
+  is not admitted and the r14 correction is reverted with the unreachable
+  branch, since no test can exercise it in isolation and the differential
+  still fails. Per AGENTS.md rule 1 an unproven admission must not be
+  added, rule 5 forbids weakening validation to make a recovery pass, and
+  rule 9 prefers the smallest *proven* change. An explanatory comment at
+  the a5 = 4 TEST row records both findings. The spec for finishing is in
+  the note: recover the 549-word page render, set `r14 = test_held_r14`,
+  re-run until `compare-snapshots` prints "Snapshots match.", then admit
+  the single tuple row and add the ctest pin.
+
+- Validation: build clean; 17/17 on the gate subset (all 13
+  `vf2_python_factory*` entries plus `vf2_native_sixth_dispatch`,
+  `vf2_texture_bridge_differential`, `vf2_phase17_zero`,
+  `vf2_native_differential`). Full 117/117 ctest was green earlier in this
+  session; the only source changes are the `compare-snapshots` dump mode
+  and a comment.
+
 ## v0731d — strict differential built; real poststate bug found in recovered C
 
 - **A working strict differential for mid-menu selector-17 frames**
