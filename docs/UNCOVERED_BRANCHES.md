@@ -4656,3 +4656,24 @@ unsupported pending COBR-CC recalibration (v0358). Endurance MATCH is
 observed through dispatch **10675** on this MSVC Debug build. See
 `decomp/i960/notes/close_open_v0352.md` and
 `decomp/i960/notes/player_270d4_slot_pin_v0358.md`.
+
+## v0729i-p factory ctest test gate (i/j/k/l/m/n/o/p)
+
+This block lands the unit-test suite for every AGENTS.md workflow tool
+the v0729 factory chain calls:
+
+| slice | tool | coverage |
+| --- | --- | --- |
+| v0729i | `tools/python/test_sweep_state.py` | 9/9 |
+| v0729j | `tools/python/test_explore_state.py` | 9/9 |
+| v0729k | `tools/python/test_minimize_case.py` | 7/7 |
+| v0729l | `tools/python/test_trace_case.py` | 4/4 |
+| v0729m | `tools/python/test_z3_branch.py` | 5/5 (skips if z3 missing) |
+| v0729n | `tools/python/test_factory_chain.py` | 3/3 (Step 1 -> 2 -> 2a) |
+| v0729o | `tools/python/test_factory_chain.py` | +1 (infer_rules chain) |
+| v0729p | `tools/python/factory_chain_demo.py` | runnable exemplar |
+
+Combined with v0729a-h, every step in `factory_runbook_v0729.md`
+has a unit-test gate; every chain composition has an integration
+test. The factory ctest gate covers 87 Python test cases in 12 ctest
+entries (`#105`-`#116`) and runs in ~6.7 s on this MSVC Debug build.
