@@ -512,4 +512,55 @@ if(VF2_BUILD_TESTS)
             PROPERTIES TIMEOUT 180
         )
     endif()
+
+    # Python factory tooling tests (v0729a-e). They guard the analysis
+    # layer's contracts (frontier.py v2, taint.py, infer_structs.py,
+    # infer_rules.py). They are analysis-only and have no C dependency;
+    # running them through ctest keeps the factory in lock-step with the C
+    # gate. Python is required; on hosts without it, the tests are
+    # skipped with a clear message rather than failing the suite.
+    find_package(Python3 COMPONENTS Interpreter QUIET)
+    if(Python3_Interpreter_FOUND)
+        add_test(
+            NAME vf2_python_factory_frontier
+            COMMAND ${Python3_EXECUTABLE}
+                    ${CMAKE_SOURCE_DIR}/tools/python/test_frontier.py
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        )
+        add_test(
+            NAME vf2_python_factory_taint
+            COMMAND ${Python3_EXECUTABLE}
+                    ${CMAKE_SOURCE_DIR}/tools/python/test_taint.py
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        )
+        add_test(
+            NAME vf2_python_factory_taint_e2e
+            COMMAND ${Python3_EXECUTABLE}
+                    ${CMAKE_SOURCE_DIR}/tools/python/test_taint_e2e.py
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        )
+        add_test(
+            NAME vf2_python_factory_infer_structs
+            COMMAND ${Python3_EXECUTABLE}
+                    ${CMAKE_SOURCE_DIR}/tools/python/test_infer_structs.py
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        )
+        add_test(
+            NAME vf2_python_factory_infer_rules
+            COMMAND ${Python3_EXECUTABLE}
+                    ${CMAKE_SOURCE_DIR}/tools/python/test_infer_rules.py
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        )
+        set_tests_properties(
+            vf2_python_factory_frontier
+            vf2_python_factory_taint
+            vf2_python_factory_taint_e2e
+            vf2_python_factory_infer_structs
+            vf2_python_factory_infer_rules
+            PROPERTIES TIMEOUT 240
+        )
+    else()
+        message(STATUS
+            "Python3 not found; skipping vf2_python_factory_* ctest wiring")
+    endif()
 endif()
