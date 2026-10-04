@@ -110,6 +110,15 @@
   (Test #114). Total factory ctest entries: 10; total Python test
   cases: 78; total ctest time: 14.11 s.
 
+- z3_branch unit tests + ctest wiring (v0729m):
+  `tools/python/test_z3_branch.py` locks in the AGENTS.md Z3 helper
+  surface (parse_bits comma-separated bit positions + tolerance;
+  prove_equivalence accept equivalent / reject inequivalent /
+  respect extra_constraints). 5/5 tests green (skip gracefully when
+  z3-solver is missing). CMakeLists adds `vf2_python_factory_z3_branch`
+  (Test #115). Total factory ctest entries: 11; total Python test
+  cases: 83; total ctest time: 11.14 s.
+
 - Python factory wired into ctest gate (v0729a-g + v0729f):
   `CMakeLists.txt` adds six `vf2_python_factory_*` ctest entries
   (frontier / taint / taint_e2e / infer_structs / infer_rules /
