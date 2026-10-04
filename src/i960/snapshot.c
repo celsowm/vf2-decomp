@@ -739,3 +739,93 @@ vf2_status vf2_i960_snapshot_compare(
     }
     return compare_memory_regions(expected, actual, diff, 0);
 }
+
+vf2_status vf2_i960_snapshot_diff_runs(
+    const vf2_i960_snapshot *expected,
+    const vf2_i960_snapshot *actual,
+    vf2_i960_snapshot_run *runs,
+    size_t run_capacity,
+    size_t *run_count,
+    size_t *differing_bytes
+)
+{
+    snapshot_const_region_ref expected_regions[VF2_SNAPSHOT_REGION_COUNT];
+    snapshot_const_region_ref actual_regions[VF2_SNAPSHOT_REGION_COUNT];
+    size_t region_index = 0u;
+    size_t found = 0u;
+    size_t stored = 0u;
+    size_t total = 0u;
+    if (expected == NULL || actual == NULL || run_count == NULL ||
+        differing_bytes == NULL) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    *run_count = 0u;
+    *differing_bytes = 0u;
+    if (runs != NULL && run_capacity == 0u) return VF2_ERROR_INVALID_ARGUMENT;
+    const_regions(expected, expected_regions);
+    const_regions(actual, actual_regions);
+    for (region_index = 0u; region_index < VF2_SNAPSHOT_REGION_COUNT; ++region_index) {
+        const uint8_t *expected_data = expected_regions[region_index].data;
+        const uint8_t *actual_data = actual_regions[region_index].data;
+        const size_t size = expected_regions[region_index].size;
+        size_t offset = 0u;
+        if (actual_regions[region_index].size != size) {
+            /* A size mismatch makes byte comparison meaningless; report the
+             * whole region as one run so the caller still sees the gap. */
+            total += size;
+            ++found;
+            if (runs != NULL && stored < run_capacity) {
+                vf2_i960_snapshot_run *run = &runs[stored++];
+                (void)snprintf(run->name, sizeof(run->name), "%s", expected_regions[region_index].name);
+                run->offset = 0u;
+                run->length = size;
+            }
+            continue;
+        }
+        if (expected_data == NULL || actual_data == NULL) continue;
+        while (offset < size) {
+            size_t start = 0u;
+            size_t end = 0u;
+            if (expected_data[offset] == actual_data[offset]) {
+                ++offset;
+                continue;
+            }
+            start = offset;
+            while (offset < size && expected_data[offset] != actual_data[offset]) {
+                ++offset;
+            }
+            end = offset;
+            total += end - start;
+            ++found;
+            if (runs != NULL && stored < run_capacity) {
+                vf2_i960_snapshot_run *run = &runs[stored++];
+                (void)snprintf(run->name, sizeof(run->name), "%s", expected_regions[region_index].name);
+                run->offset = start;
+                run->length = end - start;
+            }
+        }
+    }
+    *run_count = found;
+    *differing_bytes = total;
+    return VF2_OK;
+}
+
+const uint8_t *vf2_i960_snapshot_region_data(
+    const vf2_i960_snapshot *snapshot,
+    const char *name,
+    size_t *size
+)
+{
+    snapshot_const_region_ref regions[VF2_SNAPSHOT_REGION_COUNT];
+    size_t index = 0u;
+    if (snapshot == NULL || name == NULL) return NULL;
+    const_regions(snapshot, regions);
+    for (index = 0u; index < VF2_SNAPSHOT_REGION_COUNT; ++index) {
+        if (strcmp(regions[index].name, name) == 0) {
+            if (size != NULL) *size = regions[index].size;
+            return regions[index].data;
+        }
+    }
+    if (size != NULL) *size = 0u;
+    return NULL;
+}

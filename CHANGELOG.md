@@ -1,6 +1,65 @@
 # Changelog
 
-## v0731e — field-level snapshot diff; r14 defect isolated; page render is the real gap
+## v0731f - MANUAL SETTING entry recovered: it is a screen teardown, not a page render
+
+- **The v0731e "549 tile-ram words = a missing MANUAL SETTING page render"
+  reading is retracted.** The reference draws no new page. It *blanks* the
+  entire COIN ASSIGNMENT screen on entry, writing `0x0020` (a space glyph
+  with no attribute bit) over **364 cells**.
+
+- **The blanked set is derived, not tabulated.** It is exactly the inverse
+  of the `runs[]` render table already in `execute_frame_phase17_bit7_index5`
+  under the current mode filter, minus the two hint rows the branch
+  redraws, plus the six `cursor_addresses[]` cells: 30 admitted runs
+  (358 cells) + 6 cursor cells = 364, which is exactly the measured count.
+  The teardown erases the `MANUAL SETTING` label and `EXIT` too. See
+  `decomp/i960/notes/f1_manual_setting_entry_teardown_v0731.md`.
+
+- **`r14` is the caller-frame value** (`local_frames[depth-1].registers[14]`),
+  not the parked pin `1`. v0731e had reverted this along with the tuple;
+  it is re-applied here, and the leg is now reachable so it is testable.
+
+- **Two-step differential proof.** With the teardown alone and `r14` still
+  pinned, the comparison reports exactly one register difference and
+  `No memory-region differences.` - which isolates `r14` as the only
+  remaining field. With both applied: **`Snapshots match.`** Native
+  14295 instructions / 42 calls to `0xa010`; accounting reconciles as
+  232 prefix + 14063 body, 5 prefix + 36 body. The `a5 = 4` negative
+  control still matches at 4635 / 43.
+
+- **The tuple is admitted, COMMON mode only.** A seeded-state measurement
+  (both sides entering `0xa6c0` directly, so the frame-depth boundary is
+  shared) shows the reference takes a **different, shorter body in
+  INDIVIDUAL**: 13935 instructions / 34 calls versus 14063 / 37 in COMMON.
+  `coin_mode` therefore stays `0u`. Widening it would admit INDIVIDUAL with
+  COMMON's counters.
+
+- **One earlier measurement is retracted.** An INDIVIDUAL proof through the
+  real chain patched `base + 0x3320` using the `base` visible in the
+  snapshot, and reported a match. A gate diagnostic showed `base` is
+  `0x599000` at the `0xa6c0` boundary, not `0x59a3d0` - the chain's earlier
+  recovered blocks rewrite `0x50016c`. The patch hit a word the native path
+  never reads, so that run was actually COMMON and the two errors cancelled
+  into a false pass.
+
+- **Tooling: `vf2i960 compare-snapshots <expected> <actual> [registers]
+  [ranges]`.** The new `ranges` mode prints every maximal differing run per
+  region with word-aligned `u16` pairs, which is what turned an
+  unactionable "549 differences" into a readable screen layout. Backed by
+  new public `vf2_i960_snapshot_diff_runs()` and
+  `vf2_i960_snapshot_region_data()` in `src/i960/snapshot.c`, covered by new
+  cases in `tests/i960/test_snapshot.c`.
+
+- **No ctest for this leg, deliberately.** `tests/recovered/
+  test_phase17_zero.c` enters at `0xa6c0` with `local_frame_depth == 1`
+  while the real chain arrives at depth 6, and `base` differs for the same
+  reason, so it cannot express this boundary. Shipping a case that asserts
+  less than the real gate would weaken validation. The leg keeps the
+  ROM-backed chained differential plus the note as its pin; a
+  `native-index5-entry` sub-command belongs with the
+  `native-seventh-dispatch` work.
+
+## v0731e - field-level snapshot diff; r14 defect isolated; page render is the real gap
 
 - **Tooling: `vf2i960 compare-snapshots <expected> <actual> [registers]`**
   now dumps every differing field (r0-r31 / g0-g15, frame depth, ip,

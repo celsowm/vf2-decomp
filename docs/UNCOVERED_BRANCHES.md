@@ -200,10 +200,30 @@ coin mode) with one shared poststate rule (caller-frame r14/r15;
 flat globals on idle/nav/release, checksum/g1/g2 pins on edits);
 the 0x85 condition poststate keeps the bridge-pinned CC for the
 measured latch inputs. Still fail-closed: rows 2-4 edit release
-frames (post-edit credit/preset renders), MANUAL SETTING natural
-entry and the nested a7 editor, PUNCH/KICK value-row releases, and
+frames (post-edit credit/preset renders), PUNCH/KICK value-row releases, and
 INDIVIDUAL-mode walks on other rows. See
 `playable_coin_assignment_natural_v0727.md`.
+
+## v0731f MANUAL SETTING natural entry (a5 = 5, COMMON) native
+
+A TEST press on cursor row 5 is now native. The 549-byte tile-ram gap
+recorded in v0731e was **not** a missing page render: the reference draws
+no new page, it **blanks the whole COIN ASSIGNMENT screen**, writing
+`0x0020` over 364 cells. That set is the exact inverse of the `runs[]`
+render table under the current mode filter, minus the two redrawn hint
+rows, plus the six `cursor_addresses[]` cells (30 runs = 358 cells + 6).
+`r14` is the caller-frame value, not a parked pin.
+
+Strict chained differential: native 14295 instructions / 42 calls to
+`0xa010` (232 prefix + 14063 body; 5 prefix + 36 body) and
+**`Snapshots match.`** The `a5 = 4` negative control still matches at
+4635 / 43. Proof was two-step: with the teardown alone and `r14` pinned,
+the only difference is `r14` and memory reports no differences.
+
+**Still fail-closed:** the INDIVIDUAL entry is a *different* body (measured
+13935 instructions / 34 calls versus 14063 / 37 in COMMON), so the admitted
+tuple is COMMON-only; the nested `a7` editor; PUNCH/KICK at row 5. See
+`f1_manual_setting_entry_teardown_v0731.md`.
 
 ## v0726 TEST+LEFT/RIGHT per-row edits 7-14 and post-edit releases native
 

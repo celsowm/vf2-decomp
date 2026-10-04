@@ -1,5 +1,21 @@
 # F1: MANUAL SETTING entry — a real poststate bug in recovered C (v0731)
 
+> **SUPERSEDED by `f1_manual_setting_entry_teardown_v0731.md`.**
+>
+> The two claims below that later turned out to be wrong:
+>
+> - The "549 tile-ram words ... the reference performs a full MANUAL
+>   SETTING page render" reading is **retracted**. The reference draws no
+>   new page. It **blanks** the whole COIN ASSIGNMENT screen, writing
+>   `0x0020` over 364 cells that are the exact inverse of the `runs[]`
+>   render table. Recovered and proven; the differential now prints
+>   `Snapshots match.`
+> - The "550 register-section differences" figure was the parked `r14`
+>   only, and the tuple is now admitted (COMMON mode only).
+>
+> The differential recipe in section 1 below is still correct and is reused
+> as-is by the superseding note.
+
 This session built a working strict differential for mid-menu frames, then
 used it to find a **real defect in already-recovered code**. The a5 = 5
 MANUAL SETTING entry block is unreachable in the tree (its latch tuple was

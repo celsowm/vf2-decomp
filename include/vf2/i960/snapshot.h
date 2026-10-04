@@ -111,4 +111,35 @@ vf2_status vf2_i960_snapshot_compare_memory(
     vf2_i960_snapshot_diff *diff
 );
 
+/* One maximal contiguous span of differing bytes inside a named region. */
+typedef struct vf2_i960_snapshot_run {
+    char name[32];
+    size_t offset;
+    size_t length;
+} vf2_i960_snapshot_run;
+
+/* Enumerate every maximal differing byte run across the memory regions, in
+ * region order and ascending offset. CPU state is not considered, so this
+ * isolates a memory-only poststate gap. `runs` may be NULL to count only.
+ * Sets *run_count to the number of runs found and *differing_bytes to the
+ * total byte count. When run_capacity is exhausted the enumeration stops
+ * early, reports the count found so far and still reports the true
+ * differing_bytes total, so a caller can detect truncation. */
+vf2_status vf2_i960_snapshot_diff_runs(
+    const vf2_i960_snapshot *expected,
+    const vf2_i960_snapshot *actual,
+    vf2_i960_snapshot_run *runs,
+    size_t run_capacity,
+    size_t *run_count,
+    size_t *differing_bytes
+);
+
+/* Look up a captured region by its stable name ("tile-ram", "work-ram", ...).
+ * Returns NULL when the name is unknown or the region was never captured. */
+const uint8_t *vf2_i960_snapshot_region_data(
+    const vf2_i960_snapshot *snapshot,
+    const char *name,
+    size_t *size
+);
+
 #endif

@@ -1545,6 +1545,37 @@ static vf2_status write_phase17_index0_text(
     return VF2_OK;
 }
 
+/* Blank a run of character cells the way the game tears a menu page down:
+ * every cell becomes 0x0020 (a space glyph with no attribute bit).
+ * Measured on the selector-17 index-5 MANUAL SETTING entry frame. */
+static vf2_status clear_phase17_index0_text(
+    vf2_model2a *machine,
+    uint32_t row_base,
+    uint32_t column,
+    uint32_t count
+)
+{
+    vf2_status status = VF2_OK;
+    uint32_t index = 0u;
+
+    if (machine == NULL) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    for (index = 0u; index < count; ++index) {
+        const uint16_t blank = UINT16_C(0x0020);
+        status = write_u16(
+            machine,
+            UINT32_C(0x01000000) + row_base +
+                (column + index) * UINT32_C(2),
+            blank
+        );
+        if (status != VF2_OK) {
+            return status;
+        }
+    }
+    return VF2_OK;
+}
+
 static vf2_status write_phase17_tile_run(
     vf2_model2a *machine,
     uint32_t row,
@@ -8097,26 +8128,27 @@ static vf2_status execute_frame_phase17_bit7_index5(
             {UINT32_C(0x0f000004), UINT32_C(0x0f000000), 0u, UINT32_C(0x4), UINT8_C(2), 0u, 0u},
             {UINT32_C(0x0f000004), UINT32_C(0x0f000000), 0u, UINT32_C(0x4), UINT8_C(3), 0u, 0u},
             {UINT32_C(0x0f000004), UINT32_C(0x0f000000), 0u, UINT32_C(0x4), UINT8_C(4), 0u, 0u},
-            /* MANUAL SETTING entry (a5 = 5) is deliberately NOT admitted.
-             * v0731 built the mid-menu differential and drove this leg with
-             * a provisional tuple. Two findings, both measured:
-             *   - r14 must be the caller-frame value (reference 0x1d), not
-             *     the parked pin 1 the branch used;
-             *   - with r14 corrected every register, the counters and the
-             *     condition state match exactly (14295 instructions and
-             *     42 calls on both sides), but 549 tile-ram words still
-             *     differ because the branch omits the MANUAL SETTING page
-             *     render the reference performs.
-             * It stays fail-closed until the page render is recovered. See
-             * decomp/i960/notes/f1_manual_setting_poststate_bug_v0731.md. */
-            /* MANUAL SETTING entry (a5 = 5) is deliberately NOT admitted.
-             * v0731 proved the tuple, the block shape (14295 instructions
-             * and 42 calls to the 0xa010 boundary, exact) and every gate
-             * precondition, but the strict native-vs-reference
-             * differential on this leg reports 550 register-section
-             * differences, so the synthesized poststate is wrong. It stays
-             * fail-closed until the poststate is re-measured field by
-             * field. See decomp/i960/notes/f1_manual_setting_poststate_bug_v0731.md. */
+            /* MANUAL SETTING entry (a5 = 5): a TEST press on cursor row 5.
+             * v0731 measured the tuple, the block shape (14295 instructions
+             * / 42 calls to the 0xa010 boundary across the 0x9ff8 chain,
+             * 14063 / 36 in the body) and every gate precondition.
+             * The mid-menu strict differential then showed the 549-byte
+             * gap was NOT a new page render: the reference blanks the whole
+             * COIN ASSIGNMENT screen as it tears the page down, writing
+             * 0x0020 over exactly the 364 cells this function would have
+             * drawn under the current mode filter (minus the two redrawn
+             * hint rows) plus the six cursor cells. `r14` is the
+             * caller-frame value, not a parked pin.
+             *
+             * `coin_mode` stays COMMON-only on purpose. An INDIVIDUAL frame
+             * reaches the same gate but the original program takes a
+             * DIFFERENT body there: 13935 instructions / 34 calls, measured
+             * through vf2_hybrid_post_frame_bridge_execute against the
+             * reference on the seeded state in tests/recovered/
+             * test_phase17_zero.c (see the note). That body is not
+             * recovered, so INDIVIDUAL stays fail-closed here.
+             * See decomp/i960/notes/f1_manual_setting_entry_teardown_v0731.md. */
+            {UINT32_C(0x0f000004), UINT32_C(0x0f000000), 0u, UINT32_C(0x4), UINT8_C(5), 0u, 0u},
             {UINT32_C(0x0f000100), UINT32_C(0x0f000000), 0u, UINT32_C(0x100), UINT8_C(1), 0u, 0u},
             {UINT32_C(0x0f000200), UINT32_C(0x0f000000), 0u, UINT32_C(0x200), UINT8_C(1), 0u, 0u},
             /* post-edit TEST release at a value row (deferred value
@@ -8225,6 +8257,38 @@ static vf2_status execute_frame_phase17_bit7_index5(
 
     if (phase_a5 == UINT8_C(5) && phase_a7 == UINT8_C(0xff) && edit_delta != 0) {
         const uint8_t manual_state = 0u;
+        /* Measured teardown (out/a5-ranges.txt, ref-a5 vs native-a5):
+         * entering MANUAL SETTING blanks the whole COIN ASSIGNMENT
+         * screen. The blanked cell set is exactly the set this function
+         * would have drawn under the current mode filter, minus the two
+         * hint rows redrawn below, plus the six cursor cells: 30 admitted
+         * runs (358 cells) + 6 cursor cells = the 364 measured cells.
+         * Every blank is 0x0020, a space glyph with no attribute bit. */
+        {
+            const int common_mode = (coin_flags & UINT32_C(1)) == 0;
+            size_t run_index = 0u;
+            for (run_index = 0u;
+                 run_index < sizeof(runs) / sizeof(runs[0]); ++run_index) {
+                if (runs[run_index].row >= 44u) continue;
+                if (runs[run_index].mode == UINT8_C(0) && !common_mode) continue;
+                if (runs[run_index].mode == UINT8_C(1) && common_mode) continue;
+                status = clear_phase17_index0_text(
+                    machine,
+                    runs[run_index].row * UINT32_C(0x80),
+                    runs[run_index].column,
+                    (uint32_t)strlen(runs[run_index].text)
+                );
+                if (status != VF2_OK) return status;
+            }
+            for (index = 0u;
+                 index < sizeof(cursor_addresses) / sizeof(cursor_addresses[0]);
+                 ++index) {
+                status = write_u16(
+                    machine, cursor_addresses[index], UINT16_C(0x0020)
+                );
+                if (status != VF2_OK) return status;
+            }
+        }
         status = write_phase17_index0_text(
             machine, UINT32_C(44 * 0x80), UINT32_C(20),
             "SELECT BY SERVICE BUTTON"
@@ -8271,7 +8335,7 @@ static vf2_status execute_frame_phase17_bit7_index5(
         cpu->registers[11] = UINT32_MAX;
         cpu->registers[12] = 0u;
         cpu->registers[13] = 0u;
-        cpu->registers[14] = UINT32_C(1);
+        cpu->registers[14] = test_held_r14;
         cpu->registers[15] = UINT32_C(0x00008a00);
         cpu->registers[16] = UINT32_C(62);
         cpu->registers[17] = 0u;

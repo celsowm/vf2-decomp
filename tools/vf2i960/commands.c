@@ -3878,7 +3878,8 @@ static int command_compare_timer_irq(const char *rom_directory)
 static int command_compare_snapshots(
     const char *expected_path,
     const char *actual_path,
-    int dump_registers
+    int dump_registers,
+    int dump_ranges
 )
 {
     vf2_i960_snapshot expected;
@@ -3942,6 +3943,74 @@ static int command_compare_snapshots(
             (unsigned)expected.cpu.compare_result,
             (unsigned)actual.cpu.compare_result
         );
+    }
+    if (status == VF2_OK && dump_ranges) {
+        size_t run_count = 0u;
+        size_t differing_bytes = 0u;
+        status = vf2_i960_snapshot_diff_runs(
+            &expected, &actual, NULL, 0u, &run_count, &differing_bytes
+        );
+        if (status != VF2_OK) {
+            fprintf(stderr, "Difference enumeration failed: %s\n", vf2_status_string(status));
+        } else if (differing_bytes == 0u) {
+            printf("No memory-region differences.\n");
+        } else {
+            vf2_i960_snapshot_run *runs = (vf2_i960_snapshot_run *)calloc(
+                run_count, sizeof(*runs)
+            );
+            if (runs == NULL) {
+                status = VF2_ERROR_OUT_OF_MEMORY;
+                fprintf(stderr, "Difference enumeration failed: %s\n", vf2_status_string(status));
+            } else {
+                size_t stored = 0u;
+                size_t total_bytes = 0u;
+                size_t run_index = 0u;
+                (void)vf2_i960_snapshot_diff_runs(
+                    &expected, &actual, runs, run_count, &stored, &total_bytes
+                );
+                printf(
+                    "Memory difference runs: %zu runs, %zu bytes\n",
+                    stored, total_bytes
+                );
+                for (run_index = 0u; run_index < stored; ++run_index) {
+                    size_t expected_size = 0u;
+                    const uint8_t *expected_data = vf2_i960_snapshot_region_data(
+                        &expected, runs[run_index].name, &expected_size
+                    );
+                    const uint8_t *actual_data = vf2_i960_snapshot_region_data(
+                        &actual, runs[run_index].name, NULL
+                    );
+                    printf(
+                        "  run %zu region=%s offset=0x%06zx length=%zu\n",
+                        run_index, runs[run_index].name,
+                        runs[run_index].offset, runs[run_index].length
+                    );
+                    if (expected_data == NULL || actual_data == NULL) continue;
+                    {
+                        size_t word = runs[run_index].offset & ~(size_t)1u;
+                        const size_t last = runs[run_index].offset + runs[run_index].length;
+                        while (word < last && word + 1u < expected_size) {
+                            const uint16_t expected_value = (uint16_t)(
+                                (uint16_t)expected_data[word] |
+                                ((uint16_t)expected_data[word + 1u] << 8)
+                            );
+                            const uint16_t actual_value = (uint16_t)(
+                                (uint16_t)actual_data[word] |
+                                ((uint16_t)actual_data[word + 1u] << 8)
+                            );
+                            if (expected_value != actual_value) {
+                                printf(
+                                    "    0x%06zx expected=0x%04x actual=0x%04x\n",
+                                    word, (unsigned)expected_value, (unsigned)actual_value
+                                );
+                            }
+                            word += 2u;
+                        }
+                    }
+                }
+                free(runs);
+            }
+        }
     }
     vf2_i960_snapshot_destroy(&expected);
     vf2_i960_snapshot_destroy(&actual);
@@ -6715,9 +6784,20 @@ int main(int argc, char **argv)
     }
 
     if (strcmp(argv[1], "compare-snapshots") == 0 &&
-        (argc == 4 || argc == 5)) {
+        (argc == 4 || argc == 5 || argc == 6)) {
+        int index = 4;
+        int dump_registers = 0;
+        int dump_ranges = 0;
+        for (index = 4; index < argc; ++index) {
+            if (strcmp(argv[index], "registers") == 0) dump_registers = 1;
+            else if (strcmp(argv[index], "ranges") == 0) dump_ranges = 1;
+            else {
+                usage(argv[0]);
+                return EXIT_FAILURE;
+            }
+        }
         return command_compare_snapshots(
-            argv[2], argv[3], argc == 5 && strcmp(argv[4], "registers") == 0
+            argv[2], argv[3], dump_registers, dump_ranges
         );
     }
 

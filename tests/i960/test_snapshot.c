@@ -170,6 +170,129 @@ int vf2_test_i960_snapshot(void)
         vf2_model2a_shutdown(&live_machine);
     }
 
+    /* Difference-run enumeration: two separated runs inside one region, so
+     * maximal-run splitting and the byte total are observable. This uses its
+     * own machine and snapshot pair: `first`/`second` share region storage
+     * after the reuse check above and must not be written to here. */
+    {
+        vf2_model2a run_machine;
+        vf2_i960_snapshot runs_first;
+        vf2_i960_snapshot runs_second;
+        vf2_i960_snapshot_run runs[4];
+        vf2_i960_cpu run_cpu;
+        size_t run_count = 0u;
+        size_t run_bytes = 0u;
+        size_t index = 0u;
+        const uint8_t *region = NULL;
+        size_t region_size = 0u;
+        memset(runs, 0, sizeof(runs));
+        vf2_i960_snapshot_init(&runs_first);
+        vf2_i960_snapshot_init(&runs_second);
+        if (!vf2_model2a_initialize(&run_machine)) return 9;
+        memset(run_machine.work_ram, 0x12, run_machine.work_ram_size);
+        memset(run_machine.tile_ram, 0x34, run_machine.tile_ram_size);
+        vf2_i960_cpu_reset(&run_cpu, 0u, 0u, 0u);
+        status = vf2_i960_snapshot_capture(&runs_first, &run_cpu, &run_machine);
+        if (status == VF2_OK) {
+            status = vf2_i960_snapshot_capture(
+                &runs_second, &run_cpu, &run_machine
+            );
+        }
+        if (status == VF2_OK) {
+            runs_second.work_ram[10] = 0x99u;
+            runs_second.work_ram[11] = 0x98u;
+            runs_second.work_ram[40] = 0x77u;
+        }
+        status = vf2_i960_snapshot_diff_runs(
+            &runs_first, &runs_second, runs, 4u, &run_count, &run_bytes
+        );
+        if (status != VF2_OK || run_count != 2u || run_bytes != 3u) {
+            vf2_model2a_shutdown(&run_machine);
+            vf2_i960_snapshot_destroy(&runs_second);
+            vf2_i960_snapshot_destroy(&runs_first);
+            return 10;
+        }
+        if (strcmp(runs[0].name, "work-ram") != 0 || runs[0].offset != 10u ||
+            runs[0].length != 2u || runs[1].offset != 40u ||
+            runs[1].length != 1u) {
+            vf2_model2a_shutdown(&run_machine);
+            vf2_i960_snapshot_destroy(&runs_second);
+            vf2_i960_snapshot_destroy(&runs_first);
+            return 11;
+        }
+        /* A truncated capacity must still report the true run count and byte
+         * total so the caller can detect that it received only some runs. */
+        {
+            size_t truncated_count = 0u;
+            size_t truncated_bytes = 0u;
+            vf2_i960_snapshot_run one[1];
+            memset(one, 0, sizeof(one));
+            status = vf2_i960_snapshot_diff_runs(
+                &runs_first, &runs_second, one, 1u, &truncated_count,
+                &truncated_bytes
+            );
+            if (status != VF2_OK || truncated_count != 2u ||
+                truncated_bytes != 3u || one[0].offset != 10u) {
+                vf2_model2a_shutdown(&run_machine);
+                vf2_i960_snapshot_destroy(&runs_second);
+                vf2_i960_snapshot_destroy(&runs_first);
+                return 12;
+            }
+        }
+        /* Counting only: no storage, still exact. */
+        {
+            size_t count_only = 0u;
+            size_t count_only_bytes = 0u;
+            status = vf2_i960_snapshot_diff_runs(
+                &runs_first, &runs_second, NULL, 0u, &count_only,
+                &count_only_bytes
+            );
+            if (status != VF2_OK || count_only != 2u ||
+                count_only_bytes != 3u) {
+                vf2_model2a_shutdown(&run_machine);
+                vf2_i960_snapshot_destroy(&runs_second);
+                vf2_i960_snapshot_destroy(&runs_first);
+                return 13;
+            }
+        }
+        region = vf2_i960_snapshot_region_data(
+            &runs_first, "work-ram", &region_size
+        );
+        if (region == NULL || region != runs_first.work_ram ||
+            region_size != runs_first.work_ram_size) {
+            vf2_model2a_shutdown(&run_machine);
+            vf2_i960_snapshot_destroy(&runs_second);
+            vf2_i960_snapshot_destroy(&runs_first);
+            return 14;
+        }
+        if (vf2_i960_snapshot_region_data(
+                &runs_first, "no-such-region", NULL) != NULL) {
+            vf2_model2a_shutdown(&run_machine);
+            vf2_i960_snapshot_destroy(&runs_second);
+            vf2_i960_snapshot_destroy(&runs_first);
+            return 15;
+        }
+        /* An identical pair must report zero runs and zero bytes, and must
+         * not touch the caller's storage. */
+        for (index = 0u; index < 4u; ++index) {
+            runs[index].offset = 12345u;
+            runs[index].length = 6789u;
+        }
+        status = vf2_i960_snapshot_diff_runs(
+            &runs_first, &runs_first, runs, 4u, &run_count, &run_bytes
+        );
+        if (status != VF2_OK || run_count != 0u || run_bytes != 0u ||
+            runs[0].offset != 12345u) {
+            vf2_model2a_shutdown(&run_machine);
+            vf2_i960_snapshot_destroy(&runs_second);
+            vf2_i960_snapshot_destroy(&runs_first);
+            return 16;
+        }
+        vf2_model2a_shutdown(&run_machine);
+        vf2_i960_snapshot_destroy(&runs_second);
+        vf2_i960_snapshot_destroy(&runs_first);
+    }
+
     (void)remove(path);
     vf2_i960_snapshot_destroy(&first);
     vf2_i960_snapshot_destroy(&second);
