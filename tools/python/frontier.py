@@ -954,6 +954,18 @@ def main() -> int:
                     json.dumps({"kind": "fighter_offset", **item}, sort_keys=True)
                     + "\n"
                 )
+            if frontier.fighter_bases:
+                for width in (4, 2, 1):
+                    for b in frontier.contiguous_fighter_blocks(
+                        width=width, min_count=1, min_length=3,
+                    ):
+                        output.write(
+                            json.dumps(
+                                {"kind": "fighter_contiguous_block", **b},
+                                sort_keys=True,
+                            )
+                            + "\n"
+                        )
     finally:
         if output is not sys.stdout:
             output.close()
