@@ -146,13 +146,28 @@ At the time this handoff was written, `master` already contains:
 - the state-8 bit-6 symmetric matrix proven 6144/6144 native-exact with the
   triple/quad table folded into a counted rule (v0728); and
 - the v0729 factory layer: `frontier.py v2` (per-edge fighter offsets +
-  per-source attribution + fighter-aware rank, 14/14 tests),
-  `taint.py` unit suite (7/7), taint end-to-end contract on the real
-  `out/trace-bit14.jsonl` corpus (21 branch blocks, 24 fighter
-  dependencies, all matching the `fighter + 0xNNNN [bit N]` shape),
-  `infer_structs.py` dual-base promotion unit suite (4/4), and the
-  factory runbook note `decomp/i960/notes/factory_runbook_v0729.md`
-  that chains the three tools together for the next F/P1 slice.
+  per-source attribution + fighter-aware rank, contiguous-fighter-blocks
+  detector, `--json` surface; 18/18 tests), `taint.py` unit suite
+  (7/7), taint end-to-end contract on the real `out/trace-bit14.jsonl`
+  corpus (21 branch blocks, 24 fighter dependencies, all matching the
+  `fighter + 0xNNNN [bit N]` shape), `infer_structs.py` dual-base
+  promotion unit suite (4/4), `infer_rules.py` conservative-refusal
+  unit suite (10/10), `check_scenario.py` validation gate (9/9),
+  `sweep_state.py` / `explore_state.py` / `minimize_case.py` /
+  `trace_case.py` / `z3_branch.py` unit suites
+  (9/9 / 9/9 / 7/7 / 4/4 / 5/5 skipping without z3), `test_factory_chain.py`
+  integration (4/4) chaining Step 1 → Step 2a → Step 2 + infer_rules,
+  `factory_chain_demo.py` runnable PASS exemplar, the 12
+  `vf2_python_factory_*` ctest entries wired into `CMakeLists.txt`,
+  the factory runbook note `decomp/i960/notes/factory_runbook_v0729.md`,
+  the v0729 player-corpus smoke + 0x1680 contiguous-block notes,
+  the v0729 session close-out note, and the v0730 first-action runbook
+  (`decomp/i960/notes/v0730_first_action_runbook.md`) as the single
+  handoff entry point for the next agent (87 Python test cases, ~7 s
+  wall). The proven native dispatch boundary was re-measured at v0730
+  from `out/sixth-fresh.vf2snap` to `0x164c4` in 14,277,453
+  instructions with 10,288 calls / 10,286 returns, captured in
+  `decomp/i960/notes/native_dispatch_boundary_v0730_measured.md`.
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.
@@ -406,6 +421,12 @@ Unless newer evidence changes priorities, the following order gives the best
 leverage. The v0729 factory layer (frontier v2, taint unit + E2E, infer_structs
 unit, factory runbook note) is now in place; the next F/P1 slices are
 expected to consume it via `decomp/i960/notes/factory_runbook_v0729.md`.
+The single handoff entry point for the next agent is
+`decomp/i960/notes/v0730_first_action_runbook.md`, which documents the
+TL;DR build/test gate, what's on master, what's deferred (F1-F5 / P1-P4 /
+S1), the factory chain composition paths for both F- and P-slices, the
+ctest-failure recovery procedure, the reference reading order, and the
+AGENTS.md anti-traps.
 
 ### 1. Close the TEST MENU corridor end-to-end
 
