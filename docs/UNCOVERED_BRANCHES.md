@@ -1,5 +1,78 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0729a Frontier v2: per-edge fighter offset + per-source attribution (frontier.py)
+
+`tools/python/frontier.py` is the queryable factory tool that ranks the
+guest-i960 recovery frontier from probe corpora, sweeps and traces.
+The v2 surface below lands:
+
+- `rank_edges` now returns per-edge `fighter_read_offsets`,
+  `fighter_write_offsets` and `fighter_access_count` (top-4 offsets
+  each, hex32).  Edges that touch fighter fields surface exactly
+  *which* fighter offsets they depend on, instead of just a generic
+  "this edge has memory traffic".
+- `rank_edges` now attributes each edge to the inputs that witnessed
+  it via the new `sources` list (sorted).  Sources may come from
+  traces, corpus manifests or both; sweeps do not contribute edges.
+- The score formula gains a fighter-access bonus so an edge that
+  reads/writes fighter offsets outranks an otherwise equivalent edge
+  that does not, breaking ties among similarly-boundary-ranked edges.
+- Default text output gets a `fighter` count column and a `src` count
+  column; the JSON output keeps the same shape plus the new fields
+  (additive, stable).
+
+New tests in `tools/python/test_frontier.py`:
+
+- `test_per_edge_fighter_offset_surfaces` -- two fighter reads on the
+  same edge both surface in `fighter_read_offsets`; a non-fighter
+  edge has empty fighter lists.
+- `test_per_source_attribution` -- an edge witnessed by both a trace
+  and a corpus manifest records both in `sources`; a sweep that did
+  not contribute an edge does not appear.
+- `test_fighter_access_score_bonus` -- two edges with the same
+  witnesses and boundary distance rank fighter-aware edges first.
+
+All 14 frontier tests green (11 existing + 3 new).
+
+This is the factory layer that the next wave of TEST MENU /
+`fa_player` slices will consume.  Each new slice is expected to:
+
+1. generate a deterministic scenario from a measured boundary;
+2. run the reference executor to a `vf2probe --until` stop;
+3. emit a trace through `frontier.py v2 --fighter-base 0x...` so the
+   next edge with fighter-offset traffic is automatically surfaced; and
+4. commit a per-slice note under `decomp/i960/notes/playable_*` or
+   `fa_player_*`.
+
+## v0729b Taint unit tests: validate AGENTS.md next-work #3 contract
+
+`tools/python/taint.py` is the targeted dynamic-taint harness that
+tracks data flow for the operations actually seen in the corridor.
+Its contract -- "branch 0x00018698 depends on: fighter0 + 0x1a4 bit
+6" -- is now locked in by `tools/python/test_taint.py`:
+
+- `test_tag_for_address_in_window` -- address within the configured
+  fighter window is labelled `fighter0 + 0x01a4` (and `0x05b6` for
+  fighter1); outside the window returns `None`.
+- `test_parse_mem_operands_extracts_offset_base` -- `(offset, base)`
+  pairs extracted from `0x1a4(r10),r6` operands.
+- `test_regs_in_ops_skips_immediates` -- hex literals are not falsely
+  registered as register operands.
+- `test_is_branch_recognises_known_forms` -- `bbc`, `bbs`, `be`,
+  `bne`, `cmpibg` are recognised; arithmetic/logical ops are not.
+- `test_branch_depends_on_fighter_load` -- `ld 0x1a4(r10),r6` followed
+  by `bbc 6, r6, target` produces
+  `branch 0x18698 depends on: fighter0 + 0x01a4 bit 6`.
+- `test_branch_depends_on_compare_chain` -- load + `cmpi r6,0` + `be`
+  reaches the conditional branch with the fighter offset tag.
+- `test_branch_independent_of_fighter_window` -- a compare with no
+  preceding fighter load does not pick up fighter deps.
+
+The 7-test taint suite is the validation that future
+`taint_branch.py` orchestration on real `vf2probe --memory-trace`
+JSONL will use to verify a measured dependency claim before promoting
+it to recovered semantics.
+
 ## v0727 COIN ASSIGNMENT natural entry, parent walk, edits and EXIT native
 
 Selector-17 index 5 is now entered naturally from the TEST MENU and

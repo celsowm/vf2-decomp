@@ -125,6 +125,9 @@ class EdgeRecord:
         "mem_addresses",
         "mem_widths",
         "call_hits",
+        "sources",
+        "fighter_read_offsets",
+        "fighter_write_offsets",
     )
 
     def __init__(self) -> None:
@@ -136,6 +139,12 @@ class EdgeRecord:
         self.mem_addresses: Counter = Counter()
         self.mem_widths: Counter = Counter()
         self.call_hits = 0
+        self.sources: set = set()
+        # Fighter-window offsets touched by this edge, kept distinct from
+        # the global fighter-offset roll-up so a single edge can surface
+        # exactly which fighter fields it depends on.
+        self.fighter_read_offsets: Counter = Counter()
+        self.fighter_write_offsets: Counter = Counter()
 
 
 class Frontier:
@@ -158,9 +167,17 @@ class Frontier:
 
     def _note_fighter_access(
         self, address: int, kind: str, ip: int, width: int = 0
-    ) -> None:
+    ) -> Optional[int]:
+        """Record a fighter-window memory access.
+
+        Returns the fighter-relative offset when the access fell inside at
+        least one configured fighter window, otherwise ``None``.  The
+        per-edge fighter_offset views use this return value to surface
+        exactly which fighter fields a specific i960 edge depends on,
+        without re-walking the global ``fighter_offsets`` roll-up.
+        """
         if not self.fighter_bases:
-            return
+            return None
         for base in self.fighter_bases:
             if base <= address < base + self.fighter_window:
                 off = address - base
@@ -182,7 +199,8 @@ class Frontier:
                 rec["ips"][ip] += 1
                 if width > 0:
                     rec["widths"][width] += 1
-                break
+                return off
+        return None
 
     def top_fighter_offsets(self, limit: int = 40) -> List[dict]:
         rows = []
@@ -226,6 +244,7 @@ class Frontier:
                         (ip_before, ip_after), EdgeRecord()
                     )
                     record_edge.witnesses += 1
+                    record_edge.sources.add(source_label)
                     self.address_executions[ip_before] += 1
                     if mnemonic in CALL_MNEMONICS:
                         record_edge.call_hits += 1
@@ -259,9 +278,14 @@ class Frontier:
                                 record_edge.mem_widths[acc_width] += 1
                             if acc_addr:
                                 record_edge.mem_addresses[acc_addr] += 1
-                                self._note_fighter_access(
+                                fighter_off = self._note_fighter_access(
                                     acc_addr, acc_kind, ip_before, acc_width
                                 )
+                                if fighter_off is not None:
+                                    if acc_kind == "write":
+                                        record_edge.fighter_write_offsets[fighter_off] += 1
+                                    else:
+                                        record_edge.fighter_read_offsets[fighter_off] += 1
                 elif kind == "memory":
                     pending_memory[parse_int(record["step"])].append(
                         {
@@ -321,6 +345,7 @@ class Frontier:
                     continue
                 edge_record = self.edges.setdefault((source, target), EdgeRecord())
                 edge_record.witnesses += 1
+                edge_record.sources.add(source_label)
                 for name in snapshots:
                     edge_record.snapshots.add(name)
                 if halted:
@@ -371,6 +396,19 @@ class Frontier:
             distance = _boundary_distance(source_fn, target_fn, source, target)
             is_boundary = source_native != target_native
             mem_total = record.mem_reads + record.mem_writes
+            fighter_reads = sum(record.fighter_read_offsets.values())
+            fighter_writes = sum(record.fighter_write_offsets.values())
+            fighter_total = fighter_reads + fighter_writes
+            # Fighter-window accesses are the most actionable signal that an
+            # edge drives object semantics; surface them as a separate bonus
+            # so they break ties among edges that otherwise look identical.
+            fighter_bonus = 0
+            if fighter_total:
+                distinct_offsets = len(
+                    set(record.fighter_read_offsets)
+                    | set(record.fighter_write_offsets)
+                )
+                fighter_bonus = min(12, fighter_total) + distinct_offsets
             score = (
                 record.witnesses * 4
                 + len(record.snapshots) * 8
@@ -380,6 +418,7 @@ class Frontier:
                 + (6 if distance is not None and distance <= 64 else 0)
                 + min(mem_total, 16)
                 + (8 if record.call_hits else 0)
+                + fighter_bonus
             )
             ranked.append(
                 {
@@ -387,6 +426,7 @@ class Frontier:
                     "to": hex32(target),
                     "witnesses": record.witnesses,
                     "snapshots": sorted(record.snapshots),
+                    "sources": sorted(record.sources),
                     "unsupported_finals": record.halted_unsupported,
                     "from_function": source_fn[1],
                     "from_status": source_fn[2],
@@ -400,6 +440,13 @@ class Frontier:
                     "call_hits": record.call_hits,
                     "top_addresses": [hex32(a) for a, _ in record.mem_addresses.most_common(3)],
                     "top_widths": {str(w): c for w, c in record.mem_widths.most_common(4)},
+                    "fighter_read_offsets": [
+                        hex32(o) for o, _ in record.fighter_read_offsets.most_common(4)
+                    ],
+                    "fighter_write_offsets": [
+                        hex32(o) for o, _ in record.fighter_write_offsets.most_common(4)
+                    ],
+                    "fighter_access_count": fighter_total,
                 }
             )
         ranked.sort(key=lambda item: (-item["score"], item["from"], item["to"]))
@@ -718,12 +765,15 @@ def main() -> int:
         else:
             output.write(
                 f"{'edge':<25} {'wit':>5} {'snap':>5} {'unsup':>5} "
-                f"{'mem':>5} {'call':>4} {'dist':>6}  function(status)\n"
+                f"{'mem':>5} {'call':>4} {'dist':>6}  {'fighter':>8}  "
+                f"{'src':>3}  function(status)\n"
             )
             for item in ranked:
                 edge = f"{item['from']}->{item['to']}"
                 where = item["from_function"] or "?"
                 status = item["from_status"] or "unknown"
+                src_count = len(item.get("sources") or [])
+                fighter_total = item.get("fighter_access_count") or 0
                 output.write(
                     f"{edge:<25} {item['witnesses']:>5} "
                     f"{len(item['snapshots']):>5} "
@@ -731,6 +781,8 @@ def main() -> int:
                     f"{item['mem_total']:>5} "
                     f"{item['call_hits']:>4} "
                     f"{item['boundary_distance'] if item['boundary_distance'] is not None else '-':>6}  "
+                    f"{fighter_total:>8}  "
+                    f"{src_count:>3}  "
                     f"{where}({status})\n"
                 )
         unsupported = frontier.top_unsupported(10)

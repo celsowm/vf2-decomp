@@ -287,6 +287,127 @@ def test_duckdb_parquet_export():
     print("ok: duckdb/parquet export")
 
 
+def test_per_edge_fighter_offset_surfaces():
+    """rank_edges must surface the exact fighter offsets each edge touches.
+
+    Without this, callers can see that an edge has memory traffic but not
+    *which* fighter fields it depends on. The whole v2 advance is built
+    on this signal.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        trace = Path(tmp) / "case.jsonl"
+        records = [
+            # Fighter0 + 0x1a4 read by edge 0x18644 -> 0x18648
+            {"type": "memory", "step": 1, "kind": "read",
+             "address": 0x510000 + 0x1a4, "size": 4},
+            {"type": "step", "step": 1, "ip_before": 0x18644, "ip_after": 0x18648,
+             "mnemonic": "ld"},
+            # Fighter0 + 0x5b6 read by the same edge
+            {"type": "memory", "step": 2, "kind": "read",
+             "address": 0x510000 + 0x5b6, "size": 4},
+            {"type": "step", "step": 2, "ip_before": 0x18644, "ip_after": 0x18648,
+             "mnemonic": "ld"},
+            # Different edge touching non-fighter memory
+            {"type": "memory", "step": 3, "kind": "write",
+             "address": 0x00884000, "size": 4},
+            {"type": "step", "step": 3, "ip_before": 0x18648, "ip_after": 0x1864c,
+             "mnemonic": "st"},
+            {"type": "final", "status": "ok", "halt_reason": "stop address",
+             "ip": 0x10dcc},
+        ]
+        trace.write_text("\n".join(json.dumps(r) for r in records) + "\n")
+        frontier = Frontier()
+        frontier.set_fighter_bases([0x510000], window=0x2000)
+        frontier.ingest_trace(trace, "case.jsonl")
+        ranked = frontier.rank_edges(None, limit=10, exclude_recovered=False)
+        fighter_edge = next(
+            item for item in ranked
+            if item["from"] == hex32(0x18644) and item["to"] == hex32(0x18648)
+        )
+        assert hex32(0x1a4) in fighter_edge["fighter_read_offsets"], fighter_edge
+        assert hex32(0x5b6) in fighter_edge["fighter_read_offsets"], fighter_edge
+        assert fighter_edge["fighter_access_count"] == 2
+        non_fighter_edge = next(
+            item for item in ranked
+            if item["from"] == hex32(0x18648) and item["to"] == hex32(0x1864c)
+        )
+        assert non_fighter_edge["fighter_access_count"] == 0
+        assert non_fighter_edge["fighter_read_offsets"] == []
+        assert non_fighter_edge["fighter_write_offsets"] == []
+    print("ok: per-edge fighter offset surfacing in rank output")
+
+
+def test_per_source_attribution():
+    """Edges produced by multiple ingestions carry their contributing sources."""
+    with tempfile.TemporaryDirectory() as tmp:
+        trace = Path(tmp) / "t.jsonl"
+        sweep = Path(tmp) / "s.jsonl"
+        corpus = Path(tmp) / "m.jsonl"
+        trace.write_text(json.dumps(
+            {"type": "step", "step": 1, "ip_before": 0x18644,
+             "ip_after": 0x18648}
+        ) + "\n")
+        sweep.write_text(json.dumps(
+            {"field": "x", "value": 0,
+             "outcome": {"status": "unsupported operation", "ip": 0x18644}}
+        ) + "\n")
+        corpus.write_text(json.dumps({
+            "case": 0, "inputs": {},
+            "new_edges": [{"from": 0x18644, "to": 0x18648}],
+            "final": {"status": "ok"},
+        }) + "\n")
+        frontier = Frontier()
+        frontier.ingest_trace(trace, "trace.jsonl")
+        frontier.ingest_sweep(sweep, "sweep.jsonl")
+        frontier.ingest_corpus_manifest(corpus, "manifest.jsonl")
+        ranked = frontier.rank_edges(None, limit=5, exclude_recovered=False)
+        edge = next(
+            item for item in ranked
+            if item["from"] == hex32(0x18644) and item["to"] == hex32(0x18648)
+        )
+        assert "trace.jsonl" in edge["sources"]
+        assert "manifest.jsonl" in edge["sources"]
+        # The sweep ingester does not produce edges (only final counts);
+        # sources must contain only the inputs that actually witnessed this edge.
+        assert "sweep.jsonl" not in edge["sources"]
+    print("ok: per-source attribution in rank output")
+
+
+def test_fighter_access_score_bonus():
+    """Edges that touch fighter offsets rank above otherwise equivalent edges."""
+    rows = [
+        {"address": "0x1800", "end": "0x1900", "name": "caller",
+         "status": "recovered"},
+    ]
+    functions = FunctionTable(rows)
+    with tempfile.TemporaryDirectory() as tmp:
+        trace = Path(tmp) / "t.jsonl"
+        records = [
+            # Edge A: 1 witness, no memory traffic, no fighter access
+            {"type": "step", "step": 1, "ip_before": 0x1800, "ip_after": 0x9000},
+            # Edge B: 1 witness + 1 fighter read at fighter0+0x1a4
+            {"type": "memory", "step": 2, "kind": "read",
+             "address": 0x510000 + 0x1a4, "size": 4},
+            {"type": "step", "step": 2, "ip_before": 0x1800, "ip_after": 0x9004},
+            {"type": "final", "status": "ok", "halt_reason": "stop address",
+             "ip": 0x10dcc},
+        ]
+        trace.write_text("\n".join(json.dumps(r) for r in records) + "\n")
+        frontier = Frontier()
+        frontier.set_fighter_bases([0x510000], window=0x2000)
+        frontier.ingest_trace(trace, "t.jsonl")
+        ranked = frontier.rank_edges(functions, limit=10,
+                                     exclude_recovered=False)
+        # Same witnesses, same boundary distance -> fighter offset wins
+        fighter_edge = next(item for item in ranked
+                            if item["to"] == hex32(0x9004))
+        plain_edge = next(item for item in ranked
+                          if item["to"] == hex32(0x9000))
+        assert fighter_edge["score"] > plain_edge["score"], (fighter_edge, plain_edge)
+        assert ranked[0]["to"] == hex32(0x9004)
+    print("ok: fighter access score bonus ranks fighter-aware edges higher")
+
+
 def main() -> int:
     test_function_table_lookup()
     test_trace_ingestion()
@@ -299,6 +420,9 @@ def main() -> int:
     test_ranking_prefers_reproducible_boundary()
     test_classify_input()
     test_duckdb_parquet_export()
+    test_per_edge_fighter_offset_surfaces()
+    test_per_source_attribution()
+    test_fighter_access_score_bonus()
     print("all frontier tests passed")
     return 0
 

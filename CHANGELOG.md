@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+- Frontier v2 factory tooling (v0729a): `tools/python/frontier.py`
+  surfaces the exact fighter offsets each edge reads/writes (per-edge
+  `fighter_read_offsets`/`fighter_write_offsets`/`fighter_access_count`),
+  attributes edges to the inputs that witnessed them (`sources`), and
+  ranks fighter-aware edges above otherwise-equal unsigned edges. The
+  default text output now prints a `fighter` count column and a `src`
+  count column; the JSON output adds the new fields and stays a stable
+  record schema. Three new unit tests in
+  `tools/python/test_frontier.py` lock in the per-edge offset surfacing,
+  per-source attribution and fighter-access score bonus
+  (14/14 green; 3 new tests).
+
+- Targeted dynamic taint v1 with unit tests (v0729b):
+  `tools/python/test_taint.py` validates the AGENTS.md next-work #3
+  contract (`branch 0x00018698 depends on: fighter0 + 0x1a4 bit 6`).
+  Seven tests cover tag-window assignment, memory-operand
+  `(offset, base)` parsing, register-operand extraction, branch-form
+  classification, single-load-to-branch taint, compare-chain
+  propagation and taint-free compare contrast (7/7 green). The
+  `taint.py` algorithm is unchanged; the test suite is the durable
+  contract for future `--until` orchestration on real traces.
+
 - 0x28184 head siblings native (v0707): bit17 x bit0 x edge==counter
   tree measured (12/14/16 steps to 0x28268, float fall-through in 10
   to 0x281b0); S1/S2 join S0 natively with r14/r13 loads, tail EQUAL
