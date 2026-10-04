@@ -54,6 +54,29 @@ access width, repeated access from the same guest IPs, consistent
 read/write role across state transitions. Promotion only — no
 semantic rename yet.
 
+### Step 2a — automatic struct-block detection (v0729h)
+
+When the per-offset roll-up shows many same-width fields at adjacent
+offsets touched by the same guest IPs, run `frontier.py v2`'s
+`contiguous_fighter_blocks` to aggregate them into one struct-like
+block:
+
+```python
+from frontier import Frontier
+f = Frontier()
+f.set_fighter_bases([0x510000, 0x520000], window=0x2000)
+for trace in ['out/trace-both.jsonl', 'out/trace-f0.jsonl']:
+    f.ingest_trace(Path(trace), trace)
+for b in f.contiguous_fighter_blocks(width=4, min_length=3):
+    print(b['offset'], b['length'], b['byte_size'], b['ip_overlap'])
+```
+
+This is exactly how the 0x1680 block (length 120, 480B, 1.0 IP
+overlap) was first surfaced — the union of two traces showed every
+offset 0x1680..0x1860 touched by the same pair of guest IPs
+(0x2399c + 0x23a38). The hand-enumeration step that previous
+playbook runs needed is now a single API call.
+
 ## Step 3 — characterise the branch dependency
 
 For the edge picked in step 1, the dependent branch IP is the

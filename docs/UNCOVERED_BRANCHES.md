@@ -154,6 +154,28 @@ ctest time: 6.55 s. Every `ctest --test-dir build -C Debug
 --output-on-failure` run proves the factory contracts still hold,
 keeping the factory in lock-step with the C gate.
 
+## v0729h contiguous fighter-offset block detection
+
+`tools/python/frontier.py v2` adds `contiguous_fighter_blocks(width,
+min_count, min_length, ip_overlap)`. The function walks the
+fighter-window roll-up and aggregates adjacent same-width accesses
+into struct-like candidates, with `ip_overlap` as a stability
+heuristic.
+
+Live output on the dual-trace player corpus:
+
+```text
+width=4 -> 3 blocks
+  0x00001680..0x00001860  len=120  size=480B  overlap=1.0  top_ips=['0x2399c', '0x23a38']
+  0x00000998..0x000009a4  len=3    size=12B   overlap=1.0  top_ips=['0x2380c', '0x2381c']
+  0x00000b74..0x00000b80  len=3    size=12B   overlap=1.0  top_ips=['0x23524', '0x2364c']
+```
+
+The 0x1680 block is the measured entry evidence for the next
+`fa_player` struct promotion; the runbook was extended with a new
+"Step 2a — automatic struct-block detection" section that wires the
+detector into the playbook.
+
 ## v0727 COIN ASSIGNMENT natural entry, parent walk, edits and EXIT native
 
 Selector-17 index 5 is now entered naturally from the TEST MENU and

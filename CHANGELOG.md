@@ -63,6 +63,15 @@
   exactly-one-of-values-or-bits, empty/out-of-range values, bit
   position validation + base-overlap, 32-bit `until` address).
 
+- Frontier v2: contiguous fighter-offset block detection (v0729h):
+  `tools/python/frontier.py` adds `contiguous_fighter_blocks(width,
+  min_count, min_length, ip_overlap)` which automatically aggregates
+  adjacent same-width fighter-relative accesses into struct-like
+  blocks. Live output on the dual-trace player corpus surfaces the
+  0x1680 block as 120 contiguous 4B fields (480 B, 1.0 IP overlap),
+  plus two smaller 3-field blocks at 0x998 and 0xb74. 3 new unit
+  tests; 17/17 frontier tests green.
+
 - Python factory wired into ctest gate (v0729a-g + v0729f):
   `CMakeLists.txt` adds six `vf2_python_factory_*` ctest entries
   (frontier / taint / taint_e2e / infer_structs / infer_rules /
