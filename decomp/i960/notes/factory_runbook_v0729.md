@@ -123,7 +123,7 @@ Six test suites guard the factory:
 | `tools/python/test_minimize_case.py` | 7/7 — testcase minimizer |
 | `tools/python/test_trace_case.py` | 4/4 — trace_case helpers |
 | `tools/python/test_z3_branch.py` | 5/5 — Z3 branch helper (skips if z3 missing) |
-| `tools/python/test_factory_chain.py` | 3/3 — Step 1 -> 2 -> 2a integration |
+| `tools/python/test_factory_chain.py` | 4/4 — Step 1 -> 2 -> 2a + infer_rules integration |
 
 All twelve are wired into ctest:
 
@@ -148,7 +148,7 @@ python tools/python/test_frontier.py \
 && python tools/python/test_factory_chain.py
 ```
 
-Total: 86 Python test cases. Total ctest time: ~7 s.
+Total: 87 Python test cases. Total ctest time: ~7 s.
 
 When the frontier edge in step 1 is discovered inside a sweep
 scenario (rather than a hand-rolled trace), `tools/python/infer_rules.py`
