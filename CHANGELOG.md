@@ -1,6 +1,66 @@
 # Changelog
 
-## Unreleased
+## v0730 — factory layer delivery + first-action runbook + F1 starting state
+
+- F1 MANUAL SETTING entry starting state (`decomp/i960/notes/f1_manual_setting_entry_boundary_v0730.md`):
+  measured cursor dispatch at `0x00059f34` (5 instructions: load nav,
+  load input, load phase_a5 byte, jump-table dispatch via `phase_a5*4`,
+  bx), the row-4 jump table at `0x59f58` (8 rows, decoded from
+  `epr-18387.14`/`epr-18388.15` LOAD32_WORD interleave), and the
+  MANUAL SETTING row-4 handler at `0x0005a0a4` (renders the menu via
+  `call 0x00008ef0`, increments `phase_a5`, calls setup at
+  `0x00008440`). Phase_index write convention documented (1 byte at
+  `0x005000a4`, 9 sites in `textured`). Slice pickup decomposed into 3
+  sub-tasks (natural entry path, nested a7 editor, differential proof)
+  with the AGENTS.md anti-traps list.
+
+- AGENTS.md sync to v0730 (`3d9b5198`): updated "Current handoff
+  status" with the full factory tooling list (12 ctest entries, 87
+  Python test cases, 6.34 s wall), the v0729 player-corpus smoke +
+  contiguous 0x1680 block notes, the v0729 session close-out, the
+  v0730 first-action runbook, and the re-verified native dispatch
+  boundary (14,277,453 instructions to `0x164c4`). "Recommended next
+  work" now points to the v0730 first-action runbook as the canonical
+  next-agent entry.
+
+- v0730 first-action runbook (`decomp/i960/notes/v0730_first_action_runbook.md`,
+  `410758db`): single entry-point for the next agent. TL;DR with 3
+  commands, what's on master, what's deferred (F1-F5 / P1-P4 / S1),
+  factory chain composition paths for both F- and P-slices, ctest
+  failure recovery procedure, reference reading order, AGENTS.md
+  anti-traps. References fix `f302e880` (path resolution) and F5
+  prerequisite update `fc893caa` (native-seventh-dispatch is not yet
+  wired).
+
+- Native dispatch boundary re-measured at v0730
+  (`decomp/i960/notes/native_dispatch_boundary_v0730_measured.md`,
+  `38094c00`): `vf2probe` from `out/sixth-fresh.vf2snap` to `0x164c4`
+  runs 14,277,453 instructions with 10,288 calls / 10,286 returns.
+  The proven native dispatch boundary is still reachable and
+  reproducible; new reproducible entry `out/sixth-fresh-probe.vf2snap`.
+
+- `.opencode/` added to `.gitignore` (`3874d45a`); working tree is now
+  genuinely clean.
+
+- Runbook invariant: `factory_chain_demo.py` PASS output is the
+  documented invariant for what factory chain correctness looks like.
+
+- 87 Python test cases across 12 ctest entries (`#105`-`#116`), ~7 s
+  wall. C build clean. Factory tooling fully delivered and green.
+
+## v0729 — factory tooling layer (Layer 2)
+
+- Frontier v2 factory tooling (v0729a): `tools/python/frontier.py`
+  surfaces the exact fighter offsets each edge reads/writes (per-edge
+  `fighter_read_offsets`/`fighter_write_offsets`/`fighter_access_count`),
+  attributes edges to the inputs that witnessed them (`sources`), and
+  ranks fighter-aware edges above otherwise-equal unsigned edges. The
+  default text output now prints a `fighter` count column and a `src`
+  count column; the JSON output adds the new fields and stays a stable
+  record schema. Three new unit tests in
+  `tools/python/test_frontier.py` lock in the per-edge offset surfacing,
+  per-source attribution and fighter-access score bonus
+  (14/14 green; 3 new tests).
 
 - Frontier v2 factory tooling (v0729a): `tools/python/frontier.py`
   surfaces the exact fighter offsets each edge reads/writes (per-edge
