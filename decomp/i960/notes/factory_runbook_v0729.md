@@ -125,6 +125,17 @@ Six test suites guard the factory:
 | `tools/python/test_z3_branch.py` | 5/5 — Z3 branch helper (skips if z3 missing) |
 | `tools/python/test_factory_chain.py` | 4/4 — Step 1 -> 2 -> 2a + infer_rules integration |
 
+Additionally, `tools/python/factory_chain_demo.py` is a runnable
+exemplar (not a ctest entry) that exercises the same chain on a
+synthetic trace and prints the step-by-step output. Run from repo
+root:
+
+```sh
+python tools/python/factory_chain_demo.py
+```
+
+Useful as a CI smoke and for newcomers learning the factory.
+
 All twelve are wired into ctest:
 
 ```sh
