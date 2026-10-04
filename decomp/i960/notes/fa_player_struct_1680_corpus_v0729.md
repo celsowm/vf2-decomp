@@ -49,10 +49,33 @@ all attributed to the same pair of guest IPs (0x2399c and 0x23a38).
 | ... | ... | ... | ... | ... |
 | 0x16f4+ | 2 (1R/1W) | 4B | RW | 0x2399c, 0x23a38 |
 
-In aggregate, the same **29+ contiguous 4-byte RW fields**
-(0x1680-0x16f4, ~0x94B = 148 bytes) appear in both traces. Every
-field has the same access shape (1 read + 1 write per case) and the
-same two dominant IPs.
+The **v0729h** `contiguous_fighter_blocks` method on the v2 frontier
+factory automatically aggregates the per-IP trace pattern into a
+single block detector run:
+
+```sh
+python tools/python/frontier.py \
+  out/trace-both.jsonl out/trace-f0.jsonl \
+  --fighter-base 0x510000 --fighter-base 0x520000 \
+  --fighter-window 0x2000
+# then in Python:
+#   blocks = frontier.contiguous_fighter_blocks(width=4, min_count=1, min_length=3)
+```
+
+Output on the dual-trace corpus:
+
+```text
+width=4 -> 3 blocks
+  0x00001680..0x00001860  len=120  size=480B  overlap=1.0  top_ips=['0x2399c', '0x23a38']
+  0x00000998..0x000009a4  len=3    size=12B   overlap=1.0  top_ips=['0x2380c', '0x2381c']
+  0x00000b74..0x00000b80  len=3    size=12B   overlap=1.0  top_ips=['0x23524', '0x2364c']
+```
+
+So the v2 factory finds the **block 0x1680..0x1860 (length 120,
+480 bytes, 1.0 IP overlap)** automatically from the dual-trace
+corpus — both ends of the block extend further than the manual
+estimate in the initial version of this note, because the union of
+both traces covers a wider range than either trace alone.
 
 ## Provisional struct promotion (evidence only)
 
