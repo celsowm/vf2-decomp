@@ -72,6 +72,17 @@
   plus two smaller 3-field blocks at 0x998 and 0xb74. 3 new unit
   tests; 17/17 frontier tests green.
 
+- sweep_state unit tests + ctest wiring (v0729i):
+  `tools/python/test_sweep_state.py` locks in the pure-Python helpers
+  of the sweep driver (cli_int signed-hex, load_scenario required
+  fields, dimension_values values/bits expansion, mutation_args reg
+  + u8/u16/u32 + reject unknown kind, parse_int int/string). 9/9
+  tests green. The subprocess `vf2probe` invocation is not
+  exercised (ROM-backed differential paths already cover it
+  end-to-end). CMakeLists adds `vf2_python_factory_sweep_state`
+  (Test #111). Total factory ctest entries: 7; total Python test
+  cases: 58; total ctest time: 5.83 s.
+
 - Python factory wired into ctest gate (v0729a-g + v0729f):
   `CMakeLists.txt` adds six `vf2_python_factory_*` ctest entries
   (frontier / taint / taint_e2e / infer_structs / infer_rules /

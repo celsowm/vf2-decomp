@@ -112,14 +112,15 @@ Six test suites guard the factory:
 
 | suite | coverage |
 | --- | --- |
-| `tools/python/test_frontier.py` | 14/14 — v2 factory contract |
+| `tools/python/test_frontier.py` | 18/18 — v2 factory contract |
 | `tools/python/test_taint.py` | 7/7 — taint unit algorithm |
 | `tools/python/test_taint_e2e.py` | 1/1 — taint on real corpus |
 | `tools/python/test_infer_structs.py` | 4/4 — dual-base promotion |
 | `tools/python/test_infer_rules.py` | 10/10 — conservative refusal contract |
 | `tools/python/test_check_scenario.py` | 9/9 — scenario validation |
+| `tools/python/test_sweep_state.py` | 9/9 — sweep driver helpers |
 
-All six are wired into ctest:
+All seven are wired into ctest:
 
 ```sh
 ctest --test-dir build -C Debug -R vf2_python_factory --output-on-failure
@@ -133,10 +134,11 @@ python tools/python/test_frontier.py \
 && python tools/python/test_taint_e2e.py \
 && python tools/python/test_infer_structs.py \
 && python tools/python/test_infer_rules.py \
-&& python tools/python/test_check_scenario.py
+&& python tools/python/test_check_scenario.py \
+&& python tools/python/test_sweep_state.py
 ```
 
-Total: 45 Python test cases. Total ctest time: ~6.5 s.
+Total: 58 Python test cases. Total ctest time: ~5.8 s.
 
 When the frontier edge in step 1 is discovered inside a sweep
 scenario (rather than a hand-rolled trace), `tools/python/infer_rules.py`
