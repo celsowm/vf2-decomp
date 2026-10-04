@@ -142,9 +142,17 @@ At the time this handoff was written, `master` already contains:
 - the COIN ASSIGNMENT menu corridor (selector 17 index 5) recovered natively
   from TEST MENU: TEST press, held entry, release, idle, full parent walk,
   row-1 mode/edit cycle in COMMON and INDIVIDUAL modes, rows 2/3/4 pre-edit
-  renders, EXIT+ park and EXIT- redraw (v0727); and
+  renders, EXIT+ park and EXIT- redraw (v0727);
 - the state-8 bit-6 symmetric matrix proven 6144/6144 native-exact with the
-  triple/quad table folded into a counted rule (v0728).
+  triple/quad table folded into a counted rule (v0728); and
+- the v0729 factory layer: `frontier.py v2` (per-edge fighter offsets +
+  per-source attribution + fighter-aware rank, 14/14 tests),
+  `taint.py` unit suite (7/7), taint end-to-end contract on the real
+  `out/trace-bit14.jsonl` corpus (21 branch blocks, 24 fighter
+  dependencies, all matching the `fighter + 0xNNNN [bit N]` shape),
+  `infer_structs.py` dual-base promotion unit suite (4/4), and the
+  factory runbook note `decomp/i960/notes/factory_runbook_v0729.md`
+  that chains the three tools together for the next F/P1 slice.
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.
@@ -395,26 +403,46 @@ large.
 ## Recommended next work
 
 Unless newer evidence changes priorities, the following order gives the best
-leverage.
+leverage. The v0729 factory layer (frontier v2, taint unit + E2E, infer_structs
+unit, factory runbook note) is now in place; the next F/P1 slices are
+expected to consume it via `decomp/i960/notes/factory_runbook_v0729.md`.
 
-### 1. Extend `frontier.py`
+### 1. Close the TEST MENU corridor end-to-end
 
-`tools/python/frontier.py` now provides the initial queryable frontier from
-guest coverage and native/unsupported boundaries. The useful unit is a guest
-address/edge, not host C coverage. It ingests corpus manifests, sweep JSONL
-and trace JSONL, ranks candidates by measured witnesses, reproducible
-snapshot availability, unsupported-final counts and recovered-range
-attribution from `decomp/i960/functions.csv`, and supports
-`--exclude-recovered` to show only the working frontier.
+The TEST MENU walk is mostly recovered (v0709-v0727) but the v0727 note
+explicitly leaves MANUAL SETTING natural entry (selector 17 index 4),
+rows 2-4 post-edit release frames, PUNCH/KICK releases at value rows,
+KICK −1 from INDIVIDUAL mode and INDIVIDUAL walks at rows 2-4 as
+fail-closed pins. Each slice is a measured boundary + minimal C
+recovery + per-slice note + CTest pin. After B5 the next bump is
+`native-seventh-dispatch` (full live-state equality past the v0727
+corridor).
 
-Remaining extensions, in rough value order:
+### 2. Extend the player corridor downstream of `0x28918`/`0x29414`
 
-- read/write activity around the boundary (correlate `--memory-trace`
-  access clusters with candidate edges);
-- call target attribution when the edge source is a `call` instruction;
+The v0706 dual-base witness and v0707 head-sibling work recovered the
+front of the `fa_player` downstream chain; later branches remain
+original-i960 continuations. Layer 2 (`fa_player`) P1 in the runbook is:
+run `infer_structs.py` on the dual-base player trace to upgrade
+single-corridor candidates (`field_0980`, `field_0984`, `field_11a0`,
+`field_1680`-`1688`) to multi-corridor provenance, then use frontier v2
+to find the edge that touches them, then taint.py to capture the branch
+dependency. P2-P4 chain the next downstream decomposition.
+
+### 3. Extend `frontier.py`
+
+`tools/python/frontier.py` v2 (v0729a) now provides per-edge
+`fighter_read_offsets` / `fighter_write_offsets` /
+`fighter_access_count`, per-source `sources` attribution and a
+fighter-aware score bonus. Remaining extensions, in rough value order:
+
+- caller-callee correlation when the edge source is a `call`
+  instruction (already partial via `CALL_MNEMONICS`);
 - DuckDB-backed persistence when corpus volume outgrows the streaming
-  aggregator; and
-- Parquet export for very large trace corpora.
+  aggregator (already partial via the optional `--duckdb` /
+  `--parquet` paths and the `test_duckdb_parquet_export` gate); and
+- cross-corpus fighter-offset roll-up so multi-trace dual-base
+  promotion is automatic.
 
 Do not force these dependencies into the C runtime, and keep ranking
 features strictly measured: no invented semantics enters the report.
