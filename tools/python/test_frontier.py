@@ -408,6 +408,121 @@ def test_fighter_access_score_bonus():
     print("ok: fighter access score bonus ranks fighter-aware edges higher")
 
 
+def test_contiguous_fighter_blocks_detects_struct_layout():
+    """A sequence of 4B R/W fighter accesses at offsets 0x1680..0x16ec
+    must surface as one contiguous block, not 28 separate rows."""
+    with tempfile.TemporaryDirectory() as tmp:
+        trace = Path(tmp) / "case.jsonl"
+        records = []
+        step = 1
+        # Touch fighter offsets 0x1680, 0x1684, ..., 0x16ec with width 4.
+        # Each offset gets one read and one write, both from the same
+        # two IPs (0x2399c, 0x23a38), to mirror the real corpus shape.
+        for off in range(0x1680, 0x16f0, 4):
+            for kind, ip in (("read", 0x2399c), ("write", 0x23a38)):
+                records.append(
+                    {"type": "memory", "step": step,
+                     "kind": kind, "address": 0x510000 + off, "size": 4}
+                )
+                records.append(
+                    {"type": "step", "step": step,
+                     "ip_before": ip, "ip_after": ip + 4}
+                )
+                step += 1
+        records.append({"type": "final", "status": "ok",
+                        "halt_reason": "stop address", "ip": 0x10dcc})
+        trace.write_text("\n".join(json.dumps(r) for r in records) + "\n")
+        frontier = Frontier()
+        frontier.set_fighter_bases([0x510000], window=0x2000)
+        frontier.ingest_trace(trace, "case.jsonl")
+        blocks = frontier.contiguous_fighter_blocks(width=4, min_count=1,
+                                                   min_length=3)
+    assert len(blocks) == 1, blocks
+    block = blocks[0]
+    assert block["offset"] == hex32(0x1680)
+    assert block["end_offset"] == hex32(0x16f0)
+    assert block["length"] == (0x16f0 - 0x1680) // 4
+    assert block["byte_size"] == block["length"] * 4
+    assert block["width"] == 4
+    assert block["base_count"] == 1
+    assert block["ip_overlap"] >= 0.5
+    assert hex32(0x2399c) in block["top_ips"]
+    assert hex32(0x23a38) in block["top_ips"]
+    print("ok: contiguous_fighter_blocks detects a 28-field 4B R/W struct")
+
+
+def test_contiguous_fighter_blocks_rejects_short_runs():
+    """A run shorter than min_length must not surface as a block."""
+    with tempfile.TemporaryDirectory() as tmp:
+        trace = Path(tmp) / "case.jsonl"
+        records = []
+        for off in range(0x1700, 0x1708, 4):  # only 2 fields
+            for kind, ip in (("read", 0x2399c), ("write", 0x23a38)):
+                records.append(
+                    {"type": "memory", "step": len(records) // 2 + 1,
+                     "kind": kind, "address": 0x510000 + off, "size": 4}
+                )
+                records.append(
+                    {"type": "step", "step": len(records) // 2 + 1,
+                     "ip_before": ip, "ip_after": ip + 4}
+                )
+        records.append({"type": "final", "status": "ok",
+                        "halt_reason": "stop address", "ip": 0x10dcc})
+        trace.write_text("\n".join(json.dumps(r) for r in records) + "\n")
+        frontier = Frontier()
+        frontier.set_fighter_bases([0x510000], window=0x2000)
+        frontier.ingest_trace(trace, "case.jsonl")
+        blocks = frontier.contiguous_fighter_blocks(width=4, min_count=1,
+                                                   min_length=3)
+    assert blocks == [], blocks
+    print("ok: contiguous_fighter_blocks rejects short runs")
+
+
+def test_contiguous_fighter_blocks_filters_by_width():
+    """The width argument filters out offsets with mismatched widths.
+
+    With width=4, a 1B access at offset 0x1804 is filtered out, so the
+    4B walk sees 0x1800, 0x1808, 0x180c, 0x1810 — and the latter
+    three are 4B-spaced, so a block 0x1808-0x1810 surfaces (length 3).
+
+    With width=1, the 1B offset 0x1804 stands alone; no contiguous
+    1B run of length >= 3 forms, so no block surfaces.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        trace = Path(tmp) / "case.jsonl"
+        records = []
+        for off, width in (
+            (0x1800, 4), (0x1804, 1), (0x1808, 4), (0x180c, 4), (0x1810, 4)
+        ):
+            for kind, ip in (("read", 0x2399c), ("write", 0x23a38)):
+                records.append(
+                    {"type": "memory", "step": len(records) // 2 + 1,
+                     "kind": kind, "address": 0x510000 + off, "size": width}
+                )
+                records.append(
+                    {"type": "step", "step": len(records) // 2 + 1,
+                     "ip_before": ip, "ip_after": ip + 4}
+                )
+        records.append({"type": "final", "status": "ok",
+                        "halt_reason": "stop address", "ip": 0x10dcc})
+        trace.write_text("\n".join(json.dumps(r) for r in records) + "\n")
+        frontier = Frontier()
+        frontier.set_fighter_bases([0x510000], window=0x2000)
+        frontier.ingest_trace(trace, "case.jsonl")
+        blocks_4 = frontier.contiguous_fighter_blocks(width=4, min_count=1,
+                                                     min_length=3)
+        blocks_1 = frontier.contiguous_fighter_blocks(width=1, min_count=1,
+                                                     min_length=3)
+    # Width 4: 0x1808-0x1810 forms a contiguous run of length 3.
+    assert len(blocks_4) == 1, blocks_4
+    assert blocks_4[0]["offset"] == hex32(0x1808)
+    assert blocks_4[0]["end_offset"] == hex32(0x1814)
+    assert blocks_4[0]["length"] == 3
+    # Width 1: only a single 1B access at 0x1804 -> no block.
+    assert blocks_1 == [], blocks_1
+    print("ok: contiguous_fighter_blocks filters by width correctly")
+
+
 def main() -> int:
     test_function_table_lookup()
     test_trace_ingestion()
@@ -423,6 +538,9 @@ def main() -> int:
     test_per_edge_fighter_offset_surfaces()
     test_per_source_attribution()
     test_fighter_access_score_bonus()
+    test_contiguous_fighter_blocks_detects_struct_layout()
+    test_contiguous_fighter_blocks_rejects_short_runs()
+    test_contiguous_fighter_blocks_filters_by_width()
     print("all frontier tests passed")
     return 0
 

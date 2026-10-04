@@ -219,6 +219,129 @@ class Frontier:
         rows.sort(key=lambda r: (-r["base_count"], -r["total"], r["offset"]))
         return rows[:limit]
 
+    def contiguous_fighter_blocks(
+        self,
+        width: int,
+        min_count: int = 2,
+        min_length: int = 3,
+        ip_overlap: float = 0.5,
+    ) -> List[dict]:
+        """Detect contiguous runs of same-width fighter-relative fields.
+
+        A *block* is a sequence of fighter offsets at addresses
+        ``base + offset``, ``base + offset + width``, ``base + offset + 2*width``,
+        ... where every offset in the run has at least ``min_count``
+        accesses AND a fraction of the participating offsets share the
+        same guest IPs (the ``ip_overlap`` threshold).
+
+        This is the v2 factory's primary tool for surfacing struct-like
+        fields without hand-enumerating the candidate offsets. The
+        P1 evidence path (the 0x1680 4B R/W block in the player
+        corridor) was first detected by this function on
+        ``trace-both.jsonl``.
+
+        Returns a list of blocks, each with:
+
+        - ``offset``: starting fighter-relative offset;
+        - ``end_offset``: one past the last offset in the block;
+        - ``length``: number of fields in the block;
+        - ``byte_size``: ``length * width``;
+        - ``width``: dominant access width;
+        - ``reads``, ``writes``, ``total`` across the block;
+        - ``base_count``: 1 if only one base, 2 if dual-base;
+        - ``top_ips``: top-4 IPs touching the block (union);
+        - ``ip_overlap``: fraction of fields that share at least one
+          of the block's top IPs.
+
+        Blocks shorter than ``min_length`` are filtered out.
+        """
+        if width not in (1, 2, 4, 8):
+            raise ValueError(f"width must be one of 1/2/4/8, got {width}")
+        # Bucket offsets by width.
+        by_width: Dict[int, dict] = {
+            off: rec
+            for off, rec in self.fighter_offsets.items()
+            if rec["widths"].get(width, 0) > 0
+        }
+        if not by_width:
+            return []
+        sorted_offsets = sorted(by_width.keys())
+        blocks: List[dict] = []
+        # Greedy walk: a block is a maximal run of consecutive offsets
+        # spaced by `width`. We scan by stride.
+        runs: List[List[int]] = []
+        current: List[int] = []
+        prev_off: Optional[int] = None
+        for off in sorted_offsets:
+            if prev_off is not None and off - prev_off == width:
+                current.append(off)
+            else:
+                if current:
+                    runs.append(current)
+                current = [off]
+            prev_off = off
+        if current:
+            runs.append(current)
+        for run in runs:
+            if len(run) < min_length:
+                continue
+            base_ips: Counter = Counter()
+            total_reads = 0
+            total_writes = 0
+            base_count = 0
+            fields_with_top_ip = 0
+            for off in run:
+                rec = by_width[off]
+                if rec["reads"] + rec["writes"] < min_count:
+                    continue  # Skip under-counted fields; still in run.
+                total_reads += rec["reads"]
+                total_writes += rec["writes"]
+                if base_count == 0:
+                    base_count = len(rec["bases"])
+                else:
+                    base_count = min(base_count, len(rec["bases"]))
+                base_ips.update(rec["ips"])
+                if any(_ >= 2 for _ in rec["ips"].values()):
+                    fields_with_top_ip += 1
+            if total_reads + total_writes == 0:
+                continue
+            top_ips = [hex32(ip) for ip, _ in base_ips.most_common(4)]
+            # ip_overlap: fraction of fields in the block whose IP set
+            # intersects with at least one of the block's top-4 IPs.
+            if top_ips:
+                # Use raw top IP count for the overlap fraction.
+                top_ip_ints = {ip for ip, _ in base_ips.most_common(4)}
+                overlap = 0
+                for off in run:
+                    rec = by_width[off]
+                    # rec["ips"] is a Counter; intersect with the
+                    # top-IP set after materialising to a set.
+                    if set(rec["ips"].keys()) & top_ip_ints:
+                        overlap += 1
+                overlap_frac = overlap / len(run)
+            else:
+                overlap_frac = 0.0
+            if overlap_frac < ip_overlap:
+                continue
+            blocks.append(
+                {
+                    "offset": hex32(run[0]),
+                    "end_offset": hex32(run[-1] + width),
+                    "length": len(run),
+                    "byte_size": len(run) * width,
+                    "width": width,
+                    "reads": total_reads,
+                    "writes": total_writes,
+                    "total": total_reads + total_writes,
+                    "base_count": base_count,
+                    "top_ips": top_ips,
+                    "ip_overlap": round(overlap_frac, 3),
+                }
+            )
+        # Sort by length descending, then by total accesses.
+        blocks.sort(key=lambda b: (-b["length"], -b["total"], b["offset"]))
+        return blocks
+
     # ------------------------------------------------------------------
     # Ingestion
     # ------------------------------------------------------------------
