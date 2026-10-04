@@ -1,5 +1,59 @@
 # Changelog
 
+## v0731 — F1 target re-measured: MANUAL SETTING is not selector-17 index 4
+
+- Measurement-only session. No C changed, no gate weakened. The purpose was
+  to re-measure the F1 target before implementing it (AGENTS.md rule 1).
+
+- Oracle baseline re-verified. `out/ca-test2.vf2snap` restored state is
+  `phase_index 0x85`, `phase_a5 0`, `a6/a7 0xff`, TEST-held latch
+  `0x0f000004`; one frame to `0x0000a010` runs 4420 instructions = the
+  v0727-documented `232 + 4188/35` body. From
+  `out/ca-idle-r1.vf2snap` (`0x85`, `phase_a5 1`, idle latch) the
+  SERVICE/DOWN tap runs 4426 (`232 + 4194/34`) and the TEST edge runs 4637
+  (`232 + 4405/38`) — both exactly the documented v0727 bodies. The row-4
+  TEST value-edit body `4403` also reproduces.
+
+- Two v0730 F1 premises falsified, with evidence:
+  - `execute_frame_phase17_bit7_index4` is **GAME ASSIGNMENT**, per its own
+    recovered comment (`texture_bridge_match.c:4902`); it is entered for
+    `phase_index == 0x84` (`:15455`). It is not MANUAL SETTING.
+  - **MANUAL SETTING is a label inside the COIN ASSIGNMENT menu** at
+    screen row 35, col 18 (`texture_bridge_match.c:7957`, and again at
+    `:8536` in the INDIVIDUAL layout), with `EXIT` at row 38. The SERVICE
+    cursor ring is six positions (`phase_a5 0..5`, from
+    `nav_cc_forward[6]`/`nav_cc_back[6]` at `:9051`-`:9052` and the
+    `4191`/`4192`/`4194`/`4195` wrap bodies), so the MANUAL SETTING row is
+    **not** reachable by the recovered ring.
+  - A TEST press with `phase_a5 = 4` inside index 5 is the documented
+    row-4 **value edit** (4403), not a submenu entry.
+  - The `0x00059f34` cursor dispatch decodes verbatim as recorded, but a
+    full 4420-step trace of a live index-5 frame executes only 10
+    instructions in `0x59000`-`0x5b000` (`0x58fe0`..`0x59160`) and reaches
+    neither `0x59f34` nor `0x5a0a4`. Its MANUAL SETTING attribution is
+    unproven.
+
+- New evidence note
+  `decomp/i960/notes/f1_manual_setting_target_remeasured_v0731.md`
+  supersedes `f1_manual_setting_entry_boundary_v0730.md` (banner added) and
+  redefines the open slice: find the input path that selects the row-35
+  MANUAL SETTING entry, measure its entry-frame poststate, then the nested
+  a7 editor. Remains fail-closed until each step is proven by a chained
+  strict differential.
+
+- Tooling cautions recorded for the next session: `vf2probe --max-steps 0`
+  is not a no-op (it runs the 2,000,000-instruction default and returns a
+  post-execution state — use `--max-steps 1` to restore-and-read);
+  `vf2probe --trace` emits `ip_before`/`ip_after` as **decimal**, so a
+  `"ip":"0x..."` grep is a silent false negative; `vf2i960 analyze`
+  `out/analysis/*` covers the default bank only, with zero `0x00059xxx`
+  entries in `function-splits.csv` and no xref for `0x00059f34`.
+
+- ROM text records regenerated into `out/analysis/strings.csv` place
+  `MANUAL SETTING` at `0x00078148`, `0x000781e8`, `0x00078200`,
+  `0x00078370`, with `SETTING NUM` at `0x0004ab54` and `MANUAL SET` at
+  `0x0004ab84`.
+
 ## v0730 — factory layer delivery + first-action runbook + F1 starting state
 
 - F1 MANUAL SETTING entry starting state (`decomp/i960/notes/f1_manual_setting_entry_boundary_v0730.md`):

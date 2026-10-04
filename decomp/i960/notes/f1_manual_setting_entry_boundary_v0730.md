@@ -1,5 +1,19 @@
 # F1 MANUAL SETTING natural entry — measured starting state (v0730)
 
+> **SUPERSEDED at v0731 by
+> `f1_manual_setting_target_remeasured_v0731.md`. Do not implement against
+> this note.** Its two load-bearing claims were re-measured and did not
+> hold: (1) selector-17 index 4 is **GAME ASSIGNMENT**, not MANUAL SETTING
+> (see this file's own reference to
+> `texture_bridge_match.c:4902`, "TEST-held GAME ASSIGNMENT entry"), and
+> MANUAL SETTING is a label rendered *inside* the COIN ASSIGNMENT menu at
+> screen row 35 (`texture_bridge_match.c:7957`); (2) the `0x59f34` /
+> `0x59f58` / `0x5a0a4` row dispatch decodes exactly as recorded here but
+> is **not reached** by any measured index-5 frame. The disassembly below
+> is accurate; its identification as the TEST MENU cursor dispatch and as
+> the MANUAL SETTING row handler is unproven. The v0731 note gives the
+> corrected F1 definition and the reproductions.
+
 This note captures the **measured F1 starting state** for the next
 session. The full F1 slice (natural entry + nested a7 editor) is
 multi-hour ROM-backed work per the v0727 playbook and the v0730
