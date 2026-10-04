@@ -1,8 +1,56 @@
 # Changelog
 
-## v0731 — F1 target re-measured: MANUAL SETTING is not selector-17 index 4
+## v0731 — F1 target re-measured, frame-advance workflow, MANUAL SETTING entry measured
 
-- Measurement-only session. No C changed, no gate weakened. The purpose was
+- **Frame-advance workflow established**
+  (`decomp/i960/notes/frame_advance_workflow_v0731.md`). Three prior notes
+  (`coli_recurring_hunt_v0269`, `fa_player_19ef8_live_v0309`,
+  `fighter_candidate_dual_base_v0702`) recorded the frame advance as the
+  blocking prerequisite for further recovery depth. It is now solved. The
+  scheduler wait at `0x10f98` spins until `0x00500000` changes; nothing in
+  the reference executor writes that byte, so unassisted runs spin
+  indefinitely (measured: 4.8M steps, `ip = 0x10f98`, procedure-call count
+  unchanged at 11558). The release is the frame IRQ, already recovered in
+  `src/recovered/frame_wait.c` as
+  `VF2_FRAME_INTERRUPT_MASK/VECTOR/LEVEL = 1 / 12 / 1`. The probe
+  equivalent `--raise-irq 0x1 --enter-interrupt 12=1` crosses it:
+  `[0x500000]` goes `0 -> 1` and the counters advance by 15 calls /
+  15 returns. The only usable chain points are the frame wait `0x10f98`
+  and the bridge frame entry `0x530`; `0xa010` and `0x9ff8` are dead ends
+  (`0xa010` is an in-frame return address that re-stops instantly;
+  `0x9ff8` never fires — 200k steps ended at `0x10fe8`). Leg shape:
+  entry -> patch latches -> `--until 0x10f98` -> inject -> `--until
+  0x530`. Measured 1697 and 980 instructions per crossing.
+
+- **F1 answered: a TEST press on COIN ASSIGNMENT cursor row 5 selects
+  MANUAL SETTING** (`decomp/i960/notes/f1_manual_setting_entry_measured_v0731.md`).
+  The cursor ring is six positions (`phase_a5 = 0..5`,
+  `cursor_addresses[6]` at `texture_bridge_match.c:7916`); row 5 is the
+  row-35 "MANUAL SETTING" label (`:7957`), not a seventh position and not
+  a separate selector index. Measured from a walked `phase_a5 = 5` state:
+  the forward tap wraps `5 -> 0` in 5343 instructions (confirming the
+  `4195` wrap body), while a TEST press runs **15214** instructions, keeps
+  `phase_index = 0x85`, leaves `a5 = 5`, and sets `phase_a7` `0xff -> 0x00`
+  — entering the nested page. Its full poststate: selector mask
+  `0x50002c -> 0x00000200`, cursor `0x010011a0 <- 0x801c` with the other
+  five cleared to `0x0020`, `0x500020 <- 30`, `0x5006d <- 0`,
+  `0x50015c <- 0xffffee25`, and 2835 tile-plane writes (a full page
+  render).
+
+- The recovered C **already implements** this entry at
+  `texture_bridge_match.c:8206` (writes `a7 = 0`, the
+  "SELECT BY SERVICE BUTTON" footer, body `14063`/`36`), with the nested
+  a7 navigation arms at `:8185`-`8190`. The only missing piece is the
+  **admitting latch tuple**: `natural_latches[]` has TEST tuples for
+  `a5 = 1,2,3,4` and the EXIT row `a5 = 0`, but none for `a5 = 5`, so
+  `test_held_entry` stays 0 and the gate at `:8167`-`8182` returns
+  `VF2_ERROR_UNSUPPORTED`. That is correct fail-closed behaviour, not a
+  bug. The remaining slice is to measure the exact poststate, reconcile
+  the instruction/call accounting against `14063`/`36` (the current
+  estimate of `~14065` is explicitly **unproven** — the call count is
+  unreconciled), then add the one measured tuple and nothing else.
+
+- Measurement-only so far: no C changed, no gate weakened. The purpose was
   to re-measure the F1 target before implementing it (AGENTS.md rule 1).
 
 - Oracle baseline re-verified. `out/ca-test2.vf2snap` restored state is
@@ -45,7 +93,9 @@
   is not a no-op (it runs the 2,000,000-instruction default and returns a
   post-execution state — use `--max-steps 1` to restore-and-read);
   `vf2probe --trace` emits `ip_before`/`ip_after` as **decimal**, so a
-  `"ip":"0x..."` grep is a silent false negative; `vf2i960 analyze`
+  `"ip":"0x..."` grep is a silent false negative; `--memory-trace` records
+  use `"type":"memory"` with `"kind":"write"|"read"` and
+  `"bytes":"<hex>"` (not `"type":"mem"` / `"access"`); `vf2i960 analyze`
   `out/analysis/*` covers the default bank only, with zero `0x00059xxx`
   entries in `function-splits.csv` and no xref for `0x00059f34`.
 
