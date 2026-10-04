@@ -85,7 +85,7 @@ the path fail-closed per AGENTS.md rule 2.
 
 ## Step 4 — gate every promotion with the test suite
 
-Five test suites guard the factory:
+Six test suites guard the factory:
 
 | suite | coverage |
 | --- | --- |
@@ -94,16 +94,26 @@ Five test suites guard the factory:
 | `tools/python/test_taint_e2e.py` | 1/1 — taint on real corpus |
 | `tools/python/test_infer_structs.py` | 4/4 — dual-base promotion |
 | `tools/python/test_infer_rules.py` | 10/10 — conservative refusal contract |
+| `tools/python/test_check_scenario.py` | 9/9 — scenario validation |
 
-Run all five before any promotion:
+All six are wired into ctest:
+
+```sh
+ctest --test-dir build -C Debug -R vf2_python_factory --output-on-failure
+```
+
+Standalone run:
 
 ```sh
 python tools/python/test_frontier.py \
 && python tools/python/test_taint.py \
 && python tools/python/test_taint_e2e.py \
 && python tools/python/test_infer_structs.py \
-&& python tools/python/test_infer_rules.py
+&& python tools/python/test_infer_rules.py \
+&& python tools/python/test_check_scenario.py
 ```
+
+Total: 45 Python test cases. Total ctest time: ~6.5 s.
 
 When the frontier edge in step 1 is discovered inside a sweep
 scenario (rather than a hand-rolled trace), `tools/python/infer_rules.py`
@@ -113,6 +123,11 @@ if the selected features do not fully determine the outcome, or the
 truth table is incomplete, it refuses to produce a rule.  This is
 exactly the discipline that retired the 15-entry triple/quad table in
 v0728.  Do not weaken `infer_rules.py`'s refusal logic.
+
+Before any sweep is launched, the scenario JSONL must pass
+`tools/python/check_scenario.py` validation.  This is the upstream
+gate the factory enforces: invalid scenarios never reach the
+probe or the inference tools.
 
 ## Step 5 — write the per-slice note
 

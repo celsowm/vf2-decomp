@@ -55,6 +55,22 @@
   the chain and explicitly warns against weakening the refusal logic
   that retired the 15-entry triple/quad table in v0728.
 
+- check_scenario scenario-validation unit tests (v0729g):
+  `tools/python/test_check_scenario.py` locks in the scenario gate
+  every sweep passes through before any probe is launched. 9/9 tests
+  green (valid-scenario acceptance + case-count product, missing
+  required fields, invalid dimension kind, reg-without-register,
+  exactly-one-of-values-or-bits, empty/out-of-range values, bit
+  position validation + base-overlap, 32-bit `until` address).
+
+- Python factory wired into ctest gate (v0729a-g + v0729f):
+  `CMakeLists.txt` adds six `vf2_python_factory_*` ctest entries
+  (frontier / taint / taint_e2e / infer_structs / infer_rules /
+  check_scenario). Total Python test cases: 45. Total ctest time:
+  6.55 s. The factory tooling is now in lock-step with the C gate;
+  every `ctest --test-dir build -C Debug --output-on-failure` run
+  proves the contracts still hold.
+
 - 0x28184 head siblings native (v0707): bit17 x bit0 x edge==counter
   tree measured (12/14/16 steps to 0x28268, float fall-through in 10
   to 0x281b0); S1/S2 join S0 natively with r14/r13 loads, tail EQUAL

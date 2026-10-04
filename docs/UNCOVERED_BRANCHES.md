@@ -126,6 +126,34 @@ the chain and explicitly warns against weakening its refusal logic,
 which is the same discipline that retired the 15-entry triple/quad
 table in v0728.
 
+## v0729g check_scenario scenario-validation tests
+
+`tools/python/test_check_scenario.py` (9/9) locks in the scenario
+gate every sweep passes through before any probe is launched:
+
+- valid scenario is accepted with correct case count;
+- missing required fields (probe / rom_dir / snapshot /
+  dimensions) are rejected;
+- invalid dimension kind (anything outside reg/u8/u16/u32) is
+  rejected;
+- `reg` dimension without `register` name is rejected;
+- a dimension must specify exactly one of `values` or `bits`;
+- values must be non-empty and within 32 bits;
+- bit positions are validated (no duplicates, no negatives, ≤31)
+  and the base mask must not overlap swept bits;
+- the case count is the cartesian product of every dimension's
+  value set (or 2^|bits| for a bit dimension);
+- optional `until` address must be 32-bit.
+
+## v0729f Python factory wired into ctest
+
+`CMakeLists.txt` adds six `vf2_python_factory_*` ctest entries
+covering frontier, taint, taint end-to-end, infer_structs,
+infer_rules and check_scenario. Total Python test cases: 45. Total
+ctest time: 6.55 s. Every `ctest --test-dir build -C Debug
+--output-on-failure` run proves the factory contracts still hold,
+keeping the factory in lock-step with the C gate.
+
 ## v0727 COIN ASSIGNMENT natural entry, parent walk, edits and EXIT native
 
 Selector-17 index 5 is now entered naturally from the TEST MENU and
