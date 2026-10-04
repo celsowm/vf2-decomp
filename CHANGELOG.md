@@ -94,6 +94,14 @@
   ctest entries: 8; total Python test cases: 67; total ctest time:
   7.60 s.
 
+- minimize_case unit tests + ctest wiring (v0729k):
+  `tools/python/test_minimize_case.py` locks in the testcase-minimizer
+  helpers (cli_int, dimension_values values/bits, mutation_args reg +
+  memory, load_json round-trip, parse_edge hex/decimal + reject
+  missing ':'). 7/7 tests green. CMakeLists adds
+  `vf2_python_factory_minimize_case` (Test #113). Total factory ctest
+  entries: 9; total Python test cases: 74; total ctest time: 7.07 s.
+
 - Python factory wired into ctest gate (v0729a-g + v0729f):
   `CMakeLists.txt` adds six `vf2_python_factory_*` ctest entries
   (frontier / taint / taint_e2e / infer_structs / infer_rules /
