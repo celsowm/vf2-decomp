@@ -141,9 +141,25 @@
   4/4 chain tests green. Total factory ctest entries: 12;
   total Python cases: 87; total ctest time: 9.80 s.
 
+- Factory chain demo script (v0729p):
+  `tools/python/factory_chain_demo.py` is a runnable exemplar
+  (not a ctest entry) that exercises Step 1 -> Step 2a -> Step 2
+  (per-offset + dual-base) end-to-end on a synthetic trace.
+  Step 3 (taint) is skipped here because it requires ROM-backed
+  `vf2probe` runs; the runbook documents that path separately.
+  Pass output:
+
+  ```text
+  Step 1: surfaced 3 ranked edges
+  Step 2a: contiguous block 0x00001680..0x00001860 length=120 size=480B ip_overlap=1.0
+  Step 2: infer_structs roll-up shows 121 distinct offsets (120 in the contiguous block + 1 standalone at 0x1a4)
+  Step 2 (dual-base): fighter0 + fighter1 at 0x1a4 promoted to base_count=2
+  PASS: factory chain composed end-to-end on synthetic trace
+  ```
+
+  Useful as a CI smoke and for newcomers learning the factory.
+
 - v0729 factory layer complete (v0729a-o + v0729f):
-  The complete v0729 factory tooling layer is now on master with
-  every AGENTS.md workflow tool under unit-test gate:
 
   - `frontier.py v2` (per-edge fighter offsets, per-source
     attribution, fighter-aware rank, contiguous-block detection,
