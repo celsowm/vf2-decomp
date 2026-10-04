@@ -973,6 +973,18 @@ def main() -> int:
                             )
                             + "\n"
                         )
+        # Always emit call_edge JSON records (independent of
+        # fighter_offsets so non-fighter corridors are still
+        # surfaced). The --cross-boundary filter limits the
+        # records to recovered↔non-native edges when set.
+        if args.as_json:
+            for item in frontier.rank_call_edges(functions, limit=200):
+                if args.cross_boundary and not item["crosses_boundary"]:
+                    continue
+                output.write(
+                    json.dumps({"kind": "call_edge", **item}, sort_keys=True)
+                    + "\n"
+                )
     finally:
         if output is not sys.stdout:
             output.close()

@@ -595,11 +595,13 @@ def test_cli_cross_boundary_filter():
             "0x16400,0x16500,caller,recovered\n"
             "0x18600,0x18700,callee,candidate\n"
         )
-        # JSONL trace: two calls (caller -> callee = cross-boundary)
-        # and one intra-caller mov (non-cross), plus an unsupported
-        # final so the call-edges section actually prints (the call
-        # edges section is nested inside the unsupported-address
-        # block in frontier.py's text output).
+        # JSONL trace: two calls (caller -> callee = cross-boundary),
+        # one intra-caller mov (non-call, must NOT appear in
+        # call_edge JSON output), one same-function call (caller
+        # -> caller = non-cross-boundary), plus an unsupported
+        # final so the call-edges section actually prints (the
+        # call edges section is nested inside the unsupported-
+        # address block in frontier.py's text output).
         trace_jsonl = Path(tmp) / "trace.jsonl"
         records = [
             {"type": "step", "step": 1, "ip_before": 0x164ac, "ip_after": 0x18644,
@@ -608,8 +610,10 @@ def test_cli_cross_boundary_filter():
              "mnemonic": "call"},
             {"type": "step", "step": 3, "ip_before": 0x164b0, "ip_after": 0x164b4,
              "mnemonic": "mov"},
+            {"type": "step", "step": 4, "ip_before": 0x164c0, "ip_after": 0x16480,
+             "mnemonic": "call"},
             {"type": "final", "status": "unsupported",
-             "halt_reason": "vf2_error_unsupported",
+             "halt_reason": "vf_error_unsupported",
              "ip": 0x18000},
         ]
         trace_jsonl.write_text(
@@ -648,6 +652,63 @@ def test_cli_cross_boundary_filter():
             f"filtered output should still surface the only cross-"
             f"boundary edge:\n{out_filt}"
         )
+        # --json must emit call_edge records filtered by --cross-boundary.
+        proc_json = subprocess.run(
+            [sys.executable, cli,
+             "--functions-csv", str(functions_csv),
+             "--limit", "12",
+             "--cross-boundary",
+             "--json",
+             str(trace_jsonl)],
+            capture_output=True, text=True, timeout=30,
+        )
+        assert proc_json.returncode == 0, proc_json.stderr
+        edges = [
+            json.loads(line)
+            for line in proc_json.stdout.splitlines()
+            if line and json.loads(line).get("kind") == "call_edge"
+        ]
+        assert edges, (
+            f"--json --cross-boundary must emit at least one call_edge "
+            f"record:\n{proc_json.stdout}"
+        )
+        # All emitted edges must have crosses_boundary=true.
+        assert all(e["crosses_boundary"] for e in edges), edges
+        # The single cross-boundary edge in our trace must appear.
+        assert any(
+            e["from"] == hex32(0x164ac) and e["to"] == hex32(0x18644)
+            for e in edges
+        ), edges
+        # The same-function call (0x164c0 -> 0x16480, both inside
+        # caller) must NOT appear in --cross-boundary output.
+        assert not any(
+            e["from"] == hex32(0x164c0) and e["to"] == hex32(0x16480)
+            for e in edges
+        ), edges
+        # Unfiltered --json must include both: the cross-boundary
+        # call edge AND the same-function (non-cross) call edge.
+        proc_all = subprocess.run(
+            [sys.executable, cli,
+             "--functions-csv", str(functions_csv),
+             "--limit", "12",
+             "--json",
+             str(trace_jsonl)],
+            capture_output=True, text=True, timeout=30,
+        )
+        assert proc_all.returncode == 0, proc_all.stderr
+        all_edges = [
+            json.loads(line)
+            for line in proc_all.stdout.splitlines()
+            if line and json.loads(line).get("kind") == "call_edge"
+        ]
+        assert any(
+            e["from"] == hex32(0x164ac) and e["to"] == hex32(0x18644)
+            and e["crosses_boundary"] for e in all_edges
+        ), all_edges
+        assert any(
+            e["from"] == hex32(0x164c0) and e["to"] == hex32(0x16480)
+            and not e["crosses_boundary"] for e in all_edges
+        ), all_edges
     print("ok: --cross-boundary CLI filter accepted and surfaces cross edges")
 
 
