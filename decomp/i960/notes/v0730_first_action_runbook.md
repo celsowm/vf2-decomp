@@ -63,7 +63,10 @@ strict `vf2cmp|native-*` differential per the v0727 playbook.
 The v0727 "Still open" list is the work queue:
 
 1. **F1**: MANUAL SETTING natural entry (selector 17 index 4) and
-   the whole nested a7 editor.
+   the whole nested a7 editor. **Starting state already captured:**
+   see `decomp/i960/notes/f1_manual_setting_entry_boundary_v0730.md`
+   for the cursor dispatch at `0x59f34`, the row-4 jump table at
+   `0x59f58`, and the row-4 handler at `0x5a0a4`.
 2. **F2**: Rows 2-4 post-edit release frames (post-edit states with
    credit index != 2, derived credits, preset != 0). Requires
    value-driven digit renders for rows 6-9/11 and a measured gate
