@@ -551,12 +551,19 @@ if(VF2_BUILD_TESTS)
                     ${CMAKE_SOURCE_DIR}/tools/python/test_infer_rules.py
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         )
+        add_test(
+            NAME vf2_python_factory_check_scenario
+            COMMAND ${Python3_EXECUTABLE}
+                    ${CMAKE_SOURCE_DIR}/tools/python/test_check_scenario.py
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        )
         set_tests_properties(
             vf2_python_factory_frontier
             vf2_python_factory_taint
             vf2_python_factory_taint_e2e
             vf2_python_factory_infer_structs
             vf2_python_factory_infer_rules
+            vf2_python_factory_check_scenario
             PROPERTIES TIMEOUT 240
         )
     else()
