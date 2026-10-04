@@ -89,7 +89,14 @@ The v0727 "Still open" list is the work queue:
    `infer_structs.py` against the dual-trace player corpus,
    confirming the `0x1680..0x1860` block (length 120) is stable
    across both traces. Then run `taint.py --until 0x2399c` to
-   characterise the dependent branch.
+   characterise the dependent branch. **First two steps already
+   documented in v0730** — see
+   `decomp/i960/notes/p1_player_0x1680_block_stability_v0730.md`
+   (structural stability across both traces) and
+   `decomp/i960/notes/p1_taint_0x1680_block_v0730.md` (block is
+   not a fighter-flag branch input). The real-corpus demo
+   `tools/python/p1_real_trace_demo.py` (ctest #117) reproduces
+   both invariants on a fresh checkout.
 2. **P2-P4**: Decomposition past `0x28918`/`0x29414` per the
    runbook chain.
 

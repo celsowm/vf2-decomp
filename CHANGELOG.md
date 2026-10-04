@@ -48,6 +48,33 @@
 - 87 Python test cases across 12 ctest entries (`#105`-`#116`), ~7 s
   wall. C build clean. Factory tooling fully delivered and green.
 
+- P1 first step (`decomp/i960/notes/p1_player_0x1680_block_stability_v0730.md`):
+  re-confirmed the 0x1680..0x1860 contiguous 4B block (length 120,
+  480 B, ip_overlap 1.0, IPs 0x2399c + 0x23a38) using the public
+  `frontier.contiguous_fighter_blocks()` API on the union of
+  `out/trace-both.jsonl` (3,122 accesses) and `out/trace-f0.jsonl`
+  (3,075 accesses). Block is structurally stable across both traces
+  and matches the v0729 evidence exactly. Dual-base promotion
+  pending a fighter1-inclusive trace.
+
+- P1 second step (`decomp/i960/notes/p1_taint_0x1680_block_v0730.md`):
+  ran `taint.py` against `out/trace-both.jsonl`. The 5 branches
+  immediately downstream of the 0x1680 block IPs (0x239a8, 0x23a10,
+  0x23a2c, 0x23a54, 0x23a6c) all have empty fighter-dependency
+  lists. The block does NOT feed fighter-flag gameplay branches —
+  it is a render/pose/animation-state descriptor, not a gameplay
+  state field. The `--until 0x2399c` filter returns empty because
+  0x2399c is a `stq` (store-quad), not a branch IP.
+
+- P1 real-trace factory chain demo (`tools/python/p1_real_trace_demo.py`
+  + `test_p1_real_trace_demo.py`, ctest entry #117): runs Steps 1,
+  2a, 2, and 2(dual-base) against the real `out/trace-both.jsonl` +
+  `out/trace-f0.jsonl` corpus and asserts the documented invariants
+  (block offset, end_offset, length=120, byte_size=480, ip_overlap
+  =1.0, top_ips=[0x2399c, 0x23a38], base_count=1). Locks the
+  v0729 player-corpus smoke + v0730 P1 evidence in a single
+  reproducible script. 13/13 ctest entries (~8.5 s).
+
 ## v0729 — factory tooling layer (Layer 2)
 
 - Frontier v2 factory tooling (v0729a): `tools/python/frontier.py`
