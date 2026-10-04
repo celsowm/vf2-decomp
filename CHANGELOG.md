@@ -33,6 +33,16 @@
   Skips with a clear message when corpus/ROM/build artifacts are
   absent, so it stays green in environments without full ROM access.
 
+- infer_structs dual-base promotion unit tests (v0729d):
+  `tools/python/test_infer_structs.py` locks in the field-roll-up
+  algorithm and the dual-base promotion contract. 4/4 tests green
+  (scenario parse, dual-base promotion, sort by multi-base-first,
+  orphan memory handling). Combined with v0729a/b/c the next wave
+  of `fa_player` slices can run infer_structs.py on a memory trace
+  to upgrade field candidates to multi-corridor provenance,
+  frontier.py v2 to surface the edges that touch them, and taint.py
+  to characterise the dependency for the chosen branch.
+
 - 0x28184 head siblings native (v0707): bit17 x bit0 x edge==counter
   tree measured (12/14/16 steps to 0x28268, float fall-through in 10
   to 0x281b0); S1/S2 join S0 natively with r14/r13 loads, tail EQUAL
