@@ -124,6 +124,8 @@ Six test suites guard the factory:
 | `tools/python/test_trace_case.py` | 4/4 — trace_case helpers |
 | `tools/python/test_z3_branch.py` | 5/5 — Z3 branch helper (skips if z3 missing) |
 | `tools/python/test_factory_chain.py` | 4/4 — Step 1 -> 2 -> 2a + infer_rules integration |
+| `tools/python/test_frontier.py`     | 18 — frontier API + CLI surface (incl. `--cross-boundary` JSON filter) |
+| `tools/python/p1_real_trace_demo.py` | real-corpus smoke (ctest #117; locks the 0x1680..0x1860 block evidence) |
 
 Additionally, `tools/python/factory_chain_demo.py` is a runnable
 exemplar (not a ctest entry) that exercises the same chain on a
@@ -137,10 +139,11 @@ python tools/python/factory_chain_demo.py
 Expected output:
 
 ```text
-Step 1: surfaced 3 ranked edges
+Step 1: surfaced 4 ranked edges
 Step 2a: contiguous block 0x00001680..0x00001860 length=120 size=480B ip_overlap=1.0
 Step 2: infer_structs roll-up shows 121 distinct offsets (120 in the contiguous block + 1 standalone at 0x1a4)
 Step 2 (dual-base): fighter0 + fighter1 at 0x1a4 promoted to base_count=2
+Step 2c: rank_call_edges surfaces 2 call edges, 1 cross-boundary (0x164ac->0x18644 marked)
 
 PASS: factory chain composed end-to-end on synthetic trace
 ```
