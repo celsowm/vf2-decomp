@@ -45,10 +45,34 @@
   `a5 = 1,2,3,4` and the EXIT row `a5 = 0`, but none for `a5 = 5`, so
   `test_held_entry` stays 0 and the gate at `:8167`-`8182` returns
   `VF2_ERROR_UNSUPPORTED`. That is correct fail-closed behaviour, not a
-  bug. The remaining slice is to measure the exact poststate, reconcile
-  the instruction/call accounting against `14063`/`36` (the current
-  estimate of `~14065` is explicitly **unproven** — the call count is
-  unreconciled), then add the one measured tuple and nothing else.
+  bug.
+
+- **Body accounting confirmed at the correct boundary, and a first
+  attempt retracted.** The 15214-instruction leg measured to the frame
+  wait is *not* the entry body: an instruction histogram shows 9672 of
+  those steps are a 2418-iteration poll loop at `0x08f00` (plus ~3800 at
+  `0x07fxx`) — the newly entered MANUAL SETTING page's own wait. An
+  earlier subtraction that appeared to agree with the recovered `14063`
+  was a coincidence and is retracted. Measured to `0xa010`, the block
+  return the recovered code itself asserts: `a5 = 4` TEST 4634 (vs 4635
+  expected) and **`a5 = 5` TEST 14294 (vs 14295 expected)**, with a
+  `procedure_calls` delta of 41 = 5 cluster-prefix calls + the recovered
+  36 body calls. The recovered `14063` / `36` is therefore confirmed by
+  direct measurement, not inferred.
+
+- **Strict differential still blocked, and the blocker is named.**
+  `native-resume` cannot start mid-bridge: it rejects `0x538` and
+  `0x0000a6c0` (`VF2_FRAME_DISPATCH_TICK_ENTRY` is only a *reported*
+  entry address, not a router entry). The selector-17 route is guarded by
+  `if (target != UINT32_C(0x00010b5c)) return VF2_ERROR_UNSUPPORTED;`
+  (`texture_bridge_match.c:21244`), so a resume is only accepted from
+  `0x00010b5c`. The v0727 session's differential driver was never
+  committed, so that harness is absent from the tree. **The tuple is
+  deliberately not added**: per AGENTS.md rule 1 an unproven admission
+  must not be added, and rule 5 forbids weakening validation to make a
+  recovery pass. Next step is to reconstruct a `0x00010b5c` entry
+  snapshot carrying the TEST latch, observe the MATCH, then add the
+  single tuple row and a ctest pin.
 
 - Measurement-only so far: no C changed, no gate weakened. The purpose was
   to re-measure the F1 target before implementing it (AGENTS.md rule 1).

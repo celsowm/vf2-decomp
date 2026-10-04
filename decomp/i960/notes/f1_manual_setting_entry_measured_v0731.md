@@ -75,31 +75,76 @@ return to `0x0000a010` are all already recovered, and the **nested a7
 navigation arms are present too** (`:8185`-`8190`,
 `manual_navigation_delta` on `nav` `0x1000`/`0x2000` when `a7 != 0xff`).
 
-My independent ROM measurement is consistent with the recovered body
-size. Because every leg here is measured the same way (frame entry ->
-`--until 0x10f98`), the fixed overhead can be **calibrated against bodies
-the v0727 note already proves**:
+### 3.1 Measuring the body correctly (and retracting a first attempt)
 
-| leg | measured total | recovered body | implied overhead |
+**A first attempt at this number was wrong and is retracted here.** Stopping
+the leg at the frame *wait* (`0x10f98`) gives 15214, and subtracting a
+calibrated overhead appeared to land on 14062. That was a coincidence. An
+instruction histogram of the 15214-step leg shows it is dominated by a
+**poll loop**, not by the entry body:
+
+```text
+0x08f00 x2418   0x08efc x2418   0x08f04 x2418   0x08f08 x2418
+0x07fcc x425    0x07fd0 x425    0x07fd4 x425    0x07fd8 x425
+0x07fdc x397    0x07fe0 x397    0x07fe4 x397    0x07fe8 x397
+```
+
+Those four `0x08fxx` addresses alone are 9672 of the 15214 instructions —
+the newly entered MANUAL SETTING page's own wait — so the "overhead" was
+not a fixed cost and that arithmetic was meaningless.
+
+The correct boundary is the block return the recovered code itself
+asserts, `0x0000a010`. Measured to that boundary from the same frame-entry
+chain points:
+
+| leg | measured to `0xa010` | recovered body | expected (+232 prefix) |
 | --- | --- | --- | --- |
-| `a5 = 3` TEST | 5556 | 4405 | 1151 |
-| `a5 = 4` TEST | 5557 | 4403 | 1154 |
-| `a5 = 5` forward tap | 5343 | 4194 | 1149 |
-| **`a5 = 5` TEST** | **15214** | ? | ? |
+| `a5 = 4` TEST (proven) | 4634 | 4403 | 4635 |
+| **`a5 = 5` TEST (new)** | **14294** | — | 14063 + 232 = 14295 |
 
-The overhead is 1149-1154, i.e. the 232-step frame prefix plus a
-scheduler tail to the wait that varies by a few instructions per row.
-Applying the TEST-leg overhead to the `a5 = 5` measurement gives a body of
-`15214 - ~1152 = 14062`, against the recovered
-`edit_delta > 0 ? 14063 : 14060` (`texture_bridge_match.c:8231`).
+Both agree to one instruction, which is the `ip = 0x538` vs `0x530` chain
+offset. The call count reconciles exactly: the `a5 = 5` leg advanced
+`procedure_calls` by 41 = the 232-step cluster prefix (5 calls) + the
+recovered body (36 calls).
 
-So the recovered `14063` agrees with the independent measurement to within
-one instruction of method noise. That is **strong corroboration, not a
-proof**: the method cannot resolve better than +/-3, and the call count is
-still unreconciled (the recovered block declares 36 calls; the leg delta
-measured over a range that also spans the scheduler was not isolated per
-block). Do not treat the body size as proven until the strict differential
-in section 5 lands.
+So `14063` / `36` is **confirmed by direct measurement at the correct
+boundary**. The 15214 figure stays in section 1 because it is the correct
+measurement of a *different* boundary — the whole leg to the next wait,
+including the page's poll loop. Both are true; keep them labelled.
+
+### 3.2 The strict differential is not yet established
+
+Adding the tuple needs a `native-resume` MATCH, and that path is currently
+blocked. Three resume points were tried, all from otherwise-correct states:
+
+| resume ip | how obtained | `native-resume` result |
+| --- | --- | --- |
+| `0x00000538` | frame-entry chain point, TEST latch patched in | unsupported after 0 blocks |
+| `0x0000a6c0` | captured with `--until 0x0000a6c0` (231 insns in) | unsupported after 0 blocks |
+| `0x00010b5c` | captured with `--until 0x00010b5c` (239 insns in) | unsupported after 0 blocks |
+
+The `0x00010b5c` capture is a useful result in its own right: that address
+**is** reachable 239 instructions into the frame, and the latch is still
+live there — `0x500700 = 0x0f000004`, `0x500704 = 0x4`,
+`0x50070c = 0x0f000000`, `phase_index 0x85`, `a5 5`, `a6/a7 0xff`. So the
+entry state the native path needs is buildable; the blocker is purely the
+router.
+
+Why it is refused: the bridge step is a `switch` on `cpu->ip`
+(`texture_bridge.c:335` onward) with roughly 40 recognised cases, and
+`0x00010b5c` is not one of them — `VF2_FRAME_DISPATCH_TICK_ENTRY`
+(`0x0000a6c0`) is only a *reported* address inside the selector-0/2
+handlers, not a router case. The selector-17 route is guarded by
+`if (target != UINT32_C(0x00010b5c)) return VF2_ERROR_UNSUPPORTED;`
+(`texture_bridge_match.c:21244`), which is a check *inside* the phase
+dispatcher, so the entry that routes *into* that dispatcher is a different
+address and is still unidentified.
+
+The v0727 session's differential driver was never committed, so whatever
+harness produced those chained proofs is absent from the tree. Until the
+router entry is identified, the tuple stays out of the table: per AGENTS.md
+rule 1 an unproven admission must not be added, and rule 5 forbids
+weakening validation to make a recovery pass.
 
 ## 4. Gate preconditions verified at the entry state
 
@@ -162,16 +207,21 @@ simply unmeasured.
 
 The slice to finish is:
 
-1. Measure the exact poststate of the `a5 = 5` TEST entry with the same
-   rigour as the v0727 note: register file, `arithmetic_control` /
-   `compare_result`, cluster locals `r14`/`r15`, globals `g1`/`g2`/`g6`,
-   call/return counters, and the full mutable Model 2A set.
-2. Reconcile the instruction/call accounting against the recovered
-   `14063 / 36` (section 3 flags this as unproven).
-3. Add the measured tuple to `natural_latches[]` and nothing else.
-4. Prove it with a chained strict differential.
+1. ~~Reconcile the instruction/call accounting against the recovered
+   `14063 / 36`.~~ **Done — section 3.1.** Measured to the `0xa010` block
+   boundary the `a5 = 5` TEST leg is 14294 (14063 + 232 prefix, within the
+   1-instruction `0x538` chain offset) and the call delta is 41 = 5 prefix
+   + 36 body. The recovered `14063 / 36` is confirmed.
+2. Reconstruct a `0x00010b5c` entry snapshot carrying the TEST latch, so
+   `native-resume` accepts the resume (section 3.2: the router rejects both
+   `0x538` and `0xa6c0`, and the v0727 driver was never committed).
+3. Add the measured tuple to `natural_latches[]` **only after** that resume
+   MATCHes, and nothing else.
+4. Add a ctest pin for the admitted leg.
 
-Step 3 is deliberately a one-line table change. Do not widen the gate,
+Steps 2-3 are deliberately ordered: the router entry has to exist before a
+MATCH can be observed, and the tuple must not land before the MATCH.
+Do not widen the gate,
 do not special-case `a5 == 5` outside the table, and do not relax the
 `phase_a7` range check at `:8179`-`8180`.
 
@@ -209,4 +259,5 @@ build/Debug/vf2probe.exe --rom-dir roms/vf2 \
 - Do not reuse the v0730 F1 note's `0x59f34` / `0x5a0a4` identification.
   It remains unproven; see `f1_manual_setting_target_remeasured_v0731.md`.
 - Do not commit `out/` snapshots, traces or the `f1_*.ps1` scratch scripts.
+
 
