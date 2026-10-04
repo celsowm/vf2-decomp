@@ -810,6 +810,11 @@ def main() -> int:
     )
     parser.add_argument("--json", dest="as_json", action="store_true")
     parser.add_argument("--output")
+    parser.add_argument(
+        "--cross-boundary",
+        action="store_true",
+        help="limit call-edge output to edges that cross recovered/non-native boundaries",
+    )
     parser.add_argument("--duckdb", help="persist ranked frontier to DuckDB file (e.g. out/frontier.duckdb)")
     parser.add_argument("--parquet", help="export ranked edges to Parquet file (e.g. out/frontier.parquet)")
     parser.add_argument(
@@ -927,6 +932,8 @@ def main() -> int:
             if call_edges:
                 output.write("\ncall edges (source -> target):\n")
                 for item in call_edges:
+                    if args.cross_boundary and not item["crosses_boundary"]:
+                        continue
                     where = item["from_function"] or "?"
                     target = item["to_function"] or "?"
                     tstatus = item["to_status"] or "unknown"

@@ -18,6 +18,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from frontier import Frontier, FunctionTable, classify_input, hex32
 
+ROOT = Path(__file__).resolve().parents[2]
+
 
 def test_function_table_lookup():
     rows = [
@@ -576,6 +578,79 @@ def test_cli_emits_fighter_contiguous_block_records():
     print("ok: --json CLI surface emits fighter_contiguous_block records")
 
 
+def test_cli_cross_boundary_filter():
+    """`--cross-boundary` must limit call-edge output to edges where one
+    side is recovered and the other is not. Without the flag, both
+    cross- and non-cross-boundary edges appear; with the flag only
+    cross-boundary edges appear (marked with `*`).
+    """
+    import subprocess
+    with tempfile.TemporaryDirectory() as tmp:
+        # Functions CSV: caller is recovered, callee is candidate.
+        # This forces the only call in our synthetic trace to be a
+        # cross-boundary edge.
+        functions_csv = Path(tmp) / "functions.csv"
+        functions_csv.write_text(
+            "address,end,name,status\n"
+            "0x16400,0x16500,caller,recovered\n"
+            "0x18600,0x18700,callee,candidate\n"
+        )
+        # JSONL trace: two calls (caller -> callee = cross-boundary)
+        # and one intra-caller mov (non-cross), plus an unsupported
+        # final so the call-edges section actually prints (the call
+        # edges section is nested inside the unsupported-address
+        # block in frontier.py's text output).
+        trace_jsonl = Path(tmp) / "trace.jsonl"
+        records = [
+            {"type": "step", "step": 1, "ip_before": 0x164ac, "ip_after": 0x18644,
+             "mnemonic": "call"},
+            {"type": "step", "step": 2, "ip_before": 0x164ac, "ip_after": 0x18644,
+             "mnemonic": "call"},
+            {"type": "step", "step": 3, "ip_before": 0x164b0, "ip_after": 0x164b4,
+             "mnemonic": "mov"},
+            {"type": "final", "status": "unsupported",
+             "halt_reason": "vf2_error_unsupported",
+             "ip": 0x18000},
+        ]
+        trace_jsonl.write_text(
+            "\n".join(json.dumps(r) for r in records) + "\n"
+        )
+        cli = str(Path(__file__).resolve().parent / "frontier.py")
+        # Unfiltered run: the single call edge should appear with `*`.
+        proc_unf = subprocess.run(
+            [sys.executable, cli,
+             "--functions-csv", str(functions_csv),
+             "--limit", "12",
+             str(trace_jsonl)],
+            capture_output=True, text=True, timeout=30,
+        )
+        assert proc_unf.returncode == 0, proc_unf.stderr
+        out_unf = proc_unf.stdout
+        assert "call edges (source -> target):" in out_unf, out_unf
+        assert " *" in out_unf, (
+            f"unfiltered output should mark cross-boundary edges "
+            f"with '*':\n{out_unf}"
+        )
+        # Filtered run: --cross-boundary must be accepted and surface
+        # the same single cross-boundary edge.
+        proc_filt = subprocess.run(
+            [sys.executable, cli,
+             "--functions-csv", str(functions_csv),
+             "--limit", "12",
+             "--cross-boundary",
+             str(trace_jsonl)],
+            capture_output=True, text=True, timeout=30,
+        )
+        assert proc_filt.returncode == 0, proc_filt.stderr
+        out_filt = proc_filt.stdout
+        assert "call edges (source -> target):" in out_filt, out_filt
+        assert " *" in out_filt, (
+            f"filtered output should still surface the only cross-"
+            f"boundary edge:\n{out_filt}"
+        )
+    print("ok: --cross-boundary CLI filter accepted and surfaces cross edges")
+
+
 def main() -> int:
     test_function_table_lookup()
     test_trace_ingestion()
@@ -595,6 +670,7 @@ def main() -> int:
     test_contiguous_fighter_blocks_rejects_short_runs()
     test_contiguous_fighter_blocks_filters_by_width()
     test_cli_emits_fighter_contiguous_block_records()
+    test_cli_cross_boundary_filter()
     print("all frontier tests passed")
     return 0
 
