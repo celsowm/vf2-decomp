@@ -121,8 +121,9 @@ Six test suites guard the factory:
 | `tools/python/test_sweep_state.py` | 9/9 — sweep driver helpers |
 | `tools/python/test_explore_state.py` | 9/9 — coverage-guided explorer |
 | `tools/python/test_minimize_case.py` | 7/7 — testcase minimizer |
+| `tools/python/test_trace_case.py` | 4/4 — trace_case helpers |
 
-All nine are wired into ctest:
+All ten are wired into ctest:
 
 ```sh
 ctest --test-dir build -C Debug -R vf2_python_factory --output-on-failure
@@ -139,10 +140,11 @@ python tools/python/test_frontier.py \
 && python tools/python/test_check_scenario.py \
 && python tools/python/test_sweep_state.py \
 && python tools/python/test_explore_state.py \
-&& python tools/python/test_minimize_case.py
+&& python tools/python/test_minimize_case.py \
+&& python tools/python/test_trace_case.py
 ```
 
-Total: 74 Python test cases. Total ctest time: ~7.1 s.
+Total: 78 Python test cases. Total ctest time: ~14 s.
 
 When the frontier edge in step 1 is discovered inside a sweep
 scenario (rather than a hand-rolled trace), `tools/python/infer_rules.py`
