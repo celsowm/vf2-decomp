@@ -523,6 +523,59 @@ def test_contiguous_fighter_blocks_filters_by_width():
     print("ok: contiguous_fighter_blocks filters by width correctly")
 
 
+def test_cli_emits_fighter_contiguous_block_records():
+    """The --json CLI surface must include fighter_contiguous_block records
+    when --fighter-base is configured. This is the downstream JSONL
+    contract for v0729h.
+    """
+    import subprocess
+    import sys
+    with tempfile.TemporaryDirectory() as tmp:
+        trace = Path(tmp) / "case.jsonl"
+        records = []
+        step = 1
+        for off in range(0x1800, 0x1830, 4):  # 12 contiguous 4B fields
+            for kind, ip in (("read", 0x2399c), ("write", 0x23a38)):
+                records.append(
+                    {"type": "memory", "step": step,
+                     "kind": kind, "address": 0x510000 + off, "size": 4}
+                )
+                records.append(
+                    {"type": "step", "step": step,
+                     "ip_before": ip, "ip_after": ip + 4}
+                )
+                step += 1
+        records.append({"type": "final", "status": "ok",
+                        "halt_reason": "stop address", "ip": 0x10dcc})
+        trace.write_text("\n".join(json.dumps(r) for r in records) + "\n")
+        proc = subprocess.run(
+            [
+                sys.executable,
+                str(Path(__file__).resolve().parent / "frontier.py"),
+                str(trace),
+                "--fighter-base", "0x510000",
+                "--limit", "1",
+                "--json",
+            ],
+            capture_output=True, text=True,
+        )
+    assert proc.returncode == 0, (proc.returncode, proc.stderr)
+    blocks = [
+        json.loads(line)
+        for line in proc.stdout.splitlines()
+        if line and json.loads(line).get("kind") == "fighter_contiguous_block"
+    ]
+    assert len(blocks) >= 1, proc.stdout
+    block = blocks[0]
+    assert block["offset"] == "0x00001800"
+    assert block["end_offset"] == "0x00001830"
+    assert block["length"] == 12
+    assert block["byte_size"] == 48
+    assert block["width"] == 4
+    assert block["ip_overlap"] >= 0.5
+    print("ok: --json CLI surface emits fighter_contiguous_block records")
+
+
 def main() -> int:
     test_function_table_lookup()
     test_trace_ingestion()
@@ -541,6 +594,7 @@ def main() -> int:
     test_contiguous_fighter_blocks_detects_struct_layout()
     test_contiguous_fighter_blocks_rejects_short_runs()
     test_contiguous_fighter_blocks_filters_by_width()
+    test_cli_emits_fighter_contiguous_block_records()
     print("all frontier tests passed")
     return 0
 
