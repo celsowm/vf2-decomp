@@ -171,6 +171,38 @@ entry fails:
    and `decomp/i960/notes/fa_player_28184_head_siblings_v0707.md`
    — playbook template for P-slice work.
 
+## Discovery aids for the next-session recovery slices
+
+The factory tooling layer exposes two surfaces directly relevant to
+the next-session F2-F5 / P1 step 2 / P2-P4 / S1 recovery work:
+
+```sh
+# Surface recovered↔non-native call edges (text output).
+python tools/python/frontier.py <trace> \
+  --functions-csv decomp/i960/functions.csv \
+  --cross-boundary --limit 40
+
+# Surface recovered↔non-native call edges (JSON output, downstream).
+python tools/python/frontier.py <trace> \
+  --functions-csv decomp/i960/functions.csv \
+  --cross-boundary --json | grep '"kind": "call_edge"'
+```
+
+The `--cross-boundary` filter limits call-edge records to edges where
+one side is recovered (in `RECOVERED_STATUSES`) and the other is
+not. The JSON surface is the durable contract for downstream
+consumers (test_gate, factory_chain integrations).
+
+The `p1_real_trace_demo.py` smoke check locks in the v0729 player-
+corpus evidence on the real `out/trace-both.jsonl` +
+`out/trace-f0.jsonl` corpus:
+```sh
+python tools/python/p1_real_trace_demo.py
+# Expected: PASS line with the 0x1680..0x1860 block (length 120,
+# 480B, ip_overlap=1.0, top_ips=['0x0002399c', '0x00023a38'],
+# base_count=1).
+```
+
 ## Anti-traps
 
 - Do not hand-write a third mask table in `fa_game_info` or
