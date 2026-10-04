@@ -1,5 +1,43 @@
 # Changelog
 
+## v0731g - F2 measured: rows 3/4 post-edit release bodies, still fail-closed
+
+Evidence only; no behaviour change and no tuple admitted.
+
+- **The rows 2-4 post-edit release frames (F2) are now measured** through the
+  documented frame-advance workflow, from the `0x9ff8` entry to the `0xa010`
+  boundary. The release frame carries `{input parked, previous 0x0f000004,
+  released 4, nav 0}`.
+
+- **The deferred value update splits two ways.** Row 3 is a derived-credit
+  update (`[2,2,2,2,2,2]` -> `[2,2,2,3,3,1]`); row 4 is a `preset` update
+  (`base + 0x3324` 0 -> 1, credits untouched). That is what the v0730
+  runbook compressed into "credit index != 2, derived credits, preset != 0".
+
+- **Bodies are per-row**: 4189 at row 3, 4186 at row 4, against 4188 for the
+  idle render. Two samples are not enough to justify folding them into one
+  counted rule, so they are recorded separately.
+
+- **Row 2 is NOT measured and its number is withdrawn.** The only a5 = 2
+  artifact sits at `ip 0x10d54`, past the frame wait, so
+  `--raise-irq --until 0x9ff8` never reached the cluster entry and the first
+  two steps hit the step cap. The 4422 instructions that followed came from
+  the wrong boundary and must not be used. The note records the correct
+  route (UP-tap from `out/f1-a2-idle`).
+
+- **Boundary trap recorded:** `base` is **`0x599000`** at the `0xa6c0`
+  dispatch-tick boundary, not the `0x59a3d0` visible in the walk snapshots.
+  The chain's earlier recovered blocks rewrite `0x50016c`. Patching the
+  wrong `base` measures nothing silently - the same mistake that produced
+  the retracted a5 = 5 result in v0731f.
+
+- Both measured legs remain **fail-closed** natively
+  (`unsupported operation at 0x0000a6c0 ... entry=0x00009ff8`). A recovery
+  also needs the value-driven digit render, since `runs[]` hardcodes `"2"`
+  at screen (6,40) (7,40) (8,40) (9,40).
+
+See `decomp/i960/notes/f2_post_edit_release_measured_v0731.md`.
+
 ## v0731f - MANUAL SETTING entry recovered: it is a screen teardown, not a page render
 
 - **The v0731e "549 tile-ram words = a missing MANUAL SETTING page render"

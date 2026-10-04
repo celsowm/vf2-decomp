@@ -225,6 +225,26 @@ the only difference is `r14` and memory reports no differences.
 tuple is COMMON-only; the nested `a7` editor; PUNCH/KICK at row 5. See
 `f1_manual_setting_entry_teardown_v0731.md`.
 
+## v0731 rows 2-4 post-edit release frames measured, still fail-closed
+
+F2 targets are now **measured** (not recovered) for rows 3 and 4. The
+release frame carries latch `{input parked, previous 0x0f000004,
+released 4, nav 0}` and the deferred update splits two ways:
+
+| row | release body | effect |
+|---|---|---|
+| 3 | 4189 | derived credits: `[2,2,2,2,2,2]` -> `[2,2,2,3,3,1]` |
+| 4 | 4186 | `preset` 0 -> 1, credits unchanged |
+| 2 | — | **not measured** (no idle at `a5 = 2`; the only artifact is past the frame wait) |
+
+Bodies are per-row (4189 / 4186 against 4188 for the idle render), so they
+must not be folded into one rule from these samples. A recovery also needs
+the value-driven digit render, since `runs[]` hardcodes `"2"` at screen
+(6,40) (7,40) (8,40) (9,40). Both measured legs are fail-closed natively.
+Note `base` is `0x599000` at the `0xa6c0` boundary, not the `0x59a3d0`
+visible in the walk snapshots. See
+`f2_post_edit_release_measured_v0731.md`.
+
 ## v0726 TEST+LEFT/RIGHT per-row edits 7-14 and post-edit releases native
 
 Edit family complete: TEST+LEFT/TEST+RIGHT (`0x0f004004`/`0x0f008004`,
