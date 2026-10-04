@@ -72,6 +72,11 @@ The v0727 "Still open" list is the work queue:
    INDIVIDUAL mode.
 4. **F4**: INDIVIDUAL-mode walks at rows 2-4.
 5. **F5**: Bump `native-seventh-dispatch` boundary past v0727.
+   `vf2_native_seventh_dispatch` does not yet exist in `CMakeLists.txt`
+   (verified at v0730 — only `vf2_native_sixth_dispatch` is wired).
+   Adding it requires: a `seventh-dispatch` sub-command in `vf2i960`,
+   the entry scenario that exercises the full TEST MENU row-2/3/4
+   edit release frames, and a per-block MATCH proof.
 
 ### Layer 1 — fa_player corridor downstream (P1-P4)
 
