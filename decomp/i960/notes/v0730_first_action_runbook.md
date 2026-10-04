@@ -150,12 +150,11 @@ entry fails:
    + 12-suite gate.
 4. `decomp/i960/notes/v0729_session_close_v0730_handoff.md` —
    session close-out + measured entry evidence.
-5. `decomp/i960/notes/v0727_coins_assignment_natural_v0727.md`
-   (or `playable_coin_assignment_natural_v0727.md`) — playbook
-   template for F-slice work.
-7. `decomp/i960/notes/fa_player_*_v0707.md` and
-   `fa_player_downstream_dual_base_v0706.md` — playbook template
-   for P-slice work.
+5. `decomp/i960/notes/playable_coin_assignment_natural_v0727.md`
+   — playbook template for F-slice work.
+6. `decomp/i960/notes/fa_player_downstream_dual_base_v0706.md`
+   and `decomp/i960/notes/fa_player_28184_head_siblings_v0707.md`
+   — playbook template for P-slice work.
 
 ## Anti-traps
 
