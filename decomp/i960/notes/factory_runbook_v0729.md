@@ -134,7 +134,20 @@ root:
 python tools/python/factory_chain_demo.py
 ```
 
-Useful as a CI smoke and for newcomers learning the factory.
+Expected output:
+
+```text
+Step 1: surfaced 3 ranked edges
+Step 2a: contiguous block 0x00001680..0x00001860 length=120 size=480B ip_overlap=1.0
+Step 2: infer_structs roll-up shows 121 distinct offsets (120 in the contiguous block + 1 standalone at 0x1a4)
+Step 2 (dual-base): fighter0 + fighter1 at 0x1a4 promoted to base_count=2
+
+PASS: factory chain composed end-to-end on synthetic trace
+```
+
+Useful as a CI smoke and for newcomers learning the factory. If the
+PASS line is missing, do not start any new recovery work; the factory
+chain is broken.
 
 All twelve are wired into ctest:
 
