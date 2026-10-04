@@ -75,6 +75,13 @@
   v0729 player-corpus smoke + v0730 P1 evidence in a single
   reproducible script. 13/13 ctest entries (~8.5 s).
 
+- `frontier.py --cross-boundary` CLI filter (`6106d20c`): exposes
+  the `rank_call_edges(..., crosses_boundary)` field as a CLI flag
+  so the next-session F2-F5 / P1 step 2 / P2-P4 work can filter the
+  ranked call-edges section to recovered↔non-native boundaries
+  directly. Regression test `test_cli_cross_boundary_filter` in
+  `tools/python/test_frontier.py` (18 test functions total).
+
 ## v0729 — factory tooling layer (Layer 2)
 
 - Frontier v2 factory tooling (v0729a): `tools/python/frontier.py`
