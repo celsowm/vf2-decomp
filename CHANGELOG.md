@@ -83,6 +83,17 @@
   (Test #111). Total factory ctest entries: 7; total Python test
   cases: 58; total ctest time: 5.83 s.
 
+- explore_state unit tests + ctest wiring (v0729j):
+  `tools/python/test_explore_state.py` locks in the coverage-guided
+  explorer helpers (cli_int, dimension_values, mutate changes at
+  least one position + respects value-set + seed-deterministic +
+  respects max_mutations bound, write_json round-trip,
+  load_existing_corpus tolerates missing file and reads prior
+  records). 9/9 tests green. CMakeLists adds
+  `vf2_python_factory_explore_state` (Test #112). Total factory
+  ctest entries: 8; total Python test cases: 67; total ctest time:
+  7.60 s.
+
 - Python factory wired into ctest gate (v0729a-g + v0729f):
   `CMakeLists.txt` adds six `vf2_python_factory_*` ctest entries
   (frontier / taint / taint_e2e / infer_structs / infer_rules /
