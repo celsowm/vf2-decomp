@@ -138,7 +138,13 @@ At the time this handoff was written, `master` already contains:
 - coverage-guided guest-i960 state exploration and testcase minimization;
 - Model 2A memory-access tracing; and
 - candidate fighter/object field inference from repeated `base + offset`
-  accesses.
+  accesses;
+- the COIN ASSIGNMENT menu corridor (selector 17 index 5) recovered natively
+  from TEST MENU: TEST press, held entry, release, idle, full parent walk,
+  row-1 mode/edit cycle in COMMON and INDIVIDUAL modes, rows 2/3/4 pre-edit
+  renders, EXIT+ park and EXIT- redraw (v0727); and
+- the state-8 bit-6 symmetric matrix proven 6144/6144 native-exact with the
+  triple/quad table folded into a counted rule (v0728).
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.
@@ -150,12 +156,14 @@ Always confirm these against `docs/UNCOVERED_BRANCHES.md` before coding.
 ### `fa_game_info` around `0x00018644`
 
 A large state-4/state-8 matrix is already recovered. State-8 bit 6 is exact for
-the complete negative-threshold matrix, and substantial positive-threshold
-coverage exists. Some **positive bit-6 compositions remain explicitly
-unsupported**.
+the complete negative-threshold matrix and for the complete 512-composition
+symmetric positive-threshold matrix (v0728 sweep: 6144/6144 native-exact).
+**Unilateral mixed positive bit-6 compositions outside the symmetric sweep
+remain explicitly unsupported.**
 
 Do not add another giant hand-written mask table unless the measured behavior
-really requires one. Prefer:
+really requires one. The v0728 work is the reference example of the intended
+flow (it retired the 15-entry triple/quad table this way). Prefer:
 
 1. generate a measured scenario;
 2. sweep or explore it;
