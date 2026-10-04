@@ -8097,6 +8097,14 @@ static vf2_status execute_frame_phase17_bit7_index5(
             {UINT32_C(0x0f000004), UINT32_C(0x0f000000), 0u, UINT32_C(0x4), UINT8_C(2), 0u, 0u},
             {UINT32_C(0x0f000004), UINT32_C(0x0f000000), 0u, UINT32_C(0x4), UINT8_C(3), 0u, 0u},
             {UINT32_C(0x0f000004), UINT32_C(0x0f000000), 0u, UINT32_C(0x4), UINT8_C(4), 0u, 0u},
+            /* MANUAL SETTING entry (a5 = 5) is deliberately NOT admitted.
+             * v0731 proved the tuple, the block shape (14295 instructions
+             * and 42 calls to the 0xa010 boundary, exact) and every gate
+             * precondition, but the strict native-vs-reference
+             * differential on this leg reports 550 register-section
+             * differences, so the synthesized poststate is wrong. It stays
+             * fail-closed until the poststate is re-measured field by
+             * field. See decomp/i960/notes/f1_manual_setting_poststate_bug_v0731.md. */
             {UINT32_C(0x0f000100), UINT32_C(0x0f000000), 0u, UINT32_C(0x100), UINT8_C(1), 0u, 0u},
             {UINT32_C(0x0f000200), UINT32_C(0x0f000000), 0u, UINT32_C(0x200), UINT8_C(1), 0u, 0u},
             /* post-edit TEST release at a value row (deferred value

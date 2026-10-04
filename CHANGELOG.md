@@ -1,5 +1,56 @@
 # Changelog
 
+## v0731d — strict differential built; real poststate bug found in recovered C
+
+- **A working strict differential for mid-menu selector-17 frames**
+  (`decomp/i960/notes/f1_manual_setting_poststate_bug_v0731.md`). The router
+  entry for a whole frame is `VF2_MAIN_FINAL_CLUSTER_ENTRY = 0x00009ff8`,
+  which chains `shadow_verify (0x530)` -> `buffer_gate (0x110b0)` ->
+  `geometry_command_setup (0x2f5c)` -> `scratch_clear (0xa154)` ->
+  `dispatch_tick (0xa6c0)` and exits at `0x0000a010`. `0x0000a6c0` and
+  `0x00010b5c` are **not** router entries — the former is only a *reported*
+  address inside the selector-0/2 handlers, the latter is checked *inside*
+  the phase dispatcher. Full recipe in the note.
+
+- **Two tooling traps recorded.** The input latch must be patched **at** the
+  cluster entry: the game's input code re-latches `0x500700`/`0x500704`
+  every frame, so a patch applied at a wait state arrives at `0x9ff8` as
+  `0x0f000000` instead of `0x0f000004`. And `vf2probe --input` does not
+  synthesise the natural walk latches (`--input 0x4` latched
+  `0x0f001004` / nav `0x8000`).
+
+- **Control validates the recipe.** On the already-proven `a5 = 4` TEST
+  value edit: native 4635 instructions / 43 calls, reference 4635, and
+  `compare-snapshots` reports **"Snapshots match."** So native-vs-`vf2probe`
+  snapshot comparison is a valid strict gate for these frames.
+
+- **Real defect found in already-recovered C.** With the candidate a5 = 5
+  MANUAL SETTING tuple temporarily admitted, the block runs natively with
+  **exactly** the right shape — 14295 instructions and 42 calls, both
+  matching the reference, i.e. the recovered `14063` body + 232-step
+  prefix and `36` body calls + 5 + 1 — but `compare-snapshots` reports
+  **550 register-section differences** (first at offset `0xe`,
+  `expected=0x1 actual=0x1d`). The suspect is the hard-coded poststate in
+  the a5 = 5 branch (`texture_bridge_match.c:8240`-`8274`: `r14 = 1`,
+  `r16 = 62`, `r25 = 0x01001580`, `AC = 2` / `EQUAL`, and the flat
+  `g1..g31` set), which was never differentially proven because the branch
+  was unreachable. The defect was latent in the tree.
+
+- **Disposition: fail-closed.** The tuple is **not** in
+  `natural_latches[]`; an explanatory comment sits at the a5 = 4 TEST row
+  naming the note. Per AGENTS.md rule 1 an unproven admission must not be
+  added, and rule 5 forbids weakening validation to make a recovery pass.
+  To finish: dump the reference poststate at `0xa010` field by field,
+  correct the pins, and re-run until `compare-snapshots` matches. The
+  instruction and call accounting already agree, so only the poststate
+  needs work.
+
+- Validation: build clean; after the revert
+  `vf2_phase17_zero_differential`, `vf2_native_sixth_dispatch`,
+  `vf2_texture_bridge_differential`, `vf2_native_differential` and
+  `vf2_python_factory_chain` are 5/5. Full 117/117 ctest was green earlier
+  in this session; the only source change since is an 8-line comment.
+
 ## v0731 — F1 target re-measured, frame-advance workflow, MANUAL SETTING entry measured
 
 - **Frame-advance workflow established**
