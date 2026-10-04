@@ -453,6 +453,22 @@ reserved control bit 12 that appears in no row.  Added `--mask-family`
 test pinning the enumeration's shape.  See
 `decomp/i960/notes/fa_player_19ef8_mask_family_audit_v0690.md`.
 
+## v0728 `fa_game_info` positive bit-6 full symmetric matrix + compact rule
+
+The complete positive state-8 bit-6 symmetric space was swept from a fresh
+`0x164ac`-boundary scenario: all 512 bit-6-present compositions over bits
+1,2,4,6,8,21,26,29,30,31, each through the 12-case matrix (uni-0, uni-1 and
+bilateral distributions x countdown 0/1 x mode-bit-6 0/1) = 6144/6144
+native-exact, zero diffs. The committed 15-entry high triple/quad table
+proved to be exactly all C(5,3)+C(5,4) triples/quads with bit6+bit8 and no
+lows, so it folded into the structured predicate as counted
+three/four-high-bit arms (full-domain 2048/2048 equivalence proven by
+committed `decomp/i960/tools/prove_bit6_compact.py`); the table is deleted
+with no behavior change, re-proven by all 54 admitted-mask matrices plus a
+64-mask excluded boundary sample on the new binary. Unilateral mixed
+compositions outside the symmetric sweep stay fail-closed. See
+`decomp/i960/notes/game_info_18644_positive_bit6_compact_v0728.md`.
+
 ## v0689 `fa_game_info` positive bit-6 gate is an accounting selector
 
 The positive state-8 bit-6 predicate `measured_positive_state8_bit6_mask` was

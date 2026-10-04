@@ -17873,28 +17873,26 @@ static vf2_status hybrid_execute_game_info_bit31_native(
         const bool two_high_bits =
             high_without_first != 0u &&
             (high_without_first & (high_without_first - UINT32_C(1))) == 0u;
-        const bool measured_positive_state8_bit6_high_3_4_mask =
-            combined_state8_flags == UINT32_C(0x24200140) ||
-            combined_state8_flags == UINT32_C(0x44200140) ||
-            combined_state8_flags == UINT32_C(0x84200140) ||
-            combined_state8_flags == UINT32_C(0x60200140) ||
-            combined_state8_flags == UINT32_C(0xa0200140) ||
-            combined_state8_flags == UINT32_C(0xc0200140) ||
-            combined_state8_flags == UINT32_C(0x64000140) ||
-            combined_state8_flags == UINT32_C(0xa4000140) ||
-            combined_state8_flags == UINT32_C(0xc4000140) ||
-            combined_state8_flags == UINT32_C(0xe0000140) ||
-            combined_state8_flags == UINT32_C(0x64200140) ||
-            combined_state8_flags == UINT32_C(0xa4200140) ||
-            combined_state8_flags == UINT32_C(0xc4200140) ||
-            combined_state8_flags == UINT32_C(0xe0200140) ||
-            combined_state8_flags == UINT32_C(0xe4000140);
+        /* Clearing one selected bit at a time counts the set high bits
+         * without a popcount dependency: high_without_second holds the
+         * selected bits minus two, high_without_third minus three. */
+        const uint32_t high_without_second = high_without_first == 0u
+            ? 0u
+            : high_without_first & (high_without_first - UINT32_C(1));
+        const uint32_t high_without_third = high_without_second == 0u
+            ? 0u
+            : high_without_second & (high_without_second - UINT32_C(1));
+        const bool three_high_bits =
+            high_without_second != 0u && high_without_third == 0u;
+        const bool four_high_bits =
+            high_without_third != 0u &&
+            (high_without_third & (high_without_third - UINT32_C(1))) == 0u;
         const bool measured_positive_state8_bit6_mask =
-            measured_positive_state8_bit6_high_3_4_mask ||
             ((combined_state8_flags & bit6) != 0u &&
              (combined_state8_flags & ~measured_bits) == 0u &&
              (selected_high_bits == 0u ||
-              ((one_high_bit || two_high_bits) &&
+              ((one_high_bit || two_high_bits || three_high_bits ||
+                four_high_bits) &&
                (combined_state8_flags & bit8) != 0u &&
                (combined_state8_flags & low_bits) == 0u) ||
               (selected_high_bits == high_bits &&
@@ -17902,11 +17900,17 @@ static vf2_status hybrid_execute_game_info_bit31_native(
 
         /* Positive state-8/bit-6 evidence is deliberately narrower than the
          * old generic bit-6 predicate. The committed v0090/v0091 matrices
+         * plus the v0728 512-mask symmetric sweep (6144/6144 native-exact)
          * prove: no-high masks over low bits 1/2/4 with optional bit 8;
-         * isolated/pairwise high-bit masks only with bit 8 and no low bits;
+         * one-to-four high-bit masks only with bit 8 and no low bits;
          * and the all-five-high mask with bit 8 and every low-bit subset.
-         * High triples/quads and mixed single/pair-high + low-bit masks have
-         * no committed oracle evidence and must fail closed. */
+         * The retired 15-entry triple/quad table enumerated exactly the
+         * three/four-high-bit arm above (proven equivalent over the full
+         * 2048-case input domain by
+         * decomp/i960/tools/prove_bit6_compact.py; see the v0728 note).
+         * Excluded shapes (highs without bit 8, highs mixed with low bits,
+         * foreign bits) match through sibling gates on the symmetric
+         * sweep. */
         native_bit6_fighter_path =
             fighter0_state == 8u && fighter1_state == 8u &&
             measured_positive_state8_bit6_mask &&
