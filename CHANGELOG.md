@@ -24,6 +24,15 @@
   `taint.py` algorithm is unchanged; the test suite is the durable
   contract for future `--until` orchestration on real traces.
 
+- Taint end-to-end contract on real corpus (v0729c):
+  `tools/python/test_taint_e2e.py` runs the taint pipeline on the
+  existing `out/trace-bit14.jsonl` corpus and asserts every measured
+  branch dependency matches the AGENTS.md next-work #3 contract form
+  (`branch 0xNNNNNNNN depends on: fighter + 0xNNNN bit N`). Validated
+  21 branch blocks with 24 fighter dependencies from the real trace.
+  Skips with a clear message when corpus/ROM/build artifacts are
+  absent, so it stays green in environments without full ROM access.
+
 - 0x28184 head siblings native (v0707): bit17 x bit0 x edge==counter
   tree measured (12/14/16 steps to 0x28268, float fall-through in 10
   to 0x281b0); S1/S2 join S0 natively with r14/r13 loads, tail EQUAL

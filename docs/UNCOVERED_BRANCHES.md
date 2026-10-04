@@ -73,6 +73,12 @@ The 7-test taint suite is the validation that future
 JSONL will use to verify a measured dependency claim before promoting
 it to recovered semantics.
 
+`tools/python/test_taint_e2e.py` additionally validates the same
+contract on the real `out/trace-bit14.jsonl` corpus (21 branch blocks,
+24 fighter dependencies, all matching the
+`fighter + 0xNNNN [bit N]` shape).  It is the gate a measured
+dependency must pass on its way to becoming a recovered semantics.
+
 ## v0727 COIN ASSIGNMENT natural entry, parent walk, edits and EXIT native
 
 Selector-17 index 5 is now entered naturally from the TEST MENU and
