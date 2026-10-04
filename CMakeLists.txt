@@ -569,6 +569,12 @@ if(VF2_BUILD_TESTS)
                     ${CMAKE_SOURCE_DIR}/tools/python/test_explore_state.py
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         )
+        add_test(
+            NAME vf2_python_factory_minimize_case
+            COMMAND ${Python3_EXECUTABLE}
+                    ${CMAKE_SOURCE_DIR}/tools/python/test_minimize_case.py
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        )
         set_tests_properties(
             vf2_python_factory_frontier
             vf2_python_factory_taint
@@ -578,6 +584,7 @@ if(VF2_BUILD_TESTS)
             vf2_python_factory_check_scenario
             vf2_python_factory_sweep_state
             vf2_python_factory_explore_state
+            vf2_python_factory_minimize_case
             PROPERTIES TIMEOUT 240
         )
     else()
