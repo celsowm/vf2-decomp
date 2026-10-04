@@ -149,6 +149,28 @@ static vf2_status set_main_final_cluster_condition(
              * at cmpibne 1,g0 (g0=0, branch taken) with GREATER, which
              * the bridge poststate already carries. Leave it intact
              * instead of the historical EQUAL default. */
+        } else if (phase_index == UINT8_C(0x85) &&
+                   ((phase_state == UINT8_C(0) &&
+                     (input_flags == UINT32_C(0x0f000004) ||
+                      input_flags == UINT32_C(0x0f000000))) ||
+                    input_flags == UINT32_C(0x0f001000) ||
+                    input_flags == UINT32_C(0x0f002000) ||
+                    input_flags == UINT32_C(0x0f000100) ||
+                    input_flags == UINT32_C(0x0f000200))) {
+            /* Natural COIN ASSIGNMENT latch frames measured from the
+             * TEST MENU walk: the TEST-held entry and its released/
+             * settled-idle follow frames (a5=0), the SERVICE/DOWN and
+             * SERVICE/UP navigation advances (keyed on the input
+             * combo, not the post-advance cursor: the dispatch
+             * overwrites 0x5000a5 before this runs), and the
+             * TEST/PUNCH/KICK edit taps. The measured checkpoints at
+             * 0xa010 carry the bridge-pinned condition (GREATER at
+             * rows 0-3 forward and 1-5 back and on the EXIT- redraw,
+             * EQUAL at row 4 forward / row 0 back / idle rows 1-5 /
+             * value edits, LESS at the 5->0 wrap), which the index-5
+             * poststate already pins. Leave it intact instead of
+             * the historical EQUAL default; other latch shapes stay
+             * unsupported until measured. */
         } else if (phase_index == UINT8_C(0x84) &&
                    (input_flags == UINT32_C(0x0f001004) ||
                     input_flags == UINT32_C(0x0f002004))) {

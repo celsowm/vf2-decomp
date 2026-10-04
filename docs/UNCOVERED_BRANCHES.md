@@ -1,5 +1,34 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0727 COIN ASSIGNMENT natural entry, parent walk, edits and EXIT native
+
+Selector-17 index 5 is now entered naturally from the TEST MENU and
+operated end-to-end under strict per-block differential: the
+TEST-held first coin frame (block 4420 = 232 cluster prefix +
+4188/35 body), release and settled idles, all twelve parent
+navigation transitions (0..5 circular, both directions, both wraps)
+with per-row releases and idles (nav bodies 4194/4195 forward,
+4191/4192 back, r25 = source-row cursor), the row-1 COIN CHUTE TYPE
+edit cycle in both directions and both chute modes (COMMON->
+INDIVIDUAL 4405/38 vs INDIVIDUAL->COMMON 4266/34 edit bodies; the
+deferred value update lands on the release frame with the
+mode-dependent render: 4060/32 INDIVIDUAL, 4188/35 COMMON), rows
+2-4 TEST edit frames (pre-edit renders), and both EXIT actions
+(TEST = real exit 19056/74 clearing bit 7 of a4; KICK = 4185/35
+redraw - the exit triggers only on the +1 edit decode, which is
+why EXIT- does not leave). The return path to the TEST MENU and
+re-entry into GAME ASSIGNMENT also MATCHes on the proven index-4
+machinery. Natural input latches are admitted through an exact
+measured tuple table (input, previous, released, nav, source a5,
+coin mode) with one shared poststate rule (caller-frame r14/r15;
+flat globals on idle/nav/release, checksum/g1/g2 pins on edits);
+the 0x85 condition poststate keeps the bridge-pinned CC for the
+measured latch inputs. Still fail-closed: rows 2-4 edit release
+frames (post-edit credit/preset renders), MANUAL SETTING natural
+entry and the nested a7 editor, PUNCH/KICK value-row releases, and
+INDIVIDUAL-mode walks on other rows. See
+`playable_coin_assignment_natural_v0727.md`.
+
 ## v0726 TEST+LEFT/RIGHT per-row edits 7-14 and post-edit releases native
 
 Edit family complete: TEST+LEFT/TEST+RIGHT (`0x0f004004`/`0x0f008004`,

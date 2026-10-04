@@ -1545,6 +1545,31 @@ static vf2_status write_phase17_index0_text(
     return VF2_OK;
 }
 
+static vf2_status write_phase17_tile_run(
+    vf2_model2a *machine,
+    uint32_t row,
+    uint32_t column,
+    uint16_t value,
+    uint32_t count
+)
+{
+    vf2_status status = VF2_OK;
+    uint32_t index = 0u;
+
+    if (machine == NULL) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    for (index = 0u; status == VF2_OK && index < count; ++index) {
+        status = write_u16(
+            machine,
+            UINT32_C(0x01000000) + row * UINT32_C(0x80) +
+                (column + index) * UINT32_C(2),
+            value
+        );
+    }
+    return status;
+}
+
 static vf2_status execute_frame_phase17_bit7_index0(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu,
@@ -7897,39 +7922,42 @@ static vf2_status execute_frame_phase17_bit7_index5(
         uint32_t row;
         uint32_t column;
         const char *text;
+        uint8_t mode; /* 0 = COMMON only, 1 = INDIVIDUAL only, 2 = both */
     } runs[] = {
-        {5u, 18u, "COIN CHUTE TYPE"},
-        {5u, 35u, "    COMMON"},
-        {6u, 18u, "CREDIT TO 1P START"},
-        {6u, 40u, "2"},
-        {6u, 42u, "CREDITS"},
-        {7u, 28u, "1P CONTINUE"},
-        {7u, 40u, "2"},
-        {7u, 42u, "CREDITS"},
-        {8u, 18u, "CREDIT TO VS START"},
-        {8u, 40u, "2"},
-        {8u, 42u, "CREDITS"},
-        {9u, 28u, "VS CONTINUE"},
-        {9u, 40u, "2"},
-        {9u, 42u, "CREDITS"},
-        {11u, 18u, "COIN/CREDIT SETTING     #  1"},
-        {11u, 47u, " "},
-        {13u, 16u, "COIN CHUTE #1"},
-        {13u, 31u, "1 COIN  1 CREDIT "},
-        {15u, 31u, "                 "},
-        {17u, 31u, "                 "},
-        {19u, 31u, "                 "},
-        {21u, 31u, "                 "},
-        {24u, 16u, "COIN CHUTE #2"},
-        {24u, 31u, "1 COIN  1 CREDIT "},
-        {26u, 31u, "                 "},
-        {28u, 31u, "                 "},
-        {30u, 31u, "                 "},
-        {32u, 31u, "                 "},
-        {35u, 18u, "MANUAL SETTING"},
-        {38u, 18u, "EXIT"},
-        {44u, 20u, "SELECT BY SERVICE BUTTON"},
-        {45u, 22u, "AND PUSH TEST BUTTON"}
+        {5u, 18u, "COIN CHUTE TYPE", 2u},
+        {5u, 35u, "    COMMON", 0u},
+        {5u, 35u, "INDIVIDUAL", 1u},
+        {6u, 18u, "CREDIT TO 1P START", 2u},
+        {6u, 40u, "2", 2u},
+        {6u, 42u, "CREDITS", 2u},
+        {7u, 28u, "1P CONTINUE", 2u},
+        {7u, 40u, "2", 2u},
+        {7u, 42u, "CREDITS", 2u},
+        {8u, 18u, "CREDIT TO VS START", 2u},
+        {8u, 40u, "2", 2u},
+        {8u, 42u, "CREDITS", 2u},
+        {9u, 28u, "VS CONTINUE", 2u},
+        {9u, 40u, "2", 2u},
+        {9u, 42u, "CREDITS", 2u},
+        {11u, 18u, "COIN/CREDIT SETTING     #  1", 2u},
+        {11u, 47u, " ", 2u},
+        {13u, 16u, "COIN CHUTE #1", 0u},
+        {13u, 16u, "COIN CHUTE   ", 1u},
+        {13u, 31u, "1 COIN  1 CREDIT ", 2u},
+        {15u, 31u, "                 ", 2u},
+        {17u, 31u, "                 ", 2u},
+        {19u, 31u, "                 ", 2u},
+        {21u, 31u, "                 ", 2u},
+        {24u, 16u, "COIN CHUTE #2", 0u},
+        {24u, 31u, "1 COIN  1 CREDIT ", 0u},
+        {26u, 31u, "                 ", 0u},
+        {28u, 31u, "                 ", 0u},
+        {30u, 31u, "                 ", 0u},
+        {32u, 31u, "                 ", 0u},
+        {35u, 18u, "MANUAL SETTING", 2u},
+        {38u, 18u, "EXIT", 2u},
+        {44u, 20u, "SELECT BY SERVICE BUTTON", 2u},
+        {45u, 22u, "AND PUSH TEST BUTTON", 2u}
     };
     uint32_t indirect_target = 0u;
     uint32_t input_flags = 0u;
@@ -7953,6 +7981,14 @@ static vf2_status execute_frame_phase17_bit7_index5(
     uint64_t calls = UINT64_C(35);
     size_t index = 0u;
     uint64_t characters = 0u;
+    uint32_t test_held_g1 = 0u;
+    uint32_t test_held_g2 = 0u;
+    uint32_t test_held_g6 = 0u;
+    uint32_t test_held_r14 = 0u;
+    uint32_t test_held_r15 = 0u;
+    int test_held_entry = 0;
+    int natural_keep_globals = 0;
+    int input_match = 0;
     vf2_status status = VF2_OK;
 
     if (flagged_phase_index != UINT8_C(0x85) || cpu->local_frame_depth == 0u) {
@@ -7971,13 +8007,175 @@ static vf2_status execute_frame_phase17_bit7_index5(
     if (status == VF2_OK) status = vf2_model2a_read_u32(machine, base + UINT32_C(0x3320), &coin_flags);
     if (status == VF2_OK) status = vf2_model2a_read(machine, base + UINT32_C(0x3324), &preset, sizeof(preset));
     if (status == VF2_OK) status = vf2_model2a_read(machine, base + UINT32_C(0x3329), credits, sizeof(credits));
+    /* Natural input-latch frames (measured from the TEST MENU walk,
+     * out/ca-* fail-closed captures at 0x9ff8): walking into COIN
+     * ASSIGNMENT from the TEST MENU produces TEST/SERVICE-flavored
+     * input latches (0x0f0000xx) instead of the parked 0x0ff7f700
+     * base. Each admitted tuple is an exact measured (input,
+     * previous, released, nav, source a5) combination from the
+     * chained strict differentials; the frame prefix consumes the
+     * raw edges before the coin handler runs, so the handler
+     * observes the settled latches. Measured so far (all parent
+     * menu, a7=0xff):
+     *   - TEST-held entry (block 4420 = 232 prefix + 4188/35 body),
+     *     TEST-release and settled idle at a5=0 (all render the
+     *     full parent menu with the a5=0 cursor);
+     *   - the SERVICE/DOWN tap 0->1 (block 4426 = 232 + the
+     *     4194/34 nav body, r25 = source-row cursor 0x01001320,
+     *     g0 = +1, CC GREATER).
+     * The shared poststate rule keeps the caller-frame r14/r15
+     * (r14 is the live frame-counter-minus-one, 0x12/0x13/...,
+     * against the parked pin r14=1) and the flat g1/g2/g6 globals
+     * (g1=0x3f4f5c29, g2=0xc0a0a3d7, g6=0x55b6), mirroring the
+     * index-4 TEST-held entry treatment. Every unlisted latch
+     * sibling stays unsupported. */
+    {
+        static const struct {
+            uint32_t input;
+            uint32_t previous;
+            uint32_t released;
+            uint32_t nav;
+            uint8_t a5;
+            uint8_t keep_entry_globals;
+            uint8_t coin_mode; /* 0 = COMMON only, 1 = INDIVIDUAL
+                                * only, 2 = both (measured). */
+        } natural_latches[] = {
+            {UINT32_C(0x0f000004), UINT32_C(0x0f000004), 0u, 0u, UINT8_C(0), 1u, 0u},
+            {UINT32_C(0x0f000000), UINT32_C(0x0f000004), UINT32_C(4), 0u, UINT8_C(0), 1u, 0u},
+            {UINT32_C(0x0f000000), UINT32_C(0x0f000000), 0u, 0u, UINT8_C(0), 1u, 0u},
+            {UINT32_C(0x0f001000), UINT32_C(0x0f000000), 0u, UINT32_C(0x1000), UINT8_C(0), 1u, 0u},
+            /* post-DOWN release at row 1 (idle render, 4188/35,
+             * r25=0x010005d4, AC=2/EQUAL) */
+            {UINT32_C(0x0f000000), UINT32_C(0x0f001000), UINT32_C(0x1000), 0u, UINT8_C(1), 1u, 0u},
+            {UINT32_C(0x0f000000), UINT32_C(0x0f000000), 0u, 0u, UINT8_C(1), 1u, 2u},
+            /* Full parent-walk family (rows 1->5 forward, 5->0 wrap,
+             * 0->5 wrap back, per-row releases and settled idles).
+             * The tap/release/idle latch tuples are row-independent
+             * (measured 0->1 and 1-idle; each row below is proven by
+             * its chained strict differential): the nav bodies keep
+             * the parked per-row charges (4194/4195 forward,
+             * 4191/4192 back, 34 calls) and the CC table; the
+             * release/idle frames run the idle render (4188/4190/
+             * 4193 per row, 35 calls) with the parked CC pins. */
+            {UINT32_C(0x0f001000), UINT32_C(0x0f000000), 0u, UINT32_C(0x1000), UINT8_C(1), 1u, 0u},
+            {UINT32_C(0x0f001000), UINT32_C(0x0f000000), 0u, UINT32_C(0x1000), UINT8_C(2), 1u, 0u},
+            {UINT32_C(0x0f001000), UINT32_C(0x0f000000), 0u, UINT32_C(0x1000), UINT8_C(3), 1u, 0u},
+            {UINT32_C(0x0f001000), UINT32_C(0x0f000000), 0u, UINT32_C(0x1000), UINT8_C(4), 1u, 0u},
+            {UINT32_C(0x0f001000), UINT32_C(0x0f000000), 0u, UINT32_C(0x1000), UINT8_C(5), 1u, 0u},
+            {UINT32_C(0x0f002000), UINT32_C(0x0f000000), 0u, UINT32_C(0x2000), UINT8_C(5), 1u, 0u},
+            {UINT32_C(0x0f002000), UINT32_C(0x0f000000), 0u, UINT32_C(0x2000), UINT8_C(4), 1u, 0u},
+            {UINT32_C(0x0f002000), UINT32_C(0x0f000000), 0u, UINT32_C(0x2000), UINT8_C(3), 1u, 0u},
+            {UINT32_C(0x0f002000), UINT32_C(0x0f000000), 0u, UINT32_C(0x2000), UINT8_C(2), 1u, 0u},
+            {UINT32_C(0x0f002000), UINT32_C(0x0f000000), 0u, UINT32_C(0x2000), UINT8_C(1), 1u, 0u},
+            {UINT32_C(0x0f002000), UINT32_C(0x0f000000), 0u, UINT32_C(0x2000), UINT8_C(0), 1u, 0u},
+            {UINT32_C(0x0f000000), UINT32_C(0x0f001000), UINT32_C(0x1000), 0u, UINT8_C(2), 1u, 0u},
+            {UINT32_C(0x0f000000), UINT32_C(0x0f001000), UINT32_C(0x1000), 0u, UINT8_C(3), 1u, 0u},
+            {UINT32_C(0x0f000000), UINT32_C(0x0f001000), UINT32_C(0x1000), 0u, UINT8_C(4), 1u, 0u},
+            {UINT32_C(0x0f000000), UINT32_C(0x0f001000), UINT32_C(0x1000), 0u, UINT8_C(5), 1u, 0u},
+            {UINT32_C(0x0f000000), UINT32_C(0x0f001000), UINT32_C(0x1000), 0u, UINT8_C(0), 1u, 0u},
+            {UINT32_C(0x0f000000), UINT32_C(0x0f002000), UINT32_C(0x2000), 0u, UINT8_C(4), 1u, 0u},
+            {UINT32_C(0x0f000000), UINT32_C(0x0f002000), UINT32_C(0x2000), 0u, UINT8_C(3), 1u, 0u},
+            {UINT32_C(0x0f000000), UINT32_C(0x0f002000), UINT32_C(0x2000), 0u, UINT8_C(2), 1u, 0u},
+            {UINT32_C(0x0f000000), UINT32_C(0x0f002000), UINT32_C(0x2000), 0u, UINT8_C(1), 1u, 0u},
+            {UINT32_C(0x0f000000), UINT32_C(0x0f002000), UINT32_C(0x2000), 0u, UINT8_C(0), 1u, 0u},
+            {UINT32_C(0x0f000000), UINT32_C(0x0f002000), UINT32_C(0x2000), 0u, UINT8_C(5), 1u, 0u},
+            {UINT32_C(0x0f000000), UINT32_C(0x0f000000), 0u, 0u, UINT8_C(2), 1u, 0u},
+            {UINT32_C(0x0f000000), UINT32_C(0x0f000000), 0u, 0u, UINT8_C(3), 1u, 0u},
+            {UINT32_C(0x0f000000), UINT32_C(0x0f000000), 0u, 0u, UINT8_C(4), 1u, 0u},
+            {UINT32_C(0x0f000000), UINT32_C(0x0f000000), 0u, 0u, UINT8_C(5), 1u, 0u},
+            {UINT32_C(0x0f000000), UINT32_C(0x0f000000), 0u, 0u, UINT8_C(1), 1u, 2u},
+            /* Value edits: the TEST edge (nav 0x4) and the PUNCH
+             * edge (nav 0x100) both decode as the +1 edit; the KICK
+             * edge (nav 0x200) is the -1 edit. Bodies: 4405/4402 on
+             * rows 1-3, 4403/4401 on row 4, 38 calls; g0 = the new
+             * 15-byte checksum, g1 = 0, g2 = 15, CC EQUAL. The edit
+             * frame renders the pre-edit values (the deferred update
+             * lands on the following frame). Row 1 measured for all
+             * three inputs; the TEST tuples for rows 2-4 are proven
+             * by their chained differentials. */
+            {UINT32_C(0x0f000004), UINT32_C(0x0f000000), 0u, UINT32_C(0x4), UINT8_C(1), 0u, 2u},
+            {UINT32_C(0x0f000004), UINT32_C(0x0f000000), 0u, UINT32_C(0x4), UINT8_C(2), 0u, 0u},
+            {UINT32_C(0x0f000004), UINT32_C(0x0f000000), 0u, UINT32_C(0x4), UINT8_C(3), 0u, 0u},
+            {UINT32_C(0x0f000004), UINT32_C(0x0f000000), 0u, UINT32_C(0x4), UINT8_C(4), 0u, 0u},
+            {UINT32_C(0x0f000100), UINT32_C(0x0f000000), 0u, UINT32_C(0x100), UINT8_C(1), 0u, 0u},
+            {UINT32_C(0x0f000200), UINT32_C(0x0f000000), 0u, UINT32_C(0x200), UINT8_C(1), 0u, 0u},
+            /* post-edit TEST release at a value row (deferred value
+             * update lands here: measured 4060/32 body on row 1
+             * after the COMMON->INDIVIDUAL toggle, with the
+             * mode-dependent render below; g1 stays 0 like the edit
+             * frame while g2/g6 keep their flat values). */
+            {UINT32_C(0x0f000000), UINT32_C(0x0f000004), UINT32_C(4), 0u, UINT8_C(1), 0u, 2u},
+            /* TEST on the EXIT row: the real exit (clears bit 7 of
+             * a4, 19056/74 body, the parked EXIT+ arm measured
+             * identically from the natural walk). */
+            {UINT32_C(0x0f000004), UINT32_C(0x0f000000), 0u, UINT32_C(0x4), UINT8_C(0), 0u, 0u},
+            /* KICK on the EXIT row: the -1 direction does not leave
+             * COIN ASSIGNMENT - it redraws the parent menu
+             * (4185/35, g0 = -1, AC1/GREATER; the parked EXIT-
+             * arm measured identically from the natural walk). */
+            {UINT32_C(0x0f000200), UINT32_C(0x0f000000), 0u, UINT32_C(0x200), UINT8_C(0), 0u, 0u},
+            /* post-KICK release at the EXIT row: standard idle render
+             * (4188/35, AC1/GREATER). */
+            {UINT32_C(0x0f000000), UINT32_C(0x0f000200), UINT32_C(0x200), 0u, UINT8_C(0), 1u, 0u},
+        };
+        size_t latch_index = 0u;
+        for (latch_index = 0u;
+             test_held_entry == 0u &&
+                 latch_index <
+                     sizeof(natural_latches) / sizeof(natural_latches[0]);
+             ++latch_index) {
+            const int coin_mode_ok =
+                natural_latches[latch_index].coin_mode == UINT8_C(2) ||
+                (natural_latches[latch_index].coin_mode == UINT8_C(0)) ==
+                    ((coin_flags & UINT32_C(1)) == 0u);
+            test_held_entry =
+                (coin_mode_ok &&
+                 input_flags == natural_latches[latch_index].input &&
+                 previous_flags == natural_latches[latch_index].previous &&
+                 released_flags == natural_latches[latch_index].released &&
+                 navigation_flags == natural_latches[latch_index].nav &&
+                 phase_a5 == natural_latches[latch_index].a5 &&
+                 phase_a6 == UINT8_C(0xff) &&
+                 phase_a7 == UINT8_C(0xff)) ? 1 : 0;
+            if (test_held_entry != 0) {
+                natural_keep_globals =
+                    natural_latches[latch_index].keep_entry_globals;
+            }
+        }
+    }
+    if (test_held_entry != 0) {
+        /* The whole dispatch runs in sub-frames, so the cluster
+         * locals r14/r15 that the block-end comparison sees live in
+         * the caller (block-entry) frame. The idle/nav/release
+         * shapes also keep the flat g1/g2/g6 globals; the edit
+         * shapes overwrite g1/g2 (0/15) and g0 (checksum) and only
+         * keep the caller locals. Capture at the gate (reads
+         * only). */
+        const uint32_t caller_depth =
+            cpu->local_frame_depth > 0u
+                ? cpu->local_frame_depth - 1u
+                : 0u;
+        test_held_g1 = cpu->registers[VF2_I960_G0_REGISTER + 1u];
+        test_held_g2 = cpu->registers[VF2_I960_G0_REGISTER + 2u];
+        test_held_g6 = cpu->registers[VF2_I960_G0_REGISTER + 6u];
+        test_held_r14 = cpu->local_frames[caller_depth].registers[14];
+        test_held_r15 = cpu->local_frames[caller_depth].registers[15];
+    }
+    input_match = (input_flags == base_input &&
+                   previous_flags == base_input) ||
+                  test_held_entry != 0;
     if (status != VF2_OK || indirect_target != UINT32_C(0x0005b558) ||
-        input_flags != base_input || released_flags != 0u ||
-        previous_flags != base_input || selector_mask != UINT32_C(0x00020000) ||
+        input_match == 0 ||
+        (test_held_entry == 0 && released_flags != 0u) ||
+        selector_mask != UINT32_C(0x00020000) ||
         phase_a5 > UINT8_C(5) || phase_a6 != UINT8_C(0xff) || preset != 0u ||
-        (coin_flags & ~UINT32_C(2)) != 0u ||
+        (coin_flags &
+         (test_held_entry != 0 ? ~UINT32_C(1) : ~UINT32_C(2))) != 0u ||
         (phase_a5 < UINT8_C(5) &&
-         (phase_a7 != UINT8_C(0xff) || coin_flags != 0u)) ||
+         (phase_a7 != UINT8_C(0xff) ||
+          (test_held_entry != 0
+               ? (coin_flags & ~UINT32_C(1)) != 0u
+               : coin_flags != 0u))) ||
         (phase_a5 == UINT8_C(5) &&
          phase_a7 != UINT8_C(0xff) && phase_a7 > UINT8_C(4))) {
         return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
@@ -7994,6 +8192,12 @@ static vf2_status execute_frame_phase17_bit7_index5(
         main_navigation_delta = 1;
     else if (phase_a7 == UINT8_C(0xff) && navigation_flags == UINT32_C(0x2000))
         main_navigation_delta = -1;
+    else if (test_held_entry != 0 && navigation_flags == UINT32_C(0x4)) {
+        /* Bare TEST edge on an admitted value row: the coin menu
+         * decodes it as the +1 edit (measured 4405-body on row 1,
+         * identical to the PUNCH/nav-0x100 shape). */
+        edit_delta = 1;
+    }
     else if (navigation_flags != 0u) return VF2_ERROR_UNSUPPORTED;
     for (index = 0u; index < sizeof(credits); ++index) {
         if (credits[index] != UINT8_C(2)) return VF2_ERROR_UNSUPPORTED;
@@ -8193,8 +8397,10 @@ static vf2_status execute_frame_phase17_bit7_index5(
         cpu->registers[11] = UINT32_MAX;
         cpu->registers[12] = 0u;
         cpu->registers[13] = 0u;
-        cpu->registers[14] = UINT32_C(1);
-        cpu->registers[15] = UINT32_C(0x00008a00);
+        cpu->registers[14] = test_held_entry != 0 ? test_held_r14
+                                                  : UINT32_C(1);
+        cpu->registers[15] = test_held_entry != 0 ? test_held_r15
+                                                  : UINT32_C(0x00008a00);
         cpu->registers[16] = UINT32_C(0x00078cb0);
         cpu->registers[17] = 0u;
         cpu->registers[18] = UINT32_C(15);
@@ -8580,11 +8786,34 @@ static vf2_status execute_frame_phase17_bit7_index5(
     }
 
     for (index = 0u; status == VF2_OK && index < sizeof(runs) / sizeof(runs[0]); ++index) {
+        const int common_mode = (coin_flags & UINT32_C(1)) == 0u;
+        if (runs[index].mode == UINT8_C(0) && !common_mode) continue;
+        if (runs[index].mode == UINT8_C(1) && common_mode) continue;
         status = write_phase17_index0_text(
             machine, runs[index].row * UINT32_C(0x80), runs[index].column,
             runs[index].text
         );
         if (status == VF2_OK) characters += (uint64_t)strlen(runs[index].text);
+    }
+    if (status == VF2_OK && (coin_flags & UINT32_C(1)) != 0u) {
+        /* INDIVIDUAL mode erases the whole chute #2 section
+         * (measured from the post-edit release frame): the label
+         * becomes 13 space glyphs and rows 24-33 cols 30-47 are
+         * cleared with raw 0x0020 tiles. */
+        uint32_t erase_row = 0u;
+        status = write_phase17_index0_text(
+            machine, UINT32_C(24 * 0x80), UINT32_C(16),
+            "             "
+        );
+        for (erase_row = UINT32_C(24);
+             status == VF2_OK && erase_row <= UINT32_C(33);
+             ++erase_row) {
+            status = write_phase17_tile_run(
+                machine, erase_row, UINT32_C(30), UINT16_C(0x0020),
+                UINT32_C(18)
+            );
+        }
+        if (status == VF2_OK) characters += UINT64_C(13 + 10 * 18);
     }
     if (status == VF2_OK) {
         status = write_u16(
@@ -8611,7 +8840,11 @@ static vf2_status execute_frame_phase17_bit7_index5(
                 main_navigation_delta < 0 ? UINT32_MAX : UINT32_C(1)
             );
         }
-        if (status == VF2_OK) {
+        /* The parked parent-navigation frames spill 0x7ae10 to the
+         * 0x5ff684 frame slot; the natural SERVICE-walk frames
+         * leave that slot untouched (measured write set, out/ca-nav1
+         * memory trace). */
+        if (status == VF2_OK && test_held_entry == 0) {
             status = vf2_model2a_write_u32(
                 machine, UINT32_C(0x005ff684), UINT32_C(0x0007ae10)
             );
@@ -8622,21 +8855,39 @@ static vf2_status execute_frame_phase17_bit7_index5(
         calls = UINT64_C(34);
     } else if (status == VF2_OK && edit_delta != 0) {
         if (phase_a5 == UINT8_C(1)) {
+            const int individual_before_toggle =
+                (coin_flags & UINT32_C(1)) != 0u;
             coin_flags &= ~UINT32_C(2);
             coin_flags ^= UINT32_C(1);
             status = vf2_model2a_write_u32(machine, base + UINT32_C(0x3320), coin_flags);
             if (status == VF2_OK) {
                 status = vf2_model2a_write_u32(machine, UINT32_C(0x01d03320), coin_flags);
             }
-            instructions = edit_delta > 0 ? UINT64_C(4405) : UINT64_C(4402);
-            calls = UINT64_C(38);
+            if (individual_before_toggle) {
+                /* Editing from INDIVIDUAL mode (measured on the
+                 * INDIVIDUAL->COMMON toggle): 4266/34 body. The -1
+                 * direction stays unadmitted from INDIVIDUAL (the
+                 * tuple table is COMMON-scoped for KICK). */
+                if (edit_delta < 0) return VF2_ERROR_UNSUPPORTED;
+                instructions = UINT64_C(4266);
+                calls = UINT64_C(34);
+            } else {
+                instructions = edit_delta > 0 ? UINT64_C(4405) : UINT64_C(4402);
+                calls = UINT64_C(38);
+            }
         } else if (phase_a5 == UINT8_C(2) || phase_a5 == UINT8_C(3)) {
             const uint32_t offset = phase_a5 == UINT8_C(2)
                 ? UINT32_C(0x3329) : UINT32_C(0x332c);
-            uint8_t value = UINT8_C(2);
+            uint8_t value = 0u;
             uint8_t start_credit = 0u;
             uint8_t continue_credit = 0u;
-            int next = (int)value + edit_delta;
+            int next = 0;
+            /* Read the live credit index from the coin schema; the
+             * parked default-state validation exercised index 2. */
+            status = vf2_model2a_read(machine, base + offset, &value, sizeof(value));
+            if (status != VF2_OK) return status;
+            if (value > UINT8_C(14)) return VF2_ERROR_UNSUPPORTED;
+            next = (int)value + edit_delta;
             if (next < 0) next = 14;
             else if (next > 14) next = 0;
             value = (uint8_t)next;
@@ -8712,6 +8963,28 @@ static vf2_status execute_frame_phase17_bit7_index5(
         instructions = UINT64_C(4190);
     } else if (phase_a5 == UINT8_C(4)) {
         instructions = UINT64_C(4193);
+    }
+    if (status == VF2_OK && test_held_entry != 0 &&
+        released_flags == UINT32_C(4) && phase_a5 >= UINT8_C(1) &&
+        (coin_flags & UINT32_C(1)) != 0u) {
+        /* Post-edit TEST release on a value row when the deferred
+         * update re-renders the INDIVIDUAL layout (measured 4060
+         * instructions / 32 calls on row 1 after the
+         * COMMON->INDIVIDUAL toggle; the COMMON-restoring release
+         * keeps the standard 4188/35 idle body, as does the a5=0
+         * entry release). */
+        instructions = UINT64_C(4060);
+        calls = UINT64_C(32);
+    } else if (status == VF2_OK && test_held_entry != 0 &&
+               released_flags == 0u && phase_a5 >= UINT8_C(1) &&
+               (coin_flags & UINT32_C(1)) != 0u) {
+        /* Steady INDIVIDUAL-mode idle on a value row: the same
+         * 4060/32 deferred-render body as the post-edit release
+         * (measured on row 1), with g1=0 and r14 = entry + 1 (the
+         * body reloads the frame counter after its increment). The
+         * COMMON-mode idle keeps the standard 4188/35 body. */
+        instructions = UINT64_C(4060);
+        calls = UINT64_C(32);
     }
 
     if (status == VF2_OK) {
@@ -8789,6 +9062,37 @@ static vf2_status execute_frame_phase17_bit7_index5(
     } else {
         cpu->arithmetic_control = (cpu->arithmetic_control & ~UINT32_C(7)) | UINT32_C(2);
         cpu->compare_result = VF2_I960_COMPARE_EQUAL;
+    }
+    if (test_held_entry != 0) {
+        /* The natural-latch frames run the whole dispatch in
+         * sub-frames, so the cluster locals r14/r15 keep their
+         * caller-frame entry values (measured entry==exit: r14 is
+         * the live frame-counter-minus-one against the idle pin
+         * r14=1). The flat-global shapes additionally keep g1/g2/g6
+         * (entry values already equal the pins); the edit shapes
+         * keep their measured g0/g1/g2 poststate. */
+        cpu->registers[14] = test_held_r14;
+        cpu->registers[15] = test_held_r15;
+        if (natural_keep_globals != 0) {
+            cpu->registers[VF2_I960_G0_REGISTER + 1u] = test_held_g1;
+            cpu->registers[VF2_I960_G0_REGISTER + 2u] = test_held_g2;
+            cpu->registers[VF2_I960_G0_REGISTER + 6u] = test_held_g6;
+        }
+        if (released_flags == UINT32_C(4) && phase_a5 >= UINT8_C(1) &&
+                   (coin_flags & UINT32_C(1)) != 0u) {
+            /* Post-edit TEST release rendering the INDIVIDUAL
+             * layout: g1 stays 0 (the deferred-update body re-runs
+             * the edit's g1 clear) while g2/g6 keep the flat pins;
+             * the COMMON-restoring release keeps flat globals. */
+            cpu->registers[VF2_I960_G0_REGISTER + 1u] = 0u;
+        } else if (released_flags == 0u && phase_a5 >= UINT8_C(1) &&
+                   (coin_flags & UINT32_C(1)) != 0u) {
+            /* Steady INDIVIDUAL-mode idle: g1 = 0 (measured on the
+             * row-1 INDIVIDUAL idle); r14 already carries the
+             * post-increment frame counter through the caller-frame
+             * restore. */
+            cpu->registers[VF2_I960_G0_REGISTER + 1u] = 0u;
+        }
     }
 
     report->kind = VF2_HYBRID_BRIDGE_FRAME_DISPATCH_TICK;
