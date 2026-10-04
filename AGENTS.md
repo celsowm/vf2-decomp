@@ -157,13 +157,24 @@ At the time this handoff was written, `master` already contains:
   `trace_case.py` / `z3_branch.py` unit suites
   (9/9 / 9/9 / 7/7 / 4/4 / 5/5 skipping without z3), `test_factory_chain.py`
   integration (4/4) chaining Step 1 → Step 2a → Step 2 + infer_rules,
-  `factory_chain_demo.py` runnable PASS exemplar, the 12
+  `factory_chain_demo.py` runnable PASS exemplar,
+  `p1_real_trace_demo.py` real-corpus factory chain demo (ctest
+  entry #117; reproduces the 0x1680..0x1860 contiguous 4B block
+  evidence on the existing `out/trace-both.jsonl` +
+  `out/trace-f0.jsonl` corpus with all invariants locked), the 13
   `vf2_python_factory_*` ctest entries wired into `CMakeLists.txt`,
   the factory runbook note `decomp/i960/notes/factory_runbook_v0729.md`,
   the v0729 player-corpus smoke + 0x1680 contiguous-block notes,
-  the v0729 session close-out note, and the v0730 first-action runbook
+  the v0729 session close-out note, the v0730 first-action runbook
   (`decomp/i960/notes/v0730_first_action_runbook.md`) as the single
-  handoff entry point for the next agent (87 Python test cases, ~7 s
+  handoff entry point for the next agent, the F1 starting-state note
+  (`f1_manual_setting_entry_boundary_v0730.md`: cursor dispatch at
+  0x59f34 + row-4 handler at 0x5a0a4 + slice pickup), and the P1
+  first/second notes
+  (`p1_player_0x1680_block_stability_v0730.md` +
+  `p1_taint_0x1680_block_v0730.md`: block is structurally stable but
+  does NOT feed fighter-flag branches — render/pose/animation-state
+  descriptor, not a gameplay-state field) (88 Python test cases, ~7 s
   wall). The proven native dispatch boundary was re-measured at v0730
   from `out/sixth-fresh.vf2snap` to `0x164c4` in 14,277,453
   instructions with 10,288 calls / 10,286 returns, captured in
