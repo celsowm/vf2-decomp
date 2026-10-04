@@ -130,6 +130,39 @@
   (Test #116). Total factory ctest entries: 12; total Python test
   cases: 86; total ctest time: 6.94 s.
 
+- Factory chain infer_rules composition (v0729o):
+  `tools/python/test_factory_chain.py` adds the sweep-driven branch
+  of the runbook: `parse_bitfield -> feature_vector ->
+  try_boolean_minimize` composes correctly with the existing
+  frontier/infer_structs steps. The test builds a complete
+  16-case truth table on 4 bitfields where the target outcome is
+  `f0 bit 0 == 0 AND f2 bit 2 == 0`; try_boolean_minimize returns
+  the minimised DNF `~f0_b0 & ~f2_b2` (no overfitting on f1/f3).
+  4/4 chain tests green. Total factory ctest entries: 12;
+  total Python cases: 87; total ctest time: 9.80 s.
+
+- v0729 factory layer complete (v0729a-o + v0729f):
+  The complete v0729 factory tooling layer is now on master with
+  every AGENTS.md workflow tool under unit-test gate:
+
+  - `frontier.py v2` (per-edge fighter offsets, per-source
+    attribution, fighter-aware rank, contiguous-block detection,
+    JSON surface)
+  - `taint.py` (unit + E2E on real corpus)
+  - `infer_structs.py` (dual-base promotion)
+  - `infer_rules.py` (conservative refusal)
+  - `check_scenario.py` (scenario validation)
+  - `sweep_state.py`, `explore_state.py`, `minimize_case.py`,
+    `trace_case.py` (workflow helpers)
+  - `z3_branch.py` (Z3 branch helper, optional dependency)
+  - `factory_chain.py` (Step 1 -> 2 -> 2a + infer_rules
+    composition integration)
+
+  37 commits, 87 Python test cases, 12 ctest entries, ~10 s ctest
+  time. The factory runbook is the durable contract for what to do
+  next; every runbook step has a unit-test gate proving the
+  contracts still hold.
+
 - Python factory wired into ctest gate (v0729a-g + v0729f):
   `CMakeLists.txt` adds six `vf2_python_factory_*` ctest entries
   (frontier / taint / taint_e2e / infer_structs / infer_rules /
