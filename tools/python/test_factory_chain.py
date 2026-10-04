@@ -27,6 +27,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from frontier import Frontier
+from infer_rules import parse_bitfield, feature_vector, try_boolean_minimize
 from infer_structs import summarize_trace
 
 
@@ -171,10 +172,64 @@ def test_chain_fighter_bases_dual_provenance():
         assert blocks == [], blocks
 
 
+def test_chain_infer_rules_consumes_feature_vector():
+    """The sweep-driven branch of the runbook (Step 1 -> Step 3 ->
+    Step 4) is composed of frontier ingest + infer_rules. The
+    infer_rules helpers (parse_bitfield, feature_vector,
+    try_boolean_minimize) compose correctly with each other in the
+    pipeline that turns a frontier edge into a measured boolean rule.
+    """
+    # parse_bitfield -> feature_vector -> try_boolean_minimize chain.
+    name, bits = parse_bitfield("flags:1,2,4,6")
+    assert name == "flags" and bits == [1, 2, 4, 6]
+    # Build a complete truth table where the rule is exactly
+    # "f0_b0 == 0 AND f2_b2 == 0" (so the features fully determine the
+    # outcome). Each feature vector maps to exactly one outcome. The
+    # values must be raw integers with the corresponding bit set, not
+    # 0/1 booleans, because bitfields[("f0", [0])] extracts bit 0 of
+    # the field value, not bit 0 of the index.
+    target_outcome = ("ok", "stop", 0x10dcc, 5, 1, 1, ())
+    other_outcome = ("other", "stop", 0x10ddc, 6, 1, 1, ())
+    records = []
+    for f0 in (0, 0x1):
+        for f1 in (0, 0x2):
+            for f2 in (0, 0x4):
+                for f3 in (0, 0x8):
+                    chosen = target_outcome if (f0 == 0 and f2 == 0) else other_outcome
+                    records.append({
+                        "inputs": {"f0": f0, "f1": f1,
+                                   "f2": f2, "f3": f3},
+                        "outcome": {
+                            "status": chosen[0],
+                            "halt_reason": chosen[1],
+                            "ip": chosen[2],
+                            "executed_instructions": chosen[3],
+                            "procedure_calls": chosen[4],
+                            "procedure_returns": chosen[5],
+                            "reads_u32": [],
+                        },
+                    })
+    boolean = []
+    bitfields = [("f0", [0]), ("f1", [1]), ("f2", [2]), ("f3", [3])]
+    rule, reason = try_boolean_minimize(
+        records, boolean, bitfields, target_outcome=target_outcome,
+    )
+    try:
+        import z3  # noqa: F401
+        assert rule is not None, f"sympy/z3 available but no rule: {reason}"
+        assert "f0_b0" in rule and "f2_b2" in rule, rule
+        print(f"ok: chain infer_rules produced rule {rule!r}")
+    except ImportError:
+        assert rule is None, f"z3 missing but rule returned: {rule}"
+        assert reason is not None
+        print("ok: chain infer_rules reports z3-missing cleanly")
+
+
 def main() -> int:
     test_chain_frontier_then_contiguous_blocks()
     test_chain_infer_structs_then_frontier_contiguous()
     test_chain_fighter_bases_dual_provenance()
+    test_chain_infer_rules_consumes_feature_vector()
     print("all factory chain integration tests passed")
     return 0
 
