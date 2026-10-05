@@ -1,5 +1,24 @@
 # v0733e: the "unpinnable compare_result" was my own fixture — retracted
 
+> ## SUPERSEDED by `executor_step_macro_asymmetry_v0733f.md`
+>
+> **The mechanism is now isolated, and it was a build-time macro, not a mystery.**
+> `CMakeLists.txt:112-115` compiles `src/i960/executor.c` with
+> `vf2_i960_step` textually substituted to `vf2_i960_step_legacy`. So
+> `vf2_i960_run` calls the **legacy** stepper and never applies
+> `arch_fix_direct_compare`, while every external caller of `vf2_i960_step` gets
+> the **arch** stepper that does. Instrumented proof: `vf2_i960_run stepped`
+> fires seven times while `vf2_i960_step` never fires once.
+>
+> **Also withdrawn: this note's claim that the hand-stepped loop is "the
+> arch-correct one".** That read the repo's `clear -> NONE` convention as if it
+> were the architecture. Real i960 `BBT` sets `ac0 = <bit>`, `ac1 = 0`, which is
+> *equal* when the bit is clear. Neither repo path is established as correct;
+> deciding the convention repo-wide is a separate question.
+>
+> Retained: that the fixture's own driver caused the bogus divergences, and the
+> per-leg divergence sets, which are re-measured unchanged.
+
 **This note retracts two of the three divergences reported in
 `coli_shell_contract_v0733d.md`, and replaces them with one real, bounded gap.**
 

@@ -271,8 +271,22 @@ At the time this handoff was written, `master` already contains:
     it with `vf2_i960_run`.** What really remains: `g14` (path-dependent, never
     published) and the live-leg condition state (`GREATER`/`0x3f001001` where the
     native publishes the warm `EQUAL`/`0x3f001002`) — a real admitted-leg defect
-    no other test caught. The in-executor mechanism is **not yet isolated**. See
+    no other test caught. See
     `decomp/i960/notes/executor_harness_cc_divergence_v0733e.md`.
+  - **v0733f isolated the mechanism v0733e could not.** `CMakeLists.txt:112-115`
+    compiles `src/i960/executor.c` with
+    `vf2_i960_step=vf2_i960_step_legacy`, so **`vf2_i960_run` — and therefore
+    `vf2probe` and `vf2cycles` — calls the legacy stepper and never applies
+    `arch_fix_direct_compare`, while every hand-stepping caller gets the arch
+    stepper that does.** The whole divergence comes from `bbs 5, r15` at
+    `0x221f0`. **Do not assume the two entry points are interchangeable, and do
+    not read `compare_result` off a probe run as if it were the arch stepper's.**
+    Neither path is established as arch-correct: real i960 `BBT` sets
+    `ac0=<bit>, ac1=0`, which is *equal* on a clear bit, while the repo's
+    `arch_fix_direct_compare` uses clear->`NONE`. Removing the macro is **not**
+    done — it is a repo-wide semantic change and needs the variant-tree
+    measurement first. See
+    `decomp/i960/notes/executor_step_macro_asymmetry_v0733f.md`.
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.

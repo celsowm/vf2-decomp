@@ -1,5 +1,60 @@
 # Changelog
 
+## v0733f: B45 root cause — `vf2_i960_run` and `vf2_i960_step` are different machines because of a build-time macro
+
+v0733e reported the `vf2_i960_run` vs hand-stepped-loop condition-state
+divergence and said the mechanism was "not yet isolated". **It is isolated, and
+it was never a mystery.**
+
+`CMakeLists.txt:112-115`:
+
+```cmake
+set_source_files_properties(
+    src/i960/executor.c
+    PROPERTIES COMPILE_DEFINITIONS "vf2_i960_step=vf2_i960_step_legacy"
+)
+```
+
+Inside `executor.c` only, every textual reference to `vf2_i960_step` becomes
+`vf2_i960_step_legacy`. So `vf2_i960_run` calls the **legacy** stepper and never
+applies `arch_fix_direct_compare`, while **every other caller in the repo** —
+the fixtures, `native_differential.c`, `native_differential_step.c`,
+`native_runtime.c` — calls the **arch** stepper that does. The arch stepper
+pre-evaluates compare operands and rewrites the compare state for
+`bbs`/`bbc`/`cmpob`/`cmpib` (`executor_arch.c:150-171`).
+
+**Instrumented proof** (reverted afterwards, tree clean):
+
+```text
+vf2_i960_run stepped ip=000221f0 ... ip=00023524      (7 times)
+vf2_i960_step ip=...                                  (never once)
+```
+
+The entire divergence comes from one instruction, `bbs 5, r15, 0x22294` at
+`0x221f0`, with `r15 = [0x00508000] = 0x8a00` and bit 5 clear: the arch stepper
+sets `cc = NONE`, the legacy path leaves `EQUAL` untouched. That single
+difference is what made `compare_result` look "entry-state dependent" in v0733d
+and produced two fabricated divergences.
+
+**A second claim is also withdrawn.** v0733e called the hand-stepped loop "the
+arch-correct one", reading the repo's `clear -> NONE` convention as if it were
+the architecture. Real i960 `BBT` sets `ac0 = <bit>`, `ac1 = 0`, which is *equal*
+when the bit is clear. Neither repo path is established as correct, and other
+code (`executor_arch.c:282-300`) depends on the existing convention with a
+measured justification.
+
+**No production C changed.** Removing the macro is one line with repo-wide
+consequences: `vf2probe` and `vf2cycles` would start reporting arch-stepper
+compare state for every bit-test and compare-branch, so every probe-measured
+constant and every `bo`/`bno` decision needs re-validation. AGENTS.md requires
+the oracle's behaviour to stay stable and changes to be the smallest *proven*
+one, so the **measurement** is the next step, not the edit — build a separate
+variant tree with the macro removed, run the suite, classify what moves, then
+decide. Acceptance for the fix is a regression test driving both entry points
+over a `bbs`/`cmpob` window and asserting they agree.
+
+See `decomp/i960/notes/executor_step_macro_asymmetry_v0733f.md`.
+
 ## v0733e: the "unpinnable compare_result" was this repo's own fixture — retracted
 
 **v0733d reported three unrecovered exit fields at the `0x23524` shell —

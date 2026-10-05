@@ -3702,9 +3702,17 @@ boundary — see the `bx (g14)` trampoline note below).
   `end=0x2364c`, which is `0x235a4`'s callee. Real boundary is `0x22210` at
   `9151` insn / 14 returns, matching the v0386 whole-task pin. Stopping at
   `0x23648` measures `9150` and invents a +1 defect in a correct recovery.
-- **Undiagnosed, and it affects every hand-stepped fixture:** `vf2_i960_run` and
-  a `vf2_i960_step` loop leave different `compare_result` and
-  `arithmetic_control` at the same address from the same snapshot.
+- **Root cause found (v0733f):** `CMakeLists.txt:112-115` compiles
+  `src/i960/executor.c` with `vf2_i960_step=vf2_i960_step_legacy`, so
+  `vf2_i960_run` — and therefore `vf2probe`/`vf2cycles` — calls the **legacy**
+  stepper and never applies `arch_fix_direct_compare`, while every hand-stepping
+  caller gets the **arch** stepper that does. The whole divergence comes from
+  `bbs 5, r15` at `0x221f0` (`r15 = [0x00508000] = 0x8a00`, bit 5 clear).
+  **The two entry points are not interchangeable.** Neither side is established
+  as arch-correct — real i960 `BBT` gives *equal* on a clear bit, the repo's
+  `arch_fix_direct_compare` uses clear→`NONE` — and removing the macro is not
+  done, because it is a repo-wide semantic change needing the variant-tree
+  measurement first.
 
 See `decomp/i960/notes/coli_shell_contract_v0733d.md` and
 `decomp/i960/notes/executor_harness_cc_divergence_v0733e.md`.
