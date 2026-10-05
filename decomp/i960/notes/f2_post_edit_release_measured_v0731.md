@@ -71,17 +71,74 @@ contrast is 4420 (232 prefix + 4188 body, 35 calls).
 Both measured rows are **fail-closed on the native side**:
 `unsupported operation at 0x0000a6c0 ... entry=0x00009ff8`.
 
+## The derived-credits transform: sampled, and the obvious rule is FALSIFIED
+
+Pushing TEST repeatedly at `a5 = 3` from a real idle walks the six-byte
+vector at `base + 0x3329` (indices 0-2 never move; index 3 is the edited
+counter; indices 4 and 5 are the derived pair). Nine samples, all from the
+`0xa010` end of the edit frame:
+
+| edit | new `credits[3]` (= n) | `credits[4]` | `credits[5]` | edit frame insns |
+|---|---|---|---|---|
+| 0 | 3 | 3 | 1 | 4637 |
+| 1 | 4 | 3 | 2 | 4636 |
+| 2 | 5 | 3 | 3 | 4637 |
+| 3 | 6 | 4 | 1 | 4637 |
+| 4 | 7 | 4 | 2 | 4636 |
+| 5 | 8 | 4 | 3 | 4637 |
+| 6 | 9 | **4** | **4** | 4637 |
+| 7 | 10 | 5 | 1 | 4637 |
+
+(`n = 2` is the untouched default `[2,2,2,2,2,2]`; it is not part of the
+sequence, since it is the starting state rather than a result.)
+
+**KICK (nav `0x200`) is the exact inverse**: from n = 9 it produced
+`[2,2,2,8,4,3]`, byte-identical to the n = 8 `+1` state. So the `-1` and
+`+1` directions agree, which rules out a one-way accumulator bug.
+
+### The falsified prediction
+
+`credits[5]` looks like a period-3 cycle over 1,2,3 with `credits[4]`
+incrementing on each wrap:
+
+```text
+credits[4] = 3 + floor((n - 3) / 3)
+credits[5] = 1 + ((n - 3) mod 3)
+```
+
+That formula fits n = 3..8 **exactly**, and predicts n = 9 as
+`[2,2,2,9,5,1]`.
+
+**Measured n = 9 is `[2,2,2,9,4,4]`.** The prediction is wrong, and the
+measured value is reproducible from two independent chains (the straight
+walk and the KICK-then-replay). The observed sequence
+
+```text
+(3,1) (3,2) (3,3) (4,1) (4,2) (4,3) (4,4) (5,1)
+```
+
+skips `(3,4)` entirely while allowing `(4,4)`, so it is **not** a plain
+base-4 or base-3 counter either.
+
+**Do not encode either formula.** A rule that survives eight samples and is
+then falsified on the ninth is the trap the runbook warns about; this is a
+live example. Whatever it is, it needs either many more samples or static
+analysis of the ROM code that writes these bytes. Until then the
+derived-credits update stays fail-closed.
+
+The edit frame is stable at 4636/4637 instructions across all nine samples
+(`credits[4]` = 3 and 7 give 4636, the rest 4637), so the *body* is nearly
+row-independent even though the *state* transform is not.
+
 ## The two distinct deferred behaviours
 
 This is the part the runbook compressed into "credit index != 2, derived
 credits, preset != 0", now separated:
 
 - **Row 3 is a derived-credit update.** `[2,2,2,2,2,2]` becomes
-  `[2,2,2,3,3,1]`. Incrementing the `COIN/CREDIT SETTING #1` value does not
-  touch one field: indices 3 and 4 go to 3 and index 5 goes to 1. Any
-  recovery needs this as a *rule*, and it needs more than one sample before
-  it can be trusted — a single `+1` on a single row does not distinguish a
-  derivation from a coincidence.
+  `[2,2,2,3,3,1]` on the first edit. See the transform table above: the
+  derived pair does **not** follow a simple counter, and a natural-looking
+  formula is already falsified at n = 9.
 - **Row 4 is a `preset` update.** Credits are untouched; `preset`
   (`base + 0x3324`) becomes `1`. That is the `preset != 0` gate condition,
   and it is why the existing `preset != 0u` refusal fires here.
@@ -154,8 +211,10 @@ a5 3}` — already admitted) lands on a5 = 2, then run the six steps above.
    (6,40), (7,40), (8,40) and (9,40). With `credits != 2` those cells must
    render the live value, and the derived values mean several cells change
    from one edit.
-3. The **derived-credits rule** for row 3, sampled at more than one value and
-   more than one row before it is written down as a rule.
+3. The **derived-credits transform** for row 3. This is the hard part and
+   the natural formula is already falsified - see the table above. It needs
+   more samples or static analysis of the code that writes
+   `base + 0x332c`, not a fitted expression.
 4. The **`preset` update** for row 4, including what a second edit does to a
    nonzero `preset`.
 5. Per-row bodies at 4189 / 4186 (and row 2's, once measured), each proven

@@ -1,5 +1,40 @@
 # Changelog
 
+## v0731i - F2 derived-credits transform sampled; the obvious rule is falsified
+
+Evidence only. No behaviour change, no tuple admitted, no code touched.
+
+- **Nine samples of the row-3 derived-credits transform.** Pushing TEST
+  repeatedly at `a5 = 3` walks the six-byte vector at `base + 0x3329`;
+  indices 0-2 never move, index 3 is the edited counter, indices 4 and 5
+  are the derived pair:
+
+  ```text
+  n  =  3  4  5  6  7  8  9  10
+  [4] =  3  3  3  4  4  4  4   5
+  [5] =  1  2  3  1  2  3  4   1
+  ```
+
+- **The obvious formula is falsified.** `credits[4] = 3 + floor((n-3)/3)`
+  and `credits[5] = 1 + ((n-3) mod 3)` fit n = 3..8 exactly and predict n = 9
+  as `[2,2,2,9,5,1]`. Measured n = 9 is **`[2,2,2,9,4,4]`**, reproducible from
+  two independent chains. The observed sequence skips `(3,4)` while allowing
+  `(4,4)`, so it is not a plain base-3 or base-4 counter either.
+
+- **KICK (nav `0x200`) is the exact inverse**: from n = 9 it produced
+  `[2,2,2,8,4,3]`, byte-identical to the n = 8 `+1` state. That rules out a
+  one-way accumulator bug and pins the transform as symmetric.
+
+- **Explicit warning recorded in the note:** a rule that survives eight
+  samples and is falsified on the ninth is exactly the trap the runbook
+  warns about. The transform needs more samples or static analysis of the
+  ROM code that writes `base + 0x332c`, not a fitted expression.
+
+- **The edit frame body is nearly row-independent**: 4636/4637 instructions
+  across all nine samples, even though the state transform is not.
+
+See `decomp/i960/notes/f2_post_edit_release_measured_v0731.md`.
+
 ## v0731h - F2 blockers identified: the credits and preset gates ARE the frontier
 
 Evidence only. No behaviour change, no tuple admitted, no code touched. The

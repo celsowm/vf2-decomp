@@ -248,9 +248,17 @@ carries `credits = [2,2,2,3,3,1]` and row 4 already carries `preset = 1`.
 Admitting the release latch tuples does not help: row 3 still fails the
 `credits[index] != 2` refusal and row 4 still fails `preset != 0u`. Those
 two fail-closed checks *are* the F2 frontier, and each must be widened
-against a measured rule, not relaxed wholesale. Note `base` is `0x599000`
-at the `0xa6c0` boundary, not the `0x59a3d0` visible in the walk snapshots.
-See `f2_post_edit_release_measured_v0731.md`.
+against a measured rule, not relaxed wholesale.
+
+**The derived-credits transform is sampled nine deep and the obvious rule
+is falsified.** `credits[4] = 3 + floor((n-3)/3)`,
+`credits[5] = 1 + ((n-3) mod 3)` fits n = 3..8 exactly and predicts n = 9 as
+`[2,2,2,9,5,1]`; measured n = 9 is `[2,2,2,9,4,4]`, reproducible twice. KICK
+is the exact inverse of TEST. The sequence skips `(3,4)` while allowing
+`(4,4)`, so it is not a plain base-3 or base-4 counter. Do not encode either
+formula. Note `base` is `0x599000` at the `0xa6c0` boundary, not the
+`0x59a3d0` visible in the walk snapshots. See
+`f2_post_edit_release_measured_v0731.md`.
 
 ## v0726 TEST+LEFT/RIGHT per-row edits 7-14 and post-edit releases native
 
