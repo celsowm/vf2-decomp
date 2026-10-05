@@ -204,8 +204,9 @@ At the time this handoff was written, `master` already contains:
   (`p1_player_0x1680_block_stability_v0730.md` +
   `p1_taint_0x1680_block_v0730.md`: block is structurally stable but
   does NOT feed fighter-flag branches — render/pose/animation-state
-  descriptor, not a gameplay-state field) (102 Python test cases, ~7.4 s
-  wall). The proven native dispatch boundary was re-measured at v0730
+  descriptor, not a gameplay-state field) (114 Python test cases across
+  14 `vf2_python_factory_*` ctest entries, ~13 s wall). The proven native
+  dispatch boundary was re-measured at v0730
   from `out/sixth-fresh.vf2snap` to `0x164c4` in 14,277,453
   instructions with 10,288 calls / 10,286 returns, captured in
   `decomp/i960/notes/native_dispatch_boundary_v0730_measured.md`.
