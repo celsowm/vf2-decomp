@@ -15,6 +15,7 @@ static int failures = 0;
 
 int vf2_test_i960_decoder(void);
 int vf2_test_i960_executor(void);
+int vf2_test_i960_step_path_asymmetry(void);
 int vf2_test_i960_snapshot(void);
 int vf2_test_i960_interrupts(void);
 int vf2_test_i960_cfg(void);
@@ -1525,6 +1526,7 @@ int main(void)
     test_recovered_camera_and_kill_osage();
     EXPECT_TRUE(vf2_test_i960_decoder() == 0);
     EXPECT_TRUE(vf2_test_i960_executor() == 0);
+    EXPECT_TRUE(vf2_test_i960_step_path_asymmetry() == 0);
     EXPECT_TRUE(vf2_test_i960_snapshot() == 0);
     EXPECT_TRUE(vf2_test_i960_interrupts() == 0);
     EXPECT_TRUE(vf2_test_i960_cfg() == 0);

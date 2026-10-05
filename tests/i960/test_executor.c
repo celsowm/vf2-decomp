@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -581,6 +582,166 @@ int vf2_test_i960_executor(void)
             return 65;
         }
         vf2_model2a_shutdown(&machine);
+    }
+    return 0;
+}
+
+/* Pin the vf2_i960_run / vf2_i960_step asymmetry (v0733g).
+ *
+ * src/i960/executor.c is compiled with vf2_i960_step textually substituted to
+ * vf2_i960_step_legacy (CMakeLists option VF2_LEGACY_STEP_IN_RUN, default ON).
+ * So vf2_i960_run -- and therefore vf2probe and vf2cycles -- never applies
+ * arch_fix_direct_compare, while every hand-stepping caller of vf2_i960_step
+ * gets the arch stepper that does. For bbs/bbc/cmpob/cmpib the two paths
+ * therefore publish DIFFERENT compare state at the same address.
+ *
+ * This pins the difference rather than asserting agreement. The completion plan
+ * originally asked for agreement; the variant measurement withdrew that,
+ * because the recovered hybrid.c was written against the legacy path and 19 of
+ * 119 tests fail without it. Asserting agreement here would have been a test
+ * that could only pass if the whole recovery were re-derived.
+ *
+ * It also pins that the difference is confined to the condition word: the two
+ * paths must agree on the next ip, so this cannot quietly become a branch
+ * difference. That confinement is what v0733g measured across the whole suite
+ * (19 failures, every one cpu-state offset=1, no branch/count/memory failures).
+ *
+ * The single instruction is the real `bbs 5, r15, 0x00022294` at 0x221f0, whose
+ * encoding is taken from the ROM rather than hand-assembled.
+ */
+int vf2_test_i960_step_path_asymmetry(void)
+{
+    uint8_t *image;
+    vf2_model2a machine_run;
+    vf2_model2a machine_step;
+    vf2_i960_cpu cpu_run;
+    vf2_i960_cpu cpu_step;
+    vf2_i960_run_options options;
+    vf2_i960_run_result result;
+    vf2_status status;
+    uint32_t run_cc;
+    uint32_t step_cc;
+    uint32_t run_arith;
+    uint32_t step_arith;
+    uint32_t run_ip;
+    uint32_t step_ip;
+
+    image = (uint8_t *)calloc(1u, VF2_MAIN_ROM_SIZE);
+    if (image == NULL) {
+        return 1;
+    }
+    /* bbs 5, r15, 0x00022294, verbatim from the ROM at 0x221f0. vf2i960
+     * prints the little-endian word value, same convention as the ld above. */
+    write_le32(image + 0x221f0u, UINT32_C(0x372be0a4));
+
+    if (!vf2_model2a_initialize(&machine_run) ||
+        !vf2_model2a_initialize(&machine_step)) {
+        free(image);
+        return 2;
+    }
+    if (vf2_model2a_attach_main_rom(&machine_run, image, VF2_MAIN_ROM_SIZE) !=
+            VF2_OK ||
+        vf2_model2a_attach_main_rom(&machine_step, image, VF2_MAIN_ROM_SIZE) !=
+            VF2_OK) {
+        vf2_model2a_shutdown(&machine_run);
+        vf2_model2a_shutdown(&machine_step);
+        free(image);
+        return 3;
+    }
+
+    /* Identical starting condition on both sides. r15 = 0x8a00 has bit 5 clear,
+     * so the bit test misses and the branch falls through to 0x221f4. */
+    vf2_i960_cpu_reset(&cpu_run, 0u, 0u, 0x221f0u);
+    vf2_i960_cpu_reset(&cpu_step, 0u, 0u, 0x221f0u);
+    cpu_run.registers[15] = UINT32_C(0x00008a00);
+    cpu_step.registers[15] = UINT32_C(0x00008a00);
+    cpu_run.arithmetic_control = UINT32_C(0x3f001002);
+    cpu_step.arithmetic_control = UINT32_C(0x3f001002);
+    cpu_run.compare_result = VF2_I960_COMPARE_EQUAL;
+    cpu_step.compare_result = VF2_I960_COMPARE_EQUAL;
+
+    /* Path A: vf2_i960_run, which is the legacy stepper in this build. */
+    memset(&options, 0, sizeof(options));
+    memset(&result, 0, sizeof(result));
+    options.stop_address = UINT32_C(0x221f4);
+    options.max_steps = 16u;
+    options.stop_on_self_branch = false;
+    status = vf2_i960_run(&cpu_run, &machine_run, &options, &result);
+    if (status != VF2_OK) {
+        fprintf(stderr,
+                "vf2_i960_run over the bbs window failed: %s (halt %u at "
+                "0x%08x)\n",
+                vf2_status_string(status),
+                (unsigned)result.halt_reason, (unsigned)result.halt_address);
+        vf2_model2a_shutdown(&machine_run);
+        vf2_model2a_shutdown(&machine_step);
+        free(image);
+        return 4;
+    }
+
+    /* Path B: one hand-stepped vf2_i960_step, which is the arch stepper. */
+    status = vf2_i960_step(&cpu_step, &machine_step, NULL);
+    if (status != VF2_OK) {
+        vf2_model2a_shutdown(&machine_run);
+        vf2_model2a_shutdown(&machine_step);
+        free(image);
+        return 5;
+    }
+
+    run_cc = (uint32_t)cpu_run.compare_result;
+    step_cc = (uint32_t)cpu_step.compare_result;
+    run_arith = cpu_run.arithmetic_control;
+    step_arith = cpu_step.arithmetic_control;
+    run_ip = cpu_run.ip;
+    step_ip = cpu_step.ip;
+
+    vf2_model2a_shutdown(&machine_run);
+    vf2_model2a_shutdown(&machine_step);
+    free(image);
+
+    /* The divergence is confined to the condition word. If this ever fails, the
+     * macro is no longer only a compare_state question. */
+    if (run_ip != step_ip || run_ip != UINT32_C(0x221f4)) {
+        fprintf(stderr,
+                "step-path divergence escaped the condition word: run ip "
+                "0x%08x vs step ip 0x%08x\n",
+                run_ip, step_ip);
+        return 6;
+    }
+    /* Both condition fields are pinned to the measured pairs, not just compared
+     * for inequality: legacy leaves them at the entry values, the arch path
+     * rewrites them. */
+    if (run_arith != UINT32_C(0x3f001002) ||
+        step_arith != UINT32_C(0x3f001000)) {
+        fprintf(stderr,
+                "step-path arithmetic_control drifted: run 0x%08x vs step "
+                "0x%08x, expected 0x3f001002 vs 0x3f001000\n",
+                run_arith, step_arith);
+        return 7;
+    }
+    /* The pinned difference: legacy leaves the word alone (EQUAL), the arch
+     * path rewrites it (NONE). If someone flips VF2_LEGACY_STEP_IN_RUN, or edits
+     * either stepper, this is where it surfaces. */
+    if (run_cc != (uint32_t)VF2_I960_COMPARE_EQUAL) {
+        fprintf(stderr,
+                "vf2_i960_run no longer leaves compare_result alone at a bbs: "
+                "got %lu, expected %lu. VF2_LEGACY_STEP_IN_RUN was probably "
+                "flipped.\n",
+                (unsigned long)run_cc, (unsigned long)VF2_I960_COMPARE_EQUAL);
+        return 8;
+    }
+    if (step_cc != (uint32_t)VF2_I960_COMPARE_NONE) {
+        fprintf(stderr,
+                "vf2_i960_step no longer rewrites compare_result at a bbs: got "
+                "%lu, expected %lu. arch_fix_direct_compare has changed.\n",
+                (unsigned long)step_cc, (unsigned long)VF2_I960_COMPARE_NONE);
+        return 9;
+    }
+    if (run_cc == step_cc) {
+        fprintf(stderr,
+                "the two steppers no longer differ at a bbs; this test pins the "
+                "asymmetry and must be revisited, not deleted.\n");
+        return 9;
     }
     return 0;
 }
