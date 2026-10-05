@@ -37,10 +37,23 @@ per `AGENTS.md` repository hygiene rules.
 
 ## What this confirms
 
+> **CORRECTION (v0732d).** The sentence below claiming a
+> `native-seventh-dispatch` ctest is "already on master" is **false**. No
+> `seventh` string exists in `CMakeLists.txt` or `tools/vf2i960/`.
+> `vf2_native_seventh_dispatch` existed at v0144
+> (`seventh_dispatch_v0144.md`) and was then **deliberately retargeted** to
+> `vf2_native_eleventh_dispatch`, because the sixth-dispatch base already
+> spans dispatches 7-10 per-block. The v0730 handoff author grepped for the
+> literal `seventh` and inferred the test was missing, which propagated into
+> the runbook's F5 item. See `CHANGELOG.md`'s "test: retarget
+> `vf2_native_seventh_dispatch` to `vf2_native_eleventh_dispatch`" entry and
+> `f5_already_closed_v0732.md`.
+
 The v0727 / v0728 corridor is the same one being checked against the
 ROM here. The 14M-instruction count and ~10K call/return balance are
-consistent with the `native-sixth-dispatch` / `native-seventh-dispatch`
-ctest entries already on master. The recovered C semantics match the
+consistent with the `native-sixth-dispatch` and
+`native-eleventh-dispatch` / `native-twelfth-dispatch` ctest entries on
+master. The recovered C semantics match the
 original i960 execution through the entire `fa_game_info` chain, the
 full TEST MENU walk, the COIN ASSIGNMENT submenu, and the
 post-frame bridge.

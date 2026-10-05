@@ -1,5 +1,59 @@
 # Changelog
 
+## v0732e: F5 is already closed - the v0730 premise is false
+
+**Documentation only. No behaviour change, no CMake change, no code touched.**
+The F5 item in `v0730_first_action_runbook.md` is a phantom work item.
+
+**The runbook's claim:** "`vf2_native_seventh_dispatch` does not yet exist in
+`CMakeLists.txt` (verified at v0730 - only `vf2_native_sixth_dispatch` is
+wired)."
+
+**What is true:** it *did* exist. `seventh_dispatch_v0144.md` records the
+seventh `fa_game_info` entry at `0x1645c` / registry `0x515200` matching the
+reference exactly - 36 recovered blocks, 2,170 instructions. It was then
+**deliberately retargeted** to `vf2_native_eleventh_dispatch`, because the
+strict sixth-dispatch base now ends at the **tenth** entry (8 repeated
+scheduler entries, 870 blocks, 7,404,901 instructions) and **dispatches 7-10
+are already covered per-block inside the sixth command**, which compares all
+870 blocks individually. The eleventh test then proves one further
+37-block / 2,166-instruction cycle.
+
+Reproduced at v0732e:
+
+```text
+$ vf2i960 native-nth-dispatch roms/vf2 7
+Checkpoint represents dispatch 10; target must be >= that value.   (exit 1)
+$ vf2i960 native-nth-dispatch roms/vf2 11
+Native continuation checkpoint: dispatch 10 at 0x0001645c
+Native dispatch 11 validation: MATCH                             (exit 0)
+```
+
+The `7` failure is the **documented intended behaviour**, not a gap. The
+arithmetic is `current_dispatch = scheduler_entries / 2 + 6`, which with the
+sixth base's 8 entries gives 10, so the continuation can only target 11 and up.
+
+**How the false premise happened:** the v0730 author grepped `CMakeLists.txt`
+for the literal string `seventh`, found nothing, and concluded the test had
+never been wired - without reading the CHANGELOG entry that explains the
+rename. It then propagated into two places, both corrected: the runbook's F5
+item, and `native_dispatch_boundary_v0730_measured.md` ("consistent with the
+`native-sixth-dispatch` / `native-seventh-dispatch` ctest entries already on
+master").
+
+This is the **third** v0730-handoff premise found false, after MANUAL SETTING's
+location and the S1 reference. A handoff that asserts a *negative* needs the
+same evidence standard as a positive one, and a literal-string grep is not
+evidence that a test was never wired - a rename leaves no trace of the old
+name.
+
+Remaining queue after this: the F3/F4 INDIVIDUAL value-row release
+(4061/38, one sample, refused) and P1-P4. `native_dispatch_endurance.md`
+already warns that longer baseline runs stop exposing boundaries, and the
+three v0732c corrections all came from controlled input and state mutations -
+KICK instead of PUNCH, INDIVIDUAL instead of COMMON, non-default credit
+vectors - rather than more frames. Evidence in `f5_already_closed_v0732.md`.
+
 ## v0732d: INDIVIDUAL mode is reachable and its walk differs - F3/F4 evidence
 
 **Evidence only. No behaviour change, no tuple admitted.** Closes the last F3

@@ -58,20 +58,14 @@ Per `docs/UNCOVERED_BRANCHES.md` and `decomp/i960/notes/v0727`:
 
 ### Layer 0 - TEST MENU completion (F1-F5)
 
-**Status: F1 and F2 are CLOSED.** F1 recovered in `f45f25bf`
-(`f1_manual_setting_entry_teardown_v0731.md`); F2 recovered at v0732
-(`f2_post_edit_release_recovered_v0732.md`), all three post-edit release
-frames matching on registers, memory, instruction count and call count.
-**F3 is partially closed** at v0732b/v0732c: 18 release frames match, the
-body length is a counted singular-label rule, and three earlier mappings were
-corrected against the ROM (`f3_row3_release_count_rule_v0732.md`,
-`f3_row6_credit1_correction_v0732.md`,
-`f3_chute_slot_and_count_correction_v0732.md`). **F3 is measured, not recovered, at its last item** at v0732d
-(`f3_f4_individual_mode_measured_v0732.md`): INDIVIDUAL mode turns out to be
-reachable only up to row 2, its walk differs from COMMON, and the
-INDIVIDUAL KICK release measures 4061/38 - refused by the native. F4's shape
-difference is now recorded. F5 remains. The items below are kept verbatim as
-originally written so the original framing stays auditable.
+**Status: F1, F2 and F5 are CLOSED. F3 and F4 are measured, not recovered.**
+F1 recovered in `f45f25bf`; F2 in `46c2d88b`; F5 was **already** closed and
+the v0730 F5 item below was a false premise (`f5_already_closed_v0732.md`).
+F3/F4 are measured at v0732b-v0732e: 18 release frames match, the body length
+is a counted singular-label rule, three earlier mappings were corrected
+against the ROM, and the INDIVIDUAL leg was built from scratch and measured
+at 4061/38 - refused by the native. P1-P4 remain. The items below are kept
+verbatim as originally written so the original framing stays auditable.
 
 Each slice: 30-90 minutes of focused RAM-resident work plus a
 strict `vf2cmp|native-*` differential per the v0727 playbook.
@@ -89,12 +83,36 @@ The v0727 "Still open" list is the work queue:
 3. **F3**: PUNCH/KICK releases at value rows + KICK -1 from
    INDIVIDUAL mode.
 4. **F4**: INDIVIDUAL-mode walks at rows 2-4.
-5. **F5**: Bump `native-seventh-dispatch` boundary past v0727.
-   `vf2_native_seventh_dispatch` does not yet exist in `CMakeLists.txt`
-   (verified at v0730 — only `vf2_native_sixth_dispatch` is wired).
-   Adding it requires: a `seventh-dispatch` sub-command in `vf2i960`,
-   the entry scenario that exercises the full TEST MENU row-2/3/4
-   edit release frames, and a per-block MATCH proof.
+5. **F5 — ALREADY CLOSED, and the v0730 text below was wrong.**
+   `vf2_native_seventh_dispatch` *did* exist
+   (`seventh_dispatch_v0144.md`: the seventh `fa_game_info` entry at
+   `0x1645c` / registry `0x515200`, 36 recovered blocks and 2,170
+   instructions). It was then **deliberately retargeted** to
+   `vf2_native_eleventh_dispatch` on `native-nth-dispatch 11`, because the
+   strict sixth-dispatch base now ends at the **tenth** entry - 8 repeated
+   scheduler entries, 870 blocks, 7,404,901 instructions - so dispatches
+   7-10 are already covered **per-block inside the sixth command**. See the
+   `test: retarget ...` entry in `CHANGELOG.md` (v0270 era).
+
+   Verified at v0732d: `native-nth-dispatch 11` prints "Native continuation
+   checkpoint: dispatch 10 at 0x0001645c" then "Native dispatch 11
+   validation: MATCH" (exit 0); `native-nth-dispatch 7` fails closed with
+   `Checkpoint represents dispatch 10; target must be >= that value`
+   (exit 1) - which is the intended behaviour, not a gap.
+
+   The v0730 author grepped `CMakeLists.txt` for the literal string
+   `seventh`, found none, and concluded the test did not exist without
+   reading the CHANGELOG entry that explains the rename. Do not repeat that.
+
+   The original item text is kept below for audit; it is **not** a work
+   queue entry.
+
+   > **F5**: Bump `native-seventh-dispatch` boundary past v0727.
+   > `vf2_native_seventh_dispatch` does not yet exist in `CMakeLists.txt`
+   > (verified at v0730 - only `vf2_native_sixth_dispatch` is wired).
+   > Adding it requires: a `seventh-dispatch` sub-command in `vf2i960`,
+   > the entry scenario that exercises the full TEST MENU row-2/3/4
+   > edit release frames, and a per-block MATCH proof.
 
 ### Layer 1 — fa_player corridor downstream (P1-P4)
 
