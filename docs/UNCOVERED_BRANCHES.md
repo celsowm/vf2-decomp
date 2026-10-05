@@ -250,6 +250,15 @@ Admitting the release latch tuples does not help: row 3 still fails the
 two fail-closed checks *are* the F2 frontier, and each must be widened
 against a measured rule, not relaxed wholesale.
 
+**The value-driven digit render is partly mapped.** Three memory traces
+over edit frames with differing pre-update vectors show screen (8,40)
+tracking `credits[4]` and (9,40) tracking `credits[5]`, each with two
+distinct observed values. Rows (6,40) and (7,40) stayed `'2'` in every
+sample because indices 0 and 1 never moved, so their mapping is
+**unproven** - a constant fits the same data - and resolving it needs a real
+`a5 = 2` boundary. The render also happens *before* the `credits[3]` write
+in the same frame, so each frame renders the stale vector then updates it.
+
 **The derived-credits transform is RESOLVED by static analysis.** It is a
 clamped counter plus two ROM byte tables, not arithmetic:
 `credits[3] += delta` clamped to `[0, 14]`; `credits[4] = mem8[0x5bc74 +

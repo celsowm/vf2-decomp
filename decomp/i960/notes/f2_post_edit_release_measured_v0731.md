@@ -210,6 +210,46 @@ The edit frame is stable at 4636/4637 instructions across all nine samples
 (`credits[4]` = 3 and 7 give 4636, the rest 4637), so the *body* is nearly
 row-independent even though the *state* transform is not.
 
+## The value-driven digit render: rows 8 and 9 mapped, rows 6 and 7 not
+
+`runs[]` hardcodes `{6,40,"2"}`, `{7,40,"2"}`, `{8,40,"2"}` and
+`{9,40,"2"}`. Tracing three edit frames with `--memory-trace` shows which
+of them actually track live state. The render happens **before** the
+`credits[3]` write in the same frame, so each trace shows the *pre-update*
+vector:
+
+| pre-update `credits` | (6,40) | (7,40) | (8,40) | (9,40) |
+|---|---|---|---|---|
+| `[2,2,2,5,3,3]` | `'2'` | `'2'` | **`'3'`** | **`'3'`** |
+| `[2,2,2,8,4,3]` | `'2'` | `'2'` | **`'4'`** | **`'3'`** |
+| `[2,2,2,9,4,4]` | `'2'` | `'2'` | **`'4'`** | **`'4'`** |
+
+- **screen (8,40) tracks `credits[4]`** - `'3'` when `credits[4] = 3`,
+  `'4'` when it is 4. Two distinct values observed.
+- **screen (9,40) tracks `credits[5]`** - `'3'` and `'4'`. Two distinct
+  values observed.
+- **screen (6,40) and (7,40) stayed `'2'` in every sample.** Indices 0 and
+  1 never moved in any of the nine edit states, so
+  "`<- credits[0]` / `<- credits[1]`" is *consistent but unproven* - a
+  constant `'2'` fits the same data. Do not encode them until a state with
+  `credits[0] != 2` or `credits[1] != 2` is measured; that needs a proper
+  `a5 = 2` boundary (see the row-2 section).
+
+Each cell is written with one 16-bit `stos` of `0x8000 | ASCII(digit)`,
+i.e. the same attribute form as the text runs, at four sites 100 bytes
+apart: `0x5bd04`, `0x5bd68`, `0x5bdcc`, `0x5be30`.
+
+```asm
+0005bd04  stos     r15, (g9)
+0005bd08  addo     4, g9, g9
+0005bd0c  be       0x0005bd24
+0005bd10  balx     0x00009444, r14
+```
+
+The digit-to-glyph conversion is in the `0x9444` helper, which this note
+has not disassembled - the value mapping above is measured, not inferred
+from that code.
+
 ## The two distinct deferred behaviours
 
 This is the part the runbook compressed into "credit index != 2, derived
@@ -287,10 +327,11 @@ a5 3}` — already admitted) lands on a5 = 2, then run the six steps above.
    blanket relaxation: the `credits[index] != 2` refusal must admit the
    *derived* vectors only, and `preset != 0u` must admit `preset = 1` only
    where measured. Neither may become a general "any value" gate.
-2. The **value-driven digit render**. `runs[]` hardcodes `"2"` at screen
-   (6,40), (7,40), (8,40) and (9,40). With `credits != 2` those cells must
-   render the live value, and the derived values mean several cells change
-   from one edit.
+2. The **value-driven digit render**, partially mapped. Rows (8,40) and
+   (9,40) are proven to track `credits[4]` and `credits[5]`; rows (6,40)
+   and (7,40) are unproven because indices 0 and 1 never moved in any
+   sampled state. `runs[]` must stop hardcoding `"2"` for all four, but
+   only two of the four mappings may be written down yet.
 3. The **derived-credits transform** is now **fully resolved** - clamped
    counter + `mem8[0x5bc74 + n]` / `mem8[0x5bc84 + n]`. Encode the tables,
    not a formula. Still needs its own differential proof before admission.

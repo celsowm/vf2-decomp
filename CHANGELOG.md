@@ -1,5 +1,36 @@
 # Changelog
 
+## v0731k - F2 digit render: rows 8/9 map to credits[4]/credits[5], rows 6/7 unproven
+
+Evidence only. No behaviour change, no tuple admitted, no code touched.
+
+`runs[]` hardcodes `{6,40,"2"}`, `{7,40,"2"}`, `{8,40,"2"}`, `{9,40,"2"}`.
+Three `--memory-trace` runs over edit frames with differing pre-update
+vectors map two of the four:
+
+| pre-update `credits` | (6,40) | (7,40) | (8,40) | (9,40) |
+|---|---|---|---|---|
+| `[2,2,2,5,3,3]` | `'2'` | `'2'` | `'3'` | `'3'` |
+| `[2,2,2,8,4,3]` | `'2'` | `'2'` | `'4'` | `'3'` |
+| `[2,2,2,9,4,4]` | `'2'` | `'2'` | `'4'` | `'4'` |
+
+- **screen (8,40) tracks `credits[4]`** and **screen (9,40) tracks
+  `credits[5]`**, each with two distinct observed values.
+- **Rows (6,40) and (7,40) are unproven.** Indices 0 and 1 never moved in
+  any of the nine edit states, so "`<- credits[0]` / `<- credits[1]`" is
+  consistent but a constant `'2'` fits the same data. Recorded as
+  unproven rather than assumed; resolving it needs a real `a5 = 2`
+  boundary.
+- **The render happens before the `credits[3]` write** in the same frame,
+  which is why each trace shows the pre-update vector. Worth remembering
+  when reading the state: the frame renders stale-then-updates.
+- Each cell is one 16-bit `stos` of `0x8000 | ASCII(digit)` at four sites
+  100 bytes apart (`0x5bd04`, `0x5bd68`, `0x5bdcc`, `0x5be30`), with the
+  digit-to-glyph conversion in a `balx 0x9444` helper that this slice has
+  not disassembled. The value mapping is measured, not read off that code.
+
+See `decomp/i960/notes/f2_post_edit_release_measured_v0731.md`.
+
 ## v0731j - F2 derived-credits RESOLVED: clamped counter + two ROM byte tables
 
 Evidence only. No behaviour change, no tuple admitted, no code touched. The
