@@ -22,6 +22,21 @@ endif()
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(VF2Warnings)
 
+# Say out loud which sanitizer path is in effect. VF2_ENABLE_SANITIZERS used to
+# apply its flags only to non-MSVC compilers, so on the canonical Windows
+# checkout the documented sanitizer gate instrumented nothing while still
+# reporting a pass. If the option is requested, the build must state whether it
+# actually got a sanitizer.
+if(VF2_ENABLE_SANITIZERS)
+  if(MSVC)
+    message(STATUS "VF2_ENABLE_SANITIZERS=ON: MSVC AddressSanitizer (/fsanitize=address)")
+  else()
+    message(STATUS "VF2_ENABLE_SANITIZERS=ON: GCC/Clang -fsanitize=address,undefined")
+  endif()
+else()
+  message(STATUS "VF2_ENABLE_SANITIZERS=OFF: no sanitizer instrumentation")
+endif()
+
 add_library(vf2_core STATIC
     src/analysis/boundaries.c
     src/analysis/cfg.c

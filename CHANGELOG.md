@@ -1,5 +1,61 @@
 # Changelog
 
+## v0732s: the sanitizer gate was a silent no-op on MSVC — now it is armed
+
+`cmake/VF2Warnings.cmake` put `-fsanitize=address,undefined` inside the `else()`
+of `if(MSVC)`. On the canonical Windows checkout `VF2_ENABLE_SANITIZERS=ON`
+therefore instrumented **nothing**, the build succeeded, every test ran and every
+test passed — with no warning. Every "sanitizer gate still unrun" note in the
+repo, including the one carried across the whole v0732b–v0732r series, was
+reporting on a gate that could not have failed.
+
+The gate reported a pass it had no capacity to fail.
+
+Fixed: the MSVC branch now applies `/fsanitize=address /Zi` with
+`/INCREMENTAL:NO` at link, and `CMakeLists.txt` prints which instrumentation is
+in effect — including the `OFF` case, because a gate that cannot say whether it
+is armed should not be trusted when it says it passed.
+
+**A claim in the first draft of this note was wrong and is corrected here.** I
+first wrote that the tell was timing — the sanitizer tree ran the `coli` subset
+in 31.10 s against 31.44 s plain. Once genuinely armed, the full suite cost only
+about 8% more: `vf2_player_4505_live_tests` took 1497 s of CPU under ASan against
+roughly 1380 s uninstrumented. A "sanitizer runs should be much slower" heuristic
+would therefore report a *working* gate as broken on this codebase. The
+discriminating checks are the configure-time line and the binary's dependency on
+the sanitizer runtime — an uninstrumented binary cannot exit `0xC0000135`.
+
+Two environment gotchas, both documented in
+`decomp/i960/notes/sanitizer_gate_was_a_noop_v0732s.md`:
+
+- `cmake` here resolves to **VS 18 BuildTools 14.50.35717**, whose toolset ships
+  `clang_rt.asan*` for arm64 and i386 only. `lib\x64` has no ASan libraries, so
+  `/fsanitize=address` dies at link with `LNK1104`. The **VS 2022 Community**
+  toolset on the same machine does have them, so the tree needs
+  `-G "Visual Studio 17 2022" -A x64`, and a stale `build-san/` pinned to the
+  old toolset has to be removed rather than reconfigured in place.
+- The instrumented binaries then exit `0xC0000135` (`STATUS_DLL_NOT_FOUND`)
+  until the toolset `bin\Hostx64\x64` directory is on `PATH`. Without it ctest
+  **hangs** rather than failing, which is the worst failure mode for a gate.
+
+`vf2_coli_2396c_live_tests` under real ASan, both legs, no diagnostics:
+
+```text
+fixture premise: 21/30 non-identity permutation bytes, 30/30 non-zero 4th words
+fighter 0x00510980: FULL MATCH (3023 insn, 3 calls, 4 returns, all 120 cluster words, all 30 4th words)
+fighter 0x00512980: FULL MATCH (3023 insn, 3 calls, 4 returns, all 120 cluster words, all 30 4th words)
+```
+
+Standing rule: a gate must be able to fail, and you must prove it can — check
+that the build says what is armed and that the binary actually depends on the
+sanitizer runtime. Do **not** use wall-clock as the check.
+
+Full suite under real ASan: **119/119 passed, 0 failed, 2542.61 s**, no
+AddressSanitizer diagnostics. That closes the gate carried as "unrun" across the
+whole v0732b–v0732r series. The gate is armed and the suite is clean under it; it
+has **not** been proven able to fail, which given how long it was silently inert
+is the obvious next step rather than a footnote.
+
 ## v0732r: the missing 0x2396c differential, and two real register defects it found
 
 `test_coli_2396c_poly_cluster` was a self-consistency test, not a differential:

@@ -112,6 +112,7 @@ hardware modeling:
 
 ```sh
 cmake -S . -B build-san \
+  -G "Visual Studio 17 2022" -A x64 \
   -DVF2_BUILD_TESTS=ON \
   -DVF2_WARNINGS_AS_ERRORS=ON \
   -DVF2_ENABLE_SANITIZERS=ON \
@@ -119,6 +120,32 @@ cmake -S . -B build-san \
 cmake --build build-san --parallel
 ctest --test-dir build-san --output-on-failure
 ```
+
+**The generator and the `PATH` are not optional (v0732s).** Until v0732s the
+MSVC branch of `VF2Warnings.cmake` never applied any sanitizer flag, so
+`VF2_ENABLE_SANITIZERS=ON` instrumented nothing while reporting a pass — the gate
+could not fail. Two consequences on this machine:
+
+- the default `cmake` resolves to **VS 18 BuildTools 14.50.35717**, whose toolset
+  ships `clang_rt.asan*` for arm64/i386 only, so `/fsanitize=address` dies at
+  link with `LNK1104`. Use the **VS 2022** generator above, which has the x64
+  libraries. A `build-san/` pinned to the other toolset must be **removed and
+  recreated**, not reconfigured in place.
+- the instrumented binaries exit `0xC0000135` until the toolset bin directory is
+  on `PATH`, and **ctest hangs** rather than failing:
+
+```powershell
+$env:PATH = "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64;" + $env:PATH
+```
+
+`CMakeLists.txt` now prints which instrumentation is in effect at configure
+time. **Check that line before believing a sanitizer result.** Do *not* use
+wall-clock as the check: once armed, this suite costs only ~8% more under ASan
+(1497 s vs ~1380 s of CPU on the dominating test), so a "sanitizer runs should be
+much slower" heuristic would report a working gate as broken. The reliable tells
+are the configure-time line and the binary's dependency on the sanitizer runtime
+(an uninstrumented binary cannot exit `0xC0000135`). See
+`decomp/i960/notes/sanitizer_gate_was_a_noop_v0732s.md`.
 
 A change is not finished merely because it compiles. Run the most specific
 ROM-backed differential path that exercises the new recovery.

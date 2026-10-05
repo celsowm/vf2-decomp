@@ -12,6 +12,15 @@ function(vf2_set_project_warnings target_name)
         if(VF2_WARNINGS_AS_ERRORS)
             target_compile_options(${target_name} PRIVATE /WX)
         endif()
+        # The ASan/UBSan flags used to live only in the non-MSVC branch, so
+        # VF2_ENABLE_SANITIZERS=ON was a silent no-op on the canonical Windows
+        # checkout - the gate reported as "run" while instrumenting nothing.
+        # A gate that cannot fail is worse than no gate, so MSVC gets the
+        # flags too and the configure step says which one is in effect.
+        if(VF2_ENABLE_SANITIZERS)
+            target_compile_options(${target_name} PRIVATE /fsanitize=address /Zi)
+            target_link_options(${target_name} PRIVATE /INCREMENTAL:NO)
+        endif()
     else()
         target_compile_options(${target_name} PRIVATE
             -Wall
