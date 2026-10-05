@@ -1,4 +1,13 @@
-# v0733: `block_coverage.py` — per-function coverage report for the factory chain
+# v0733: `block_coverage.py` - per-function coverage report for the factory chain
+
+> **The report in this note was dominated by container rows and has been
+> corrected at v0733b.** The sample output below is the *old* ranking, and it is
+> not a usable prioritisation signal: all twelve entries were **container**
+> ranges whose `end` is a region bound rather than the procedure's own extent.
+> The worst offender, `video_register_compose`, is documented in the CSV's own
+> `notes` as a *sixty-three instruction* body while spanning 48 KB. See
+> `block_coverage_containers_v0733b.md` for the measurement, the fix, and the
+> corrected ranking. Kept here verbatim so the correction is auditable.
 
 The factory chain is missing one navigation aid: an automated way to answer
 *"which `functions.csv` entry has the largest unmeasured gap that the next

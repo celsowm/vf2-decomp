@@ -72,6 +72,7 @@ class FunctionRange:
     name: str
     status: str
     notes: str = ""
+    is_container: bool = False
 
     @property
     def byte_size(self) -> int:
@@ -92,6 +93,41 @@ class FunctionRange:
         # entry (``main_texture_orchestrator_call`` spans 269 KB).
         # Surface these distinctly so they cannot dominate the report.
         return self.status_bucket == "control_block" and self.byte_size > 0x10000
+
+    @property
+    def is_excluded_by_default(self) -> bool:
+        # Two different reasons a range cannot be ranked as if it were one
+        # function. Both are properties of the CSV rows, not of the game.
+        return self.is_wrapper or self.is_container
+
+
+def mark_containers(ranges: List[FunctionRange]) -> int:
+    """Flag rows that strictly contain another row's range.
+
+    ``functions.csv`` is a mix of leaves and containers: a container's
+    ``end`` is a region bound rather than the procedure's own extent, so its
+    uncovered run is the union of its children's gaps. Ranking by that
+    attributes a child's work to its parent, and lets one container dominate
+    the whole report - which is exactly what happens without this: the top
+    four entries were 45-66 KB "functions" whose own notes say they are
+    63-instruction bodies, and each one nested several smaller rows.
+
+    Overlap alone is not the test. A container must *strictly* contain
+    another row, so an ordinary prefix/leaf decomposition where siblings only
+    abut is left alone. The 20 flagged rows are containers; the remaining 49
+    are leaves with plausible 24-892 byte extents.
+    """
+    marked = 0
+    for outer in ranges:
+        for inner in ranges:
+            if outer is inner:
+                continue
+            if (outer.start <= inner.start and outer.end >= inner.end
+                    and outer.byte_size > inner.byte_size):
+                outer.is_container = True
+                marked += 1
+                break
+    return marked
 
 
 def parse_int(value) -> int:
@@ -133,6 +169,7 @@ def load_functions(path: Path) -> List[FunctionRange]:
                 )
             )
     out.sort(key=lambda f: f.start)
+    mark_containers(out)
     return out
 
 
@@ -228,6 +265,12 @@ class FunctionReport:
     status: str
     status_bucket: str
     is_wrapper: bool
+    is_container: bool
+
+    @property
+    def is_excluded_by_default(self) -> bool:
+        return self.is_wrapper or self.is_container
+    is_container: bool
     byte_size: int
     word_count: int
     addresses_in_trace: int
@@ -244,6 +287,7 @@ class FunctionReport:
             "status": self.status,
             "status_bucket": self.status_bucket,
             "is_wrapper": self.is_wrapper,
+            "is_container": self.is_container,
             "byte_size": self.byte_size,
             "word_count": self.word_count,
             "addresses_in_trace": self.addresses_in_trace,
@@ -272,6 +316,7 @@ def build_report(
                 status=func.status,
                 status_bucket=func.status_bucket,
                 is_wrapper=func.is_wrapper,
+                is_container=func.is_container,
                 byte_size=func.byte_size,
                 word_count=func.word_count,
                 addresses_in_trace=covered,
@@ -314,17 +359,18 @@ def rank_reports(rows: List[FunctionReport], key: str) -> List[FunctionReport]:
     return rows
 
 
-def render_text(rows: List[FunctionReport], limit: int, include_wrappers: bool) -> str:
-    """Render a human-readable report (text table)."""
-    shown = [
-        r for r in rows[:limit] if include_wrappers or not r.is_wrapper
-    ]
+def render_text(rows: List[FunctionReport]) -> str:
+    """Render a human-readable report (text table).
+
+    `rows` arrives already filtered and limited; see the comment at the call
+    site for why the order matters.
+    """
     lines = [
         f"{'name':<32} {'status':<26} {'size':>7} "
         f"{'in_trace':>9} {'cov':>5} {'uncovered':>10} "
         f"{'long_run':>9}  range"
     ]
-    for r in shown:
+    for r in rows:
         lines.append(
             f"{r.name[:32]:<32} {r.status:<26} "
             f"{r.byte_size:>7} "
@@ -369,7 +415,12 @@ def main() -> int:
     parser.add_argument(
         "--include-wrappers",
         action="store_true",
-        help="include control-block wrappers (default: excluded)",
+        help=(
+            "include control-block wrappers and container ranges "
+            "(default: excluded). A container's `end` is a region bound, not "
+            "the procedure's own extent, so its uncovered run is the union of "
+            "its children's gaps and it dominates any ranking by size."
+        ),
     )
     parser.add_argument(
         "--sort",
@@ -421,6 +472,14 @@ def main() -> int:
     rows = rank_reports(rows, args.sort)
     if args.limit < 1:
         parser.error("--limit must be positive")
+    # Exclude, THEN limit. Doing it the other way round returns an empty
+    # report whenever the top-N by uncovered run happen to be all containers -
+    # which is exactly the case here, and an empty table is indistinguishable
+    # from "the corpus covered everything". Applying the filter here also keeps
+    # the JSON and text outputs in agreement; previously JSON still emitted the
+    # container rows that the text report hid.
+    if not args.include_wrappers:
+        rows = [r for r in rows if not r.is_excluded_by_default]
     rows = rows[: args.limit]
 
     if args.as_json:
@@ -432,7 +491,7 @@ def main() -> int:
             if out is not sys.stdout:
                 out.close()
     else:
-        text = render_text(rows, args.limit, args.include_wrappers)
+        text = render_text(rows)
         if args.output == "-":
             sys.stdout.write(text)
         else:

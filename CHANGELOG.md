@@ -1,6 +1,50 @@
 # Changelog
 
-## v0733: `block_coverage.py` — per-function coverage report for the factory chain
+## v0733b: the coverage report was ranking container ranges, not functions
+
+v0733's `block_coverage.py` exists to answer *"which `functions.csv` entry has
+the largest unmeasured gap?"* for P3-P4. As shipped it answered a different
+question: **all twelve of its top entries were container ranges** — rows whose
+`end` is a region bound rather than the procedure's own extent, so the ranking
+measured a region that contains other rows rather than any unmeasured function.
+
+The CSV says so itself. `video_register_compose` is documented in its own `notes`
+as a *"sixty-three instruction"* body while spanning 48 988 B; four rows all span
+~`0x0d00..0x0d000` and nest one another at 600 %+ overlap each. Of 69 rows with a
+real range, 20 are strict containers, and 21 rows (20 + 1 wrapper) were inside
+the excluded set.
+
+**Two bugs, not one:**
+
+1. **No container detection.** `mark_containers()` now flags a row that
+   *strictly contains* another row's range. Strict containment rather than mere
+   overlap, so a prefix/leaf decomposition with abutting siblings is left alone.
+   `is_container` travels in the JSON, and `--include-wrappers` now opts both
+   kinds back in. **No `end` value was changed** — inventing extents would be the
+   kind of guess this repo forbids; the tool detects and reports instead.
+
+2. **The limit ran before the exclusion.** Adding only the flag made the report
+   render *completely empty*, because `main()` sliced `rows[:limit]` and then
+   filtered — and when the top-N are all excluded, **an empty table is
+   indistinguishable from "the corpus covered everything."** `main()` now
+   excludes then limits, and applies the same filter to the JSON so both agree
+   (JSON previously still emitted the rows the text report hid).
+
+Corrected ranking is 192–892 byte functions with 48–223 uncovered words, which is
+the right order of magnitude for procedures.
+
+That second bug is the same shape as the v0732s sanitizer no-op and worth
+stating as a rule: **a report that comes back empty has to be distinguishable
+from a report that is genuinely empty.**
+
+Validated: `test_block_coverage.py` 17/17 (three new cases), `ctest -R
+vf2_python_factory` 14/14. Full-suite count in the commit message. The
+container rows' true extents remain unmeasured and need per-function
+disassembly; and `coverage_ratio` is 0.00 for every listed row because the
+v0729–v0732 corpus does not reach those addresses, so this tool orders
+candidates, it does not certify them.
+
+## v0733: `block_coverage.py` - per-function coverage report for the factory chain
 
 The factory chain is missing one navigation aid: an automated way to
 answer *"which `functions.csv` entry has the largest unmeasured gap that

@@ -26,6 +26,7 @@ from block_coverage import (
     hex32,
     load_functions,
     longest_uncovered_run,
+    mark_containers,
     rank_reports,
     render_text,
     total_uncovered_words,
@@ -249,14 +250,73 @@ def test_render_text_excludes_wrappers_by_default():
     ]
     rows = build_report(funcs, set())
     rows = rank_reports(rows, "largest_uncovered_run")
-    text_default = render_text(rows, 10, include_wrappers=False)
-    text_with = render_text(rows, 10, include_wrappers=True)
+    kept = [r for r in rows if not r.is_excluded_by_default]
+    text_default = render_text(kept)
+    text_with = render_text(rows)
     # Default text excludes the wrapper.
     assert "real_function" in text_default
     assert "big_wrapper" not in text_default
     # With --include-wrappers the wrapper appears.
     assert "big_wrapper" in text_with
     print("ok: render_text excludes wrappers unless --include-wrappers")
+
+
+def test_mark_containers_flags_strict_containers():
+    # A container's `end` is a region bound, not the procedure's extent, so its
+    # uncovered run is the union of its children's gaps. That is what let four
+    # 45-66 KB "functions" whose own notes describe 63-instruction bodies take
+    # the top four places in the real report.
+    funcs = [
+        FunctionRange(0x1000, 0x8000, "container", "recovered-observed-branch"),
+        FunctionRange(0x1100, 0x1200, "child_a", "recovered-observed-branch"),
+        FunctionRange(0x2000, 0x2100, "child_b", "recovered-observed-branch"),
+    ]
+    marked = mark_containers(funcs)
+    assert marked == 1, marked
+    assert funcs[0].is_container is True
+    assert funcs[1].is_container is False
+    assert funcs[2].is_container is False
+    # A container is excluded by default; its children are not.
+    assert funcs[0].is_excluded_by_default is True
+    assert funcs[1].is_excluded_by_default is False
+    print("ok: mark_containers flags only strict containers")
+
+
+def test_mark_containers_leaves_abutting_siblings_alone():
+    # Overlap is not the test. A prefix/leaf decomposition where siblings only
+    # abut must not be swept up as containers.
+    funcs = [
+        FunctionRange(0x1000, 0x1080, "a", "recovered"),
+        FunctionRange(0x1080, 0x1100, "b", "recovered"),
+        FunctionRange(0x1100, 0x1180, "c", "recovered"),
+    ]
+    assert mark_containers(funcs) == 0
+    assert not any(f.is_container for f in funcs)
+    print("ok: mark_containers leaves abutting siblings alone")
+
+
+def test_exclusion_before_limit_keeps_a_full_report():
+    # Regression: limiting before excluding returned an empty table whenever
+    # the top-N by uncovered run were all containers, which is indistinguishable
+    # from "the corpus covered everything". The real corpus is exactly that
+    # case - the top 12 were all containers.
+    funcs = [
+        FunctionRange(0x1000, 0x9000, "container", "recovered-observed-branch"),
+        FunctionRange(0x1100, 0x1200, "child", "recovered-observed-branch"),
+    ]
+    mark_containers(funcs)
+    rows = rank_reports(build_report(funcs, set()), "largest_uncovered_run")
+    # The container sorts first because it is larger.
+    assert rows[0].name == "container", [r.name for r in rows]
+    limit = 1
+    # Order matters: exclude, then limit.
+    kept_then_limited = [r for r in rows if not r.is_excluded_by_default][:limit]
+    assert [r.name for r in kept_then_limited] == ["child"]
+    # The old order returns nothing at all.
+    limited_then_kept = [r for r in rows[:limit] if not r.is_excluded_by_default]
+    assert limited_then_kept == []
+    assert "child" in render_text(kept_then_limited)
+    print("ok: exclusion happens before the limit, so the report is not empty")
 
 
 def test_function_report_round_trip_dict():
@@ -268,6 +328,7 @@ def test_function_report_round_trip_dict():
         status=f.status,
         status_bucket=f.status_bucket,
         is_wrapper=f.is_wrapper,
+        is_container=f.is_container,
         byte_size=f.byte_size,
         word_count=f.word_count,
         addresses_in_trace=0,
@@ -282,6 +343,10 @@ def test_function_report_round_trip_dict():
     assert d["end"] == "0x00002000"
     assert d["status_bucket"] == "observed_branch"
     assert d["byte_size"] == 0x1000
+    # is_container travels with the report, so a consumer of the JSON can tell
+    # a container row from a leaf without re-reading functions.csv.
+    assert d["is_container"] is False
+    assert d["is_wrapper"] is False
     # The dict can be serialised without TypeError.
     json.dumps(d)
     print("ok: FunctionReport.to_dict is JSON-round-trippable")
@@ -313,6 +378,9 @@ def main():
     test_rank_reports_orders_by_largest_uncovered_run_desc()
     test_rank_reports_rejects_unknown_key()
     test_render_text_excludes_wrappers_by_default()
+    test_mark_containers_flags_strict_containers()
+    test_mark_containers_leaves_abutting_siblings_alone()
+    test_exclusion_before_limit_keeps_a_full_report()
     test_function_report_round_trip_dict()
     test_load_functions_on_real_csv_is_stable()
     print("\nall block_coverage tests passed")
