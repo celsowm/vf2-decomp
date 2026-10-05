@@ -199,9 +199,10 @@ measured tuple table (input, previous, released, nav, source a5,
 coin mode) with one shared poststate rule (caller-frame r14/r15;
 flat globals on idle/nav/release, checksum/g1/g2 pins on edits);
 the 0x85 condition poststate keeps the bridge-pinned CC for the
-measured latch inputs. Still fail-closed: rows 2-4 edit release
-frames (post-edit credit/preset renders), PUNCH/KICK value-row releases, and
-INDIVIDUAL-mode walks on other rows. See
+measured latch inputs. The post-edit **release** frames have since been
+recovered separately - rows 2-4 under COMMON (v0732b/v0732c) and INDIVIDUAL
+rows 1-2 (v0732g). Still fail-closed: INDIVIDUAL value rows 3-5 on the
+post-edit release, and INDIVIDUAL-mode walks on other rows. See
 `playable_coin_assignment_natural_v0727.md`.
 
 ## v0731f MANUAL SETTING natural entry (a5 = 5, COMMON) native
@@ -225,7 +226,78 @@ the only difference is `r14` and memory reports no differences.
 tuple is COMMON-only; the nested `a7` editor; PUNCH/KICK at row 5. See
 `f1_manual_setting_entry_teardown_v0731.md`.
 
+## v0732g INDIVIDUAL value-row release RECOVERED - the render was never missing
+
+**The v0732f "the render is NOT recovered" finding was a baseline error.** It
+compared `indk2-rel.jsonl` (INDIVIDUAL row 2) against `f2-r4-rel.jsonl`
+(COMMON **row 4**) - two variables at once. Against the correct control,
+`f2r2k-rel.jsonl` (COMMON **row 2**, same KICK input, mode the only variable),
+only **12 rows** differ and every one was already mode-aware in
+`execute_frame_phase17_bit7_index5`:
+
+```text
+row  5   "COIN CHUTE TYPE  COMMON"     vs "COIN CHUTE TYPE  INDIVIDUAL"
+row  7   1P CONTINUE 1 CREDIT          vs 1P CONTINUE 2 CREDITS   (credit state, not mode)
+row 24   COIN CHUTE #2 COINS CREDITS   vs blank at cols 16-28
+rows 25-33  blank 0x8020 / absent      vs cols 30-47 = 0x0020
+```
+
+Row 5 is the `runs[]` mode-scoped label, rows 24-33 are the INDIVIDUAL erase
+recovered in the v0727 corridor. Text blanks are `0x8020`; the erase blank is
+the **flag-clear** `0x0020`. **No render change was needed or made** - this
+slice touches the latch table, the instruction count and the call count only.
+
+**The 38 was the frame total, not the recovered body.** This block leaves a
+fixed **232-instruction native tail** in both modes (4422 - 4190 under COMMON,
+4294 - 4062 in INDIVIDUAL). The tail's *call* count differs by mode: 0 under
+COMMON, 6 in INDIVIDUAL. So the body carries 32 in both, and
+`38 = 32 recovered + 6 tail`. Pinning 38 is what the first differential caught
+(`native 4294 calls=44`).
+
+| leg | `credits[0..3]` | singulars | reference | native |
+|---|---|---|---|---|
+| `indk2-c` (KICK) | `[2,2,2,2]` | 0 | 4294 / 38 | **4294 / 38** |
+| `indk-c` (KICK) | `[1,2,1,2]` | 1 | 4293 / 38 | **4293 / 38** |
+| `indp-c` (PUNCH) | `[3,3,1,2]` | 1 | 4293 / 38 | **4293 / 38** |
+
+Registers and memory match on all three. `indk2` and `indp` were built from
+existing idles with no patched state. Row 1 is measured too (4292 total =
+4060 body + 232 tail; 38 = 32 + 6).
+
+**A fail-open the row-2 differential alone would have hidden.** The first
+version keyed the new rule on `coin_flags` alone. The COMMON row-1 post-edit
+latch is mode-agnostic (`coin_mode = both`), so an INDIVIDUAL **row-1** release
+arrives on the same shape and the new arm claimed it as `4062/32` - wrong by 2
+instructions with **registers and memory still matching**. Negative controls
+on the *neighbouring* rows are what found it:
+
+| control | reference | native | verdict |
+|---|---|---|---|
+| `nega5-1` (`0x005000a5` patched 2 -> 1) | 4292 / 38 | 4292 / 38 | FULL MATCH |
+| `nega5-3` / `-4` / `-5` | - | refused at `0xa6c0` | fail-closed |
+
+`nega5-1` is a patched-state probe, not a natural-walk claim: per
+`f3_f4_individual_mode_measured_v0732.md` row 1 is not reachable in
+INDIVIDUAL. It does prove the 4060/32 body is right for row 1 through the
+post-edit entry as well as the steady idle. COMMON regression: all six legs
+(`f2-r2/r3/r4-relcl`, `f2-r3-edit`, `f2-r4-edit`, `f2-r4-cl`) unchanged.
+
+```text
+COMMON      value rows 2,3  body = 4190 - singulars,  41 calls
+COMMON      value row  4   body = 4193 (preset 0) / 4186 (preset >= 1), 41 calls
+INDIVIDUAL  value row  1   body = 4060,               32 calls
+INDIVIDUAL  value row  2   body = 4062 - singulars,   32 calls
+INDIVIDUAL  value rows 3,4,5                        refused
+```
+
+"body" excludes the 232-instruction native tail. See
+`f3_individual_value_row_recovered_v0732.md`.
+
 ## v0732f INDIVIDUAL release count completes; the render is NOT recovered
+
+> **Superseded in part by v0732g above.** Two claims here are wrong: the render
+> was already recovered, and the call count is 32, not 38. The 4062 base and
+> the 0/1-singular spread are correct. Kept as the measurement record.
 
 **Evidence only; no behaviour change.** Three INDIVIDUAL value-row releases,
 all built without patching state, take the count rule across the singular
@@ -309,8 +381,9 @@ premise found false, after MANUAL SETTING's location and the S1 reference. A
 handoff asserting a *negative* needs the same evidence standard as a positive
 one, and a literal-string grep is not evidence - a rename leaves no trace.
 
-**Remaining queue:** the F3/F4 INDIVIDUAL value-row release (4061/38, one
-sample, refused) and P1-P4. `native_dispatch_endurance.md` already warns that
+**Remaining queue:** P1-P4. The F3/F4 INDIVIDUAL value-row release that was
+listed here is **done** in v0732g - three natural frames admitted, rows 3-5
+refused. `native_dispatch_endurance.md` already warns that
 longer baseline runs stop exposing boundaries; the three v0732c corrections
 all came from controlled input and state mutations instead. See
 `f5_already_closed_v0732.md`.
@@ -353,14 +426,21 @@ INDIVIDUAL mode" has no row-3 or row-4 instance - only row 2, possibly row 1.
 `credits = [1,2,1,2]` in both - the mode changes the rendering, not the
 derivation. A **fourth distinct shape**, alongside the COMMON value-row release
 (4189/41) and the existing INDIVIDUAL 4060/32 figure. **The native correctly
-refuses it** - `unsupported operation at 0x0000a6c0`, before the block is
-entered.
+refused it** at the time - `unsupported operation at 0x0000a6c0`, before the
+block is entered.
 
-Not recovered: one sample cannot pin 4061/38, the PUNCH counterpart is
-missing, and the existing 4060/32 was measured on row 1 - a different row with
-a different render. INDIVIDUAL also erases rows 24-33 and drops the chute
-section, so the digit cells and the `runs[]` filter both need re-deriving
-against a reference trace first. See
+> **Resolved by v0732g.** This row-2 INDIVIDUAL release is now admitted: the
+> count completes to `4062 - singulars` / **32** body calls, and the render
+> needed no change. The 38 in the table above is the frame total, not the
+> recovered body. The claim below about re-deriving the digit cells and the
+> `runs[]` filter was unnecessary - the cell-level diff shows both were
+> already mode-aware.
+
+Not recovered at the time of that note: one sample could not pin the count, the
+PUNCH counterpart was missing, and the existing 4060/32 was measured on row 1 -
+a different row with a different render. INDIVIDUAL also erases rows 24-33 and
+drops the chute section, so the digit cells and the `runs[]` filter both looked
+like they needed re-deriving against a reference trace. See
 `f3_f4_individual_mode_measured_v0732.md`.
 
 ## v0732c two corrections: (6,40) is credits[1]; row 24 shows the SELECTED chute

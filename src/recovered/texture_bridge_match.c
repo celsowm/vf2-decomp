@@ -8165,6 +8165,36 @@ static vf2_status execute_frame_phase17_bit7_index5(
             {UINT32_C(0x0f000000), UINT32_C(0x0f000004), UINT32_C(4), 0u, UINT8_C(2), 0u, 0u},
             {UINT32_C(0x0f000000), UINT32_C(0x0f000004), UINT32_C(4), 0u, UINT8_C(3), 0u, 0u},
             {UINT32_C(0x0f000000), UINT32_C(0x0f000004), UINT32_C(4), 0u, UINT8_C(4), 0u, 0u},
+            /* Post-edit TEST release on value row 2 in INDIVIDUAL mode.
+             * The latch shape is the one the COMMON value rows already use:
+             * the KICK/PUNCH direction lives in the preceding EDIT frame, not
+             * in the release, so one tuple covers both directions and needs
+             * no edit-direction field. Only the mode field differs.
+             *
+             * Measured on three releases built without patching state -
+             * alternate KICK / PUNCH presses at the row-2 INDIVIDUAL idle
+             * (out/indk2-rel.jsonl, out/indk-rel.jsonl, out/indp-rel.jsonl):
+             *
+             *   credits[0..3]=[2,2,2,2] rendered {2,2,2,2} 0 singulars 4294/38
+             *   credits[0..3]=[1,2,1,2] rendered {2,1,2,2} 1 singular  4293/38
+             *   credits[0..3]=[3,3,1,2] rendered {3,1,2,2} 1 singular  4293/38
+             *
+             * The row-2 render is the same code as COMMON's - the mode-aware
+             * runs[] entry for the row-5 label and the INDIVIDUAL erase of
+             * rows 24-33 cols 30-47 were already recovered - so only the count
+             * needed a rule. The cell-level diff of indk2-rel against the
+             * COMMON row-2 KICK release (out/f2r2k-rel.jsonl) differs on
+             * exactly 12 rows: the row-5 label (10 cells, "    COMMON" vs
+             * "INDIVIDUAL"), the row-7 credit digit and its trailing 'S',
+             * and the row-24 header plus the rows 24-33 cols 30-47 erase.
+             * Every one of those was already mode-aware in this function.
+             *
+             * Rows 1 and 3-5 in INDIVIDUAL are NOT measured on this leg and
+             * stay refused: no latch matches them, so the gate's
+             * "test_held_entry == 0 && released_flags != 0" arm fails closed.
+             * Note this is a different pair of rows from the steady INDIVIDUAL
+             * idle below, which is pinned at 4060/32 on row 1 only. */
+            {UINT32_C(0x0f000000), UINT32_C(0x0f000004), UINT32_C(4), 0u, UINT8_C(2), 0u, 1u},
             /* TEST on the EXIT row: the real exit (clears bit 7 of
              * a4, 19056/74 body, the parked EXIT+ arm measured
              * identically from the natural walk). */
@@ -9241,18 +9271,7 @@ static vf2_status execute_frame_phase17_bit7_index5(
     } else if (phase_a5 == UINT8_C(4)) {
         instructions = UINT64_C(4193);
     }
-    if (status == VF2_OK && test_held_entry != 0 &&
-        released_flags == UINT32_C(4) && phase_a5 >= UINT8_C(1) &&
-        (coin_flags & UINT32_C(1)) != 0u) {
-        /* Post-edit TEST release on a value row when the deferred
-         * update re-renders the INDIVIDUAL layout (measured 4060
-         * instructions / 32 calls on row 1 after the
-         * COMMON->INDIVIDUAL toggle; the COMMON-restoring release
-         * keeps the standard 4188/35 idle body, as does the a5=0
-         * entry release). */
-        instructions = UINT64_C(4060);
-        calls = UINT64_C(32);
-    } else if (status == VF2_OK && post_edit_release) {
+    if (status == VF2_OK && post_edit_release) {
         if (phase_a5 == UINT8_C(4)) {
             /* COIN/CREDIT SETTING. Measured: preset 0 gives 4425 (body 4193,
              * the same as the a5=4 idle body) and preset 1 and preset 2 both
@@ -9269,6 +9288,27 @@ static vf2_status execute_frame_phase17_bit7_index5(
              * the only measured non-zero case does not separate the credit
              * cells' singulars from the chute's. */
             instructions = preset == 0u ? UINT64_C(4193) : UINT64_C(4186);
+        } else if ((coin_flags & UINT32_C(1)) != 0u &&
+                   phase_a5 == UINT8_C(1)) {
+            /* INDIVIDUAL value row 1. The COMMON post-edit latch for row 1
+             * is mode-agnostic (coin_mode = both), so an INDIVIDUAL row-1
+             * release arrives on the same shape as the COMMON one and
+             * carries the same deferred INDIVIDUAL render as the row-1
+             * steady idle: 4060 instructions / 32 calls.
+             *
+             * Measured total 4292/38, so 4292 - 232 tail = 4060 and
+             * 38 - 6 tail = 32. The tail arithmetic is the same one the row-2
+             * branch below uses; see there for why the body carries 32 and
+             * not the 38 the total shows.
+             *
+             * This arm is what the pre-v0732g code had, but keyed to the row.
+             * Keyed to "a5 >= 1" it silently claimed row 2's release as
+             * 4060/32, two instructions and 0 registers away from correct -
+             * a fail-open that the row-2 differential would have hidden,
+             * because the 4060 body is only wrong where the count is part of
+             * the contract. */
+            instructions = UINT64_C(4060);
+            calls = UINT64_C(32);
         } else {
             /* Counted, not tabulated. Each of the four rendered credit
              * values takes the singular label path when it is 1, and that
@@ -9287,7 +9327,7 @@ static vf2_status execute_frame_phase17_bit7_index5(
              * values are 1, gives 4420 - the two-singular case, which
              * confirms the count rather than a yes/no test. The rule is
              * driven by the four cells the renderer actually writes:
-             * (6,40) <- credits[0], (7,40) <- credits[2],
+             * (6,40) <- credits[1], (7,40) <- credits[2],
              * (8,40) <- credits[4], (9,40) <- credits[5]. */
             static const uint8_t rendered_cells[4] = {1u, 2u, 4u, 5u};
             uint64_t singular = 0u;
@@ -9295,16 +9335,58 @@ static vf2_status execute_frame_phase17_bit7_index5(
             for (cell = 0u; cell < 4u; ++cell) {
                 if (credits[rendered_cells[cell]] == UINT8_C(1)) ++singular;
             }
-            instructions = UINT64_C(4190) - singular;
+            if ((coin_flags & UINT32_C(1)) != 0u &&
+                phase_a5 == UINT8_C(2)) {
+                /* INDIVIDUAL value row 2. Same counted mechanism, different
+                 * base: the row-2 INDIVIDUAL releases measure 4294 total
+                 * instructions at 0 singulars and 4293 at 1, against
+                 * COMMON's 4422 and 4421.
+                 *
+                 * The 232 instructions this block leaves to the native tail
+                 * is fixed across both modes (4422 - 4190 under COMMON,
+                 * 4294 - 4062 here), so subtracting it is what turns the
+                 * measured TOTAL into the recovered-body count. The tail's
+                 * CALL count is what actually differs: it contributes 0
+                 * under COMMON and 6 here, which is why the body carries 32
+                 * and not the 38 the reference total shows. Pinning 38 would
+                 * have made the recovered block claim 6 calls the original
+                 * never makes at this boundary.
+                 *
+                 * The singular count subtracts one instruction per singular
+                 * in both modes, the same counted mechanism as COMMON's
+                 * 4190 - singulars.
+                 *
+                 * This is keyed on the ROW as well as the mode. Row 1 is
+                 * 4060/32 and row 2 is 4062 - singulars / 32, so a rule
+                 * that looked only at coin_flags would claim row 2's
+                 * release as row 1's and be wrong on the count. Rows 3-5 in
+                 * INDIVIDUAL are refused below rather than guessed. */
+                instructions = UINT64_C(4062) - singular;
+                calls = UINT64_C(32);
+            } else if ((coin_flags & UINT32_C(1)) != 0u) {
+                /* INDIVIDUAL on a value row that has not been measured.
+                 * Fails closed instead of falling through to COMMON's count:
+                 * the latch table already keeps these rows out, so this arm
+                 * is a backstop, not the primary gate. */
+                return VF2_ERROR_UNSUPPORTED;
+            } else {
+                instructions = UINT64_C(4190) - singular;
+            }
         }
     } else if (status == VF2_OK && test_held_entry != 0 &&
-               released_flags == 0u && phase_a5 >= UINT8_C(1) &&
+               released_flags == 0u && phase_a5 == UINT8_C(1) &&
                (coin_flags & UINT32_C(1)) != 0u) {
-        /* Steady INDIVIDUAL-mode idle on a value row: the same
-         * 4060/32 deferred-render body as the post-edit release
-         * (measured on row 1), with g1=0 and r14 = entry + 1 (the
-         * body reloads the frame counter after its increment). The
-         * COMMON-mode idle keeps the standard 4188/35 body. */
+        /* Steady INDIVIDUAL-mode idle on value row 1: a 4060/32
+         * deferred-render body with g1=0 and r14 = entry + 1 (the body
+         * reloads the frame counter after its increment). The
+         * COMMON-mode idle keeps the standard 4188/35 body.
+         *
+         * Keyed to the row, not to "a5 >= 1". The 4060/32 figure belongs
+         * to row 1's own render; the only other measured INDIVIDUAL
+         * post-edit release is row 2, and it is 4062 - singulars / 38.
+         * No INDIVIDUAL steady idle on rows 2-5 has been measured, and the
+         * latch table keeps them fail-closed, so this pin must not be
+         * widened into them. */
         instructions = UINT64_C(4060);
         calls = UINT64_C(32);
     }
@@ -9405,14 +9487,22 @@ static vf2_status execute_frame_phase17_bit7_index5(
             /* Post-edit TEST release rendering the INDIVIDUAL
              * layout: g1 stays 0 (the deferred-update body re-runs
              * the edit's g1 clear) while g2/g6 keep the flat pins;
-             * the COMMON-restoring release keeps flat globals. */
+             * the COMMON-restoring release keeps flat globals.
+             *
+             * Before v0732g this arm was unreachable: no latch admitted an
+             * INDIVIDUAL post-edit release, so it was pinned against the
+             * row-1 frame the steady idle uses. The row-2 release added in
+             * v0732g now reaches it, and its g1=0 is proved by the
+             * ROM-backed differential on out/indk2-rel.jsonl rather than
+             * assumed - see the note for the register-by-register result. */
             cpu->registers[VF2_I960_G0_REGISTER + 1u] = 0u;
-        } else if (released_flags == 0u && phase_a5 >= UINT8_C(1) &&
+        } else if (released_flags == 0u && phase_a5 == UINT8_C(1) &&
                    (coin_flags & UINT32_C(1)) != 0u) {
             /* Steady INDIVIDUAL-mode idle: g1 = 0 (measured on the
              * row-1 INDIVIDUAL idle); r14 already carries the
              * post-increment frame counter through the caller-frame
-             * restore. */
+             * restore. Row-keyed for the same reason as the 4060/32
+             * count pin above. */
             cpu->registers[VF2_I960_G0_REGISTER + 1u] = 0u;
         }
     }

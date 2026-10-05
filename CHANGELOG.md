@@ -1,6 +1,86 @@
 # Changelog
 
+## v0732g: INDIVIDUAL value-row release RECOVERED — the render was never missing
+
+**The v0732f "render not recovered" finding was a baseline error, and its
+"38 calls" was a frame total, not a recovered body count.** F3's last item is
+now closed.
+
+**No render change was needed or made.** v0732f compared `indk2-rel.jsonl`
+(INDIVIDUAL row 2) against `f2-r4-rel.jsonl` (COMMON **row 4**) — two
+variables at once. Against the correct control `f2r2k-rel.jsonl` (COMMON
+**row 2**, same KICK input, mode the only variable) only 12 rows differ, and
+every one was already mode-aware in `execute_frame_phase17_bit7_index5`:
+
+| row | COMMON | INDIVIDUAL | already handled by |
+|---|---|---|---|
+| 5 | `COIN CHUTE TYPE  COMMON` | `COIN CHUTE TYPE  INDIVIDUAL` | `runs[]` mode-scoped label |
+| 7 | `1P CONTINUE 1 CREDIT` | `1P CONTINUE 2 CREDITS` | credit state, not mode — `credit_cells` |
+| 24 | `COIN CHUTE #2 COINS CREDITS` | blank at cols 16-28 | INDIVIDUAL erase, v0727 |
+| 25-33 | blank `0x8020` / absent | cols 30-47 = `0x0020` | INDIVIDUAL erase, v0727 |
+
+Text blanks are `0x8020`; the erase blank is the **flag-clear** `0x0020`. The
+162 "extra" writes v0732f counted are those 10 rows x 18 cells, written in
+INDIVIDUAL and left alone in COMMON.
+
+**The call count is 32, not 38.** This block leaves a fixed 232-instruction
+native tail in both modes (4422 − 4190 under COMMON, 4294 − 4062 in
+INDIVIDUAL). The tail's *call* count differs by mode: 0 under COMMON, 6 in
+INDIVIDUAL. So `38 = 32 recovered + 6 tail`. Pinning 38 is what the first
+differential caught — `native 4294 calls=44`.
+
+Three natural frames, all FULL MATCH on registers, memory, instruction count
+and call count. `indk2` and `indp` were built from existing idles with no
+patched state:
+
+| leg | `credits[0..3]` | singulars | reference | native |
+|---|---|---|---|---|
+| `indk2-c` (KICK) | `[2,2,2,2]` | 0 | 4294 / 38 | **4294 / 38** |
+| `indk-c` (KICK) | `[1,2,1,2]` | 1 | 4293 / 38 | **4293 / 38** |
+| `indp-c` (PUNCH) | `[3,3,1,2]` | 1 | 4293 / 38 | **4293 / 38** |
+
+```text
+COMMON      value rows 2,3  body = 4190 - singulars,  41 calls
+COMMON      value row  4   body = 4193 (preset 0) / 4186 (preset >= 1), 41 calls
+INDIVIDUAL  value row  1   body = 4060,               32 calls
+INDIVIDUAL  value row  2   body = 4062 - singulars,   32 calls
+INDIVIDUAL  value rows 3,4,5                        refused
+```
+
+### A fail-open the row-2 differential alone would have hidden
+
+The first version keyed the new rule on `coin_flags` alone. The COMMON row-1
+post-edit latch is mode-agnostic (`coin_mode = both`), so an INDIVIDUAL
+**row-1** release arrives on the same shape and the new arm claimed it as
+`4062/32` — wrong by 2 instructions with **registers and memory still
+matching**. The comment I wrote claimed the rule was row-keyed while the
+condition was not. Negative controls on the *neighbouring* rows found it:
+
+| control | reference | native | verdict |
+|---|---|---|---|
+| `nega5-1` (`0x005000a5` patched 2 → 1) | 4292 / 38 | 4292 / 38 | FULL MATCH |
+| `nega5-3` / `-4` / `-5` | — | refused at `0xa6c0` | fail-closed |
+
+`nega5-1` is a patched-state probe, not a natural-walk claim — per
+`f3_f4_individual_mode_measured_v0732.md` row 1 is not reachable in
+INDIVIDUAL — but it does prove the 4060/32 body is right for row 1 through the
+post-edit entry as well as the steady idle. COMMON regression: all six legs
+(`f2-r2/r3/r4-relcl`, `f2-r3-edit`, `f2-r4-edit`, `f2-r4-cl`) unchanged.
+
+**Lesson worth keeping:** a differential on the rows you are adding proves
+those rows; only a differential on the *neighbouring* rows proves the gate is
+not too wide. And a count-only bug with matching poststate would have passed a
+state-only differential.
+
+**Still open:** the 7-instruction `a5 = 4` delta between `preset == 0` and
+`preset >= 1` is still unexplained and still pinned as measured. See
+`f3_individual_value_row_recovered_v0732.md`.
+
 ## v0732f: INDIVIDUAL release count completes at 4062 minus singulars; render not recovered
+
+> **Superseded in part by v0732g.** Two claims here are wrong: the render was
+> already recovered, and the body carries 32 calls, not 38. The 4062 base and
+> the 0/1-singular spread are correct. Kept as the measurement record.
 
 **Evidence only. No behaviour change, no tuple admitted.** Two more
 INDIVIDUAL value-row release samples, all built without patching state, take

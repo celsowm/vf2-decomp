@@ -58,14 +58,18 @@ Per `docs/UNCOVERED_BRANCHES.md` and `decomp/i960/notes/v0727`:
 
 ### Layer 0 - TEST MENU completion (F1-F5)
 
-**Status: F1, F2 and F5 are CLOSED. F3 and F4 are measured, not recovered.**
+**Status: F1, F2, F3 and F5 are CLOSED. F4 is measured, not recovered.**
 F1 recovered in `f45f25bf`; F2 in `46c2d88b`; F5 was **already** closed and
 the v0730 F5 item below was a false premise (`f5_already_closed_v0732.md`).
-F3/F4 are measured at v0732b-v0732e: 18 release frames match, the body length
+F3 is closed at v0732b-v0732g: 18 COMMON release frames match, the body length
 is a counted singular-label rule, three earlier mappings were corrected
-against the ROM, and the INDIVIDUAL leg was built from scratch and measured
-at 4061/38 - refused by the native. P1-P4 remain. The items below are kept
-verbatim as originally written so the original framing stays auditable.
+against the ROM, and the INDIVIDUAL leg was built from scratch and is now
+**recovered** - three natural frames admitted at `4062 - singulars` / 32 body
+calls, rows 3-5 refused (`f3_individual_value_row_recovered_v0732.md`). The
+v0732f claim that the INDIVIDUAL render was missing was a baseline error: it
+compared against COMMON row 4 instead of row 2. P1-P4 remain. The items below
+are kept verbatim as originally written so the original framing stays
+auditable.
 
 Each slice: 30-90 minutes of focused RAM-resident work plus a
 strict `vf2cmp|native-*` differential per the v0727 playbook.

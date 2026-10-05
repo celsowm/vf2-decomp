@@ -179,6 +179,19 @@ At the time this handoff was written, `master` already contains:
   from `out/sixth-fresh.vf2snap` to `0x164c4` in 14,277,453
   instructions with 10,288 calls / 10,286 returns, captured in
   `decomp/i960/notes/native_dispatch_boundary_v0730_measured.md`.
+- the v0732b-v0732g TEST MENU / COIN ASSIGNMENT slice: rows 2-4 post-edit
+  release frames recovered in COMMON (4422/4421/4418 at 41 calls, with the
+  body length as a *counted* singular-label rule rather than a table), three
+  ROM-grounded corrections ((6,40) is `credits[1]` not `credits[0]`; row 24's
+  chute slot is `0x61550 + 2*preset`; `a5=4` splits 4193/4186 on
+  `preset == 0`), the INDIVIDUAL mode leg built from scratch with no patched
+  state, and the INDIVIDUAL value-row release **recovered** at
+  `4062 - singulars` / 32 body calls (three natural frames full-match; rows
+  3-5 refused). See `f2_post_edit_release_recovered_v0732.md`,
+  `f3_row3_release_count_rule_v0732.md`, `f3_row6_credit1_correction_v0732.md`,
+  `f3_chute_slot_and_count_correction_v0732.md`,
+  `f3_f4_individual_mode_measured_v0732.md` and
+  `f3_individual_value_row_recovered_v0732.md`.
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.
@@ -439,18 +452,26 @@ S1), the factory chain composition paths for both F- and P-slices, the
 ctest-failure recovery procedure, the reference reading order, and the
 AGENTS.md anti-traps.
 
-### 1. Close the TEST MENU corridor end-to-end
+### 1. TEST MENU corridor — CLOSED except F4
 
-The TEST MENU walk is mostly recovered (v0709-v0727) but the v0727 note
-explicitly leaves MANUAL SETTING natural entry (selector 17 index 4),
-rows 2-4 post-edit release frames, PUNCH/KICK releases at value rows,
-KICK −1 from INDIVIDUAL mode and INDIVIDUAL walks at rows 2-4 as
-fail-closed pins. Each slice is a measured boundary + minimal C
-recovery + per-slice note + CTest pin. After B5 the next bump is
-`native-seventh-dispatch` (full live-state equality past the v0727
-corridor).
+F1 (MANUAL SETTING entry/teardown), F2 (rows 2-4 post-edit release), F3
+(PUNCH/KICK value-row releases, both modes) and F5 (which was already closed -
+the v0730 item was a false premise) are all recovered and proven. F3 closed at
+v0732g: the INDIVIDUAL value-row release needed only a latch and a count, not
+a new render.
 
-### 2. Extend the player corridor downstream of `0x28918`/`0x29414`
+**F4 is the one item left, and it is measured rather than open-ended.** In
+INDIVIDUAL mode row 2's down-neighbour is row **0**, not row 3, and the step
+also leaves INDIVIDUAL mode. So rows 3 and 4 are not reachable by walking
+while in INDIVIDUAL, and the selection list wraps early. The concrete F4
+targets are therefore INDIVIDUAL walks at rows 1-2 only. See
+`f3_f4_individual_mode_measured_v0732.md`.
+
+Remaining fail-closed pins in this corridor, all deliberate: the INDIVIDUAL
+value-row release on rows 3-5; the INDIVIDUAL `a5 = 4` COIN/CREDIT SETTING
+row; the MANUAL SETTING `a7` nested editor; and PUNCH/KICK at row 5.
+
+### 2. Extend the player corridor downstream of `0x28918`/`0x29414` (next)
 
 The v0706 dual-base witness and v0707 head-sibling work recovered the
 front of the `fa_player` downstream chain; later branches remain
@@ -686,6 +707,41 @@ sideband and test disabled-vs-enabled equivalence.
 
 A path matched from one state is not automatically a general recovery. Probe
 neighboring conditions and keep siblings unsupported until measured.
+
+### Only differencing against a true control
+
+A cell-level or counter-level diff is only evidence if the baseline differs in
+exactly the variable under test. v0732f compared an INDIVIDUAL **row 2** release
+against a COMMON **row 4** release, so the reported "rows 6, 11 and 13 change
+with the mode" deltas were the row difference. The conclusion drawn from it —
+"the INDIVIDUAL render is a different shape, not a filtered COMMON one" — was
+wrong, and it nearly cost a full re-derivation of render code that already
+existed. Against the correct control (same row, same input, mode the only
+variable) the answer was 12 rows, all already handled.
+
+### Differencing the rows you added proves nothing about the gate
+
+v0732g's first version keyed the new INDIVIDUAL count rule on `coin_flags`
+alone. The COMMON row-1 post-edit latch is mode-agnostic, so an INDIVIDUAL
+row-1 release arrived on the same shape and the new arm claimed it as
+`4062/32` — wrong by 2 instructions with **registers and memory still
+matching**. A state-only differential would have passed it.
+
+Two rules follow. First, run the differential on the *neighbouring* rows of an
+admitted leg, not just the rows being admitted: that is the only thing that
+proves the gate is not too wide. Second, a bug that is wrong on a counter but
+right on the poststate is exactly the shape a state comparison cannot see, so
+keep the instruction and call counts in the contract even when the state
+matches.
+
+### Pinning a frame total as a recovered-body count
+
+`vf2probe` reports the whole-frame counter across the boundary; a recovered
+block does not cover the whole frame. This block left a fixed 232-instruction
+native tail, and that tail's *call* count differed by mode (0 under COMMON, 6
+under INDIVIDUAL). Copying the measured 38 into the body claimed six calls the
+original never makes. When a native count is off by a constant while
+instructions match, subtract the tail rather than adjusting the base.
 
 ### Expanding the executor instead of recovering C
 

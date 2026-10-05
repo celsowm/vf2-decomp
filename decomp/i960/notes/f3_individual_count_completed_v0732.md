@@ -1,5 +1,18 @@
 # v0732f: the INDIVIDUAL release count is 4062 minus singulars; the render is NOT recovered
 
+> **SUPERSEDED IN PART by `f3_individual_value_row_recovered_v0732.md` (v0732g).**
+> Two claims below are wrong and are corrected there:
+> 1. **The render was already recovered.** This note compared
+>    `indk2-rel.jsonl` against `f2-r4-rel.jsonl` - INDIVIDUAL row 2 against
+>    COMMON **row 4** - so two variables moved at once. Against the correct
+>    control (`f2r2k-rel.jsonl`, COMMON **row 2**, same input) only 12 rows
+>    differ, and every one was already mode-aware in the recovered function.
+> 2. **The call count is 32, not 38.** 38 is the whole-frame total. The
+>    recovered block leaves a 232-instruction native tail that makes 6 calls
+>    in INDIVIDUAL and 0 in COMMON.
+>
+> The instruction base 4062 and the 0/1-singular spread below are correct.
+
 **Evidence only. No behaviour change, no tuple admitted.** Extends
 `f3_f4_individual_mode_measured_v0732.md` with two more INDIVIDUAL release
 samples. The count rule is now measured across the singular domain; the
