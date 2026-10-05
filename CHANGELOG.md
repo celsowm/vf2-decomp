@@ -1,5 +1,121 @@
 # Changelog
 
+## v0732c: two corrections - (6,40) is credits[1], and row 24 shows the SELECTED chute
+
+Both corrections came from states that had never been measured: the row-2
+KICK release and the row-4 KICK release. Neither required patching any state -
+the direction lives in the nav word (`0x4` PUNCH, `0x200` KICK) with input
+`0x0f000004` held, so the press frame comes from the existing idle and the
+release is reached by settling to `0x10fa0`, crossing the frame IRQ to
+`0x9ff8` and patching the release latch.
+
+### Correction 1: (6,40) is credits[1], not credits[0] - retracting v0731l
+
+Each digit block sets its destination with `lda` and loads its source with
+`ldob`, so the mapping is read out of the instruction stream rather than
+fitted:
+
+| cell | destination | `ldob` source | index | site |
+|---|---|---|---|---|
+| (6,40) | `lda 0x01000350, g9` | `0x0000332a(g4)` | **credits[1]** | `0x0005bcd8` |
+| (7,40) | `0x010003d0` | `0x0000332b(g4)` | credits[2] | `0x0005bd3c` |
+| (8,40) | `lda 0x01000450, g9` | `0x0000332d(g4)` | credits[4] | `0x0005bda0` |
+| (9,40) | `lda 0x010004d0, g9` | `0x0000332e(g4)` | credits[5] | `0x0005be04` |
+
+The four consumed bytes are **1, 2, 4, 5**. The gap at index 3 is not an
+omission - `credits[3]` is the row-3 counter and is never rendered directly.
+
+`v0731l` recorded `credits[0]` and was wrong. `t1 = {1,2,2,3,3,3,4,4,4,4,...}`
+is the identity at exactly two indices, 2 and 3, and every PUNCH sample had
+`credits[0]` in {2, 3} - so `credits[0] == t1[credits[0]] == credits[1]`
+always and the two candidates were numerically identical in every
+observation. The mapping was not merely unproven, it was unfalsifiable from
+that sample set. The row-2 KICK breaks it: `credits[0]` goes 2 -> 1, so
+`credits[1] = t1[1] = 2`, and the reference renders `'2'` with the plural `S`.
+
+The old code wrote `credits[0] = 1` and blanked the `S`, producing exactly the
+two differing bytes reported - and the same wrong byte made the singular count
+2 instead of 1, so the instruction counter was off by one in the same run.
+One cause, two symptoms.
+
+### Correction 2: row 24's chute slot is `0x61550 + 2 * preset`, not slot 2
+
+v0732 pinned row 24 to table slot 2 unconditionally - right at `preset == 1`,
+wrong everywhere else. The ROM's `ldob` walk settles it, one group per five
+rows, each reading its value slot then four terminator reads at the odd slot:
+
+```text
+preset 0   0x61550, 0x61551 x4,  0x61550, 0x61551 x4
+preset 1   0x61550, 0x61551 x4,  0x61552, 0x61553 x4
+preset 2   0x61550, 0x61551 x4,  0x61554, 0x61553 x4
+```
+
+The first group (rows 13, 15, 17, 19, 21) always reads `0x61550`; the second
+(rows 24, 26, 28, 30, 32) reads `0x61550 + 2 * preset`. So **row 13 shows
+chute 1 and row 24 shows the selected chute** - which is why the two groups
+coincide at `preset == 0`, and why the old code looked right at preset 1.
+
+### Correction 3: the a5=4 body is 4193 at preset 0, 4186 at preset >= 1
+
+| snapshot | preset | latch | reference | body |
+|---|---|---|---|---|
+| `f2-r4-cl` | 0 | idle | 4425 | 4193 |
+| `f2r4-k-rel` | 0 | post-edit release | 4425 | 4193 |
+| `f2-r4` | 1 | post-edit release | 4418 | 4186 |
+| `f2r4-a-c` | 1 | release latch | 4418 | 4186 |
+| `f2r4-p2-rel` | 2 | post-edit release | 4418 | 4186 |
+
+4193 is what the shared non-release `a5 = 4` branch already uses.
+
+**The 7-instruction delta is NOT the chute render.** The render difference is
+exactly one tile write - the second blank at `(24,47)`, 417 writes against
+416, with row 24 the only row whose count changes - and one write cannot
+account for seven instructions. The direction is also wrong for the
+singular-label rule, which makes more singulars take the *shorter* handler. So
+the cause is unknown; both values are pinned as measured and neither is
+presented as derived. The singular subtraction is deliberately **not** applied
+on the `a5 = 4` path - bank 0 is `0x11`, so 4193 is already measured with two
+chute singulars present.
+
+### Result
+
+The corrected count for the value rows:
+
+```text
+body = 4190 - (number of {credits[1], credits[2], credits[4], credits[5]}
+               that equal 1)
+```
+
+18 frames now match on registers, memory regions, instruction count and call
+count - the three original rows, the whole row-3 `credits[3]` domain, the
+row-2 PUNCH and KICK releases, and all five `a5 = 4` rows. The gate moved from
+`preset <= 1` to `preset <= 2`, the three measured values; `preset >= 3` and
+the INDIVIDUAL variant still fail closed, and so does the a5=5 control.
+
+### Validation
+
+**117/117 ctest passed (1640.74 s)** for this commit, including
+`vf2_phase17_zero_differential`, `vf2_native_fifth_dispatch`,
+`vf2_native_sixth_dispatch` and `vf2_texture_bridge_differential`. The
+preceding two commits also passed 117/117 (1737.59 s and 1641.54 s). Controls
+unchanged and MATCH: `f2-r3-edit` 4637/44, `f2-r4-edit` 4635/43, `f2-r4-cl`
+4425/41. The a5=5 control `f1-a5-cl-0x4` still fails closed, a patched
+`preset = 3` still fails closed, and the refused edit-frame variants
+(`f2-r3-e2`, `n8`, `k1`, `idle`) are still refused rather than accepted with a
+wrong count.
+
+### The lesson
+
+v0731l declared the value subsystem COMPLETE from a mapping with two
+observations per cell, where a natural alias - `t1[i] == i` at two indices -
+made the hypothesis and its alternative identical over the whole sample set.
+Say so explicitly instead of reporting the cell as proved, and prefer the
+`ldob` that reads the byte over a value that happens to agree. The same shape
+of mistake appeared twice more in the chute table: a hardcoded slot 2 that was
+only ever checked at the one `preset` where it holds. Evidence in
+`f3_row6_credit1_correction_v0732.md` and
+`f3_chute_slot_and_count_correction_v0732.md`.
+
 ## v0732b - F3 row-3 release body is a COUNT of singular labels, not a table
 
 The 4421/4422 split the first F3 pass could only fit is now a counted rule

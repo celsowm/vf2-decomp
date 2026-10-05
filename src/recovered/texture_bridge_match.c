@@ -8246,7 +8246,7 @@ static vf2_status execute_frame_phase17_bit7_index5(
          * row has not been measured at all. */
         (post_edit_release &&
          (phase_a5 == UINT8_C(4)
-              ? (preset > UINT8_C(1) ||
+              ? (preset > UINT8_C(2) ||
                  (coin_flags & UINT32_C(1)) != 0u)
               : preset != 0u)) ||
         (coin_flags &
@@ -8954,19 +8954,32 @@ static vf2_status execute_frame_phase17_bit7_index5(
     if (status == VF2_OK && post_edit_release) {
         /* Measured digit render for the post-edit release frame. runs[] can
          * only carry the parked "2", but the four credit cells track live
-         * state: (6,40) <- credits[0], (7,40) <- credits[2], (8,40) <- credits[4]
-         * and (9,40) <- credits[5]. Each mapping is proved twice - rows 6/7
-         * from an a5=2 edit and rows 8/9 from an a5=3 edit, two distinct
-         * values each. When the value is 1 the trailing "S" of that row's
-         * "CREDITS" label is blanked to a space tile, so the label reads
-         * "CREDIT"; measured on row 9 (credits[5] = 1) and row 7
-         * (credits[2] = 1). Cell encoding is 0x8000 | ASCII, the same
+         * state. The source byte of each cell is read straight out of the
+         * ROM, so this mapping is not a fit:
+         *
+         *   (6,40)  ldob 0x0000332a(g4)  -> credits[1]   0x0005bcd8
+         *   (7,40)  ldob 0x0000332b(g4)  -> credits[2]   0x0005bd3c
+         *   (8,40)  ldob 0x0000332d(g4)  -> credits[4]   0x0005bda0
+         *   (9,40)  ldob 0x0000332e(g4)  -> credits[5]   0x0005be04
+         *
+         * (6,40) is credits[1], NOT credits[0]. Every PUNCH sample had
+         * credits[0] == t1[credits[0]] - t1 is the identity at 2 and 3 - so
+         * credits[0] == credits[1] and the two were indistinguishable. The
+         * row-2 KICK case separates them: credits[0] = 1 while
+         * credits[1] = t1[1] = 2, and the ROM renders '2' with the plural
+         * label. v0731l recorded credits[0] and was wrong; it also made the
+         * body-length count wrong by one, which is why both failures shared
+         * a single cause.
+         *
+         * When the value is 1 the trailing "S" of that row's "CREDITS"
+         * label is blanked to a space tile, so the label reads
+         * "CREDIT". Cell encoding is 0x8000 | ASCII, the same
          * convention as write_phase17_index0_text(). */
         static const struct {
             uint32_t row;
             uint32_t credit;
         } credit_cells[4] = {
-            {6u, 0u}, {7u, 2u}, {8u, 4u}, {9u, 5u}
+            {6u, 1u}, {7u, 2u}, {8u, 4u}, {9u, 5u}
         };
         size_t cell_index = 0u;
         for (cell_index = 0u;
@@ -8993,28 +9006,36 @@ static vf2_status execute_frame_phase17_bit7_index5(
     }
     if (status == VF2_OK && post_edit_release &&
         phase_a5 == UINT8_C(4)) {
-        /* COIN/CREDIT SETTING live re-render, measured on the a5=4
-         * post-edit release (out/f2-r4-rel.jsonl, the 0x060c5c/0x060c7c/
-         * 0x060ca0/0x060cc0 stamper for bank 0 and its 0x060d94/0x060db4/
-         * 0x060dd8/0x060df8 twin for bank 1):
+        /* COIN/CREDIT SETTING live re-render, measured on the a5=4 frames
+         * (out/f2-r4-rel.jsonl, out/f2r4-k-rel.jsonl,
+         * out/f2r4-p2-rel.jsonl). The 0x060c5c/0x060c7c/0x060ca0/0x060cc0
+         * stamper and its 0x060d94/0x060db4/0x060dd8/0x060df8 twin are the
+         * same routine reached twice, once per five-row group:
          *   - row 11 column 45 carries the 1-based chute number, not a
          *     literal, so the static runs[] "1" is only correct at preset 0;
          *   - rows 13 and 24 re-emit the plural label "  COINS   CREDITS"
          *     (17 cells from column 31) and then stamp the packed pair read
-         *     from the per-chute slot table at 0x61550 with stride 2: bank 0
-         *     feeds row 13, bank 1 feeds row 24. The high nibble is the coin
-         *     count at column 31, the low nibble the credit count at column
-         *     39, and a value of 1 additionally blanks that word's trailing
-         *     'S' at column 37 / 47 - the ROM's own singular form.
-         * The static runs[] text "1 COIN  1 CREDIT " is exactly this render
-         * over the default banks, so the parked frames are untouched; only
-         * the post-edit release needs the live path. The gate admits
-         * preset 0 and 1 only, so the two ROM banks below are the only ones
-         * reachable. */
-        static const struct {
-            uint32_t row;
-            uint32_t slot;
-        } chute_banks[2] = { {13u, 0u}, {24u, 2u} };
+         *     from the per-chute slot table at 0x61550 with stride 2. The
+         *     high nibble is the coin count at column 31, the low nibble the
+         *     credit count at column 39, and a value of 1 additionally blanks
+         *     that word's trailing 'S' at column 37 / 47 - the ROM's own
+         *     singular form.
+         *
+         * The slot index is NOT fixed per row. The ldob walk in the traces is
+         * one group reading 0x61550 then four terminator reads at 0x61551,
+         * and the second group reading 0x61550 + 2 * preset then four reads
+         * at the odd slot:
+         *
+         *   preset 0   0x61550,0x61551 x4, 0x61550,0x61551 x4
+         *   preset 1   0x61550,0x61551 x4, 0x61552,0x61553 x4
+         *   preset 2   0x61550,0x61551 x4, 0x61554,0x61553 x4  (and so on)
+         *
+         * so row 13 always shows chute 1 and row 24 shows the SELECTED chute.
+         * v0732 read slot 2 unconditionally, which is right at preset 1 and
+         * wrong everywhere else. The static runs[] text "1 COIN  1 CREDIT "
+         * is this render at preset 0, so the parked frames are untouched. The
+         * gate admits preset 0..2, the three values measured. */
+        static const uint32_t chute_rows[2] = {13u, 24u};
         size_t bank = 0u;
         status = write_u16(
             machine,
@@ -9028,11 +9049,12 @@ static vf2_status execute_frame_phase17_bit7_index5(
             uint8_t coin_count = 0u;
             uint8_t credit_count = 0u;
             const uint32_t row_base =
-                UINT32_C(0x01000000) +
-                chute_banks[bank].row * UINT32_C(0x80);
+                UINT32_C(0x01000000) + chute_rows[bank] * UINT32_C(0x80);
+            const uint32_t slot =
+                bank == 0u ? 0u : 2u * (uint32_t)preset;
             status = vf2_model2a_read(
                 machine,
-                UINT32_C(0x00061550) + chute_banks[bank].slot,
+                UINT32_C(0x00061550) + slot,
                 &packed, sizeof(packed)
             );
             if (status != VF2_OK) break;
@@ -9040,7 +9062,7 @@ static vf2_status execute_frame_phase17_bit7_index5(
             credit_count = (uint8_t)(packed & UINT8_C(0x0f));
             status = write_phase17_index0_text(
                 machine,
-                chute_banks[bank].row * UINT32_C(0x80), UINT32_C(31),
+                chute_rows[bank] * UINT32_C(0x80), UINT32_C(31),
                 "  COINS   CREDITS"
             );
             if (status != VF2_OK) break;
@@ -9232,13 +9254,21 @@ static vf2_status execute_frame_phase17_bit7_index5(
         calls = UINT64_C(32);
     } else if (status == VF2_OK && post_edit_release) {
         if (phase_a5 == UINT8_C(4)) {
-            /* COIN/CREDIT SETTING: its own body, measured once at 4418
-             * (4186 + the 232-instruction prefix) on the f2-r4 leg, where
-             * all four rendered credit values are 2. The singular-label
-             * subtraction below is NOT applied here - only one a5=4 row is
-             * measured and it has no singular value, so the effect is
-             * unknown on that row and must not be guessed. */
-            instructions = UINT64_C(4186);
+            /* COIN/CREDIT SETTING. Measured: preset 0 gives 4425 (body 4193,
+             * the same as the a5=4 idle body) and preset 1 and preset 2 both
+             * give 4418 (body 4186). The render difference between preset 0
+             * and preset >= 1 is a single extra tile write - the second
+             * blank at (24,47) - so the 7-instruction delta does NOT come
+             * from the chute render and its cause is still unknown. Both
+             * values are pinned as measured rather than derived; the shared
+             * non-release a5=4 branch keeps its own proven 4193.
+             *
+             * The singular-label subtraction is deliberately NOT applied
+             * here. The chute pair always carries its own singulars (bank 0
+             * is 1/1, so 4193 is already measured with them present), and
+             * the only measured non-zero case does not separate the credit
+             * cells' singulars from the chute's. */
+            instructions = preset == 0u ? UINT64_C(4193) : UINT64_C(4186);
         } else {
             /* Counted, not tabulated. Each of the four rendered credit
              * values takes the singular label path when it is 1, and that
@@ -9259,7 +9289,7 @@ static vf2_status execute_frame_phase17_bit7_index5(
              * driven by the four cells the renderer actually writes:
              * (6,40) <- credits[0], (7,40) <- credits[2],
              * (8,40) <- credits[4], (9,40) <- credits[5]. */
-            static const uint8_t rendered_cells[4] = {0u, 2u, 4u, 5u};
+            static const uint8_t rendered_cells[4] = {1u, 2u, 4u, 5u};
             uint64_t singular = 0u;
             size_t cell = 0u;
             for (cell = 0u; cell < 4u; ++cell) {
