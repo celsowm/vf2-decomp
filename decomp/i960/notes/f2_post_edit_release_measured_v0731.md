@@ -96,7 +96,88 @@ sequence, since it is the starting state rather than a result.)
 `[2,2,2,8,4,3]`, byte-identical to the n = 8 `+1` state. So the `-1` and
 `+1` directions agree, which rules out a one-way accumulator bug.
 
-### The falsified prediction
+### RESOLVED by static analysis: it is a table lookup, not arithmetic
+
+The falsified formula was a symptom. A `--memory-trace` over one edit
+frame (`out/f2-r3-n10.vf2snap` -> `0xa010`) plus a disassembly gives the
+whole mechanism.
+
+**The counter** (`0x5b990`):
+
+```asm
+0005b990  ld       0x0050016c, r15      ; base
+0005b998  ldob     0x0000332c(r15), r15 ; n = credits[3]
+0005b9a4  addi     r14, r15, r15        ; r14 = n + delta
+0005b9ac  cmpible  r14, r15, 0x5b9b4
+0005b9b0  mov      14, r15              ; clamp high to 14
+0005b9b4  mov      14, r14
+0005b9b8  cmpibge  r14, r15, 0x5b9c0
+0005b9bc  mov      0, r15               ; clamp low to 0
+0005b9c8  stob     r15, 0x0059c32c      ; credits[3] = clamped n
+0005b9d0  cmpi     0, g0
+0005b9d4  be       0x5bb48              ; direction 0 -> skip
+0005b9d8  call     0x5bb90              ; else recompute the pair
+```
+
+**The derived pair** (`0x5bb90`) - both bytes are ROM table lookups
+indexed by `credits[3]`:
+
+```asm
+0005bb90  ld       0x0050016c, r4
+0005bb98  ldob     0x0000332c(r4), r4    ; r4 = credits[3]
+0005bba0  ldob     0x0005bc74[r4], r5    ; credits[4] = table1[n]
+0005bba8  ldob     0x0005bc84[r4], r6    ; credits[5] = table2[n]
+0005bbb8  stob     r5, 0x0059c32d
+0005bbc8  stob     r6, 0x0059c32e
+```
+
+The two tables, read from memory at `0x5bc74` and `0x5bc84`, index =
+`credits[3]`:
+
+```text
+idx   0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+[4]   1  2  2  3  3  3  4  4  4  4  5  5  5  5  5  0
+[5]   1  1  2  1  2  3  1  2  3  4  1  2  3  4  5  0
+```
+
+Both reproduce all eight sampled states exactly (`[4]` = 3,3,3,4,4,4,4,5
+and `[5]` = 1,2,3,1,2,3,4,1 for n = 3..10). **This is why the arithmetic
+failed: the two tables have different periods.** `[4]` holds four consecutive
+4s at n = 6..9, while `[5]` cycles 1,2,3 with a 4 only at n = 9. Index 15
+is `0` in both and unreachable, since the counter clamps at 14.
+
+**`preset` is also a clamped counter**, not a table. The write is at
+`0x5b798` (found by trace, *not* at `0x5bbd4`):
+
+```asm
+0005b770  mov      g0, r14
+0005b774  addi     r14, r15, r15        ; r14 = preset + delta
+0005b77c  cmpible  r14, r15, 0x5b784
+0005b780  mov      25, r15              ; clamp high to 25
+0005b788  cmpibge  r14, r15, 0x5b790
+0005b78c  mov      0, r15               ; clamp low to 0
+0005b798  stob     r15, 0x0059c324      ; preset = clamped value
+```
+
+So `preset` is a 0..25 counter - which is why one edit took it 0 -> 1.
+
+There **is** a routine at `0x5bbd4` that does `preset = mem8[0x61500 + preset]`,
+but it did not run on this frame and `mem8[0x61500]` is 0. Do not attribute
+row 4's behaviour to it; the trace points at `0x5b798`.
+
+**Recovered model, in full:**
+
+```text
+credits[3] += delta, clamped to [0, 14]
+credits[4]  = mem8[0x5bc74 + credits[3]]
+credits[5]  = mem8[0x5bc84 + credits[3]]
+preset     += delta, clamped to [0, 25]
+```
+
+with `delta = +1` for a TEST edge (`nav 0x4`) and `-1` for KICK
+(`nav 0x200`), and the derived pair recomputed only when `delta != 0`.
+
+### The falsified prediction (kept as the cautionary tale)
 
 `credits[5]` looks like a period-3 cycle over 1,2,3 with `credits[4]`
 incrementing on each wrap:
@@ -122,9 +203,8 @@ base-4 or base-3 counter either.
 
 **Do not encode either formula.** A rule that survives eight samples and is
 then falsified on the ninth is the trap the runbook warns about; this is a
-live example. Whatever it is, it needs either many more samples or static
-analysis of the ROM code that writes these bytes. Until then the
-derived-credits update stays fail-closed.
+live example - and the static analysis above shows why: it is a table
+lookup, so no single arithmetic expression can fit it.
 
 The edit frame is stable at 4636/4637 instructions across all nine samples
 (`credits[4]` = 3 and 7 give 4636, the rest 4637), so the *body* is nearly
@@ -136,12 +216,12 @@ This is the part the runbook compressed into "credit index != 2, derived
 credits, preset != 0", now separated:
 
 - **Row 3 is a derived-credit update.** `[2,2,2,2,2,2]` becomes
-  `[2,2,2,3,3,1]` on the first edit. See the transform table above: the
-  derived pair does **not** follow a simple counter, and a natural-looking
-  formula is already falsified at n = 9.
+  `[2,2,2,3,3,1]` on the first edit. Mechanism fully resolved above: a
+  clamped counter plus two ROM byte tables.
 - **Row 4 is a `preset` update.** Credits are untouched; `preset`
-  (`base + 0x3324`) becomes `1`. That is the `preset != 0` gate condition,
-  and it is why the existing `preset != 0u` refusal fires here.
+  (`base + 0x3324`) becomes `1`. It is a clamped 0..25 counter at
+  `0x5b770`. That is the `preset != 0` gate condition, and it is why the
+  existing `preset != 0u` refusal fires here.
 
 The bodies are also **per-row**, not one shared body: 4189 at row 3 versus
 4186 at row 4, against 4188 for the idle render. Do not fold these into a
@@ -211,10 +291,9 @@ a5 3}` — already admitted) lands on a5 = 2, then run the six steps above.
    (6,40), (7,40), (8,40) and (9,40). With `credits != 2` those cells must
    render the live value, and the derived values mean several cells change
    from one edit.
-3. The **derived-credits transform** for row 3. This is the hard part and
-   the natural formula is already falsified - see the table above. It needs
-   more samples or static analysis of the code that writes
-   `base + 0x332c`, not a fitted expression.
+3. The **derived-credits transform** is now **fully resolved** - clamped
+   counter + `mem8[0x5bc74 + n]` / `mem8[0x5bc84 + n]`. Encode the tables,
+   not a formula. Still needs its own differential proof before admission.
 4. The **`preset` update** for row 4, including what a second edit does to a
    nonzero `preset`.
 5. Per-row bodies at 4189 / 4186 (and row 2's, once measured), each proven

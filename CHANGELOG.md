@@ -1,5 +1,59 @@
 # Changelog
 
+## v0731j - F2 derived-credits RESOLVED: clamped counter + two ROM byte tables
+
+Evidence only. No behaviour change, no tuple admitted, no code touched. The
+v0731i falsified formula is explained rather than replaced by a fit.
+
+A `--memory-trace` over one edit frame plus disassembly gives the whole
+mechanism behind the row-3 / row-4 state updates.
+
+- **`credits[3]` is a clamped counter** (`0x5b990`): read
+  `base + 0x332c`, apply the edit delta, clamp to `[0, 14]` with the
+  `cmpible` / `cmpibge` pair and the `mov 14, r15` / `mov 0, r15` guards,
+  store back to `0x0059c32c`, then call `0x5bb90` when the direction is
+  non-zero.
+
+- **The derived pair is two ROM byte tables** indexed by `credits[3]`
+  (`0x5bb90`): `credits[4] = mem8[0x5bc74 + credits[3]]` and
+  `credits[5] = mem8[0x5bc84 + credits[3]]`.
+
+  ```text
+  idx   0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+  [4]   1  2  2  3  3  3  4  4  4  4  5  5  5  5  5  0
+  [5]   1  1  2  1  2  3  1  2  3  4  1  2  3  4  5  0
+  ```
+
+  Both reproduce all eight sampled states exactly. **This is why the
+  arithmetic failed: the tables have different periods.** `[4]` holds four
+  consecutive 4s at n = 6..9 while `[5]` cycles 1,2,3 and only reaches 4 at
+  n = 9, which is precisely the sample that falsified the formula. Index 15
+  is 0 in both and unreachable, since the counter clamps at 14.
+
+- **`preset` is also a clamped counter, not a table** (`0x5b770`, bounds
+  `[0, 25]`), found by trace at `0x5b798`. There *is* a routine at
+  `0x5bbd4` doing `preset = mem8[0x61500 + preset]`, but it did not run on
+  this frame and `mem8[0x61500]` is 0 - the note explicitly warns against
+  attributing row 4's behaviour to it.
+
+- **Recovered model, not yet proven differentially:**
+
+  ```text
+  credits[3] += delta, clamped to [0, 14]
+  credits[4]  = mem8[0x5bc74 + credits[3]]
+  credits[5]  = mem8[0x5bc84 + credits[3]]
+  preset     += delta, clamped to [0, 25]
+  ```
+
+  with `delta = +1` for a TEST edge (`nav 0x4`), `-1` for KICK
+  (`nav 0x200`), and the pair recomputed only when `delta != 0`.
+
+- **The v0731i cautionary tale is kept** in the note: a formula that
+  survives eight samples and is falsified on the ninth was a symptom of a
+  table lookup, not a bad guess. Encode the tables.
+
+See `decomp/i960/notes/f2_post_edit_release_measured_v0731.md`.
+
 ## v0731i - F2 derived-credits transform sampled; the obvious rule is falsified
 
 Evidence only. No behaviour change, no tuple admitted, no code touched.
