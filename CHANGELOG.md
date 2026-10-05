@@ -1,6 +1,104 @@
 # Changelog
 
-## v0732j: no trace on disk has a shared fighter offset - the dual-base input has never existed
+## v0732k: RETRACTION — the fighter bases were wrong; the 0xd00 block was dual-base all along
+
+**Retracts v0732h, v0732i and v0732j, and the correction v0732h made to the
+v0730 taint note. Fixes a committed bug.** The promotion this slice existed to
+unblock has fired.
+
+Every dual-base result since v0729 used `fighter0 = 0x510000` /
+`fighter1 = 0x520000`. The **measured** bases, in the `fa_game_info` scenario
+metadata (`out/state8-positive.json`), are:
+
+```text
+fighter0 = 0x00510980   fighter0_flags = 0x00510b24  (offset 0x1a4)
+fighter1 = 0x00512980   fighter1_flags = 0x00512b24  (offset 0x1a4)
+fighter0_selector = 0x00511380   fighter1_selector = 0x00513380
+```
+
+The real fighter1 struct is at **0x512980**, so a window at `0x520000`
+misses it entirely and every fighter1 access was invisible. Every candidate
+silently reported `base_count == 1`. I took the wrong pair from an
+illustrative snippet in the v0730 handoff runbook and did not check it
+against the scenario metadata — which I printed, in a nearby command, in the
+same session.
+
+**What is actually true.** `out/trace-both.jsonl` — named "both" because it
+covers both fighters — is dual-base: **144 distinct offsets and 341 events
+in each window, all 144 shared.** Both project tools agree, with identical
+read/write counts, identical 4-byte widths and identical guest IPs:
+
+```text
+infer_structs  +0x01a4  bases=fighter0,fighter1  R=70 W=0  sizes=4Bx70
+               ... every candidate base_count 2
+frontier       offset 0x00000d00 end 0x00000ee0 len 120 bytes 480
+               reads 480 writes 480 base_count 2 ip_overlap 1.0
+               top_ips ['0x0002399c', '0x00023a38']
+```
+
+**The block is promoted.** The v0704/v0706 discipline is met on every axis:
+same offset, same width, same guest IPs, balanced read/write role, 240 reads
++ 240 writes *per base*. The v0729 note reported it at `0x1680..0x1860` from
+base `0x510000`; from the correct base it reads `0x0d00..0x0ee0`. The
+difference is exactly `0x980`. Everything else in the v0729 record was right,
+including "240 of each per 120 offsets" — so the block was never single-base,
+just measured from a displaced origin.
+
+**The committed bug.** `tools/python/p1_real_trace_demo.py` (ctest #117)
+hardcoded the wrong bases *and asserted* the wrong result:
+
+```python
+FIGHTER_BASES = [0x510000, 0x520000]
+EXPECTED_BLOCK_BASE_COUNT = 1  # fighter1-inclusive trace not on master
+```
+
+`test_p1_real_trace_demo.py` repeated it. A green ctest entry was **locking
+in `base_count == 1`**, so the "pending promotion" was an enforced invariant
+rather than an open question — which is how the error survived three notes
+and then survived me. Both files now use the measured bases, the `0x0d00`
+block and `base_count == 2`, and add pins on `reads == 480` / `writes == 480`
+and on the roll-up reporting `144 of them dual-base`. The test now asserts
+the promotion, so a regression to 1 fails loudly. The synthetic unit suites
+also use `0x510000`/`0x520000`, but they author their own traces and are
+self-consistent, so they are left alone; only the real-corpus demo was wrong.
+
+**Retracted:** "both corpora are fighter0-only so `base_count = 1` is
+correct"; "a fighter1-inclusive trace does not exist"; "the corpora cover
+disjoint offset regions"; "no real candidate promotes"; "0 of 264 traces share
+a fighter offset" (**81 of 264 do**); and "P1 is a state-reconstruction
+problem, not a tooling one". The `0x27cc8` `cvtri` analysis in v0732h is
+**unaffected and still valid** — that boundary is real.
+
+The v0730 taint note's fighter1 lines reproduce **exactly, in order**, with
+the correct scenario — `fighter1 + 0x01a4 bit 14`, `fighter0 + 0x01a4 bit 0`
+with `fighter1 + 0x05b8 bit 0`, `fighter0 + 0x01a4 bit 8` with
+`fighter1 + 0x01a4 bit 8`. `0x1a4` is the measured flags offset and is
+touched from both bases. **That note was right**, and the caveat I added to it
+is removed; flagging correct evidence as unverified was the most damaging of
+the three errors.
+
+**The lesson, in the order I needed it.** Check a constant against its
+measured source. Be suspicious of a "pending" result that a green test
+*asserts*. Be especially suspicious of a negative that explains away a whole
+line of work — "0 of 264" invited me to reframe P1 as a state problem, and
+that reframe came entirely from my own bad input. A negative needs the same
+provenance as a positive.
+
+**Standing correction:** any analysis naming a fighter base must cite its
+source. The only measured pair in this repo is the scenario metadata's.
+`0x510000` / `0x520000` are not fighter bases in VF2.
+
+Validation: 13/13 `vf2_python_factory_*` ctest entries pass (7.65 s). No
+`src/` change, so no rebuild. Full suite last observed at v0732j's
+117/117 in 1619.56 s. See `p1_fighter_bases_retraction_v0732k.md`.
+
+## v0732j: ~~no trace on disk has a shared fighter offset~~ RETRACTED at v0732k
+
+> **Every number in this section is wrong.** The scan used the wrong fighter
+> bases. With the measured bases, **81 of 264 traces** share fighter offsets
+> and `trace-both.jsonl` shares all 144. Read
+> `p1_fighter_bases_retraction_v0732k.md` instead. Kept only so the error
+> chain is auditable.
 
 **Evidence only. No behaviour change, no tuple admitted, no field promoted.**
 A **negative** result, stated with the counts that back it. This closes the

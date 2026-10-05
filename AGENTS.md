@@ -471,7 +471,10 @@ Remaining fail-closed pins in this corridor, all deliberate: the INDIVIDUAL
 value-row release on rows 3-5; the INDIVIDUAL `a5 = 4` COIN/CREDIT SETTING
 row; the MANUAL SETTING `a7` nested editor; and PUNCH/KICK at row 5.
 
-### 2. Extend the player corridor downstream of `0x28918`/`0x29414` (next)
+### 2. Extend the player corridor downstream of `0x28918`/`0x29414`
+
+**P1 is closed at v0732k — the dual-base promotion fired.** See the P1 status
+block below before starting anything here. P2-P4 are the remaining work.
 
 The v0706 dual-base witness and v0707 head-sibling work recovered the
 front of the `fa_player` downstream chain; later branches remain
@@ -482,55 +485,42 @@ single-corridor candidates (`field_0980`, `field_0984`, `field_11a0`,
 to find the edge that touches them, then taint.py to capture the branch
 dependency. P2-P4 chain the next downstream decomposition.
 
-**P1 status at v0732h** (`p1_dualbase_blocker_v0732h.md`):
+**P1 status at v0732k** (`p1_fighter_bases_retraction_v0732k.md`):
 
-- The premise is confirmed: both corpora really are fighter0-only, so
-  `base_count = 1` is correct and promotion could not fire.
-- A **fighter1-inclusive trace now exists** - 660 fighter1 accesses over
-  300 offsets at `0x01e0..0x068c`, 9235 instructions, from the valid-form
-  reconstruction of `player + 0xbd8` / `player + 0x1a0`.
-- It is **single-base**, so promotion still does not fire, and it covers a
-  different region from the `0x1680` block.
-- The concrete next P1 step is to **extend `infer_structs.py`'s roll-up to
-  consume multiple traces**. The `0x27b5c` helper takes one `player` pointer,
-  so same-offset-different-base evidence only exists *across* traces, and the
-  current contract keys on `bases` within one trace.
-- **Done at v0732i.** `infer_structs.py` now takes `nargs="+"` traces and
-  merges them, with per-base `base_traces` provenance so a cross-trace
-  promotion is auditable. Unit suite 4 -> 8. **But no real candidate
-  promotes**: the two corpora cover *disjoint* offset regions
-  (`trace-both` fighter0 at `0x0980`/`0x0b24`, `p1-f1-valid` fighter1 at
-  `0x01e0..0x068c`), so there is no shared offset. The tool correctly refuses.
-- The player base **is** selected through `g7`: `g7=0x00510980` gives
-  `player = 0x510000` (9235 ins, ok), `g7=0x00520980` gives
-  `player = 0x520000` and degenerates back to the `0x27cc8` `cvtri`
-  refusal. So the scratch selector is *not* read where the scratch base is;
-  characterising that is the next step toward an overlapping corpus.
-- **Settled at v0732j.** Scanning all 264 traces in `out/` (92 with fighter
-  accesses, 3 with any fighter1 traffic) finds **0 traces with a single
-  shared fighter offset**. `infer_structs`' `base_count == 2` contract has
-  never had its input. **P1 is therefore a state-reconstruction problem, not
-  a tooling one** - not blocked on `infer_structs`, `frontier.py`, taint or a
-  longer reference run. What is needed is a state where the game itself
-  processes both fighters through the same offset (e.g. a 2-player VS state
-  with the per-fighter loop completing for both); a single-`player` helper
-  cannot produce the overlap.
-- The v0730 taint note's **conclusion** survives re-derivation on the
-  fighter1 trace (17 branches, 0 with fighter taint - the `cvtri`/`stis`
-  tail is not a control-flow decision). Its specific `fighter1 + 0x1a4`
-  lines and its 70-branch count are **not reproducible** from any trace on
-  disk and stay flagged.
-- Do **not** try to unblock the reference executor past `0x27cc8` by adding a
-  saturating `cvtri` rule. The hardware behaviour is undefined, the refusal is
-  correct, and the C side already recovers the tail.
-- Do not widen `--window` to manufacture a shared offset. "0 of 264" says no
-  captured state shows one, not that the game never produces one.
+- **P1 is DONE. The block is dual-base and promoted.** The whole
+  v0729-v0732 line had been using the WRONG fighter bases
+  (`0x510000`/`0x520000`); the measured ones are **`0x510980`/`0x512980`**
+  (from `out/state8-positive.json` metadata). The wrong fighter1 window did
+  not contain the real struct, so all fighter1 traffic was invisible.
+- `out/trace-both.jsonl` has **144 shared offsets, 341 events per base**.
+  The contiguous 4B block is `0x0d00..0x0ee0`, length 120, 480 B,
+  `ip_overlap` 1.0, IPs `0x2399c` + `0x23a38`, **240 reads + 240 writes per
+  base**, `base_count == 2`. The v0729 note's `0x1680..0x1860` is the same
+  block measured from base `0x510000`; the difference is exactly `0x980`.
+- The v0730 taint note was **right**. Its `fighter1 + 0x01a4 bit 14` and
+  `fighter1 + 0x05b8 bit 0` lines reproduce exactly with the correct bases.
+  The caveat added at v0732h is removed.
+- **A committed bug asserted the wrong answer.** `p1_real_trace_demo.py`
+  (ctest #117) hardcoded the wrong bases *and* pinned `base_count == 1`, so
+  the "pending promotion" was enforced by a green test. Fixed; the test now
+  asserts `base_count == 2` plus the per-base read/write balance.
+- **Retracted:** v0732h ("corpora are fighter0-only", "no fighter1 trace
+  exists", the taint caveat), v0732i ("disjoint regions", "nothing
+  promotes"), v0732j ("0 of 264 traces share an offset" — **81 of 264 do**,
+  "P1 is a state problem"). The v0732h `0x27cc8` `cvtri` analysis is
+  **unaffected and still valid** — that boundary is real.
+- **v0732i's multi-trace roll-up is kept** — a real capability, just not
+  needed here. `infer_structs` takes `nargs="+"` traces with per-base
+  `base_traces` provenance (unit suite 4 → 8).
+- Do **not** unblock the reference executor past `0x27cc8` with a saturating
+  `cvtri` rule. The i960 leaves out-of-range FP→int conversion undefined, the
+  refusal is correct, and the C side already recovers the tail.
 
-**A correction to carry forward:** `tools/python/taint.py` takes its fighter
-bases from the *scenario*, not only from the trace. The `fighter1 + ...`
-dependency lines in `p1_taint_0x1680_block_v0730.md` therefore come from the
-scenario, not from a trace with fighter1 accesses. Re-derive them before
-relying on them.
+**Standing rule after this episode:** any analysis that names a fighter base
+must cite where it came from, and a *pending* result must never be asserted
+by a test — otherwise a wrong premise becomes a green gate. The only measured
+pair in this repo is the scenario metadata's; `0x510000`/`0x520000` are not
+fighter bases in VF2.
 
 ### 3. Extend `frontier.py`
 

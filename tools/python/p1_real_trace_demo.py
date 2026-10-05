@@ -10,11 +10,9 @@ and ``decomp/i960/notes/fa_player_struct_1680_corpus_v0729.md``).
 Composition (mirrors ``factory_chain_demo.py`` but on real traces):
 
   Step 1 (frontier.py v2)     -> ingest both traces, rank edges
-  Step 2a (contiguous blocks) -> surface the 0x1680..0x1860 block
+  Step 2a (contiguous blocks) -> surface the 0xd00..0xee0 block
   Step 2 (infer_structs.py)  -> per-offset roll-up
-  Step 2 (dual-base)         -> confirm base_count for the 0x1680 block
-                                  (currently 1; fighter1-inclusive
-                                  trace not on master)
+  Step 2 (dual-base)         -> confirm base_count == 2 for the block
   Step 3 (taint.py)          -> skipped; taint refuses to print its
                           dependency report for the 0x2399c IP because
                           it is a store-quad instruction, not a
@@ -33,8 +31,21 @@ them).
 The invariants this script locks in are the same ones the v0729
 player-corpus smoke + 0x1680 notes recorded. Re-running this script
 on a future corpus MUST reproduce the same block record
-(length=120, byte_size=480, ip_overlap=1.0, top_ips=[0x2399c,
-0x23a38]) or the script fails.
+(length=120, byte_size=480, ip_overlap=1.0, base_count=2,
+top_ips=[0x2399c, 0x23a38]) or the script fails.
+
+**Fighter bases (corrected v0732k).** These are the MEASURED bases from
+the ``fa_game_info`` scenario metadata (``out/state8-positive.json``):
+
+    fighter0 = 0x00510980      fighter0_flags = 0x00510b24  (offset 0x1a4)
+    fighter1 = 0x00512980      fighter1_flags = 0x00512b24  (offset 0x1a4)
+
+The v0729/v0730 notes used 0x510000 / 0x520000 and reported the block at
+offset 0x1680. That is the *same* 120 offsets displaced by exactly 0x980,
+the difference between the wrong and the right fighter0 base - and with
+the wrong bases the fighter1 window (0x520000..0x522000) does not contain
+the real fighter1 struct at all, so every candidate silently reported
+base_count == 1. See ``decomp/i960/notes/p1_fighter_bases_retraction_v0732k.md``.
 """
 
 from __future__ import annotations
@@ -56,15 +67,26 @@ CORPUS = [
 # Invariants locked by the v0729 player-corpus smoke + v0730 P1 note.
 # If the corpus changes, the detector parameters may need re-tuning
 # (see p1_player_0x1680_block_stability_v0730.md).
-EXPECTED_OFFSET = "0x00001680"
-EXPECTED_END = "0x00001860"
+#
+# The block offset is expressed from the MEASURED fighter0 base 0x510980, so
+# it reads 0x0d00 where the old 0x510000-based run read 0x1680. Same 120
+# offsets, same 480 bytes, same guest IPs, same 240 reads + 240 writes per
+# base - only the origin moved. See p1_fighter_bases_retraction_v0732k.md.
+EXPECTED_OFFSET = "0x00000d00"
+EXPECTED_END = "0x00000ee0"
 EXPECTED_LENGTH = 120
 EXPECTED_BYTE_SIZE = 480
 EXPECTED_TOP_IPS = ["0x0002399c", "0x00023a38"]
 EXPECTED_IP_OVERLAP = 1.0
-EXPECTED_BLOCK_BASE_COUNT = 1  # fighter1-inclusive trace not on master
+# The block IS dual-base. It was measured as base_count == 1 only because the
+# fighter1 window sat at 0x520000, which does not contain the real fighter1
+# struct at 0x512980.
+EXPECTED_BLOCK_BASE_COUNT = 2
+EXPECTED_READS = 480
+EXPECTED_WRITES = 480
 
-FIGHTER_BASES = [0x510000, 0x520000]
+# MEASURED bases, from the fa_game_info scenario metadata.
+FIGHTER_BASES = [0x510980, 0x512980]
 FIGHTER_WINDOW = 0x2000
 
 
@@ -157,11 +179,25 @@ def main() -> int:
     if main_block["base_count"] != EXPECTED_BLOCK_BASE_COUNT:
         print(
             f"FAIL: top block base_count {main_block['base_count']} != "
-            f"expected {EXPECTED_BLOCK_BASE_COUNT} (dual-base promotion "
-            "requires a fighter1-inclusive trace)",
+            f"expected {EXPECTED_BLOCK_BASE_COUNT}. A drop here means the "
+            "fighter bases are wrong: the measured pair is 0x510980 / "
+            "0x512980, and 0x510000 / 0x520000 silently reports 1 because the "
+            "fake fighter1 window misses the real struct.",
             file=sys.stderr,
         )
         return 1
+    # Pin the per-base read/write balance too. 240 each per base is the
+    # v0729 figure, and it is what distinguishes "both bases touch the block"
+    # from "one base touches it twice as often".
+    for label, key, expected in (("reads", "reads", EXPECTED_READS),
+                                 ("writes", "writes", EXPECTED_WRITES)):
+        actual = main_block.get(key)
+        if actual != expected:
+            print(
+                f"FAIL: top block {label} {actual} != expected {expected}",
+                file=sys.stderr,
+            )
+            return 1
     print(
         f"Step 2a: contiguous block {main_block['offset']}.."
         f"{main_block['end_offset']} length={main_block['length']} "
@@ -172,15 +208,19 @@ def main() -> int:
     )
 
     # --- Step 2: infer_structs per-offset roll-up ----------------
+    # Both bases this time, so the roll-up itself has to report the
+    # shared offsets rather than only the fighter0 half.
     fields, total, unmatched = summarize_trace(
         CORPUS[0],
-        bases={"fighter0": FIGHTER_BASES[0]},
+        bases={
+            "fighter0": FIGHTER_BASES[0],
+            "fighter1": FIGHTER_BASES[1],
+        },
         window=FIGHTER_WINDOW,
     )
-    # The 0x1680 block contributes at least EXPECTED_LENGTH distinct
-    # offsets (120 in the contiguous block). The exact count depends
-    # on what other offsets `trace-both.jsonl` touches in the
-    # fighter0 window; only the lower bound is pinned here.
+    # The block contributes EXPECTED_LENGTH distinct offsets (120 in the
+    # contiguous block). The exact total depends on what other offsets
+    # `trace-both.jsonl` touches; only the lower bound is pinned here.
     if len(fields) < EXPECTED_LENGTH:
         print(
             f"FAIL: per-offset count {len(fields)} < "
@@ -188,12 +228,21 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
+    dual = sorted(off for off, data in fields.items() if len(data["bases"]) == 2)
+    if len(dual) < EXPECTED_LENGTH:
+        print(
+            f"FAIL: only {len(dual)} offsets are dual-base, expected at "
+            f"least {EXPECTED_LENGTH} (the whole contiguous block)",
+            file=sys.stderr,
+        )
+        return 1
     print(
         f"Step 2: infer_structs roll-up shows {len(fields)} distinct "
-        f"offsets in fighter0 (block contributes {EXPECTED_LENGTH})"
+        f"offsets across both bases, {len(dual)} of them dual-base "
+        f"(block contributes {EXPECTED_LENGTH})"
     )
 
-    # --- Step 2 (dual-base): confirm 0x1680 base_count ------------
+    # --- Step 2 (dual-base): confirm the block promotes ----------
     rows = {row["offset"]: row for row in f.top_fighter_offsets(60)}
     if EXPECTED_OFFSET not in rows:
         print(
@@ -204,15 +253,15 @@ def main() -> int:
     base_count_01680 = rows[EXPECTED_OFFSET]["base_count"]
     if base_count_01680 != EXPECTED_BLOCK_BASE_COUNT:
         print(
-            f"FAIL: 0x1680 base_count {base_count_01680} != "
+            f"FAIL: {EXPECTED_OFFSET} base_count {base_count_01680} != "
             f"expected {EXPECTED_BLOCK_BASE_COUNT}",
             file=sys.stderr,
         )
         return 1
     print(
         f"Step 2 (dual-base): {EXPECTED_OFFSET} base_count="
-        f"{base_count_01680} (fighter1-inclusive trace needed for "
-        "promotion to 2)"
+        f"{base_count_01680} (PROMOTED - same offset, same width, same "
+        "guest IPs from both fighter bases)"
     )
 
     # --- Step 3 (taint): skipped; documented in the per-slice note
@@ -224,8 +273,8 @@ def main() -> int:
     print()
     print(
         "PASS: P1 factory chain reproduced on real corpus; "
-        "0x1680..0x1860 block stable across both traces; "
-        "dual-base promotion pending fighter1-inclusive trace"
+        "0xd00..0xee0 block stable across both traces and DUAL-BASE "
+        "(promoted)"
     )
     return 0
 

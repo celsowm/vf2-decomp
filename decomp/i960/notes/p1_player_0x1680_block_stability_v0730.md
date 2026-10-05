@@ -182,3 +182,12 @@ The next P1 sub-task (`taint --until 0x2399c`) uses:
   contract, with 18/18 unit tests pinning the behaviour.
 - Do not weaken `infer_structs.py`'s conservative dual-base
   promotion; it requires actual evidence from both bases.
+---
+
+> **Corrected at v0732k.** This note's dual-base conclusions were measured from
+> base `0x510000`, which is not a VF2 fighter base. The measured pair is
+> **`0x510980`/`0x512980`**; the block this note calls `0x1680..0x1860` is the
+> same 120 offsets at **`0x0d00..0x0ee0`**, and it **is** dual-base
+> (`base_count == 2`, 240 reads + 240 writes per base). Everything else here -
+> length 120, 480 B, `ip_overlap` 1.0, IPs `0x2399c` + `0x23a38` - was right.
+> See `p1_fighter_bases_retraction_v0732k.md`.

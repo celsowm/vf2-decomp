@@ -3,14 +3,22 @@
 
 The demo runs the public ``Frontier`` API against the actual
 ``out/trace-both.jsonl`` + ``out/trace-f0.jsonl`` corpus and locks in
-the same invariants documented in
-``decomp/i960/notes/p1_player_0x1680_block_stability_v0730.md``:
+the invariants documented in
+``decomp/i960/notes/p1_fighter_bases_retraction_v0732k.md``:
 
-- contiguous 4B block at ``0x1680..0x1860``
+- contiguous 4B block at ``0x0d00..0x0ee0``
 - length 120, byte_size 480
 - ip_overlap 1.0
 - top_ips ``[0x2399c, 0x23a38]``
-- base_count 1 (fighter1-inclusive trace not on master)
+- base_count **2** - the block IS dual-base
+- reads 480 / writes 480 (240 each per fighter base)
+
+The block offset is expressed from the MEASURED fighter0 base ``0x510980``.
+An earlier revision of this test used ``0x510000`` and read the block at
+``0x1680`` with ``base_count == 1``. That was the same 120 offsets
+displaced by 0x980, and the wrong fighter1 window (0x520000) missed the
+real fighter1 struct at 0x512980 entirely - so the "pending" claim was an
+artefact of the base, not a property of the corpus.
 
 The test skips cleanly when the corpus traces are missing (the
 traces are gitignored ROM-backed artefacts). It does NOT regenerate
@@ -50,8 +58,8 @@ def test_p1_real_trace_demo_reproduces_block():
     assert "PASS:" in out, (
         f"demo did not print PASS line:\n{out[:4000]}"
     )
-    assert "0x00001680..0x00001860" in out, (
-        f"demo did not surface the expected 0x1680..0x1860 block:\n"
+    assert "0x00000d00..0x00000ee0" in out, (
+        f"demo did not surface the expected 0xd00..0xee0 block:\n"
         f"{out[:4000]}"
     )
     assert "length=120" in out, (
@@ -64,12 +72,24 @@ def test_p1_real_trace_demo_reproduces_block():
         f"demo did not surface the expected top_ips pair:\n"
         f"{out[:4000]}"
     )
-    assert "base_count=1" in out, (
-        f"demo did not surface base_count=1:\n{out[:4000]}"
+    # The promotion this whole slice existed to unblock. Asserting base_count
+    # == 1 here is what kept the wrong fighter bases alive from v0729 to
+    # v0732k, so the assertion is deliberately the strong one.
+    assert "base_count=2" in out, (
+        f"demo did not surface base_count=2 (dual-base promotion):\n"
+        f"{out[:4000]}"
+    )
+    assert "DUAL-BASE" in out, (
+        f"demo did not report the block as promoted:\n{out[:4000]}"
+    )
+    assert "144 of them dual-base" in out, (
+        f"demo did not report the per-offset dual-base roll-up:\n"
+        f"{out[:4000]}"
     )
     print(
-        "ok: p1_real_trace_demo reproduced the 0x1680..0x1860 block "
-        "with all documented invariants on the real corpus"
+        "ok: p1_real_trace_demo reproduced the 0xd00..0xee0 block "
+        "with all documented invariants on the real corpus, and the "
+        "block is dual-base (base_count=2)"
     )
 
 

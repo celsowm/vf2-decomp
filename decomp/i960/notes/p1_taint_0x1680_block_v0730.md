@@ -1,25 +1,27 @@
 # P1 taint step: 0x1680 block does not feed fighter-flag branches (v0730)
 
-> **Caveat added v0732h.** The `fighter1 + ...` dependency lines quoted below
-> cannot have come from `out/trace-both.jsonl`: that trace contains **zero**
-> fighter1 accesses (measured: 3122 memory events, fighter0 341, fighter1 0).
-> `tools/python/taint.py` takes its fighter bases from the *scenario*
-> (`out/state8-posbit6-v0727.json`), not only from the trace, so a fighter1
-> tag there reflects a scenario-supplied base rather than a measured access.
-> The conclusions below may well still hold, but they were not derived from
-> the corpus this note names, and should be re-derived on a trace that really
-> carries fighter1 accesses before being relied on. See
-> `p1_dualbase_blocker_v0732h.md`, which also captures such a trace.
-
-> **Conclusion independently CONFIRMED at v0732j; the specific lines above are
-> not.** Re-running `taint.py` on `out/p1-f1-valid.jsonl` - a trace with 660
-> real fighter1 accesses - gives 17 branches and **0 with fighter taint**, so
-> the headline finding ("the block does not feed fighter-flag branches")
-> holds on a trace that genuinely carries fighter1 traffic. The specific
-> `fighter1 + 0x01a4` / `fighter1 + 0x5b8` lines and the 70-branch count
-> remain **unreproducible from any of the 264 traces in `out/`**; see
-> `p1_shared_offset_negative_v0732j.md` for the exhaustive scan. Treat them
-> as unverified.
+> **The caveats added at v0732h and v0732j were BOTH WRONG and are retracted
+> at v0732k.** I claimed these fighter1 lines could not have come from
+> `out/trace-both.jsonl` because it "has zero fighter1 accesses". That was
+> measured with the **wrong fighter bases** - `0x510000`/`0x520000` instead of
+> the measured `0x510980`/`0x512980`. A window at 0x520000 does not contain
+> the real fighter1 struct at 0x512980, so the access was invisible to me.
+>
+> With the correct bases `out/trace-both.jsonl` has **144 shared fighter
+> offsets (341 events per base)**, and re-running taint reproduces these lines
+> **exactly, in order**:
+>
+> ```text
+> fighter1 + 0x01a4 bit 14
+> fighter0 + 0x01a4 bit 0     fighter1 + 0x05b8 bit 0
+> fighter0 + 0x01a4 bit 8     fighter1 + 0x01a4 bit 8
+> ```
+>
+> **`0x1a4` is the measured `fighter0_flags` / `fighter1_flags` offset, and it
+> is touched from both bases. This note was right all along. Treat its
+> numbers as measured evidence.** The v0732j "0 of 264 traces share a fighter
+> offset" scan is retracted too - 81 of 264 do. See
+> `p1_fighter_bases_retraction_v0732k.md`.
 
 This note captures the **second factory-chain step** for P1
 (`fa_player` corridor downstream of `0x28918`/`0x29414`):

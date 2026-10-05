@@ -178,3 +178,14 @@ All measurements above are reproducible from the commands shown.
 - Do not add a saturating rule for out-of-range `cvtri` to unblock the
   reference executor. The hardware behaviour is undefined, the current
   refusal is correct, and the C side already recovers the tail.
+
+---
+
+> **RETRACTED at v0732k.** Every dual-base claim below used the WRONG fighter
+> bases (`0x510000`/`0x520000` instead of the measured
+> `0x510980`/`0x512980`), so all fighter1 traffic was invisible. The
+> conclusions here are wrong. `out/trace-both.jsonl` is genuinely dual-base
+> (144 shared offsets, 341 events per base) and the 120-offset block is
+> promoted with `base_count == 2`. The `0x27cc8` `cvtri` analysis in this note
+> is unaffected and still valid - that boundary is real. See
+> `p1_fighter_bases_retraction_v0732k.md`.
