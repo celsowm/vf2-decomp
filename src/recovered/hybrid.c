@@ -29904,6 +29904,7 @@ static vf2_status coli_2396c_body(
     uint32_t g7,
     uint32_t g13,
     uint32_t *g4_out,
+    uint32_t *g3_out,
     uint64_t *body_out
 )
 {
@@ -29922,7 +29923,8 @@ static vf2_status coli_2396c_body(
     static const uint32_t const_a = UINT32_C(0x3d4ccccd); /* +0.05f */
     static const uint32_t const_b = UINT32_C(0xbdcccccd); /* -0.1f */
 
-    if (machine == NULL || g4_out == NULL || body_out == NULL) {
+    if (machine == NULL || g4_out == NULL || g3_out == NULL ||
+        body_out == NULL) {
         return VF2_ERROR_INVALID_ARGUMENT;
     }
     if (hybrid_read_u8(
@@ -30244,6 +30246,15 @@ static vf2_status coli_2396c_body(
     }
 
     *g4_out = g4;
+    /*
+     * g3 is left holding the third remap's result. The guest's last remap is a
+     * bare ld/call/stos with no g4 update, and nothing reloads g3 before the
+     * ret, so on a direct 0x2396c entry g3 is observable. Measured 0x0000fffe
+     * on the live parked state; the body used to drop it, which the
+     * self-consistency unit test could not see because it never checked g3.
+     * See tests/recovered/test_coli_2396c_live.c.
+     */
+    *g3_out = g3;
     *body_out = UINT64_C(2617) + remap_sum;
     return VF2_OK;
 }
@@ -30256,6 +30267,7 @@ vf2_status vf2_hybrid_coli_2396c_execute(
     const uint32_t g7 = cpu->registers[VF2_I960_G0_REGISTER + 7u];
     const uint32_t g13 = cpu->registers[VF2_I960_G0_REGISTER + 13u];
     uint32_t g4 = 0u;
+    uint32_t g3 = 0u;
     uint64_t body = 0u;
 
     if (machine == NULL || cpu == NULL ||
@@ -30263,10 +30275,21 @@ vf2_status vf2_hybrid_coli_2396c_execute(
         cpu->local_frame_depth == 0u) {
         return VF2_ERROR_INVALID_ARGUMENT;
     }
-    if (coli_2396c_body(machine, g7, g13, &g4, &body) != VF2_OK) {
+    if (coli_2396c_body(machine, g7, g13, &g4, &g3, &body) != VF2_OK) {
         return VF2_ERROR_UNSUPPORTED;
     }
-    cpu->registers[VF2_I960_G0_REGISTER + 4u] = g4;
+    /*
+     * g4 is complemented before the ret (0x23b48: not g4, g4). Both masks in
+     * the body consume the accumulator as it entered, which is what the live
+     * evidence shows: applying the complement inside the body instead makes
+     * remap 2's mask ~0 and drops g7+0x614 from 0x000000fe to 0. So the
+     * complement is applied to the exit value only, and only on this direct
+     * entry - 0x23524's own contract is already proven and is not touched.
+     * Measured 0xffffffff on the parked state.
+     * See tests/recovered/test_coli_2396c_live.c.
+     */
+    cpu->registers[VF2_I960_G0_REGISTER + 4u] = ~g4;
+    cpu->registers[VF2_I960_G0_REGISTER + 3u] = g3;
     return hybrid_complete_procedure(machine, cpu, body, 3u, 3u);
 }
 
@@ -30677,6 +30700,7 @@ vf2_status vf2_hybrid_coli_23524_execute(
     uint32_t g6 = 0u;
     uint32_t g4 = 0u;
     uint32_t g3 = 0u;
+    uint32_t g3_child = 0u;
     uint32_t r11 = 0u;
     uint32_t r12 = 0u;
     uint64_t child_body = 0u;
@@ -30756,9 +30780,16 @@ vf2_status vf2_hybrid_coli_23524_execute(
         VF2_OK) {
         return VF2_ERROR_UNSUPPORTED;
     }
-    /* lda 0x01000550, g9 before the first 0x2396c. */
+    /* lda 0x01000550, g9 before the first 0x2396c.
+     *
+     * g3 is deliberately NOT propagated to the CPU here. The shell's own
+     * contract is already proven by its differential, and whether 0x23524
+     * should publish the g3 its children left behind is a separate question
+     * that needs a shell differential to answer. Changing it here would alter
+     * a proven recovery on evidence gathered at a different entry. */
     cpu->registers[VF2_I960_G0_REGISTER + 9u] = VF2_COLI_SHELL_G9_CONST;
-    if (coli_2396c_body(machine, g7, g13, &g4, &child_body) != VF2_OK) {
+    if (coli_2396c_body(machine, g7, g13, &g4, &g3_child, &child_body) !=
+        VF2_OK) {
         return VF2_ERROR_UNSUPPORTED;
     }
     body += child_body + 1u;
@@ -30766,7 +30797,8 @@ vf2_status vf2_hybrid_coli_23524_execute(
         VF2_OK) {
         return VF2_ERROR_UNSUPPORTED;
     }
-    if (coli_2396c_body(machine, g7, g13, &g4, &child_body) != VF2_OK) {
+    if (coli_2396c_body(machine, g7, g13, &g4, &g3_child, &child_body) !=
+        VF2_OK) {
         return VF2_ERROR_UNSUPPORTED;
     }
     body += child_body + 1u;

@@ -1,5 +1,48 @@
 # Changelog
 
+## v0732r: the missing 0x2396c differential, and two real register defects it found
+
+`test_coli_2396c_poly_cluster` was a self-consistency test, not a differential:
+it synthesised an **identity** index table, never ran the reference executor, and
+**zeroed the cluster** — the same condition that produced the v0732p retraction. A
+body right on the identity case and wrong on the permuted case would have passed.
+
+`tests/recovered/test_coli_2396c_live.c` starts from the parked whole-task state
+at the measured call site with the real ROM, so the live permutation and the live
+4th-word window are both in play, and compares the reference executor against
+`vf2_hybrid_coli_2396c_execute` with `vf2_i960_compare_live_state`. Two legs
+differing only in `g7` (fighter0 / fighter1), both FULL MATCH:
+
+```text
+fixture premise: 21/30 non-identity permutation bytes, 30/30 non-zero 4th words
+fighter 0x00510980: FULL MATCH (3023 insn, 3 calls, 4 returns, all 120 cluster words, all 30 4th words)
+fighter 0x00512980: FULL MATCH (3023 insn, 3 calls, 4 returns, all 120 cluster words, all 30 4th words)
+```
+
+**Defect 1 — `g3` was dropped.** The guest's last remap is a bare `ld`/`call`/`stos`
+and nothing reloads `g3` before the ret, so it is observable on a direct entry.
+The body computed it into a local and never published it: native `0` against the
+reference's `0x0000fffe`. `coli_2396c_body` now takes a `g3_out` and
+`vf2_hybrid_coli_2396c_execute` publishes it.
+
+**Defect 2 — `g4` was not complemented.** Measured at the ret: `0xffffffff`,
+native `0`. `0x23a30 mov 0, g4` clears it and `0x23b48 not g4, g4` complements
+it. The complement applies to the **exit value only**: applying it inside the
+body inverts remap 2's mask and drops `g7 + 0x614` from `0x000000fe` to `0` —
+worse than the bug. `vf2_hybrid_coli_2396c_execute` publishes `~g4`.
+
+The `0x23524` shell's two call sites are deliberately untouched: its contract is
+already proven and needs its own differential before it changes.
+
+**Operand-order lesson.** i960 three-operand forms print the destination **last**
+— `cmpinco 29, r9, r9` leaves `r9 = 30`. I first read `and g4, g3, g3` as
+`g4 &= g3` and "fixed" both remaps; the differential caught it at once (2963 vs
+3023 instructions, `+0x614` now wrong too). The existing body was right. A
+disassembly reading is a hypothesis; a "fix" that makes a previously-matching
+count disagree is wrong, not a discovery.
+
+See `decomp/i960/notes/p2_polycluster_differential_v0732r.md`.
+
 ## v0732q: the 0x23980 loop is NOT new — it is the recovered `0x2396c` body, and v0732p's `w3 = 0` is WRONG
 
 **Two corrections, one of them a retraction. The P2 premise itself is void.**

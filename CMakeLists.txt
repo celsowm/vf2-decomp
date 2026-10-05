@@ -357,6 +357,15 @@ if(VF2_BUILD_TESTS)
     vf2_set_project_warnings(vf2_coli_238a4_live_tests)
     add_test(NAME vf2_coli_238a4_live COMMAND vf2_coli_238a4_live_tests)
 
+    # The 0x2396c cluster builder. test_coli_2396c_poly_cluster in
+    # test_native_runtime.c is a self-consistency test: identity permutation,
+    # cluster zeroed, reference never run. This one is the reference-vs-native
+    # differential on the live permutation and the live 4th-word window.
+    add_executable(vf2_coli_2396c_live_tests tests/recovered/test_coli_2396c_live.c)
+    target_link_libraries(vf2_coli_2396c_live_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_coli_2396c_live_tests)
+    add_test(NAME vf2_coli_2396c_live COMMAND vf2_coli_2396c_live_tests)
+
     add_executable(vf2_coli_whole_task_live_tests tests/recovered/test_coli_whole_task_live.c)
     target_link_libraries(vf2_coli_whole_task_live_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_coli_whole_task_live_tests)
@@ -450,6 +459,7 @@ if(VF2_BUILD_TESTS)
         add_test(NAME vf2_coli_22404_live_differential COMMAND vf2_coli_22404_live_tests "${VF2_ROM_DIR}")
         add_test(NAME vf2_coli_midbody_tail_live_differential COMMAND vf2_coli_midbody_tail_live_tests "${VF2_ROM_DIR}")
         add_test(NAME vf2_coli_238a4_live_differential COMMAND vf2_coli_238a4_live_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_coli_2396c_live_differential COMMAND vf2_coli_2396c_live_tests "${VF2_ROM_DIR}")
         add_test(NAME vf2_coli_whole_task_live_differential COMMAND vf2_coli_whole_task_live_tests "${VF2_ROM_DIR}")
         add_test(NAME vf2_player_4505_live_differential COMMAND vf2_player_4505_live_tests "${VF2_ROM_DIR}")
         add_test(NAME vf2_player_4505_mask_family_differential COMMAND vf2_player_4505_live_tests "${VF2_ROM_DIR}" "--mask-family")

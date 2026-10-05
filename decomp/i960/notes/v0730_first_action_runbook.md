@@ -174,13 +174,13 @@ The v0727 "Still open" list is the work queue:
    real and reproduce exactly. `taint.py --until 0x2399c` still returns
    nothing, because `0x2399c`/`0x23a38` are `stq`/`ldq` *memory* IPs, not
    branch IPs.
-2. **P2**: **the producer goal is void — it is already recovered.** The
-   `0x0d00` block is the cluster of `coli_2396c_body` (`0x2396c`, native since
-   v0285); `0x23980` is its inner loop. v0732p's `w3 = 0` is **retracted** — the
-   4th word is a read from the ROM window at `0x020078b4`, not a constant. The
-   real remaining work is the **missing reference differential** for
-   `0x2396c` (its only test is identity-permutation, cluster-zeroed, and never
-   runs the reference). See `p2_producer_contract_v0732q.md`.
+2. **P2: CLOSED at v0732r.** The producer goal was void — the block is
+   `coli_2396c_body` (native since v0285). v0732p's `w3 = 0` is **retracted**
+   (it is a read from the ROM window at `0x020078b4`). The missing
+   **reference differential** now exists as
+   `tests/recovered/test_coli_2396c_live.c` and found two real defects, both
+   fixed: `g3` was dropped and `g4` was not complemented. See
+   `p2_producer_contract_v0732q.md` and `p2_polycluster_differential_v0732r.md`.
 3. **P3-P4**: Decomposition past `0x28918`/`0x29414` per the runbook chain.
 
 ### Layer 3 — frame-dispatch selector 3 phase ≥8 (`0x9444`)

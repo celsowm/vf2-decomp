@@ -490,11 +490,18 @@ original goal is void) and P3-P4 are the remaining decomposition work.
   **ROM-resident** at `0x020078b4` and holds 30 distinct small positive floats
   in live state. 30/30 non-zero, 30/30 matching. The old fixture pinned a
   blank `r3 = 0x0100a000`, so every word read as zero.
-- **The real gap is the missing differential.** `test_coli_2396c_poly_cluster`
-  synthesises an *identity* index table, never runs the reference executor and
-  zeroes the cluster - the same condition that produced the retraction. It is a
-  self-consistency test. A body correct on the identity case and wrong on the
-  permuted case would pass today.
+- **The real gap was the missing differential, and it found two real bugs.**
+  `test_coli_2396c_poly_cluster` synthesised an *identity* index table, never ran
+  the reference executor and **zeroed the cluster** — the same condition that
+  produced the retraction. `tests/recovered/test_coli_2396c_live.c` (v0732r) is
+  the replacement: real ROM, real permutation, real 4th-word window, two legs
+  differing only in `g7`, both FULL MATCH on 120 cluster words + 30 fourth words
+  + registers + counts. It caught `g3` being dropped (native 0 vs reference
+  `0x0000fffe`) and `g4` not being complemented (0 vs `0xffffffff`).
+- **i960 three-operand forms print the destination LAST.** `cmpinco 29, r9, r9`
+  leaves `r9 = 30`, so `r9` is the destination; therefore `and g4, g3, g3` is
+  `g3 &= g4`, not `g4 &= g3`. Getting this backwards made a previously-correct
+  recovery wrong and the differential caught it immediately.
 - **Search the repo before re-deriving.** The existing body already held
   `0x2394c`, `0x0d00`, `0x23944`, `0x04`, `0x020078a8`, `+0.05f`, `-0.1f` and
   both float adds, all with correct comments. `docs/UNCOVERED_BRANCHES.md:4955`
@@ -817,9 +824,24 @@ cost of skipping that.
 A related trap: the only committed test for a recovered block may be a
 *self-consistency* test. `test_coli_2396c_poly_cluster` synthesises an identity
 permutation, never runs the reference executor, and zeroes the cluster — so it
-cannot catch an error that only appears on the real permutation, which is
+could not catch an error that only appears on the real permutation, which is
 precisely the error it was sitting next to. A test that does not invoke the
-oracle is not a differential, whatever its assertions look like.
+oracle is not a differential, whatever its assertions look like. Writing the
+missing one found two further defects (`g3` dropped, `g4` uncomplemented) in a
+recovery that had been "done" since v0285.
+
+### Reading a disassembly as if it were a measurement
+
+A disassembly line is a hypothesis. i960 three-operand forms print the
+destination **last** — `cmpinco 29, r9, r9` leaves `r9 = 30` — so
+`and g4, g3, g3` is `g3 &= g4`. I read it as `g4 &= g3`, rewrote two remaps
+accordingly, and the new differential rejected the change immediately: the
+instruction count fell from a matching 3023 to 2963, and `g7 + 0x614` went from
+`0x000000fe` to `0`. The existing code had been right the whole time.
+
+Settle operand order against something already measured before editing, and treat
+a "fix" that makes a previously-matching count disagree as a wrong fix rather
+than a newly discovered bug.
 
 ### Only differencing against a true control
 
