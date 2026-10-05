@@ -92,6 +92,20 @@ and it is the first concrete thing to resolve here: either `r11` is not
 `0..29`, or the destination stride is not uniform across all 120 slots, or
 `ldt` loads more than one destination word per iteration.
 
+> **RESOLVED at v0732o. This is NOT a discrepancy, and all three candidate
+> causes above are falsified.** `ldob 0x2394c[r9], r11` reads a 30-byte
+> **permutation of 0..29** out of the ROM, and `0xd00 + r11*16` predicts
+> **60 of 60** observed destination offsets (30 slots x 2 bases). 12 -> 16 is
+> a **3-word to 4-word expansion**: each iteration loads a packed 3-word
+> triple and writes it into a padded 4-word slot. The block is
+> `uint32_t field_0d00[30][4]`, not a flat 120-word array. The table is read
+> 60 times in the trace, which is also the first independent confirmation that
+> the producer runs twice on the same code, once per fighter. See
+> `p2_slot_permutation_v0732o.md`.
+
+The original concern below is kept for the audit trail only. **Do not** treat
+it as an open item.
+
 Do not close that gap by assuming. It is a 12-vs-16 question that a single
 controlled run with `r8`/`r3` pinned can settle, and it decides whether the
 array is 30 entries of 4 words or 120 entries of 1 word - which changes the
@@ -100,7 +114,7 @@ provisional struct in `p1_promoted_dualbase_layout_v0732m.md` from
 
 ## Next step for P2, in order
 
-1. **Settle 12 vs 16** with a controlled probe (pin `r8`, `r3`, `g7`; capture
+1. ~~**Settle 12 vs 16** with a controlled probe (pin `r8`, `r3`, `g7`; capture
    the source and destination address sequences separately). This is a
    measurement, not a recovery.
 2. Re-measure the block geometry against the answer and correct

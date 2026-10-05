@@ -1,5 +1,83 @@
 # Changelog
 
+## v0732o: the 0xd00 slot permutation is a ROM table — 12-vs-16 is a 3→4 expansion
+
+**Resolves the open question in v0732n.** Evidence only; no behaviour change,
+no tuple admitted, no field promoted. The v0732n note flagged a "12 vs 16
+stride discrepancy" as the next measurement. It is measured, and it is **not** a
+discrepancy — the two strides are the two ends of a deliberate expansion. All
+three candidate causes v0732n listed are **falsified**.
+
+The producer indexes a 30-byte permutation table inline in the ROM:
+
+```text
+00023984  ldob   0x0002394c[r9], r11
+```
+
+Read straight out of the memory trace (the `ldob` records carry their byte
+values, so no ROM image mapping is needed):
+
+```text
+01 00 02 05 04 07 06 08 0a 09 0c 0b 0d 03 10 0f 0e 13 12 11 15
+14 18 17 16 1b 1a 19 1d 1c
+```
+
+A **permutation of 0..29**, verified: length 30, `sorted == range(30)`, no
+duplicates. `0xd00 + r11*16` then predicts **60 of 60** observed destination
+offsets (30 slots × 2 bases). The table is read 60 times in the trace, which is
+also the first independent confirmation that the producer runs twice on the
+same code, once per fighter.
+
+```text
+slot bytes / iter     16   total dest bytes: 480
+source stride / iter  12   total source bytes: 360
+```
+
+30 iterations, a **12-byte source stride** (`mulo 12, r9, r10` feeding
+`ldt (r8)[r10]`) and a **16-byte destination slot**. **That is the answer, not
+a mismatch:** each iteration reads a packed 3-word (12-byte) triple and writes
+it into a padded 4-word (16-byte) slot.
+
+The falsified candidates from v0732n: "`r11` is not `0..29`" — false, it is a
+permutation of `0..29`; "the destination stride is not uniform" — false, it is
+uniformly 16; "`ldt` writes more than one destination word" — false, one
+iteration does write a full 4-word slot.
+
+**The block's shape is now settled:** 30 slots × 16 B = 480 B per base, each
+slot 4 × 4-byte sub-offsets, and because adjacent slots abut the union is 120
+contiguous 4-byte offsets `0x0d00..0x0edc`. The slot structure is real but
+*invisible* to a 4-byte-granularity contiguity detector, which is exactly why
+the block first measured as "120 contiguous".
+
+**Correction to the promoted layout.** `p1_promoted_dualbase_layout_v0732m.md`
+recorded `uint32_t field_0d00[120]`. That is correct in extent and now
+confirmed, but it hides the slot structure. The note is updated to
+`uint32_t field_0d00[30][4]`, which matches the iteration count, predicts where
+the three loaded words land, and matches the consumer's `setbit r3` indexing.
+Same 480 bytes, same 120 measured offsets.
+
+**No semantic name is added.** Gather-and-scatter with a permutation, feeding a
+threshold classifier that accumulates a bitmask, is a *shape*, not a meaning.
+It does not make `field_0d00` a pose, animation or collision array.
+
+**Recovery candidate, not yet recovered.** The producer is now fully
+determined: 30 iterations of "read a permutation byte, load a 12-byte triple
+from `(r8)[r9*12]`, store it into slot `perm[r9]`", with a measured addressing
+rule and a ROM-resident table. But **no differential exists** for
+`0x23984..0x239a8`, and the consumer at `0x23a38` still needs its two float
+constants, `cmpr` ordering and `setbit` accumulation verified
+register-by-register. Per the recovery lifecycle, the producer can only be
+admitted after a controlled fixture matches the reference on registers,
+memory and counters. That fixture is the next P2 step.
+
+The recovered block must **read** the table from ROM, not embed the
+permutation — hardcoding it would be a generated lookup table, which is the
+"don't copy from the ROM" trap in its purest form.
+
+Validation: no `src/` change, so no rebuild. Docs only. Full suite last
+observed at **117/117 in 1635.00 s** with the corrected dual-base assertion
+live. See `p2_slot_permutation_v0732o.md`.
+
 ## v0732n: P2 step 1 — the `0x0d00` block's producer/consumer pair is two guest instructions
 
 **Evidence only. No behaviour change, no tuple admitted, no field promoted.**

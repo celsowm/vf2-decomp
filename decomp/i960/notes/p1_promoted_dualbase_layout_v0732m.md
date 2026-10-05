@@ -115,8 +115,28 @@ struct vf2_fighter_provisional {
     /* 0x080a..0x081f unobserved */
     uint8_t  field_0820;            /* 1-byte */
     /* 0x0821..0x0cff unobserved */
-    uint32_t field_0d00[120];       /* THE BLOCK. 4 B each, 0x2399c/0x23a38,
-                                     * 240 reads + 240 writes per base. */
+    /* The block: 30 padded 4-word slots, not a flat 120-word array.
+     *
+     * Producer (0x23984..0x239a8): 30 iterations of
+     *   r11 = table[0x2394c][r9]          (a permutation of 0..29, in ROM)
+     *   load  a 12-byte packed triple from (r8)[r9*12]
+     *   store it at g7 + 0x0d00 + r11*16
+     * i.e. a 3-word -> 4-word expansion with a permuted slot order. That
+     * formula predicts 60 of 60 observed destination offsets.
+     *
+     * Consumer (0x23a38): reads the same addresses and folds each slot index
+     * into a bitmask at (g13)+0x10c via setbit r3, after comparing against
+     * two float constants at (g13)+0xfc / (g13)+0x100.
+     *
+     * Same 480 bytes and same 120 measured 4-byte offsets either way; the
+     * [30][4] form is preferred because it matches the iteration count and
+     * predicts where the three loaded words land. Adjacent 16-byte slots
+     * abut, so a 4-byte-granularity contiguity detector cannot see the slot
+     * structure - which is why the block first measured as "120 contiguous".
+     *
+     * See p2_slot_permutation_v0732o.md. NO differential exists for either
+     * loop yet. */
+    uint32_t field_0d00[30][4];
 };
 ```
 
