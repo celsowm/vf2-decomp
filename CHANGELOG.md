@@ -131,9 +131,29 @@ sanitizer runtime. Do **not** use wall-clock as the check.
 
 Full suite under real ASan: **119/119 passed, 0 failed, 2542.61 s**, no
 AddressSanitizer diagnostics. That closes the gate carried as "unrun" across the
-whole v0732b–v0732r series. The gate is armed and the suite is clean under it; it
-has **not** been proven able to fail, which given how long it was silently inert
-is the obvious next step rather than a footnote.
+whole v0732b–v0732r series.
+
+**The gate is now also proven able to fail.** A scratch program built with the
+same flags, planting one defect class per invocation:
+
+| planted defect | caught? | exit |
+|---|---|---|
+| heap-buffer-overflow | yes | 1 |
+| stack-buffer-overflow | yes | 1 |
+| heap-use-after-free | yes | 1 |
+| stack-use-after-return | **no** | 0 |
+| null pointer dereference | yes | 1 |
+
+So a clean sanitizer run on this toolchain certifies four of those five classes
+and **not** stack-use-after-return, which MSVC's ASan does not implement here.
+Adding `/fsanitize-address-use-after-return` changes nothing.
+
+The first version of that planted-defect program survived a use-after-free with
+exit 0, which looked like a gap in the gate. It was not: the planted read was
+`(void)p[0]` on a discarded value and the compiler deleted it, so the program was
+never doing the bad read. **A planted defect must have an observable effect, or
+the optimizer is entitled to remove it and "the gate does not catch this" is
+about nothing.** Returning the value instead made ASan catch it at once.
 
 ## v0732r: the missing 0x2396c differential, and two real register defects it found
 

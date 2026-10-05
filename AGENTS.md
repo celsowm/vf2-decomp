@@ -144,8 +144,22 @@ wall-clock as the check: once armed, this suite costs only ~8% more under ASan
 (1497 s vs ~1380 s of CPU on the dominating test), so a "sanitizer runs should be
 much slower" heuristic would report a working gate as broken. The reliable tells
 are the configure-time line and the binary's dependency on the sanitizer runtime
-(an uninstrumented binary cannot exit `0xC0000135`). See
-`decomp/i960/notes/sanitizer_gate_was_a_noop_v0732s.md`.
+(an uninstrumented binary cannot exit `0xC0000135`).
+
+**What a green run does and does not certify** (measured by planting each defect
+in a scratch program built with the same flags):
+
+| defect | caught |
+|---|---|
+| heap-buffer-overflow | yes |
+| stack-buffer-overflow | yes |
+| heap-use-after-free | yes |
+| null pointer dereference | yes |
+| **stack-use-after-return** | **no** - not implemented by MSVC ASan here |
+
+So the gate is real and aborts with a non-zero exit, but a clean run says nothing
+about stack-use-after-return. If you ever need that class, it has to be found
+another way. See `decomp/i960/notes/sanitizer_gate_was_a_noop_v0732s.md`.
 
 A change is not finished merely because it compiles. Run the most specific
 ROM-backed differential path that exercises the new recovery.

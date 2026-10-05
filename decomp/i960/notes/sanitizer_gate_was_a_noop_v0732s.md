@@ -119,20 +119,6 @@ No AddressSanitizer diagnostics from any test, including the two `0x2396c` legs
 above. That closes the gate that had been carried as "unrun" across the whole
 v0732b–v0732r series.
 
-## Standing rule this adds
-
-**A gate must be able to fail, and you must prove it can.** Before trusting any
-validation step, confirm it actually ran:
-
-- does the build print which instrumentation is in effect?
-- does the binary actually depend on the sanitizer runtime?
-- does it exit non-zero when you break something on purpose?
-
-If any of those is missing, the gate is decorative. The same question applies to
-the differential contract: `vf2_i960_compare_live_state` is only worth having if
-something compares against it, which is precisely what `test_coli_2396c_poly_cluster`
-was not doing.
-
 ## Correction: wall-clock is NOT a valid check
 
 I first wrote this note claiming the tell was that the sanitizer tree ran the
@@ -157,7 +143,58 @@ discriminate are the other two:
   `0xC0000135`, which an uninstrumented binary never would.
 
 A third, strongest check is to plant a deliberate out-of-bounds access and confirm
-the gate catches it. That was not done here, so the honest claim is: the gate is
-**armed and reporting**, and the suite is **clean under it** — not that the gate
-has been proven able to fail. Given it was silently inert for this long, proving
-that is the obvious next step rather than a footnote.
+the gate catches it. That is done below, and it found a hole in the check itself.
+
+## Proving the gate can fail, and what it actually covers
+
+A scratch program (`out/gate_map.c`, gitignored) built with the exact flags
+`cmake/VF2Warnings.cmake` now applies — `cl /W4 /Zi /fsanitize=address
+/INCREMENTAL:NO` — plants one defect class per invocation:
+
+| planted defect | caught? | exit | reported as |
+|---|---|---|---|
+| heap-buffer-overflow (1 byte past `malloc`) | **yes** | 1 | `heap-buffer-overflow` |
+| stack-buffer-overflow (1 byte past a local) | **yes** | 1 | `stack-buffer-underflow` |
+| heap-use-after-free (read) | **yes** | 1 | `heap-use-after-free` |
+| stack-use-after-return | **no** | 0 | — no report |
+| null pointer dereference | **yes** | 1 | `access-violation` |
+
+So the gate is real: it aborts, with a non-zero exit, on four of five classes. The
+gap is **stack-use-after-return**, which MSVC's ASan does not implement on this
+toolchain — a clean run does **not** certify that class. That is a platform
+limitation, not a wiring problem, and it is worth stating so nobody reads a green
+sanitizer run as covering it.
+
+Adding `/fsanitize-address-use-after-return` changes nothing here; both variants
+behave identically on the five cases.
+
+### The negative control that wasn't negative
+
+The first version of the planted-defect program **survived** a use-after-free and
+reported exit 0, which briefly looked like a gap in the gate. It was not: the
+planted read was `(void)p[0]` on a discarded value, and the compiler removed it.
+The program was never actually doing the bad read, so the run was testing the
+optimizer rather than the sanitizer.
+
+**A planted defect must have an observable effect, or the compiler is entitled to
+delete it and your "gate does not catch this" conclusion is about nothing.** Once
+the read's value was returned instead of discarded, ASan caught it immediately.
+This is the negative-control discipline from the rest of the repo applied to the
+gate itself: a negative needs the same provenance as a positive, and "it passed"
+must mean the defect ran.
+
+## Standing rule this adds
+
+**A gate must be able to fail, and you must prove it can** — by planting a
+defect it *should* catch and observing the non-zero exit. For this gate the
+proof is above, with the one documented blind spot. Beyond that:
+
+- does the build print which instrumentation is in effect?
+- does the binary actually depend on the sanitizer runtime?
+- is the defect you planted one that cannot be optimized away?
+- and which defect classes are *outside* the gate's coverage, so a green run is
+  not over-read?
+
+The same question applies to the differential contract:
+`vf2_i960_compare_live_state` is only worth having if something compares against
+it, which is precisely what `test_coli_2396c_poly_cluster` was not doing.
