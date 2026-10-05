@@ -11,18 +11,32 @@ credibility of everything after it.
 
 ## Measured starting point
 
-| metric | value |
-|---|---|
-| `functions.csv` rows | 101 (all labelled `recovered-*`) |
-| rows with a real range | 69 |
-| merged union | 316,664 B |
-| **overlap double-counted** | **267,628 B** — the rows nest almost entirely |
-| gaps inside the 445,020 B known span | **128,356 B** in 6 pieces |
-| largest gap | `0x4d2c0..0x640f4` — **93,748 B, no CSV row** |
-| rows still carrying a container bound (>20 KB) | 7, largest 269,476 B |
-| `VF2_ERROR_UNSUPPORTED` return sites | 1,132 |
-| recovered C | 83,339 lines |
-| ctest entries | 119 (plus 3 excluded `4505` dominators) |
+| metric | value | measured |
+|---|---|---|
+| `functions.csv` rows | 101 (all labelled `recovered-*`) | |
+| rows with a real range | **94** | v0734c |
+| raw sum of `end - start` | **591,048 B** | v0734c |
+| merged union | **317,828 B** | v0734c |
+| **overlap double-counted** | **273,220 B** — the rows nest almost entirely | v0734c |
+| merged span | **449,692 B** (`0xb0..0x6dd4c`) | v0734c |
+| gaps inside that span | **131,864 B in 8 pieces** | v0734c |
+| largest gap | `0x4ec00..0x640f4` — **87,284 B, no CSV row** | v0734c |
+| rows still carrying a container bound (>20 KB) | 7, largest 269,476 B | v0734c |
+| `VF2_ERROR_UNSUPPORTED` return sites | 1,132 | |
+| recovered C | 83,339 lines | |
+| ctest entries | 119 (plus 3 excluded `4505` dominators) | |
+
+> **v0734c correction.** Every row marked v0734c was recomputed after v0734b
+> migrated the 25 inverted rows. The figures this table originally carried —
+> 69 ranged rows, 316,664 B union, 267,628 B overlap, 128,356 B of gaps, and a
+> **93,748 B largest gap at `0x4d2c0..0x640f4`** — were computed while a quarter
+> of the bounded rows were not ranges. The largest gap **moved and shrank** to
+> `0x4ec00..0x640f4` / 87,284 B.
+>
+> **These gap figures are still lower bounds on the real unknown.** A container
+> row's span *absorbs* code that has no row of its own, and the gap arithmetic
+> only counts uncovered bytes — so the seven >20 KB container rows make tens of
+> KB of unmeasured code look covered. That is why 1.3 is now ordered behind 1.2a.
 
 **Labels are not coverage.** The CSV claims 316 KB, but 267 KB of that is
 overlap, and 13 rows still carry region bounds instead of extents. The
@@ -141,18 +155,33 @@ the provenance in the row's `notes`. Do not bulk-rewrite from a lower bound.
 **Acceptance:** zero rows whose span is a region bound; each repaired row names
 its two agreeing sources; no row is dropped without being named.
 
-### 1.3 Characterise the gaps
+### 1.3 Characterise the gaps — **BLOCKED on 1.2a, reordered at v0734c**
 
-- `0x4d2c0..0x640f4` — 93,748 B, no CSV row. The single largest unknown in the
-  table; likely several functions, not one.
-- `0x00001200..0x00001290` — 144 B, exposed by v0733c.
-- `0x000012bc..0x000012d8` — 28 B, same.
+The plan originally listed 1.3 before 1.2a. That is backwards, and the reason is
+mechanical: **a container row's span absorbs code that has no row of its own,
+and the gap arithmetic only counts uncovered bytes.** The 144-byte gap v0733c
+exposed at `0x00001200..0x00001290` vanished from the recomputed list purely
+because `interrupt_return_wait_exit` claims a 66,180 B span across it while its
+real extent is **4 bytes**.
 
-**These three figures were computed over a table in which 25 of 94 rows were not
-ranges (v0734a). Recompute the gap list after 1.2b before trusting any of it.**
+So every gap figure is a **lower bound** on the real unknown, by exactly the
+amount those seven >20 KB rows overstate. Recompute first, then characterise.
+
+Current list (provisional, v0734c):
+
+- `0x4ec00..0x640f4` — **87,284 B**, no CSV row. The single largest unknown;
+  likely several functions, not one. *(Was reported as 93,748 B at
+  `0x4d2c0..0x640f4` before v0734b; `tile_controller_update` now has a real
+  extent and split the run.)*
+- `0x658a4..0x6ca64` — **29,120 B**.
+- `0x6428c..0x657dc` — 5,456 B; `0x4d2c0..0x4e808` — 5,448 B;
+  `0x6cb0c..0x6dcb8` — 4,524 B.
+- `0x1200..0x1290` — 144 B and `0x12bc..0x12d8` — 28 B: still real code with no
+  row of its own, currently masked by a container span.
 
 **Acceptance:** each gap has at least a disassembly pass and a statement of what
-it contains. Characterisation is the deliverable, not recovery.
+it contains, computed on the post-1.2a table. Characterisation is the
+deliverable, not recovery.
 
 ### 1.4 Make the coverage tool certify, not just rank
 

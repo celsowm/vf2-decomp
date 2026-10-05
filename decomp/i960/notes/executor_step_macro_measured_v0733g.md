@@ -124,5 +124,9 @@ and it fails loudly if anyone flips the option or edits either stepper.
 ## Still open
 
 - The BBT convention, as a research slice with its own evidence.
-- The 18 container rows, the 93,748 B gap, the extent oracle, and everything in
-  Phases 2-5 of the completion plan — none of which this touches.
+- The container rows, the largest-gap figure, the extent oracle, and everything
+  in Phases 2-5 of the completion plan — none of which this touches.
+  *(Superseded numbers: the container count is **22** at v0734c, not 18, and the
+  largest gap is **`0x4ec00..0x640f4` / 87,284 B** at v0734c, not
+  `0x4d2c0..0x640f4` / 93,748 B. Both moved when v0734b migrated the 25 inverted
+  rows. See `container_rows_measured_v0734c.md`.)*

@@ -1,5 +1,62 @@
 # Changelog
 
+## v0734c: the container rows are measured — and they block the gap arithmetic, not the other way round
+
+Phase 1.2a measurement and the Phase 1.3 recomputation. **No row is mutated,
+`src/` is untouched.** The measurement says the completion plan had 1.2a and 1.3
+in the wrong order.
+
+**All 22 container rows measured with the v0734b two-source method:** 20 end on a
+`ret`, 2 (`main_texture_orchestrator_call`, `main_frame_timer_call`) on an
+unconditional branch and are lower bounds, and **0 are weak**.
+
+**0 weak is not 0 safe to repair**, which is the finding. Three blockers:
+
+- The texture cluster would still be containers of each other. Six rows all
+  measure to the same shared epilogue `0x0004bfe0`; repairing their `end` gives
+  six rows the same end and overlapping spans, with `texture_child_zero_gate_b`
+  entirely inside `texture_child_zero_gate_a`. "These extents overlap" is not
+  "one of them is wrong", and the sweep cannot say which.
+- Two rows' notes pin a **different** endpoint than the measurement:
+  `camera_post_update_gate`'s note says "through 0x1d984" while the sweep measures
+  `0x1ee34`; `frame_shadow_verify` claims "twenty-eight instructions" against a
+  440-byte measured extent. That is a question about the row's identity.
+- `interrupt_return_wait_exit` at `0x00000d20` is **literally a single `ret`**.
+  Its bound repair is well-evidenced, but its *name* describes a composite
+  spanning `interrupt_restore_prefix` and `frame_timer_suffix`. Fixing the bound
+  alone would make the table tidier and less true.
+
+**The finding that reorders the plan.** A container row's span **absorbs** code
+that has no row of its own, and the gap arithmetic only counts uncovered bytes.
+The 144-byte gap v0733c exposed at `0x00001200..0x00001290` has *vanished* from
+the recomputed list — not because it closed, but because
+`interrupt_return_wait_exit` claims a 66,180 B span across it while its real
+extent is **4 bytes**. Every gap figure is therefore a **lower bound** on the
+real unknown, by exactly what those seven >20 KB rows overstate.
+
+**Recomputed on the v0734b table:**
+
+| metric | as quoted through v0733g | v0734c |
+|---|---|---|
+| rows with a real range | 69 | **94** |
+| raw sum of `end - start` | — | **591,048 B** |
+| merged union | 316,664 B | **317,828 B** |
+| double-counted overlap | 267,628 B | **273,220 B** |
+| merged span | 445,020 B | **449,692 B** |
+| gap bytes | 128,356 B in 6 | **131,864 B in 8** |
+| largest gap | `0x4d2c0..0x640f4` — 93,748 B | **`0x4ec00..0x640f4` — 87,284 B** |
+
+The largest gap **moved and shrank**: `tile_controller_update` now has a real
+extent ending at `0x4ec00`, splitting the old run into 87,284 B plus a new
+5,448 B gap at `0x4d2c0..0x4e808`. Second largest is `0x658a4..0x6ca64` at
+29,120 B.
+
+The completion plan's measured-state table is recomputed and 1.3 is moved behind
+1.2a with the reason. `executor_step_macro_measured_v0733g.md`'s "the 93,748 B
+gap" and "18 container rows" are corrected in place.
+
+See `decomp/i960/notes/container_rows_measured_v0734c.md`.
+
 ## v0734b: `end` is now always an extent — the 25 inverted rows are migrated, and 5 rows were losing half their note
 
 Phase 1.2b. v0734a found that `functions.csv`'s `end` column carried two
