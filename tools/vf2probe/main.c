@@ -183,6 +183,21 @@ static int append_mutation(
 {
     vf2_probe_mutation *mutation = NULL;
     if (options->mutation_count >= VF2_PROBE_MAX_MUTATIONS) {
+        /*
+         * This used to return a bare 0, which made the caller print the
+         * whole usage block with no indication of which argument was
+         * rejected. A run that seeds a 360-byte source needs 90 words here
+         * plus register pins, and the limit is easy to cross by accident.
+         * Say what went wrong and how many were already accepted.
+         */
+        fprintf(
+            stderr,
+            "vf2probe: too many mutations - at most %u of --set-reg / "
+            "--set-u8 / --set-u16 / --set-u32 are accepted, and %u were "
+            "already given\n",
+            VF2_PROBE_MAX_MUTATIONS,
+            (unsigned)options->mutation_count
+        );
         return 0;
     }
     mutation = &options->mutations[options->mutation_count++];

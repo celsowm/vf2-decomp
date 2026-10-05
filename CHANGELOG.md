@@ -1,5 +1,76 @@
 # Changelog
 
+## v0732p: the 0x23984 producer loop is fully verified — 30/30, padding word is zero
+
+**The block's producer is a completely determined, measured rule.** No C
+recovery is committed yet; this is the proven rule plus the fixture that proves
+it, which is the precondition for writing the C.
+
+```text
+for r9 in 0..29:
+    r11      = u8(0x2394c + r9)              # ROM-resident permutation table
+    w0,w1,w2 = u32(source + r9*12 + {0,4,8}) # the 12-byte packed triple
+    w3       = 0                             # the padding word
+    dest     = g7 + 0x0d00 + r11*16
+```
+
+`source` is `r8`, `g7` is the fighter base. **211 instructions, 0 procedure
+calls** for the whole block.
+
+`vf2probe` accepts at most `VF2_PROBE_MAX_MUTATIONS` = 128 mutations per
+invocation, with `--set-reg` drawing on the same budget, so the fixture runs in
+three snapshot passes: 93 mutations to seed the 360-byte source with
+`0x100 + i` per word and pin `g7`/`r8`/`r3`; 120 to pre-clear the destination to
+`0xDEADBEEF`; then 3 to run `0x23980 -> 0x239ac` with `--memory-trace`.
+
+```text
+destination words written : 120
+source words read         : 90            (= 30 x 3, the whole source)
+slots whose 3 words == the source triple : 30 / 30
+distinct w3 values across slots          : {'00000000': 30}
+```
+
+**The open question from v0732o is answered: all 30 padding words are zero.**
+Ruled out by the same measurement: it is not the next overlapping source word
+(which would be a distinct `0x100 + r9*3 + 3` per slot), and the pre-clear value
+`0xDEADBEEF` does not appear either — so every slot word really is written and
+the 4th is written as zero. That is the `stq` storing a 64-bit quadword whose
+high word is zero, consistent with `ldt` loading the 12-byte triple into the low
+3 words of the `f6`/`r12` pair.
+
+**The pre-clear is what makes that claim falsifiable.** Without it a zero is
+indistinguishable from "pre-existing zero" — the same discipline as the v0727
+digit-cell work: prove a value is *written*, not merely observed.
+
+A sample of the image shows the permutation doing its job: `slot 1` holds the
+triple for `r9 = 0` and `slot 0` holds the triple for `r9 = 1`, so the source
+words land in consecutive runs while the *slot* order is shuffled. That
+difference between source order and destination order is the whole reason the
+table exists.
+
+**Proven:** iteration count, permutation source, 12-byte source stride, 16-byte
+destination stride, 3 loaded words plus a written zero, 211 instructions,
+0 calls.
+
+**Not proven, and required before admission as a recovery:** the register
+poststate (`g7`, `g9`, `r11`, `r4`, compare state); `r3`'s contribution, whose
+`ld 0xc(r3)[r11*16], r7` target `r7` may be consumed *after* the loop exit at
+`0x239ac`; and whether a boundary at `0x239ac` is legitimate given that
+`0x239ac..0x239e0` sets up the consumer's float constants.
+
+**Also in this slice: a real tool bug fixed.** `vf2probe` silently printed its
+whole usage block when the 128-mutation budget was exceeded, giving no
+indication of which argument was rejected — it cost real time while building
+this fixture. `tools/vf2probe/main.c` now reports the limit and the count
+already accepted. `--read-u32` has the same 128 ceiling
+(`VF2_PROBE_MAX_READS`) and still fails silently; that is left alone on
+purpose, since changing two limits in one commit is how a tool change stops
+being reviewable.
+
+Validation: full suite running. No game-recovery change, so the last completed
+full run remains **117/117 in 1635.00 s**. See
+`p2_producer_verified_v0732p.md`.
+
 ## v0732o: the 0xd00 slot permutation is a ROM table — 12-vs-16 is a 3→4 expansion
 
 **Resolves the open question in v0732n.** Evidence only; no behaviour change,
