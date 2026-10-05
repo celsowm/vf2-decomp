@@ -3712,7 +3712,9 @@ boundary — see the `bx (g14)` trampoline note below).
   as arch-correct — real i960 `BBT` gives *equal* on a clear bit, the repo's
   `arch_fix_direct_compare` uses clear→`NONE` — and removing the macro is not
   done, because it is a repo-wide semantic change needing the variant-tree
-  measurement first.
+  measurement first. **Measured (v0733g): 19 of 119 tests fail with the macro
+  removed, every one on `compare_result` only** — the recovery was written
+  against the legacy path, so the macro is load-bearing and stays.
 
 See `decomp/i960/notes/coli_shell_contract_v0733d.md` and
 `decomp/i960/notes/executor_harness_cc_divergence_v0733e.md`.

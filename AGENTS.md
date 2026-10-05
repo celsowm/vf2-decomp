@@ -287,6 +287,17 @@ At the time this handoff was written, `master` already contains:
     done — it is a repo-wide semantic change and needs the variant-tree
     measurement first. See
     `decomp/i960/notes/executor_step_macro_asymmetry_v0733f.md`.
+  - **v0733g measured it and the macro stays.** `CMakeLists.txt` now carries
+    `VF2_LEGACY_STEP_IN_RUN` (default **ON**, i.e. unchanged) and prints its
+    semantics at configure time. Configuring a separate tree with
+    `-DVF2_LEGACY_STEP_IN_RUN=OFF` and running the suite gives **19 of 119
+    failing, every one on `compare_result` only** — no branch, count or memory
+    failures. The recovered `hybrid.c` was written against the legacy path, so
+    **the macro is load-bearing for the current recovery and must not be
+    flipped.** The i960 `BBT` convention question is a research slice, not a
+    patch. B48's "assert both entry points agree" criterion is **withdrawn** —
+    the test must pin the *difference*. See
+    `decomp/i960/notes/executor_step_macro_measured_v0733g.md`.
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.

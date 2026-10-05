@@ -1,5 +1,56 @@
 # Changelog
 
+## v0733g: the macro removal was measured — 19 of 119 tests break, all of them `compare_result` only
+
+v0733f isolated the `vf2_i960_run` / `vf2_i960_step` asymmetry and refused to
+flip the macro, saying the measurement was the next step. This is that
+measurement, and it settles the question: **keep the macro.**
+
+`CMakeLists.txt` now carries an option, **default ON, i.e. behaviour unchanged**,
+which prints its semantics at configure time in the same spirit as the sanitizer
+STATUS line:
+
+```text
+-- VF2_LEGACY_STEP_IN_RUN=ON:  vf2_i960_run uses vf2_i960_step_legacy (arch_fix_direct_compare is NOT applied)
+-- VF2_LEGACY_STEP_IN_RUN=OFF: vf2_i960_run uses the arch stepper - VARIANT BUILD
+```
+
+End-to-end through the real tool, same snapshot, same address: default
+`compare=equal`, variant `compare=none`.
+
+**Result: 19 of 119 fail in the variant** — `vf2_native_*_dispatch` (8),
+`vf2_phase17_zero_differential`, `vf2_coli_23524_live_differential`,
+`vf2_player_28918_live_differential`, `vf2_player_270d4_five_slot_pin`,
+`vf2_hybrid_first_dispatch`, the three bridge differentials, the scheduler-entry
+and geometry-helper differentials, and `vf2_third_sweep_observation`.
+
+**Every one of the 19 reports `component=cpu-state offset=1`, which is
+`compare_result`.** No branch failures, no instruction-count failures, no memory
+failures — control flow is byte-identical either way. The macro changes the
+condition word and nothing else.
+
+The direction matters: in the variant the *reference* reads `EQUAL` where the
+*native* reads `GREATER` (`ref_cc=2 nat_cc=3 ref_ac=3f001002 nat_ac=3f001001`).
+**The recovered `hybrid.c` was written against the legacy path**, because every
+constant in it came from a `vf2probe` measurement and `vf2probe` runs on
+`vf2_i960_run`. The macro is therefore load-bearing for the current recovery, and
+v0733f's refusal was right rather than merely cautious.
+
+**B48's acceptance criterion is withdrawn.** The completion plan asked for "a
+regression test that drives both entry points over a `bbs`/`cmpob` window and
+asserts they agree". That criterion is wrong: the measurement shows they are not
+supposed to agree today, and such a test could only pass if someone re-derived
+the whole recovery. The correct test **pins the difference** — the legacy path
+leaves the compare word alone, the arch path rewrites it — so the asymmetry is
+guarded instead of latent.
+
+The i960 `BBT` convention question (`ac0=<bit>, ac1=0` means *equal* on a clear
+bit, while `arch_fix_direct_compare` uses clear->`NONE`) remains open and is now
+clearly a research slice: choosing the architecture's version means re-deriving
+19 pinned differentials.
+
+See `decomp/i960/notes/executor_step_macro_measured_v0733g.md`.
+
 ## v0733f: B45 root cause — `vf2_i960_run` and `vf2_i960_step` are different machines because of a build-time macro
 
 v0733e reported the `vf2_i960_run` vs hand-stepped-loop condition-state

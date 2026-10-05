@@ -109,10 +109,31 @@ set_source_files_properties(
     PROPERTIES COMPILE_DEFINITIONS "vf2_model2a_read=vf2_model2a_read_impl;vf2_model2a_write=vf2_model2a_write_impl;vf2_model2a_read_u32=vf2_model2a_read_u32_impl;vf2_model2a_write_u32=vf2_model2a_write_u32_impl"
 )
 
-set_source_files_properties(
-    src/i960/executor.c
-    PROPERTIES COMPILE_DEFINITIONS "vf2_i960_step=vf2_i960_step_legacy"
-)
+# Which stepper vf2_i960_run drives. See
+# decomp/i960/notes/executor_step_macro_asymmetry_v0733f.md.
+#
+# ON (default, unchanged): executor.c is compiled with vf2_i960_step textually
+# substituted to vf2_i960_step_legacy, so vf2_i960_run -- and therefore
+# vf2probe and vf2cycles -- never applies arch_fix_direct_compare, while every
+# hand-stepping caller of vf2_i960_step gets the arch stepper that does.
+#
+# OFF: the macro is not applied, so vf2_i960_run uses the same arch stepper as
+# everyone else. This exists so the blast radius can be MEASURED in a separate
+# tree (configure with -DVF2_LEGACY_STEP_IN_RUN=OFF) before anyone decides
+# whether the default should change. Do not flip the default on the strength of
+# a green run: the variant must be classified move by move first.
+option(VF2_LEGACY_STEP_IN_RUN
+    "Compile vf2_i960_run against the legacy stepper (default ON)" ON)
+
+if(VF2_LEGACY_STEP_IN_RUN)
+    set_source_files_properties(
+        src/i960/executor.c
+        PROPERTIES COMPILE_DEFINITIONS "vf2_i960_step=vf2_i960_step_legacy"
+    )
+    message(STATUS "VF2_LEGACY_STEP_IN_RUN=ON: vf2_i960_run uses vf2_i960_step_legacy (arch_fix_direct_compare is NOT applied on that path)")
+else()
+    message(STATUS "VF2_LEGACY_STEP_IN_RUN=OFF: vf2_i960_run uses the arch stepper vf2_i960_step - VARIANT BUILD, oracle semantics differ from the default tree")
+endif()
 
 set_source_files_properties(
     src/recovered/native_runtime.c

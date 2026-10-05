@@ -63,9 +63,17 @@ Same trace, same addresses, same `executed_instructions`, same registers.
 4. Fix whichever side is wrong. If it is `vf2_i960_run`, re-verify every
    committed compare-state pin.
 
-**Acceptance:** a test that drives both paths over a fixture window and asserts
-they agree, plus a note naming the mechanism. Every existing compare-state claim
-re-verified or listed as needing revision.
+**Acceptance:** a test that drives both paths over a fixture window and pins the
+**difference** — the legacy path leaves the compare word alone where the arch
+path rewrites it — plus a note naming the mechanism.
+
+> **SUPERSEDED by v0733f and v0733g.** The mechanism is isolated: it is the
+> `vf2_i960_step=vf2_i960_step_legacy` compile definition on `src/i960/executor.c`,
+> so `vf2_i960_run` never applies `arch_fix_direct_compare`. The variant tree
+> (`-DVF2_LEGACY_STEP_IN_RUN=OFF`) was built and measured: **19 of 119 fail, all
+> on `compare_result` only.** The macro is therefore load-bearing for the current
+> recovery and stays. The original "assert they agree" acceptance criterion is
+> withdrawn — it could only pass if the whole recovery were re-derived.
 
 **Risk:** if `vf2_i960_run` is the wrong one, a number of committed pins move.
 That is the correct outcome, not a reason to defer.
