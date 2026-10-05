@@ -1,5 +1,43 @@
 # Changelog
 
+## v0731h - F2 blockers identified: the credits and preset gates ARE the frontier
+
+Evidence only. No behaviour change, no tuple admitted, no code touched. The
+temporary probe tuples used to reach this are reverted; they admit nothing.
+
+- **Corrected the v0731g timing claim.** The deferred value write lands at
+  the end of the **edit** frame, not the release frame. Tracing all six chain
+  snapshots: at the 0x9ff8 entry of the edit frame credits are still
+  `[2,2,2,2,2,2]`; by `0xa010` of that same frame they are
+  `[2,2,2,3,3,1]` (row 3) and `preset` is `1` (row 4). "Post-edit release
+  frame" means the frame *after* an edit, not the frame that performs it.
+
+- **The two F2 blockers are now measured rather than assumed.** Admitting the
+  release latch tuples at `a5 = 3` and `4` does not make the legs run, so
+  the refusal is a gate condition - and the two rows fail on two *different*
+  ones:
+  - row 3 fails `credits[index] != 2 -> UNSUPPORTED`, because the release
+    entry already carries `credits = [2,2,2,3,3,1]`;
+  - row 4 fails the main gate's `preset != 0u`, because the release entry
+    already carries `preset = 1`.
+
+  That is exactly the runbook's "credit index != 2, derived credits,
+  preset != 0": the existing fail-closed checks are already sitting on the
+  frontier.
+
+- **Everything else at the release entry is gate-clean** - `indirect_target
+  = 0x5b558`, `selector_mask = 0x20000`, `coin_flags = 0`, `a6 = a7 = 0xff`,
+  and `phase_index = 0x85` at `0x5000a4` so the dispatch routes to the same
+  index-5 body as the a5 = 5 leg. The narrowing is the two state checks, not
+  routing.
+
+- **A recovery must widen each gate against a measured rule**, not relax it
+  wholesale, and the ordering matters: widening the gates without the
+  value-driven digit render only moves the failure from "unsupported" to a
+  poststate mismatch.
+
+See `decomp/i960/notes/f2_post_edit_release_measured_v0731.md`.
+
 ## v0731g - F2 measured: rows 3/4 post-edit release bodies, still fail-closed
 
 Evidence only; no behaviour change and no tuple admitted.

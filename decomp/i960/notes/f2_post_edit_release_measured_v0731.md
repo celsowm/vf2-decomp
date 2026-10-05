@@ -90,6 +90,47 @@ The bodies are also **per-row**, not one shared body: 4189 at row 3 versus
 4186 at row 4, against 4188 for the idle render. Do not fold these into a
 single counted rule without more samples.
 
+## Correction: the value write lands in the EDIT frame, not the release frame
+
+An earlier version of this note said the deferred update "lands on the
+release frame". Tracing all six chain snapshots shows otherwise:
+
+| snapshot | row 3 credits | row 4 preset |
+|---|---|---|
+| `-edit` (0x9ff8 entry, TEST latch) | `[2,2,2,2,2,2]` | 0 |
+| `-editend` (0xa010, end of the **edit** frame) | `[2,2,2,3,3,1]` | **1** |
+| `-wait2`, `-relcl` | `[2,2,2,3,3,1]` | 1 |
+| `-rel` (0x9ff8 entry, release latch) | `[2,2,2,3,3,1]` | 1 |
+| `-ref` (0xa010) | `[2,2,2,3,3,1]` | 1 |
+
+**The write happens inside the edit frame.** By the time the release frame
+starts, the values are already updated; the release frame only *renders*
+them. "Post-edit release frame" means "the frame after an edit", not "the
+frame that performs the edit".
+
+## The exact blockers (measured, not inferred)
+
+Admitting the row-3 / row-4 release latch tuples
+(`{input parked, previous 0x0f000004, released 4, nav 0}` at `a5 = 3` and
+`4`) does **not** make the legs run. The refusal survives the tuple, so it
+is a gate condition, and the two rows fail on two different ones:
+
+- **Row 3** fails `for (index...) if (credits[index] != 2) return
+  VF2_ERROR_UNSUPPORTED;` because at the release entry
+  `credits = [2,2,2,3,3,1]`.
+- **Row 4** fails the main gate's `preset != 0u` because at the release
+  entry `preset = 1`.
+
+That is the whole of the runbook's "credit index != 2 ... preset != 0":
+the existing fail-closed checks are already sitting on the F2 frontier.
+Confirming it took admitting the tuples and reading the refusal - the
+probe tuples were then reverted, since they admit nothing.
+
+Everything else at the release entry is gate-clean: `indirect_target =
+0x5b558`, `selector_mask = 0x20000`, `coin_flags = 0`, `a5` correct,
+`a6 = a7 = 0xff`, and `phase_index = 0x85` at `0x5000a4` (so the dispatch
+routes to the same index-5 body as the a5 = 5 leg).
+
 ## Row 2 is NOT measured
 
 The only a5 = 2 artifact is `out/f1-test-row2`, and its `ip` is `0x10d54` —
@@ -105,15 +146,23 @@ a5 3}` — already admitted) lands on a5 = 2, then run the six steps above.
 
 ## What a recovery still needs
 
-1. The **value-driven digit render**. `runs[]` hardcodes `"2"` at screen
+1. Widen the **two gates**, each with a measured rule rather than a
+   blanket relaxation: the `credits[index] != 2` refusal must admit the
+   *derived* vectors only, and `preset != 0u` must admit `preset = 1` only
+   where measured. Neither may become a general "any value" gate.
+2. The **value-driven digit render**. `runs[]` hardcodes `"2"` at screen
    (6,40), (7,40), (8,40) and (9,40). With `credits != 2` those cells must
    render the live value, and the derived values mean several cells change
    from one edit.
-2. The **derived-credits rule** for row 3, sampled at more than one value and
+3. The **derived-credits rule** for row 3, sampled at more than one value and
    more than one row before it is written down as a rule.
-3. The **`preset` update** for row 4, including what a second edit does to a
+4. The **`preset` update** for row 4, including what a second edit does to a
    nonzero `preset`.
-4. Per-row bodies at 4189 / 4186 (and row 2's, once measured), each proven
+5. Per-row bodies at 4189 / 4186 (and row 2's, once measured), each proven
    against its own chained differential.
+
+Note the ordering: items 1 and 2 are what make the leg *reachable*; 3-5 are
+what make it *correct*. Widening the gates without the render would just
+move the failure from "unsupported" to a poststate mismatch.
 
 Until then these legs stay fail-closed. Nothing in this note admits a tuple.

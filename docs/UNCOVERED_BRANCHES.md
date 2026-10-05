@@ -240,10 +240,17 @@ released 4, nav 0}` and the deferred update splits two ways:
 Bodies are per-row (4189 / 4186 against 4188 for the idle render), so they
 must not be folded into one rule from these samples. A recovery also needs
 the value-driven digit render, since `runs[]` hardcodes `"2"` at screen
-(6,40) (7,40) (8,40) (9,40). Both measured legs are fail-closed natively.
-Note `base` is `0x599000` at the `0xa6c0` boundary, not the `0x59a3d0`
-visible in the walk snapshots. See
-`f2_post_edit_release_measured_v0731.md`.
+(6,40) (7,40) (8,40) (9,40).
+
+**The two blockers are now identified, not guessed.** The value write lands
+at the end of the **edit** frame, so at the release entry row 3 already
+carries `credits = [2,2,2,3,3,1]` and row 4 already carries `preset = 1`.
+Admitting the release latch tuples does not help: row 3 still fails the
+`credits[index] != 2` refusal and row 4 still fails `preset != 0u`. Those
+two fail-closed checks *are* the F2 frontier, and each must be widened
+against a measured rule, not relaxed wholesale. Note `base` is `0x599000`
+at the `0xa6c0` boundary, not the `0x59a3d0` visible in the walk snapshots.
+See `f2_post_edit_release_measured_v0731.md`.
 
 ## v0726 TEST+LEFT/RIGHT per-row edits 7-14 and post-edit releases native
 
