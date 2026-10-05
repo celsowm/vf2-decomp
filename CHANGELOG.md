@@ -1,5 +1,45 @@
 # Changelog
 
+## v0733c: two container bounds measured and corrected; 15 of 20 are still wrong
+
+v0733b made the coverage *ranking* sound. It did not make `functions.csv`
+correct, and the file's own prose is what proves it: `video_register_compose` is
+documented as a *"sixty-three instruction"* body while spanning 48 988 B.
+
+The obvious repair tool — `vf2i960 function`, which walks to a `ret` — turns out
+to be a **lower bound, not an extent oracle**. Two of its answers are absurd:
+`interrupt_return_wait_exit` measures 4 bytes and `main_texture_orchestrator_call`
+measures 24 bytes, against a documented 269 KB wrapper. **15 of 20 container rows
+measure smaller than their CSV end**, but taking those at face value would replace
+15 wrong bounds with 15 possibly-wrong ones and lose the ability to tell which is
+which. So no bulk rewrite.
+
+Exactly two rows are corrected, each with **two independent sources** — the `ret`
+boundary and the CSV's own instruction count — and each carrying its provenance
+in its `notes` so the table is self-documenting rather than silently amended:
+
+| row | was | now | size |
+|---|---|---|---|
+| `video_register_compose` | `0x0000cfc0` | `0x00001200` | 48 988 B → 412 B |
+| `video_input_latch_write` | `0x0000cfcc` | `0x000012bc` | 48 444 B → 44 B |
+
+Containers drop 20 → 18, and `video_register_compose` becomes a leaf that actually
+ranks: 412 B / 103 uncovered words, sixth place.
+
+Correcting the bounds also **exposes code that the container bounds were hiding**:
+`0x00001200..0x00001290` (144 B) and `0x000012bc..0x000012d8` (28 B) have no CSV
+row at all. Recorded as targets, not characterised — no claim is made about them.
+
+Standing rule this adds: **a lower bound is not a measurement of the thing you
+want.** A bound is repaired only when a second source agrees. Corollary for the
+tool: `vf2i960 function` should be read as a first-return walk, not an extent
+oracle, or a reader who trusts it will shrink real functions to a few bytes.
+
+Validated: `test_block_coverage.py` 17/17 (the real-CSV loader still sees 69
+entries), `ctest -R vf2_python_factory` 14/14, full non-dominator suite
+**117/117 in 255.90 s**. See
+`decomp/i960/notes/block_coverage_measured_ends_v0733c.md`.
+
 ## v0733b: the coverage report was ranking container ranges, not functions
 
 v0733's `block_coverage.py` exists to answer *"which `functions.csv` entry has

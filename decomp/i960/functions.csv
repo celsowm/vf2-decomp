@@ -57,8 +57,8 @@ address,end,name,status,source,notes
 0x0004bfe0,0x0004c120,texture_default_limits_select,recovered-observed-branch,dynamic-differential+unit,Default observed branch validated by the ROM-backed native second-dispatch match
 0x000020f0,0x00001f98,game_meter_update,recovered-observed-branch,dynamic-differential+unit,Composes threshold and color helpers into the observed two-meter update in 389 architectural instructions
 0x0000a748,0x0000a014,frame_geometry_gate,recovered-observed-branch,dynamic-differential+unit,Observed clear geometry flags return in five instructions plus recovered 0x0000a75c busy retry-write and 0x0000a778 alt-return; unobserved 0x0000a784 deep reset (0x00008ef0 0x0006116c 0x000000b0) still rejected
-0x00001064,0x0000cfc0,video_register_compose,recovered-observed-branch,dynamic-differential+unit,Composes and commits the observed packed video register state in sixty-three instructions
-0x00001290,0x0000cfcc,video_input_latch_write,recovered-observed-branch,dynamic-differential+unit,Writes the observed input latch and returns in seven instructions
+0x00001064,0x00001200,video_register_compose,recovered-observed-branch,dynamic-differential+unit,Composes and commits the observed packed video register state in sixty-three instructions. v0733b: end was 0x0000cfc0, a container bound; ret is at 0x11fc and 0x1200 is the next function
+0x00001290,0x000012bc,video_input_latch_write,recovered-observed-branch,dynamic-differential+unit,Writes the observed input latch and returns in seven instructions. v0733b: end was 0x0000cfcc, a container bound; ret is at 0x12b8 and 0x12bc is the next function
 0x00024534,0x0000cfd0,player_update_gate,recovered-observed-branch,dynamic-differential+unit,Observed clear player-update gate returns in five instructions
 0x00023f6c,0x0000cfd4,video_layer_commit,recovered-observed-branch,dynamic-differential+unit,Commits the observed layer state in forty instructions
 0x00001e6c,0x0000cfd8,input_bit0_sequence_gate,recovered-observed-branch,dynamic-differential+unit,Observed zero index/countdown bit-zero gate returns in seven instructions
