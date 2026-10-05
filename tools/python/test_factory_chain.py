@@ -151,6 +151,10 @@ def test_chain_fighter_bases_dual_provenance():
             encoding="utf-8",
         )
         f = Frontier()
+        # SYNTHETIC PLACEHOLDERS, not VF2 fighter bases - the trace above is
+        # authored by this test. The measured pair is 0x510980 / 0x512980;
+        # 0x510000 / 0x520000 silently hides every fighter1 access on a real
+        # corpus. See p1_fighter_bases_retraction_v0732k.md.
         f.set_fighter_bases([0x510000, 0x520000], window=0x2000)
         f.ingest_trace(trace, "case.jsonl")
         # 0x1a4 must surface as a top fighter offset with base_count==2.

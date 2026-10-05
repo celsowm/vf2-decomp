@@ -1,5 +1,70 @@
 # Changelog
 
+## v0732n: P2 step 1 — the `0x0d00` block's producer/consumer pair is two guest instructions
+
+**Evidence only. No behaviour change, no tuple admitted, no field promoted.**
+P2 needed a named target instead of an address range.
+
+Measured per base on `out/trace-both.jsonl` (base `0x510980`/`0x512980`):
+
+```text
+ip 0x0002399c   {write, 4} x240    ip 0x00023a38   {read, 4} x240
+```
+
+Both touch the **identical** address set: **120 slots of 4 bytes per base**,
+480 B, contiguous at 4-byte stride, `0x0d00..0x0edc`. The 240 is 120 slots ×
+2 bases, so each base gets 120 writes and 120 reads. This agrees with the
+`240/240 per base` already pinned in `p1_promoted_dualbase_layout_v0732m.md`.
+
+**A counting trap, recorded because it nearly became a wrong note.** Counting
+"distinct addresses touched by `0x2399c`" across the whole trace gives 240 with
+a 7716-byte gap mid-run, and subtracting `0x510980` from every address makes
+the tail appear to run to `0x2edc`. Both are artefacts: the gap is the jump
+from fighter0's block to fighter1's, and the tail offsets are *fighter1*
+offsets measured from fighter0's base. Per base the answer is 120 slots /
+480 B, and `contiguous_fighter_blocks(width=4, min_count=2, min_length=120)`
+reports exactly that.
+
+**The producer** is a 30-iteration loop at `0x23984..0x239a8` that gathers a
+12-byte triple per iteration (`mulo 12, r9, r10` + `ldt (r8)[r10]`) and
+stores it at `g7 + 0x0d00` via `stq r4, 0xd00(g7)[r11*16]`. `g7` is the
+fighter base — that is the *mechanical* reason the block is dual-base, not a
+coincidence.
+
+**The consumer** at `0x23a38` reads the same addresses and feeds a threshold
+classification: each value is compared against float constants held at
+`(g13)+0xfc` and `(g13)+0x100` (set at `0x239ac..0x239e0`), and the slot index
+is folded into a **bitmask at `(g13)+0x10c`** by `setbit r3`. So the block is
+a per-slot scalar series that gets thresholded into a 120-bit mask, not a pose
+cache — and that is consistent with the v0730 taint result, since the comparison
+feeds a bitmask *store* rather than a control-flow decision. The register-level
+mechanics are **not** proven against a differential yet; the address geometry
+and the two guest IPs are.
+
+**A real gap, left open rather than papered over:** the source stride is
+**12 bytes** and the destination stride is **16**. 30 iterations gather 360
+source bytes into 480 destination bytes. 360 vs 480 does not reconcile, so
+either `r11` is not `0..29`, or the destination stride is not uniform across
+all 120 slots, or `ldt` writes more than one destination word per iteration.
+That decides whether the array is 30 entries of 4 words or 120 entries of 1
+word — i.e. whether `field_0d00[120]` in the promoted layout is the right
+shape. Settling it is the next P2 step, and it is a measurement, not a
+recovery.
+
+Also in this slice: an audit of every hardcoded fighter base in `tools/`.
+`0x00510000` in `vf2i960/commands.c` is the task registry, not a fighter, and
+`analyze_matrix_ports_p2.py`'s `0x500000..0x520000` is a RAM window. The
+synthetic bases in `factory_chain_demo.py` and `test_factory_chain.py` are
+self-consistent (the tests author their own traces) but are now explicitly
+labelled as placeholders, because a copyable exemplar carrying `0x510000` is
+how the v0732k error happened. `p1_real_trace_demo.py` was the only
+real-corpus tool affected and was fixed at v0732k.
+
+Validation: 13/13 `vf2_python_factory_*` ctest entries pass (7.18 s) after the
+comment-only changes. No `src/` change. Full suite last observed at
+**117/117 in 1635.00 s** with the corrected dual-base assertion live. See
+`p2_block_producer_consumer_v0732n.md`.
+
 ## v0732m: promoted dual-base provisional fighter layout
 
 **Evidence only. No C struct added, no field semantically named.** Records the

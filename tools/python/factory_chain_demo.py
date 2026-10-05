@@ -91,6 +91,13 @@ def _write_trace(path: Path, base: int, base2: int) -> None:
 def main() -> int:
     with tempfile.TemporaryDirectory() as tmp:
         trace = Path(tmp) / "demo.jsonl"
+        # SYNTHETIC PLACEHOLDERS - these are NOT VF2 fighter bases. The
+        # measured pair is 0x510980 / 0x512980 (fa_game_info scenario
+        # metadata). Using 0x510000 / 0x520000 against a real corpus silently
+        # hides every fighter1 access, because the real fighter1 struct lives
+        # at 0x512980 and not 0x520000. This demo authors its own trace below,
+        # so the placeholders are self-consistent here. See
+        # decomp/i960/notes/p1_fighter_bases_retraction_v0732k.md.
         base = 0x510000
         base2 = base + 0x10000  # fighter1 base offset for dual-base trigger
         _write_trace(trace, base, base2)
