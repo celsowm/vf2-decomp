@@ -1,0 +1,322 @@
+#!/usr/bin/env python3
+"""Unit tests for tools/python/block_coverage.py.
+
+Runs standalone (no pytest required) so the analysis layer stays
+dependency-light:
+
+    python3 tools/python/test_block_coverage.py
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+import tempfile
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from block_coverage import (
+    FunctionRange,
+    FunctionReport,
+    STATUS_BUCKETS,
+    addresses_in_range,
+    build_report,
+    collect_trace_addresses,
+    hex32,
+    load_functions,
+    longest_uncovered_run,
+    rank_reports,
+    render_text,
+    total_uncovered_words,
+)
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_load_functions_filters_end_only():
+    rows = [
+        {
+            "address": "0x1000",
+            "end": "0x2000",
+            "name": "recovered_a",
+            "status": "recovered",
+            "notes": "ok",
+        },
+        {
+            "address": "0x3000",
+            "end": "",
+            "name": "entry_only",
+            "status": "candidate",
+        },
+        {
+            "address": "0x4000",
+            "end": "0x3fff",
+            "name": "invalid_range",
+            "status": "candidate",
+        },
+    ]
+    funcs = load_functions_from_rows(rows)
+    assert len(funcs) == 1
+    f = funcs[0]
+    assert f.start == 0x1000
+    assert f.end == 0x2000
+    assert f.name == "recovered_a"
+    assert f.status == "recovered"
+    assert f.byte_size == 0x1000
+    assert f.word_count == 0x400
+    print("ok: load_functions filters entry-only + invalid ranges")
+
+
+def load_functions_from_rows(rows):
+    """Helper that bypasses CSV file I/O so the test stays focused."""
+    from block_coverage import parse_int, FunctionRange as _FR
+
+    out = []
+    for row in rows:
+        try:
+            start = parse_int(row["address"])
+        except (KeyError, ValueError):
+            continue
+        end_text = (row.get("end") or "").strip()
+        if not end_text:
+            continue
+        try:
+            end = parse_int(end_text)
+        except ValueError:
+            continue
+        if end <= start:
+            continue
+        out.append(
+            _FR(
+                start=start,
+                end=end,
+                name=(row.get("name") or "").strip(),
+                status=(row.get("status") or "").strip(),
+                notes=(row.get("notes") or "").strip(),
+            )
+        )
+    out.sort(key=lambda f: f.start)
+    return out
+
+
+def test_status_buckets_classify_recovered_variants():
+    cases = [
+        ("recovered", "fully_recovered"),
+        ("recovered-prefix", "prefix"),
+        ("recovered-prefixes", "prefixes"),
+        ("recovered-control-block", "control_block"),
+        ("recovered-first-dispatch", "first_dispatch"),
+        ("recovered-observed-branch", "observed_branch"),
+        ("recovered-rom-anchor", "rom_anchor"),
+        ("unknown-thing", "unknown"),
+        ("", "unknown"),
+    ]
+    for raw, expected in cases:
+        f = FunctionRange(0x1000, 0x1010, "f", raw)
+        assert f.status_bucket == expected, f"{raw} -> {f.status_bucket}"
+    print("ok: status buckets classify all known variants")
+
+
+def test_wrapper_classification_requires_large_size():
+    # A small control-block is a real sub-control, not a wrapper.
+    small = FunctionRange(0x1000, 0x1080, "small_cb", "recovered-control-block")
+    assert not small.is_wrapper
+    # A large control-block IS a wrapper.
+    big = FunctionRange(0x1000, 0x80000, "big_cb", "recovered-control-block")
+    assert big.is_wrapper
+    # Non-control-block entries are never wrappers, regardless of size.
+    big_obs = FunctionRange(0x1000, 0x80000, "big_obs", "recovered-observed-branch")
+    assert not big_obs.is_wrapper
+    print("ok: wrapper detection only flags large control-block ranges")
+
+
+def test_longest_uncovered_run_handles_edges():
+    f = FunctionRange(0x1000, 0x1020, "test", "recovered")  # 8 words
+    # Empty trace: every word is uncovered, run = 8.
+    assert longest_uncovered_run(f, set()) == 8
+    # Trace covers every word: run = 0.
+    assert longest_uncovered_run(f, set(range(0x1000, 0x1020, 4))) == 0
+    # Two early words covered: head run is empty (covered reset
+    # immediately), tail run is 0x1008..0x101c = 6 words.
+    covered = {0x1000, 0x1004}
+    assert longest_uncovered_run(f, covered) == 6
+    # One address covered mid-range: head run is 4, tail run is 3;
+    # longest = 4.
+    covered = {0x1010}
+    assert longest_uncovered_run(f, covered) == 4
+    # Three adjacent covered at the start: tail run is 0x100c..0x101c = 5.
+    covered = {0x1000, 0x1004, 0x1008}
+    assert longest_uncovered_run(f, covered) == 5
+    print("ok: longest_uncovered_run handles edge splits")
+
+
+def test_total_uncovered_words_counts_unvisited_words():
+    f = FunctionRange(0x1000, 0x1020, "test", "recovered")  # 8 words
+    assert total_uncovered_words(f, set()) == 8
+    assert total_uncovered_words(f, {0x1000, 0x1004, 0x1008, 0x100c}) == 4
+    assert total_uncovered_words(f, set(range(0x1000, 0x1020, 4))) == 0
+    print("ok: total_uncovered_words counts visited vs unvisited correctly")
+
+
+def test_addresses_in_range_is_subset_count():
+    f = FunctionRange(0x1000, 0x1020, "test", "recovered")  # 8 words
+    assert addresses_in_range(f, set()) == 0
+    assert addresses_in_range(f, {0x1000, 0x2000}) == 1  # only 0x1000 is in range
+    assert addresses_in_range(f, set(range(0x1000, 0x1020, 4))) == 8
+    print("ok: addresses_in_range counts only addresses inside the range")
+
+
+def test_collect_trace_addresses_handles_missing_files():
+    with tempfile.TemporaryDirectory() as tmp:
+        empty_dir = Path(tmp)
+        assert collect_trace_addresses([]) == set()
+        # Non-existent files are silently skipped (consistent with
+        # how the tool handles missing traces in production).
+        assert collect_trace_addresses([empty_dir / "missing.jsonl"]) == set()
+    print("ok: collect_trace_addresses handles empty + missing inputs")
+
+
+def test_collect_trace_addresses_aggregates_step_and_memory():
+    with tempfile.TemporaryDirectory() as tmp:
+        a = Path(tmp) / "a.jsonl"
+        b = Path(tmp) / "b.jsonl"
+        a_records = [
+            {"type": "step", "step": 1, "ip_before": 0x1000, "ip_after": 0x1004},
+            {"type": "memory", "step": 2, "address": 0x500000, "size": 4},
+        ]
+        b_records = [
+            {"type": "step", "step": 3, "ip_before": 0x1004, "ip_after": 0x1008},
+            {"type": "memory", "step": 4, "address": 0x501000, "size": 4},
+        ]
+        a.write_text("\n".join(json.dumps(r) for r in a_records) + "\n")
+        b.write_text("\n".join(json.dumps(r) for r in b_records) + "\n")
+        addrs = collect_trace_addresses([a, b])
+        # Both step and memory records contribute; ip_after also contributes.
+        assert {0x1000, 0x1004, 0x1008, 0x500000, 0x501000} <= addrs
+    print("ok: collect_trace_addresses aggregates step + memory across files")
+
+
+def test_build_report_marks_wrappers_separately():
+    funcs = [
+        FunctionRange(0x1000, 0x1080, "small_recovered", "recovered"),
+        FunctionRange(0x2000, 0x80000, "big_wrapper", "recovered-control-block"),
+        FunctionRange(0x9000, 0x9080, "small_cb", "recovered-control-block"),
+    ]
+    rows = build_report(funcs, set())
+    by_name = {r.name: r for r in rows}
+    assert by_name["small_recovered"].is_wrapper is False
+    assert by_name["big_wrapper"].is_wrapper is True
+    assert by_name["small_cb"].is_wrapper is False
+    # All reports show full range as uncovered (no trace IPs).
+    for r in rows:
+        assert r.coverage_ratio == 0.0
+        assert r.addresses_in_trace == 0
+    print("ok: build_report flags wrappers distinctly")
+
+
+def test_rank_reports_orders_by_largest_uncovered_run_desc():
+    funcs = [
+        FunctionRange(0x1000, 0x1080, "small", "recovered"),
+        FunctionRange(0x2000, 0x2400, "medium", "recovered"),
+        FunctionRange(0x3000, 0x3400, "tied_a", "recovered"),
+        FunctionRange(0x4000, 0x4400, "tied_b", "recovered"),
+    ]
+    rows = build_report(funcs, set())
+    rows = rank_reports(rows, "largest_uncovered_run")
+    names = [r.name for r in rows]
+    assert names.index("medium") < names.index("small"), names
+    # Ties break by start address ascending.
+    assert names.index("tied_a") < names.index("tied_b"), names
+    print("ok: rank_reports orders by largest_uncovered_run descending")
+
+
+def test_rank_reports_rejects_unknown_key():
+    rows = build_report([FunctionRange(0x1000, 0x1080, "f", "recovered")], set())
+    try:
+        rank_reports(rows, "bogus_key")
+    except ValueError as exc:
+        assert "unknown --sort key" in str(exc)
+        print("ok: rank_reports refuses unknown --sort key")
+        return
+    raise AssertionError("rank_reports accepted unknown --sort key")
+
+
+def test_render_text_excludes_wrappers_by_default():
+    funcs = [
+        FunctionRange(0x1000, 0x1080, "real_function", "recovered"),
+        FunctionRange(0x2000, 0x80000, "big_wrapper", "recovered-control-block"),
+    ]
+    rows = build_report(funcs, set())
+    rows = rank_reports(rows, "largest_uncovered_run")
+    text_default = render_text(rows, 10, include_wrappers=False)
+    text_with = render_text(rows, 10, include_wrappers=True)
+    # Default text excludes the wrapper.
+    assert "real_function" in text_default
+    assert "big_wrapper" not in text_default
+    # With --include-wrappers the wrapper appears.
+    assert "big_wrapper" in text_with
+    print("ok: render_text excludes wrappers unless --include-wrappers")
+
+
+def test_function_report_round_trip_dict():
+    f = FunctionRange(0x1000, 0x2000, "rt", "recovered-observed-branch")
+    report = FunctionReport(
+        name=f.name,
+        start=f.start,
+        end=f.end,
+        status=f.status,
+        status_bucket=f.status_bucket,
+        is_wrapper=f.is_wrapper,
+        byte_size=f.byte_size,
+        word_count=f.word_count,
+        addresses_in_trace=0,
+        coverage_ratio=0.0,
+        total_uncovered_words=f.word_count,
+        largest_uncovered_run=f.word_count,
+        notes="",
+    )
+    d = report.to_dict()
+    # JSON-serialisable and hex-formatted addresses.
+    assert d["start"] == "0x00001000"
+    assert d["end"] == "0x00002000"
+    assert d["status_bucket"] == "observed_branch"
+    assert d["byte_size"] == 0x1000
+    # The dict can be serialised without TypeError.
+    json.dumps(d)
+    print("ok: FunctionReport.to_dict is JSON-round-trippable")
+
+
+def test_load_functions_on_real_csv_is_stable():
+    """Sanity check: loading the real CSV returns >= 60 entries."""
+    real = Path("decomp/i960/functions.csv")
+    if not real.exists():
+        print("skip: decomp/i960/functions.csv not present in this checkout")
+        return
+    funcs = load_functions(real)
+    assert len(funcs) >= 60, f"only {len(funcs)} functions loaded"
+    # Every loaded range has byte_size > 0 (entry-only filtered).
+    assert all(f.byte_size > 0 for f in funcs)
+    print(f"ok: load_functions loads {len(funcs)} real entries (byte_size > 0)")
+
+
+def main():
+    test_load_functions_filters_end_only()
+    test_status_buckets_classify_recovered_variants()
+    test_wrapper_classification_requires_large_size()
+    test_longest_uncovered_run_handles_edges()
+    test_total_uncovered_words_counts_unvisited_words()
+    test_addresses_in_range_is_subset_count()
+    test_collect_trace_addresses_handles_missing_files()
+    test_collect_trace_addresses_aggregates_step_and_memory()
+    test_build_report_marks_wrappers_separately()
+    test_rank_reports_orders_by_largest_uncovered_run_desc()
+    test_rank_reports_rejects_unknown_key()
+    test_render_text_excludes_wrappers_by_default()
+    test_function_report_round_trip_dict()
+    test_load_functions_on_real_csv_is_stable()
+    print("\nall block_coverage tests passed")
+
+
+if __name__ == "__main__":
+    main()

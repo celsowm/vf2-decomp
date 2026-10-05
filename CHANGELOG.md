@@ -1,5 +1,84 @@
 # Changelog
 
+## v0733: `block_coverage.py` — per-function coverage report for the factory chain
+
+The factory chain is missing one navigation aid: an automated way to
+answer *"which `functions.csv` entry has the largest unmeasured gap that
+the next session should tackle?"* — and that is exactly the shape of
+question the v0730 runbook expects the factory chain to answer for
+`P3-P4`. `block_coverage.py` fills that gap.
+
+The tool reads `decomp/i960/functions.csv`, streams one or more
+`out/trace-*.jsonl` files, and emits a per-function report with
+`range_words`, `addresses_in_trace`, `coverage_ratio`,
+`total_uncovered_words`, `largest_uncovered_run` (longest contiguous
+gap in i960 words), `status_bucket` (`fully_recovered`, `prefix`,
+`prefixes`, `control_block`, `first_dispatch`, `observed_branch`,
+`rom_anchor`, `unknown`), and an `is_wrapper` flag — true only when
+`status_bucket == "control_block"` AND `byte_size > 0x10000`. Wrappers
+like `main_texture_orchestrator_call` (269 476 B at `0xa030..0x4bcd4`)
+span a large region of code and would otherwise dominate the report;
+`--include-wrappers` opts them back in. The tool does **not** invent
+game semantics, decide hardware behaviour, or modify any code.
+
+Sample call (existing v0732 corpus):
+
+```sh
+python tools/python/block_coverage.py \
+  --trace out/trace-both.jsonl --trace out/trace-f0.jsonl \
+  --include-wrappers --limit 12
+```
+
+Top 12 entries (text output):
+
+```text
+name                              status                       size     in_trace  long_run   range
+main_texture_orchestrator_call    recovered-control-block   269476         499     41012  0xa030..0x4bcd4
+interrupt_return_wait_exit        recovered-observed-branch   66180           1     16427  0xd20..0x10fa4
+video_register_compose            recovered-observed-branch   48988           0     12247  0x1064..0xcfc0
+video_input_latch_write           recovered-observed-branch   48444           0     12111  0x1290..0xcfcc
+input_ring_poll                   recovered-observed-branch   48392           0     12098  0x12d8..0xcfe0
+input_bit0_sequence_gate          recovered-observed-branch   45420           0     11355  0x1e6c..0xcfd8
+input_bit1_sequence_gate          recovered-observed-branch   45312           0     11328  0x1edc..0xcfdc
+frame_shadow_verify               recovered-observed-branch   39628           0      9907  0x530..0x9ffc
+main_frame_timer_call             recovered-control-block     28508           1      7014  0xa034..0x10f90
+task_camera                       recovered-prefixes           7376           0      1844  0x1d320..0x1eff0
+texture_status_dispatch_call      recovered-observed-branch    5532           0      1383  0x4bd24..0x4d2c0
+texture_active_prepare_call       recovered-observed-branch    5004           0      1251  0x4bde0..0x4d16c
+```
+
+Reading the report:
+
+- `main_texture_orchestrator_call` is the wrapper that already dominates
+  by construction; `long_run = 41 012` is the uncovered slice between
+  texture calls, not a recovery target on its own.
+- `interrupt_return_wait_exit` has 1 traced address and 16 427 uncovered
+  words behind it — the next unmeasured body the runbook's `P3-P4`
+  entry needs to look at first when extending the corridor past
+  `0x10fa4`.
+- `video_register_compose`, `video_input_latch_write`, `input_ring_poll`,
+  the two `input_*_sequence_gate` and `frame_shadow_verify` are
+  `recovered-observed-branch` rows whose `long_run` is the full byte
+  size. Expected shape: the recovered branch is the one measured access,
+  the rest is the unmeasured sibling.
+
+Tests: `tools/python/test_block_coverage.py` (14 tests, ~0.4 s wall)
+covers `load_functions` filtering, `STATUS_BUCKETS` classification,
+`is_wrapper` thresholds, `longest_uncovered_run` edge splits,
+`total_uncovered_words`/`addresses_in_range` subset counting,
+`collect_trace_addresses` step+memory aggregation, `build_report`
+wrapper flagging, `rank_reports` ordering and `--sort` validation,
+`render_text` wrapper exclusion, `FunctionReport.to_dict` JSON
+round-trip, and a sanity load on the real `decomp/i960/functions.csv`.
+
+ctest entry **#120** `vf2_python_factory_block_coverage` wires the
+suite into CMakeLists.txt (TIMEOUT 240 s like its siblings). All
+factory entries 1/1 in 0.40 s. `out/` is gitignored and was not
+modified by this slice.
+
+See `decomp/i960/notes/block_coverage_factory_v0733.md` for the
+full evidence note and reading guidance for the next P3-P4 slice.
+
 ## v0732s: the sanitizer gate was a silent no-op on MSVC — now it is armed
 
 `cmake/VF2Warnings.cmake` put `-fsanitize=address,undefined` inside the `else()`

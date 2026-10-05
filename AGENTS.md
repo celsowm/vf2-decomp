@@ -188,8 +188,11 @@ At the time this handoff was written, `master` already contains:
   `p1_real_trace_demo.py` real-corpus factory chain demo (ctest
   entry #117; reproduces the 0x1680..0x1860 contiguous 4B block
   evidence on the existing `out/trace-both.jsonl` +
-  `out/trace-f0.jsonl` corpus with all invariants locked), the 13
-  `vf2_python_factory_*` ctest entries wired into `CMakeLists.txt`,
+  `out/trace-f0.jsonl` corpus with all invariants locked), the 14
+  `vf2_python_factory_*` ctest entries wired into `CMakeLists.txt`
+  (the 14th is `vf2_python_factory_block_coverage`, the v0733
+  per-function coverage tool described in
+  `decomp/i960/notes/block_coverage_factory_v0733.md`),
   the factory runbook note `decomp/i960/notes/factory_runbook_v0729.md`,
   the v0729 player-corpus smoke + 0x1680 contiguous-block notes,
   the v0729 session close-out note, the v0730 first-action runbook
@@ -201,7 +204,7 @@ At the time this handoff was written, `master` already contains:
   (`p1_player_0x1680_block_stability_v0730.md` +
   `p1_taint_0x1680_block_v0730.md`: block is structurally stable but
   does NOT feed fighter-flag branches — render/pose/animation-state
-  descriptor, not a gameplay-state field) (88 Python test cases, ~7 s
+  descriptor, not a gameplay-state field) (102 Python test cases, ~7.4 s
   wall). The proven native dispatch boundary was re-measured at v0730
   from `out/sixth-fresh.vf2snap` to `0x164c4` in 14,277,453
   instructions with 10,288 calls / 10,286 returns, captured in

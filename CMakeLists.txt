@@ -624,6 +624,12 @@ if(VF2_BUILD_TESTS)
                     ${CMAKE_SOURCE_DIR}/tools/python/test_p1_real_trace_demo.py
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         )
+        add_test(
+            NAME vf2_python_factory_block_coverage
+            COMMAND ${Python3_EXECUTABLE}
+                    ${CMAKE_SOURCE_DIR}/tools/python/test_block_coverage.py
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        )
         set_tests_properties(
             vf2_python_factory_frontier
             vf2_python_factory_taint
@@ -638,6 +644,7 @@ if(VF2_BUILD_TESTS)
             vf2_python_factory_z3_branch
             vf2_python_factory_chain
             vf2_python_factory_p1_real_trace_demo
+            vf2_python_factory_block_coverage
             PROPERTIES TIMEOUT 240
         )
     else()

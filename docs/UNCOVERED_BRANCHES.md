@@ -1,5 +1,50 @@
 # Mapping of Uncovered and Unobserved Branches (v0.1.3)
 
+## v0733 `block_coverage.py` factory: per-function coverage report
+
+The factory chain previously had two complementary ranking views
+(`frontier.py v2` ranks **edges**; `infer_structs.py` ranks **fighter
+offsets**) but no automated way to map either ranking back to the
+`decomp/i960/functions.csv` range the human is supposed to be filling.
+`tools/python/block_coverage.py` (ctest #120
+`vf2_python_factory_block_coverage`, 14/14 tests, ~0.4 s) closes that gap.
+For each `functions.csv` entry with a real `(start, end)` range it
+computes `range_words`, `addresses_in_trace`, `coverage_ratio`,
+`total_uncovered_words`, `largest_uncovered_run` (longest contiguous
+gap in i960 words), `status_bucket` and `is_wrapper` (true only for
+`recovered-control-block` entries larger than 0x10000 — wrappers like
+`main_texture_orchestrator_call` would otherwise dominate the
+report; `--include-wrappers` opts them back in). The tool does not
+decide hardware semantics or modify code, it is a navigation aid only.
+
+Reading the report on the v0732 corpus
+(`--trace out/trace-both.jsonl --trace out/trace-f0.jsonl --include-wrappers --limit 12`):
+
+```text
+name                              status                       size     in_trace  long_run   range
+main_texture_orchestrator_call    recovered-control-block   269476         499     41012  0xa030..0x4bcd4
+interrupt_return_wait_exit        recovered-observed-branch   66180           1     16427  0xd20..0x10fa4
+video_register_compose            recovered-observed-branch   48988           0     12247  0x1064..0xcfc0
+video_input_latch_write           recovered-observed-branch   48444           0     12111  0x1290..0xcfcc
+input_ring_poll                   recovered-observed-branch   48392           0     12098  0x12d8..0xcfe0
+input_bit0_sequence_gate          recovered-observed-branch   45420           0     11355  0x1e6c..0xcfd8
+input_bit1_sequence_gate          recovered-observed-branch   45312           0     11328  0x1edc..0xcfdc
+frame_shadow_verify               recovered-observed-branch   39628           0      9907  0x530..0x9ffc
+main_frame_timer_call             recovered-control-block     28508           1      7014  0xa034..0x10f90
+task_camera                       recovered-prefixes           7376           0      1844  0x1d320..0x1eff0
+texture_status_dispatch_call      recovered-observed-branch    5532           0      1383  0x4bd24..0x4d2c0
+texture_active_prepare_call       recovered-observed-branch    5004           0      1251  0x4bde0..0x4d16c
+```
+
+`interrupt_return_wait_exit` (1 traced address, 16 427 uncovered
+words behind it) is the next unmeasured body the v0730 runbook's
+`P3-P4` entry points at when extending the corridor past `0x10fa4`.
+The remaining top-12 `recovered-observed-branch` rows are the
+expected shape (one measured access, the rest unproven siblings); the
+`task_camera` `recovered-prefixes` row is the unproven sibling set
+noted under camera viewports, etc. See
+`decomp/i960/notes/block_coverage_factory_v0733.md`.
+
 ## v0729a Frontier v2: per-edge fighter offset + per-source attribution (frontier.py)
 
 `tools/python/frontier.py` is the queryable factory tool that ranks the
