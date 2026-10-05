@@ -1,5 +1,89 @@
 # Changelog
 
+## v0734a: `functions.csv`'s `end` column is overloaded — 25 rows were being deleted from every report silently
+
+Phase 1.1 of the completion plan asked whether `vf2i960 function` could be turned
+into a real extent oracle to repair `functions.csv`. It is not the broken part.
+The table is.
+
+**The instrument is a real CFG result.** v0733c described it as "the first `ret`
+reachable by its analysis". That is wrong, and the evidence is in v0733c's own
+table: **six different texture entry points all measure `end=0x0004bfe0`**.
+Re-running four of them here, each owns a shared epilogue
+(`0x4bfcc` / `0x4bfd8` / `0x4bfdc`) ending in one `ret`. A first-`ret` walk
+cannot converge six entry points on one address.
+
+`main_texture_orchestrator_call` at `0x0000a030` is the other half: it ends with
+`b 0x00009fb0`, a **backward** branch, and owns **17 blocks — 11 of them at
+`0x9fb0..0xa01c`, below its own entry.** It is also why v0733c's "24 bytes" was
+never absurd: that is the forward extent, and the function is larger downwards.
+
+Measured definition, now in `docs/I960_ANALYSIS.md`: **`end` is one past the
+highest `ret` reachable through direct branches and fall-through; it does not
+descend into callees and does not follow indirect branches.** The `0x23524`
+shell is the case that matters — its 179-insn body is entered by
+`bal 0x00023694`, so the sweep stops at the `ret` at `0x23648` and never sees it.
+**v0733c and v0733d are upheld.** Only their stated mechanism was imprecise.
+
+An experimental `call`-as-boundary change in `src/analysis/cfg.c` was tried and
+**reverted**: it moved `basic_blocks` 3758 -> 4176 while moving **zero** function
+extents. `src/` is byte-identical to v0733h.
+
+**The real defect.** `decomp/i960/functions.csv` overloads its `end` column. Most
+rows carry a code extent. **25 of the 94 bounded rows carry the call-return
+continuation instead** — their own `notes` say so ("Completes the changed-frame-byte
+timer path and **returns to the main loop**", "**returns to the interrupt
+dispatcher**"). A continuation may sit anywhere in the ROM, including *below*
+the entry, so every one of those rows has `end < address` and a **negative**
+`byte_size`:
+
+```text
+frame_timer_suffix    0x00010fa4-0x0000a038   real extent 0x000110b0 (268 B)
+main_post_timer       0x0000a038-0x00009fb0   real extent 0x0000a048 (16 B)
+tile_runtime_gate     0x00044268-0x0000cfe4   real extent 0x0004429c (52 B)
+```
+
+`block_coverage.py` dropped **all 25** at `load_functions()`'s `end <= start`,
+without a word: **94 bounded rows in, 69 out.** This is v0733b's "an empty report
+is indistinguishable from full coverage" defect, one level up and larger. The
+tool now names every dropped row on stderr and in the text report, and
+`--strict-ranges` turns the warning into a hard gate.
+
+**No row was repaired.** v0733c's standing rule — a bound is repaired only when a
+second source agrees — still governs. All 25 true extents are ROM-measured in
+`decomp/i960/notes/function_extent_measured_v0734a.md`, and several land exactly
+on another CSV row's start, which is the second source Phase 1.2 needs. **Three
+of them (`frame_dispatch_tick`, `player_update_gate`, `tile_controller_update`)
+are `indirect=yes` and remain lower bounds only.**
+
+**Consequence for earlier numbers:** the 267 628 B of double-counted overlap and
+the 93 748 B "gap" carried through v0733b-v0733g were computed over a table in
+which a quarter of the rows are not ranges. Both must be recomputed.
+
+`test_block_coverage.py` 21/21 (was 17/17). The `--strict-ranges` gate is proven
+able to fail: `test_strict_ranges_gate_fails_on_a_planted_inverted_row` plants an
+inverted row, requires a non-zero exit with the row named, and requires the
+default run to stay a warning.
+
+## v0733h: pin the step-path asymmetry instead of asserting agreement
+
+Closes the Phase 0 criterion v0733g withdrew. New unit test
+`tests/i960/test_executor.c::vf2_test_i960_step_path_asymmetry`, wired into
+`tests/test_main.c`.
+
+It plants the real `bbs 5, r15, 0x00022294` at `0x221f0` (encoding taken from the
+ROM with `write_le32`, the convention the neighbouring `ld` fixture already
+uses), sets `r15 = 0x8a00` so bit 5 is clear, and runs the **same single
+instruction** from identical state through both entry points. It pins both
+measured condition states — `run` EQUAL / `0x3f001002` vs `step` NONE /
+`0x3f001000` — **and** the identical next `ip` `0x221f4`, which is the part that
+matters: control flow agrees even though the condition word does not.
+
+The gate is proven able to fail. In the `build-archstep` variant
+(`-DVF2_LEGACY_STEP_IN_RUN=OFF`) it fails with
+`step-path arithmetic_control drifted: run 0x3f001000 vs step 0x3f001000` — the
+expected direction, from the real defect. Default tree: **119/119 in 339.77 s.**
+
 ## v0733g: the macro removal was measured — 19 of 119 tests break, all of them `compare_result` only
 
 v0733f isolated the `vf2_i960_run` / `vf2_i960_step` asymmetry and refused to

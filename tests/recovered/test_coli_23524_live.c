@@ -92,9 +92,20 @@
 #define SHELL_ENTRY UINT32_C(0x00023524)
 /* Where the shell actually leaves the CPU: the caller's return address.
  *
- * vf2i960 function reports end=0x2364c for this block, which is neither that
- * nor the extent: 0x2364c is a CALLEE (`call 0x2364c` at 0x235a4). Same
- * first-ret-lower-bound trap v0733c recorded for functions.csv. */
+ * `vf2i960 function` reports end=0x2364c for this block, which is neither that
+ * nor the extent. The mechanism (measured at v0734a, which corrects the
+ * description v0733c gave of it): the tool's `end` is one past the highest `ret`
+ * reachable through *direct* branches and fall-through, and it does NOT descend
+ * into callees. The shell's 179-instruction body is entered by a call --
+ *
+ *     00023644  bal   0x00023694     <- the body is a callee
+ *     00023648  ret                  <- the linear path stops here; end=0x2364c
+ *     0002364c  ldt  0x1f4(g7), r4   <- and 0x2364c is coincidentally also a
+ *                                      callee (`call 0x2364c` at 0x235a4)
+ *
+ * so the sweep never sees the body at 0x23694. Naming the coincidence matters:
+ * it is what made the tool's answer look like a plain first-`ret` walk.
+ * See decomp/i960/notes/function_extent_measured_v0734a.md. */
 #define SHELL_RETURN UINT32_C(0x00022210)
 
 #define G14_INDEX (VF2_I960_G0_REGISTER + 14u)

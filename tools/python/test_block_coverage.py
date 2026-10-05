@@ -10,6 +10,7 @@ dependency-light:
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -23,6 +24,7 @@ from block_coverage import (
     addresses_in_range,
     build_report,
     collect_trace_addresses,
+    find_inverted_ranges,
     hex32,
     load_functions,
     longest_uncovered_run,
@@ -365,6 +367,114 @@ def test_load_functions_on_real_csv_is_stable():
     print(f"ok: load_functions loads {len(funcs)} real entries (byte_size > 0)")
 
 
+def test_find_inverted_ranges_reports_end_before_address():
+    """A row whose `end` precedes its `address` is inventoried, not dropped.
+
+    `load_functions` skips these at `end <= start`, so they can never reach
+    `build_report`. Before this census existed the 25 such rows in the real
+    CSV vanished without a word.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        csv_path = Path(tmp) / "functions.csv"
+        csv_path.write_text(
+            "address,end,name,status\n"
+            "0x00010fa4,0x000110b0,frame_timer_suffix,recovered\n"   # extent
+            "0x000221e8,0x00010dcc,task_coli,recovered\n"            # return addr
+            "0x0000a038,,main_post_timer,recovered\n",               # no end
+            encoding="utf-8",
+        )
+        inverted = find_inverted_ranges(csv_path)
+        loaded = [f.name for f in load_functions(csv_path)]
+    assert inverted == [("task_coli", 0x000221E8, 0x00010DCC)], inverted
+    # ...and it really is excluded from the coverage table.
+    assert loaded == ["frame_timer_suffix"], loaded
+    print("ok: find_inverted_ranges reports end < address without loading it")
+
+
+def test_find_inverted_ranges_ignores_zero_length_and_missing_end():
+    """`end == address` is not inverted; an empty `end` is not either.
+
+    Both are dropped by load_functions for a *different* reason (a
+    zero-length or absent range), so conflating them here would mislabel them.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        csv_path = Path(tmp) / "functions.csv"
+        csv_path.write_text(
+            "address,end,name,status\n"
+            "0x1000,0x1000,zero_length,recovered\n"
+            "0x2000,,no_end,recovered\n",
+            encoding="utf-8",
+        )
+        assert find_inverted_ranges(csv_path) == []
+    print("ok: find_inverted_ranges ignores zero-length and missing ends")
+
+
+def test_real_csv_inverted_census_is_pinned():
+    """The real CSV's inverted-row count is pinned.
+
+    This is a census, not a target: if a future slice repairs one of these
+    rows into a real extent, this number must be updated deliberately rather
+    than drifting unnoticed. 25 measured at v0734a.
+    """
+    real = ROOT / "decomp" / "i960" / "functions.csv"
+    if not real.exists():
+        print("skip: decomp/i960/functions.csv not present in this checkout")
+        return
+    inverted = find_inverted_ranges(real)
+    assert len(inverted) == 25, f"inverted census moved to {len(inverted)}"
+    # Every one of them is genuinely excluded from the report.
+    loaded = {f.name for f in load_functions(real)}
+    for name, _start, _end in inverted:
+        assert name not in loaded, f"{name} is inventoried but still loaded"
+    print(f"ok: real CSV has {len(inverted)} inverted rows, all excluded")
+
+
+def test_strict_ranges_gate_fails_on_a_planted_inverted_row():
+    """`--strict-ranges` must be able to fail.
+
+    The warning is easy to write and easy to ignore; the flag is what makes
+    the exclusion enforceable. Proven here by running the real CLI against a
+    planted CSV and requiring a non-zero exit.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        csv_path = Path(tmp) / "functions.csv"
+        csv_path.write_text(
+            "address,end,name,status\n"
+            "0x000221e8,0x00010dcc,task_coli,recovered\n",
+            encoding="utf-8",
+        )
+        proc = subprocess.run(
+            [
+                sys.executable, str(ROOT / "tools" / "python" / "block_coverage.py"),
+                "--functions-csv", str(csv_path), "--strict-ranges", "--limit", "1",
+            ],
+            capture_output=True,
+            text=True,
+        )
+    assert proc.returncode != 0, f"gate did not fail: rc={proc.returncode}"
+    assert "inverted row" in proc.stderr, proc.stderr
+    assert "task_coli" in proc.stderr, proc.stderr
+    # Without the flag the same input is a warning, not a failure.
+    with tempfile.TemporaryDirectory() as tmp:
+        csv_path = Path(tmp) / "functions.csv"
+        csv_path.write_text(
+            "address,end,name,status\n"
+            "0x000221e8,0x00010dcc,task_coli,recovered\n",
+            encoding="utf-8",
+        )
+        proc2 = subprocess.run(
+            [
+                sys.executable, str(ROOT / "tools" / "python" / "block_coverage.py"),
+                "--functions-csv", str(csv_path), "--limit", "1",
+            ],
+            capture_output=True,
+            text=True,
+        )
+    assert proc2.returncode == 0, f"default run should not fail: rc={proc2.returncode}"
+    assert "EXCLUDED" in proc2.stderr, proc2.stderr
+    print("ok: --strict-ranges gate fails on a planted inverted row")
+
+
 def main():
     test_load_functions_filters_end_only()
     test_status_buckets_classify_recovered_variants()
@@ -383,6 +493,10 @@ def main():
     test_exclusion_before_limit_keeps_a_full_report()
     test_function_report_round_trip_dict()
     test_load_functions_on_real_csv_is_stable()
+    test_find_inverted_ranges_reports_end_before_address()
+    test_find_inverted_ranges_ignores_zero_length_and_missing_end()
+    test_real_csv_inverted_census_is_pinned()
+    test_strict_ranges_gate_fails_on_a_planted_inverted_row()
     print("\nall block_coverage tests passed")
 
 

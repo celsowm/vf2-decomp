@@ -248,11 +248,14 @@ At the time this handoff was written, `master` already contains:
     indistinguishable from "covered everything".
   - **v0733c** corrected exactly 2 of 20 container bounds in
     `decomp/i960/functions.csv`, each only where two independent sources agreed.
-    `vf2i960 function` is a **first-`ret` lower bound, not an extent oracle**
-    (it measures 4 bytes for `interrupt_return_wait_exit` and 24 for
-    `main_texture_orchestrator_call`); 13 rows still carry a container bound and
-    must be measured one at a time. Correcting two rows exposed 144 B and 28 B
-    of code with no CSV row at all.
+    `vf2i960 function` is a **lower bound, not an extent oracle**, because it
+    does not descend into callees and does not follow indirect branches (it
+    measures 4 bytes for `interrupt_return_wait_exit`, whose entry is a bare
+    `ret`, and 24 for `main_texture_orchestrator_call`, which branches backward
+    into shared blocks below its own entry); 13 rows still carry a container
+    bound and must be measured one at a time. Correcting two rows exposed 144 B
+    and 28 B of code with no CSV row at all. **See the v0734a correction below —
+    the instrument was never the main problem.**
   - **v0733d** built the missing `0x23524` shell differential
     (`vf2_coli_23524_live_differential`, 3 legs). The long-standing "should the
     shell publish its children's g3?" TODO is **void** — the shell's last g3
@@ -298,6 +301,35 @@ At the time this handoff was written, `master` already contains:
     patch. B48's "assert both entry points agree" criterion is **withdrawn** —
     the test must pin the *difference*. See
     `decomp/i960/notes/executor_step_macro_measured_v0733g.md`.
+- **v0734a closed Phase 1.1 and found the real bookkeeping defect.** The
+    instrument was not the problem: `vf2i960 function` builds real basic blocks
+    and follows **direct branch targets including backward ones**
+    (`main_texture_orchestrator_call` at `0xa030` owns 17 blocks, 11 of them at
+    `0x9fb0..0xa01c` *below* its entry via `b 0x9fb0`; six texture entries all
+    report `end=0x4bfe0` through a shared epilogue). Its measured definition is
+    **one past the highest `ret` reachable through direct branches and
+    fall-through, not descending into callees and not following indirect
+    branches** — so v0733c/v0733d are **upheld**, only their stated mechanism
+    was imprecise. `src/analysis/cfg.c` was left **byte-identical**: an
+    experimental "call is a boundary" change split blocks 3758 -> 4176 while
+    moving **zero** function extents, so it was reverted as an unproven
+    behaviour change.
+  - **The actual defect is `functions.csv`'s `end` column being overloaded.**
+    **25 of the 94 bounded rows carry a call-return continuation, not a code
+    extent** (their `notes` say "returns to the main loop" / "returns to the
+    interrupt dispatcher"), which puts `end < address` and makes `byte_size`
+    negative. `block_coverage.py` dropped **all 25 at `load_functions()`'s
+    `end <= start` with no warning** — 94 rows in, 69 out. The v0733b "empty
+    report looks like full coverage" defect, one level up. The tool now names
+    every dropped row on stderr and in the text report, plus a
+    `--strict-ranges` gate proven to fail on a planted row.
+    **Do not "repair" an inverted row by guessing an extent** — it is a
+    different quantity, not corrupt data. All 25 true extents are
+    ROM-measured in `function_extent_measured_v0734a.md`; three of them
+    (`frame_dispatch_tick`, `player_update_gate`, `tile_controller_update`) are
+    `indirect=yes` and remain **lower bounds only**. **The coverage arithmetic
+    carried through v0733b-v0733g (the 267 628 B overlap, the 93 748 B gap) is
+    contaminated and must be recomputed once these rows are classified.**
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.

@@ -130,6 +130,46 @@ def mark_containers(ranges: List[FunctionRange]) -> int:
     return marked
 
 
+def find_inverted_ranges(path: Path) -> List[Tuple[str, int, int]]:
+    """Rows in ``functions.csv`` whose ``end`` precedes ``address``.
+
+    Returns ``(name, start, end)`` triples. These rows are dropped by
+    ``load_functions`` (a negative ``byte_size`` does not describe a code
+    range), and dropping them *silently* is the defect this function exists
+    to expose: before it, 25 of the 94 bounded rows vanished with no warning,
+    and a short report is indistinguishable from a well-covered one.
+
+    The scan is deliberately independent of ``load_functions`` so that the
+    coverage table keeps its current, tested semantics while the census stays
+    honest. Nothing here guesses an extent.
+
+    Why these rows exist: ``functions.csv`` overloads its ``end`` column. Most
+    rows carry a code extent (one past the last instruction). A minority carry
+    the *call-return continuation* -- the address control resumes at in the
+    caller -- which is a different quantity and may sit anywhere in the ROM,
+    including below the function's own entry. ``load_functions`` drops them at
+    ``end <= start``. They are not corrupt data and must not be "repaired" by
+    guessing an extent, but they are not ranges either.
+    """
+    out: List[Tuple[str, int, int]] = []
+    with path.open("r", encoding="utf-8", newline="") as stream:
+        for row in csv.DictReader(stream):
+            try:
+                start = parse_int(row["address"])
+            except (KeyError, ValueError):
+                continue
+            end_text = (row.get("end") or "").strip()
+            if not end_text:
+                continue
+            try:
+                end = parse_int(end_text)
+            except ValueError:
+                continue
+            if end < start:
+                out.append(((row.get("name") or "").strip(), start, end))
+    return out
+
+
 def parse_int(value) -> int:
     if isinstance(value, bool):
         raise ValueError("boolean is not an address")
@@ -413,6 +453,16 @@ def main() -> int:
         help="maximum number of functions in the report",
     )
     parser.add_argument(
+        "--strict-ranges",
+        action="store_true",
+        help=(
+            "exit non-zero if any functions.csv row has end < address. Those "
+            "rows record a call-return continuation instead of a code extent "
+            "and are excluded from the report; this turns that exclusion into "
+            "a hard gate instead of a warning."
+        ),
+    )
+    parser.add_argument(
         "--include-wrappers",
         action="store_true",
         help=(
@@ -450,6 +500,25 @@ def main() -> int:
     if not functions_path.exists():
         raise SystemExit(f"--functions-csv not found: {functions_path}")
     functions = load_functions(functions_path)
+
+    # A row whose `end` precedes its `address` cannot be ranked as a code
+    # range, so build_report() drops it. Name every one of them: a report
+    # that silently lost 25 of 94 rows is indistinguishable from a report
+    # over a well-covered table.
+    inverted = find_inverted_ranges(functions_path)
+    if inverted:
+        sys.stderr.write(
+            f"warning: {len(inverted)} functions.csv rows have end < address "
+            f"and are EXCLUDED from this report. Their 'end' column holds a "
+            f"call-return continuation, not a code extent:\n"
+        )
+        for name, start, end in inverted:
+            sys.stderr.write(f"  {name[:34]:<34} {hex32(start)}..{hex32(end)}\n")
+        if args.strict_ranges:
+            raise SystemExit(
+                f"--strict-ranges: {len(inverted)} inverted row(s) in "
+                f"{functions_path}"
+            )
 
     trace_paths: List[Path] = []
     if args.trace_glob:
@@ -492,6 +561,16 @@ def main() -> int:
                 out.close()
     else:
         text = render_text(rows)
+        if inverted:
+            text += (
+                f"\n{len(inverted)} bounded functions.csv rows are EXCLUDED "
+                f"from this table because their end < address (call-return "
+                f"continuation, not a code extent):\n"
+            )
+            text += "".join(
+                f"  {name[:34]:<34} {hex32(start)}..{hex32(end)}\n"
+                for name, start, end in inverted
+            )
         if args.output == "-":
             sys.stdout.write(text)
         else:

@@ -1,5 +1,27 @@
 # v0733c: two container bounds measured and corrected; 15 of 20 are still wrong
 
+> **v0734a update — upheld, with a sharper mechanism and a bigger cause.**
+> The conclusion of this slice stands: `vf2i960 function`'s `end` is a lower
+> bound, not an extent oracle, and the two rows corrected here were right to
+> correct. But the stated mechanism — *"the tool finds the first `ret` reachable
+> by its analysis and stops"* — is not what the tool does. It builds real basic
+> blocks and follows **direct branch targets, including backward ones**:
+> `main_texture_orchestrator_call` at `0x0000a030` owns 17 blocks, 11 of them at
+> `0x9fb0..0xa01c` *below* its own entry, reached via `b 0x00009fb0`; and six
+> different texture entry points all measure `end=0x0004bfe0` through a shared
+> epilogue. A first-`ret` walk cannot do either.
+>
+> The measured definition is: **`end` is one past the highest `ret` reachable
+> through direct branches and fall-through; it does not descend into callees and
+> does not follow indirect branches.** `0x23524` is the case that matters — its
+> 179-insn body is entered by `bal 0x00023694`, so the sweep never sees it.
+>
+> The bigger cause of the bad rows is *not* the tool at all: `functions.csv`'s
+> `end` column is **overloaded**, and **25 of the 94 bounded rows carry a
+> call-return continuation instead of a code extent**, which makes
+> `end < address` and silently deletes the row from every report. See
+> `function_extent_measured_v0734a.md`.
+
 **v0733b made the coverage *ranking* sound. It did not make `functions.csv`
 correct.** This slice measures what can be measured and corrects exactly two
 rows, then records why the other eighteen were left alone.

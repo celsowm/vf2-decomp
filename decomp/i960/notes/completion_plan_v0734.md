@@ -94,23 +94,47 @@ instrumentation path (clang-cl, or a manual poisoning harness).
 Purely mechanical, fully specified, and it makes the rest measurable. Each step
 is independent and can be done in any order.
 
-### 1.1 Fix the extent oracle
+### 1.1 Fix the extent oracle — **DONE at v0734a, with a different answer**
 
-`vf2i960 function` is a **first-`ret` lower bound**. It has now produced a wrong
-CSV bound (v0733c) and a fabricated +1 defect in a correct recovery (v0733d).
-Replace it with a real multi-exit extent analysis, or rename it to say what it
-does. Nothing else in Phase 1 should be attempted first.
+> **Closed by measurement, not by the plan's assumption.** The premise was wrong:
+> the tool does **not** walk to a first `ret`. It builds real basic blocks and
+> follows direct branch targets **including backward ones** — six texture entries
+> all converge on `end=0x4bfe0` through a shared epilogue, and
+> `main_texture_orchestrator_call` at `0xa030` owns 17 blocks, 11 of them *below*
+> its entry via `b 0x9fb0`. A "real multi-exit extent analysis" already exists.
+>
+> Measured definition (now documented in `docs/I960_ANALYSIS.md`): `end` is one
+> past the highest `ret` reachable through direct branches and fall-through; it
+> does not descend into callees and does not follow indirect branches. So it is a
+> sound lower bound, exactly as v0733c/v0733d concluded — only their stated
+> mechanism was imprecise. The `0x23524` body is entered by `bal 0x23694`, which
+> is the one case that matters, and `0x2364c` being *also* a callee address is a
+> coincidence.
+>
+> `src/analysis/cfg.c` was left **byte-identical**: an experimental
+> call-as-boundary change moved `basic_blocks` 3758 -> 4176 and **zero** extents.
+>
+> **The actual Phase 1 defect is bigger and was not on this list:** 25 of the 94
+> bounded CSV rows carry a *call-return continuation* in `end`, not an extent,
+> and were being deleted from every report. That is now 1.2b below, and it
+> invalidates the arithmetic 1.3 depends on.
 
-**Acceptance:** for every function the new tool reports, its end matches a
-hand-verified `ret` boundary; the four known absurd answers no longer occur.
-
-### 1.2 The 13 container rows, one at a time
+### 1.2 The container rows, one at a time
 
 Rule from v0733c: repair a bound **only** when a second source agrees, and record
 the provenance in the row's `notes`. Do not bulk-rewrite from a lower bound.
 
+- **1.2a** — the **13 remaining container rows**. Each needs its own measured
+  extent; the v0733c table lists them with their tool answers.
+- **1.2b (new, v0734a)** — the **25 inverted rows**, which are not currently in
+  the table at all because they are silently dropped. All 25 true extents are
+  ROM-measured in `function_extent_measured_v0734a.md`. **Do not "repair" them by
+  guessing**: an inverted row is a *different quantity*, not corrupt data, and
+  the correct fix is a schema change (a separate `return_to` column), not a
+  rewritten `end`. Three of the 25 are `indirect=yes` and are lower bounds only.
+
 **Acceptance:** zero rows whose span is a region bound; each repaired row names
-its two agreeing sources.
+its two agreeing sources; no row is dropped without being named.
 
 ### 1.3 Characterise the gaps
 
@@ -118,6 +142,9 @@ its two agreeing sources.
   table; likely several functions, not one.
 - `0x00001200..0x00001290` — 144 B, exposed by v0733c.
 - `0x000012bc..0x000012d8` — 28 B, same.
+
+**These three figures were computed over a table in which 25 of 94 rows were not
+ranges (v0734a). Recompute the gap list after 1.2b before trusting any of it.**
 
 **Acceptance:** each gap has at least a disassembly pass and a statement of what
 it contains. Characterisation is the deliverable, not recovery.

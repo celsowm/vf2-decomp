@@ -67,6 +67,32 @@ The analyzer reports, but does not silently rewrite, candidates produced by:
 
 These are written to `function-splits.csv` for human review.
 
+## Function extents
+
+`vf2i960 function <rom> <address>` prints an `end` that is **one past the
+highest `ret` reachable from the entry through direct branches and fall-through**.
+It is a real CFG result, not a linear walk: it follows backward branches, so a
+function may own basic blocks *below* its own entry, and several entries can
+converge on one shared epilogue and report the same `end`.
+
+Two limits are load-bearing, and both are visible in the same output line:
+
+- it does **not** descend into callees, so a routine whose body is entered by
+  `bal` (as the `0x23524` shell's 179-insn body is, via `bal 0x23694`) reports
+  the `ret` that precedes that call;
+- it does **not** follow indirect branches, so `indirect=yes` marks an `end`
+  that is a **lower bound only**. 20 of the 263 discovered functions are in that
+  state.
+
+Treat `end` as a sound lower bound and require a second source before using it
+as a function boundary.
+
+Note that `decomp/i960/functions.csv` is a **hand-maintained name overlay**, not
+this tool's output — its `end` column is documentation for human readers and is
+never read by the C analyzer. See
+`decomp/i960/notes/function_extent_measured_v0734a.md` for a column that
+overloads `end` with a second meaning.
+
 ## Symbol overlays
 
 `decomp/i960/functions.csv`, `symbols.csv` and `known_entries.csv` provide stable
