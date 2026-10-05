@@ -1,5 +1,16 @@
 # P1 taint step: 0x1680 block does not feed fighter-flag branches (v0730)
 
+> **Caveat added v0732h.** The `fighter1 + ...` dependency lines quoted below
+> cannot have come from `out/trace-both.jsonl`: that trace contains **zero**
+> fighter1 accesses (measured: 3122 memory events, fighter0 341, fighter1 0).
+> `tools/python/taint.py` takes its fighter bases from the *scenario*
+> (`out/state8-posbit6-v0727.json`), not only from the trace, so a fighter1
+> tag there reflects a scenario-supplied base rather than a measured access.
+> The conclusions below may well still hold, but they were not derived from
+> the corpus this note names, and should be re-derived on a trace that really
+> carries fighter1 accesses before being relied on. See
+> `p1_dualbase_blocker_v0732h.md`, which also captures such a trace.
+
 This note captures the **second factory-chain step** for P1
 (`fa_player` corridor downstream of `0x28918`/`0x29414`):
 running `taint.py` on the existing player trace (`out/trace-both.jsonl`)

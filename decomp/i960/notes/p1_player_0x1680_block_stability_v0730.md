@@ -112,6 +112,15 @@ dependent branch) is the next concrete P1 sub-task.
 
 ## Dual-base promotion (not yet triggered)
 
+> **Updated v0732h.** The premise is confirmed - both traces really are
+> fighter0-only (3122 and 3075 events, fighter1 = 0 in each) - and a
+> **fighter1-inclusive trace now exists**
+> (`out/p1-f1-valid.jsonl`, 660 fighter1 accesses over 300 offsets at
+> `0x01e0..0x068c`, 9235 instructions). It is single-base, so promotion still
+> does not fire, and it covers a different region from the 0x1680 block. The
+> concrete next step is to extend `infer_structs`' roll-up to consume multiple
+> traces. See `p1_dualbase_blocker_v0732h.md`.
+
 The `infer_structs` dual-base contract (per
 `tools/python/test_infer_structs.py::test_summarize_trace_dual_base`)
 fires when the same offset is touched from both `fighter0` and

@@ -1,5 +1,83 @@
 # Changelog
 
+## v0732h: P1 dual-base blocker characterised; a fighter1-inclusive trace now exists
+
+**Evidence only. No behaviour change, no tuple admitted, no field promoted.**
+
+**The premise is confirmed.** Both existing corpora really are fighter0-only -
+`out/trace-both.jsonl` 3122 memory events with fighter0 341 / fighter1 0, and
+`out/trace-f0.jsonl` 3075 with 336 / 0. So `base_count = 1` in the frontier
+output is correct and promotion genuinely could not fire.
+
+**A correction to the v0730 taint note.** It quotes dependencies such as
+`branch 0x000222b0 depends on: fighter1 + 0x01a4 bit 14` as surfacing from
+`out/trace-both.jsonl`. That trace has **zero** fighter1 accesses, so those
+lines cannot have come from it. `tools/python/taint.py` takes its fighter
+bases from the *scenario*, not only from the trace. The conclusions may still
+hold, but they were not derived from the corpus the note names, and should be
+re-derived on a trace that really carries fighter1 accesses. A caveat banner
+is now on that note.
+
+**Why "just trace it longer" does not work.** The player park states stop
+deterministically at `0x027cc8` after 1400 instructions / 10294 calls,
+reproducible from both `park-player-270d4` and `-270d4b`. The stop is
+`cvtri r13, r13` in the 36-iteration conversion tail at `0x27cc4..0x27cd8`.
+The last read is address `0x1a8` with bits `0x6005a115` (about 3.86e19), and
+`convert_real_to_integer` refuses at `src/i960/executor.c:306` because the
+rounded value leaves the int32 range. Three checks say this is a correct
+boundary, not a bug: the REG opcode decodes to `0x6c0` = CVTRI and the
+`r13, r13` operands are self-consistent with the loop; `fa_player_27ce0_gate_v0687.md`
+already records that this slice was lifted and that the 36-word
+`cvtri`/`stis` tail is recovered in `hybrid_execute_player_27b5c` with
+"non-finite/overflow values remain unsupported"; and the i960 leaves
+out-of-range FP to integer conversion undefined, so a saturating rule would be
+invented hardware behaviour replacing a fail-closed path. The reason these
+park states are degenerate is that `F0+0x1a0` and `F0+0xbd8` are zero, so the
+tail walks from a null scratch base and reads `0x1a4`/`0x1a8` instead of a
+fighter.
+
+**The unblock.** Reconstructing those two pointers - `scratch_base` is read as
+`player + 0xbd8` per `player_selector_scratch_locate.inc:43` - gives a run the
+reference completes, matching the 9235-step figure already pinned in
+`test_player_4505_live.c`:
+
+```sh
+build/Debug/vf2probe.exe --rom-dir roms/vf2 \
+  --snapshot out/player-1428c-f0-s6.vf2snap \
+  --set-u32 0x00510bd8=0x00520000 --set-u32 0x005101a0=0x0201c2fc \
+  --set-ip 0x000270d4 --set-reg g7=0x00510980 \
+  --until 0x0002712c --max-steps 20000 --memory-trace --trace
+# status ok, halt_reason "stop address", ip 0x2712c, 9235 instructions
+```
+
+which yields the half that did not exist:
+
+```text
+fighter0    2 accesses,    2 offsets, widths {4: 2}          offsets 0x0b20..0x1558
+fighter1  660 accesses,  300 offsets, widths {2:180, 4:480}  offsets 0x01e0..0x068c
+```
+
+`infer_structs.py` attributes the fighter1 traffic to `0x27c40`, `0x27c54`,
+`0x27cc4` and `0x27ccc` - the already-known `0x27b5c` conversion tail writing
+expanded packages into fighter1's scratch slots.
+
+**Promotion still has not fired, and here is exactly why.** The new trace is
+single-base (fighter1), so every candidate reports `bases=fighter1`. A mirror
+run patching `0x520bd8`/`0x5201a0` came back byte-identical (660 fighter1,
+1855 events, the same `executed_instructions` 16288393), so the player base is
+not selected through those pointers. The `0x27b5c` helper takes a single
+`player` pointer, so two runs at different bases would give
+same-offsets-different-bases evidence *across* traces - which the current
+`infer_structs` contract does not consume, because it keys on `bases` within
+one trace's roll-up. **Extending that roll-up to consume multiple traces is
+the concrete next P1 step.** The 0x1680 block also remains single-base: the
+new trace covers `0x01e0..0x068c`, a different region, so it neither confirms
+nor refutes the v0730 stability finding for `0x1680..0x1860`.
+
+No `src/` change. The only new files are gitignored analysis scripts in
+`out/` (`basecov.py`, `ipcov.py`, and `grid.py`/`celldiff.py` from v0732g).
+See `p1_dualbase_blocker_v0732h.md`.
+
 ## v0732g: INDIVIDUAL value-row release RECOVERED — the render was never missing
 
 **The v0732f "render not recovered" finding was a baseline error, and its

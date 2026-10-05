@@ -226,6 +226,53 @@ the only difference is `r14` and memory reports no differences.
 tuple is COMMON-only; the nested `a7` editor; PUNCH/KICK at row 5. See
 `f1_manual_setting_entry_teardown_v0731.md`.
 
+## v0732h P1 dual-base blocker characterised; fighter1 trace exists
+
+**Evidence only.** Confirms the premise both existing corpora are fighter0-only
+(`trace-both.jsonl` 3122 events, fighter0 341 / fighter1 0; `trace-f0.jsonl`
+3075, 336 / 0), so `base_count = 1` is correct and promotion could not fire.
+
+**Correction.** `p1_taint_0x1680_block_v0730.md` quotes
+`fighter1 + 0x01a4 bit 14`-style dependencies as surfacing from
+`out/trace-both.jsonl`. That trace has zero fighter1 accesses;
+`tools/python/taint.py` takes its bases from the *scenario*, not only the
+trace. A caveat banner is now on that note and the conclusions need
+re-derivation on a trace that really carries fighter1.
+
+**Why a longer trace does not work.** The player park states stop
+deterministically at `0x027cc8` after 1400 instructions / 10294 calls
+(reproducible from `park-player-270d4` and `-270d4b`). The stop is
+`cvtri r13, r13` in the 36-iteration tail at `0x27cc4..0x27cd8`; the last read
+is `0x1a8` = `0x6005a115` (about 3.86e19) and `convert_real_to_integer` refuses
+at `executor.c:306` on the int32 range check. This is **correct, not a bug**:
+the decode is right (`0x6c0` = CVTRI, operands self-consistent), the refusal is
+already documented and by design in `fa_player_27ce0_gate_v0687.md`, and the
+i960 leaves out-of-range FP to integer conversion undefined, so a saturating
+rule would be invented hardware behaviour. The park states are degenerate
+because `F0+0x1a0` and `F0+0xbd8` are zero.
+
+**The unblock.** Patching those two pointers (`scratch_base` is `player + 0xbd8`
+per `player_selector_scratch_locate.inc:43`) gives a run the reference
+completes - `status ok`, `ip 0x2712c`, **9235 instructions**, matching
+`test_player_4505_live.c` - carrying the missing half:
+
+```text
+fighter0    2 accesses,    2 offsets, widths {4: 2}          offsets 0x0b20..0x1558
+fighter1  660 accesses,  300 offsets, widths {2:180, 4:480}  offsets 0x01e0..0x068c
+```
+
+attributed by `infer_structs.py` to `0x27c40 / 0x27c54 / 0x27cc4 / 0x27ccc`,
+the known `0x27b5c` conversion tail writing expanded packages into fighter1's
+scratch slots.
+
+**Still not promoted.** The new trace is single-base, and a mirror run came back
+byte-identical, so the player base is not selected through those pointers. The
+`0x27b5c` helper takes one `player` pointer, so promotion needs either a
+both-bases-in-one-trace run or `infer_structs` extended to roll up across
+traces - **that is the concrete next P1 step**. The `0x1680` block stays
+single-base; the new region (`0x01e0..0x068c`) is a different one. See
+`p1_dualbase_blocker_v0732h.md`.
+
 ## v0732g INDIVIDUAL value-row release RECOVERED - the render was never missing
 
 **The v0732f "the render is NOT recovered" finding was a baseline error.** It

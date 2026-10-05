@@ -482,6 +482,29 @@ single-corridor candidates (`field_0980`, `field_0984`, `field_11a0`,
 to find the edge that touches them, then taint.py to capture the branch
 dependency. P2-P4 chain the next downstream decomposition.
 
+**P1 status at v0732h** (`p1_dualbase_blocker_v0732h.md`):
+
+- The premise is confirmed: both corpora really are fighter0-only, so
+  `base_count = 1` is correct and promotion could not fire.
+- A **fighter1-inclusive trace now exists** - 660 fighter1 accesses over
+  300 offsets at `0x01e0..0x068c`, 9235 instructions, from the valid-form
+  reconstruction of `player + 0xbd8` / `player + 0x1a0`.
+- It is **single-base**, so promotion still does not fire, and it covers a
+  different region from the `0x1680` block.
+- The concrete next P1 step is to **extend `infer_structs.py`'s roll-up to
+  consume multiple traces**. The `0x27b5c` helper takes one `player` pointer,
+  so same-offset-different-base evidence only exists *across* traces, and the
+  current contract keys on `bases` within one trace.
+- Do **not** try to unblock the reference executor past `0x27cc8` by adding a
+  saturating `cvtri` rule. The hardware behaviour is undefined, the refusal is
+  correct, and the C side already recovers the tail.
+
+**A correction to carry forward:** `tools/python/taint.py` takes its fighter
+bases from the *scenario*, not only from the trace. The `fighter1 + ...`
+dependency lines in `p1_taint_0x1680_block_v0730.md` therefore come from the
+scenario, not from a trace with fighter1 accesses. Re-derive them before
+relying on them.
+
 ### 3. Extend `frontier.py`
 
 `tools/python/frontier.py` v2 (v0729a) now provides per-edge
