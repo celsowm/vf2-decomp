@@ -39,6 +39,7 @@ typedef struct vf2_probe_options {
     uint32_t set_ip;
     int trace;
     int memory_trace;
+    int dump_registers;
     int has_raise_irq;
     int has_enter_interrupt;
     uint32_t raise_irq_mask;
@@ -78,7 +79,9 @@ static void print_usage(FILE *stream, const char *program)
         "  --enter-interrupt <v=l>    enter interrupt vector v at level l once\n"
         "  --input <mask>              hold host input mask during execution\n"
         "  --trace                    emit one JSON record per instruction\n"
-        "  --memory-trace             emit successful bus accesses plus steps\n",
+        "  --memory-trace             emit successful bus accesses plus steps\n"
+        "  --dump-regs                include the final register file and\n"
+        "                            compare/local-frame state in the final record\n",
         VF2_VERSION_STRING,
         program
     );
@@ -237,6 +240,8 @@ static int parse_options(int argc, char **argv, vf2_probe_options *options)
             options->trace = 1;
         } else if (strcmp(argument, "--memory-trace") == 0) {
             options->memory_trace = 1;
+        } else if (strcmp(argument, "--dump-regs") == 0) {
+            options->dump_registers = 1;
         } else if (strcmp(argument, "--raise-irq") == 0 && index + 1 < argc) {
             if (!parse_u32(argv[++index], &options->raise_irq_mask)) {
                 return 0;
@@ -413,6 +418,44 @@ static void memory_callback(
     puts("\"}");
 }
 
+static const char *compare_result_name(vf2_i960_compare_result result)
+{
+    switch (result) {
+    case VF2_I960_COMPARE_NONE:
+        return "none";
+    case VF2_I960_COMPARE_LESS:
+        return "less";
+    case VF2_I960_COMPARE_EQUAL:
+        return "equal";
+    case VF2_I960_COMPARE_GREATER:
+        return "greater";
+    case VF2_I960_COMPARE_OVERFLOW:
+        return "overflow";
+    default:
+        return "unknown";
+    }
+}
+
+/*
+ * The i960 register file is a flat 32-entry array: r0..r15 at 0..15,
+ * g0..g14 at 16..30 and fp at 31. Name the entries the way --set-reg spells
+ * them so a dumped contract can be replayed as mutations without a second
+ * lookup table.
+ */
+static void print_register_name(size_t index, char *buffer, size_t buffer_size)
+{
+    if (index == VF2_I960_FP_REGISTER) {
+        snprintf(buffer, buffer_size, "fp");
+    } else if (index >= VF2_I960_G0_REGISTER) {
+        snprintf(
+            buffer, buffer_size, "g%u",
+            (unsigned)(index - VF2_I960_G0_REGISTER)
+        );
+    } else {
+        snprintf(buffer, buffer_size, "r%u", (unsigned)index);
+    }
+}
+
 static void print_final(
     const vf2_probe_options *options,
     const vf2_i960_cpu *cpu,
@@ -456,6 +499,28 @@ static void print_final(
                 vf2_status_string(status)
             );
         }
+    }
+    if (options->dump_registers) {
+        /*
+         * A recovery's contract includes the register poststate, the compare
+         * state and the local frame depth, not just the memory image. Until
+         * this existed there was no way to read them back out of a run:
+         * --trace records only ip/size/mnemonic, and the trace callback was
+         * handed the whole CPU and ignored it.
+         */
+        printf("],\"compare\":\"%s\",\"local_frame_depth\":%u",
+               compare_result_name(cpu->compare_result),
+               cpu->local_frame_depth);
+        printf(",\"registers\":{");
+        for (index = 0u; index < VF2_I960_REGISTER_COUNT; ++index) {
+            char name[8];
+            print_register_name(index, name, sizeof(name));
+            printf("%s\"%s\":%u", index != 0u ? "," : "", name,
+                   cpu->registers[index]);
+        }
+        /* Close the registers object and then the record object. */
+        puts("}}");
+        return;
     }
     puts("]}");
 }

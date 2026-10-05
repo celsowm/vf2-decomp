@@ -1,5 +1,14 @@
 # P2: the `0x0d00` block's producer/consumer pair is two guest instructions (v0732n)
 
+> **Superseded at v0732q — the framing, not the addresses.** Every address in
+> this note is correct and independently re-confirmed (`0x23984` writes,
+> `0x23a38` reads, both at `g7 + 0x0d00`). What is wrong is the conclusion
+> drawn from them: the `0x0d00` block is **not** an unidentified structure in
+> the `fa_player` corridor. It is the cluster of the **already-recovered**
+> `coli_2396c_body`, whose entry `0x2396c` is three instructions before the
+> `0x23980` loop. So "the producer is not recovered" is false — it was
+> recovered long before this note. See `p2_producer_contract_v0732q.md`.
+
 **Evidence only. No behaviour change, no tuple admitted, no field promoted.**
 First step of P2: pin down *who* writes and reads the promoted block, so the
 next decomposition has a named target instead of an address range.

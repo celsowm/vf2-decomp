@@ -1,6 +1,74 @@
 # Changelog
 
+## v0732q: the 0x23980 loop is NOT new — it is the recovered `0x2396c` body, and v0732p's `w3 = 0` is WRONG
+
+**Two corrections, one of them a retraction. The P2 premise itself is void.**
+
+`0x2396c` is three setup instructions before the `0x23980` loop:
+
+```text
+0002396c  lda   0x020078a8, r3         <- r3 = 0x020078a8
+00023974  ldob  0x00000004(g7), r15    <- slot = g7[4]
+00023978  ld    0x00023944[r15*4], r8  <- r8 = src_table[slot]
+00023980  mov   0, r9                 <- the loop
+...
+000239ac  lda   0x3d4ccccd, r15       <- loop ends
+```
+
+`src/recovered/hybrid.c` has contained `coli_2396c_body` for this since **v0285**
+(`docs/UNCOVERED_BRANCHES.md:4955`), with every constant this slice re-derived:
+`INDEX_TABLE 0x2394c`, `CLUSTER_BASE 0x0d00`, `SRC_TABLE 0x23944`,
+`SLOT_OFFSET 0x04`, `ROM_BASE 0x020078a8`, `const_a 0x3d4ccccd /* +0.05f */`,
+`const_b 0xbdcccccd /* -0.1f */`, and `+0x104 = scale_b + 0.05`,
+`+0x108 = (g7+0x1c) + 0.05` as float adds. The `0x0d00` block that the
+v0729–v0732 line analysed as unidentified is that body's cluster, and the
+`cmpr`/`setbit` consumer v0732n called unverified is in the same body.
+
+**RETRACTION — v0732p's `w3 = 0` is wrong.** `stq r4` stores the quadword `r4` =
+`{r4,r5,r6,r7}`, and `r7` is loaded one instruction earlier by
+`ld 0x0000000c(r3)[r11*16], r7`. The 4th word is a **memory read**, not a
+constant. The v0732p fixture pinned `r3 = 0x0100a000` — a placeholder it never
+wrote to — so the whole window read as zero. Measured 30/30 with 30 distinct
+values, and the real entry confirms all 30 are non-zero floats:
+
+```text
+slots matching u32(0x020078a8 + 0x0c + slot*16) : 30 / 30
+slots whose w3 is NON-ZERO                      : 30 / 30
+```
+
+**Tool: `vf2probe --dump-regs`.** The trace callback was already handed the whole
+`vf2_i960_cpu` and ignored it; `--trace` records only
+`ip_before/ip_after/size/mnemonic` and `compare-snapshots` only reports
+*differences*, so a register poststate was unreadable. `--dump-regs` adds
+`"compare"`, `"local_frame_depth"` and all 32 registers to the `final` record,
+named the way `--set-reg` spells them. Output-only; the executor, Model 2A,
+observer and memory path are untouched.
+
+Register contract, measured one-sentinel-at-a-time at `0x239ac`: the block writes
+`{r4, r5, r6, r7, r9, r10, r11}` and nothing else; 22 registers survive a
+sentinel; `r3`/`g13` cannot be seeded (both fault as base pointers, so they carry
+no exit-state claim). At `0x239e4` the tail's only immediate float constants are
+`+0.05f` and `-0.1f`, and `r12` is a *float* add of `+0.05f` onto
+`float(u32(0x0050a010))` — verified to the bit: `-0.5f + 0.05f = -0.45f` and
+`bits(-0.45f) = 0xbee66666`, the observed `r12`. `0x23a30..0x23a34` then clears
+`g4` and `r3`.
+
+**The remaining gap is real:** `test_coli_2396c_poly_cluster`
+(`tests/recovered/test_native_runtime.c:6078`) is a self-consistency test, not a
+differential. It synthesises an **identity** index table, never runs the reference
+executor, and **zeroes the cluster** — the same condition that produced the
+v0732p error. A body that is right on the identity case and wrong on the
+permuted case would pass today.
+
+See `decomp/i960/notes/p2_producer_contract_v0732q.md`.
+
 ## v0732p: the 0x23984 producer loop is fully verified — 30/30, padding word is zero
+
+> **RETRACTED IN PART at v0732q.** The `w3 = 0` claim and its stated mechanism are
+> wrong: the 4th word is a memory read from `r3 + 0x0c + slot*16`, and the
+> fixture's zero came from pinning a blank `r3`. The 30-iteration count, the
+> permutation, the strides, words 0/4/8, the 211/0 counts and the pre-clear
+> discipline are all retained. See the v0732q entry above.
 
 **The block's producer is a completely determined, measured rule.** No C
 recovery is committed yet; this is the proven rule plus the fixture that proves

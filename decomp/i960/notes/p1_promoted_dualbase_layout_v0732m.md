@@ -117,12 +117,14 @@ struct vf2_fighter_provisional {
     /* 0x0821..0x0cff unobserved */
     /* The block: 30 padded 4-word slots, not a flat 120-word array.
      *
-     * Producer (0x23984..0x239a8): 30 iterations of
+     * Producer (0x23980..0x239a8): 30 iterations of
      *   r11 = table[0x2394c][r9]          (a permutation of 0..29, in ROM)
-     *   load  a 12-byte packed triple from (r8)[r9*12]
-     *   store it at g7 + 0x0d00 + r11*16
-     * i.e. a 3-word -> 4-word expansion with a permuted slot order. That
-     * formula predicts 60 of 60 observed destination offsets.
+     *   w0,w1,w2 = u32((r8)[r9*12] + 0/4/8)     <- indexed by SOURCE index r9
+     *   w3       = u32(0x0c(r3)[r11*16])       <- indexed by DEST slot r11
+     *   store all four at g7 + 0x0d00 + r11*16
+     * The two indices differ on purpose, so the 12-in / 16-out stride mismatch
+     * is not a gap. w3 is a real load, NOT a constant zero - see the v0732p
+     * retraction in p2_producer_verified_v0732p.md.
      *
      * Consumer (0x23a38): reads the same addresses and folds each slot index
      * into a bitmask at (g13)+0x10c via setbit r3, after comparing against
@@ -134,8 +136,8 @@ struct vf2_fighter_provisional {
      * abut, so a 4-byte-granularity contiguity detector cannot see the slot
      * structure - which is why the block first measured as "120 contiguous".
      *
-     * See p2_slot_permutation_v0732o.md. NO differential exists for either
-     * loop yet. */
+     * See p2_slot_permutation_v0732o.md and p2_producer_contract_v0732q.md.
+     * NO differential exists for either loop yet. */
     uint32_t field_0d00[30][4];
 };
 ```

@@ -1,5 +1,14 @@
 # P2 step 2: the 0xd00 slot permutation is a ROM table; 12-vs-16 is a 3→4 expansion, not a gap (v0732o)
 
+> **Superseded at v0732q in one clause only.** The permutation table, the
+> source/destination strides and the "3 -> 4 expansion" reading are all correct
+> and re-confirmed. What is added: the expansion's 4th word is **not** padding
+> and **not** a constant — it is a memory read from a **ROM-resident** window
+> at `0x020078b4` (the guest loads `r3 = 0x020078a8` at `0x2396c`), holding 30
+> small positive floats in live state. The "one source word per slot is NOT
+> covered by the triple" flag below is right, and now has its answer. See
+> `p2_producer_contract_v0732q.md`.
+
 **Resolves the open question in `p2_block_producer_consumer_v0732n.md`.** That
 note flagged a "12 vs 16 stride discrepancy" as the next measurement. It is
 measured now, and it is **not** a discrepancy — the two strides are the two

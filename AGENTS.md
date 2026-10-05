@@ -474,7 +474,31 @@ row; the MANUAL SETTING `a7` nested editor; and PUNCH/KICK at row 5.
 ### 2. Extend the player corridor downstream of `0x28918`/`0x29414`
 
 **P1 is closed at v0732k — the dual-base promotion fired.** See the P1 status
-block below before starting anything here. P2-P4 are the remaining work.
+block below before starting anything here. **P2 is re-scoped at v0732q** (its
+original goal is void) and P3-P4 are the remaining decomposition work.
+
+**P2 status at v0732q** (`p2_producer_contract_v0732q.md`):
+
+- **The `0x0d00` block is the cluster of `coli_2396c_body`, which has been
+  native C since v0285.** `0x2396c` is three setup instructions before the
+  `0x23980` loop (`lda 0x020078a8, r3` / `ldob 0x04(g7), r15` /
+  `ld 0x23944[r15*4], r8`). The v0729-v0732 line analysed the block as
+  unidentified without first searching for an existing recovery of the same
+  code. Do that search first next time.
+- **v0732p's `w3 = 0` is RETRACTED.** `stq r4` stores the quadword
+  `{r4,r5,r6,r7}` and `r7` is loaded from `r3 + 0x0c + slot*16`; the window is
+  **ROM-resident** at `0x020078b4` and holds 30 distinct small positive floats
+  in live state. 30/30 non-zero, 30/30 matching. The old fixture pinned a
+  blank `r3 = 0x0100a000`, so every word read as zero.
+- **The real gap is the missing differential.** `test_coli_2396c_poly_cluster`
+  synthesises an *identity* index table, never runs the reference executor and
+  zeroes the cluster - the same condition that produced the retraction. It is a
+  self-consistency test. A body correct on the identity case and wrong on the
+  permuted case would pass today.
+- **Search the repo before re-deriving.** The existing body already held
+  `0x2394c`, `0x0d00`, `0x23944`, `0x04`, `0x020078a8`, `+0.05f`, `-0.1f` and
+  both float adds, all with correct comments. `docs/UNCOVERED_BRANCHES.md:4955`
+  records the v0285 recovery.
 
 The v0706 dual-base witness and v0707 head-sibling work recovered the
 front of the `fa_player` downstream chain; later branches remain
@@ -483,7 +507,7 @@ run `infer_structs.py` on the dual-base player trace to upgrade
 single-corridor candidates (`field_0980`, `field_0984`, `field_11a0`,
 `field_1680`-`1688`) to multi-corridor provenance, then use frontier v2
 to find the edge that touches them, then taint.py to capture the branch
-dependency. P2-P4 chain the next downstream decomposition.
+dependency. P3-P4 chain the next downstream decomposition.
 
 **P1 status at v0732k** (`p1_fighter_bases_retraction_v0732k.md`):
 
@@ -755,6 +779,47 @@ sideband and test disabled-vs-enabled equivalence.
 
 A path matched from one state is not automatically a general recovery. Probe
 neighboring conditions and keep siblings unsupported until measured.
+
+### Pinning a register to an invented address
+
+v0732p's fixture set `r3 = 0x0100a000` "to keep the read in range" and never
+wrote to it. Every value the loop read through `r3` came back zero, and the note
+promoted that to "`w3` is always zero" — with a fabricated mechanism
+("`stq` stores a quadword whose high word is zero"). The disassembly said
+`ld 0x0000000c(r3)[r11*16], r7` one instruction earlier, and the real entry
+loads `r3 = 0x020078a8`, where all 30 words are distinct non-zero floats.
+
+Three rules:
+
+1. **A register pinned to a synthetic address is a fixture that cannot fail.**
+   If the block reads through it, seed that window with distinct per-slot
+   values, exactly as you pre-clear the destination.
+2. **Read the disassembly before explaining an observation.** The mechanism
+   sentence came first and the instruction listing was never consulted.
+3. **Let the entry load its own registers.** Pinning `g7` alone and starting at
+   the real entry is strictly better than pinning `g7`, `r8` and `r3` and
+   starting inside the loop — and here it exposed that the whole block was
+   already recovered.
+
+### Re-deriving a block that is already recovered
+
+The v0729–v0732 P2 line spent four notes analysing the `0x0d00` block as an
+unidentified structure, and got a load-bearing detail wrong. `coli_2396c_body`
+had been native C since v0285 and already held every constant, including the
+`+0.05f` / `-0.1f` immediates and both float adds, with correct comments.
+
+**Before characterising any block as unidentified, search the repo for an
+existing recovery of the same code and read the whole function around the
+boundary.** `grep` the addresses, check `docs/UNCOVERED_BRANCHES.md` history,
+and read the entry's setup instructions. Four notes and one retraction were the
+cost of skipping that.
+
+A related trap: the only committed test for a recovered block may be a
+*self-consistency* test. `test_coli_2396c_poly_cluster` synthesises an identity
+permutation, never runs the reference executor, and zeroes the cluster — so it
+cannot catch an error that only appears on the real permutation, which is
+precisely the error it was sitting next to. A test that does not invoke the
+oracle is not a differential, whatever its assertions look like.
 
 ### Only differencing against a true control
 

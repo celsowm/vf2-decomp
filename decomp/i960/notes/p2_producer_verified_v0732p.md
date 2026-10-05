@@ -1,5 +1,35 @@
 # P2 step 3: the 0x23984 producer loop is fully verified — 30/30, padding word is zero (v0732p)
 
+> ## RETRACTED IN PART at v0732q — the "padding word is zero" conclusion is WRONG
+>
+> **Wrong claims, precisely:**
+>
+> - `w3 = 0` / "the padding word is zero". It is **not** a constant. `stq r4`
+>   stores the quadword `r4` = `{r4, r5, r6, r7}`, and `r7` was **loaded one
+>   instruction earlier** from `0x0000000c(r3)[r11*16]`. Measured 30/30 with 30
+>   distinct values: `w3 == u32(r3 + 0x0c + slot*16)`.
+> - The mechanism sentence "the `stq` stores a 64-bit quadword register whose
+>   high word is zero". There is no zero high word; the high word is `r7`, a
+>   load.
+> - The framing of `r3` as "pinned only to keep the read in range" whose
+>   "poststate contribution is unmeasured". `r3` is the **base of the 4th
+>   word's source**; it is central to the rule, not incidental.
+>
+> **Why it measured zero:** the fixture pinned `r3 = 0x0100a000` but never
+> wrote anything at that address, so the whole auxiliary window read as zero.
+> The pre-clear proved the 4th word is *written*; it could not prove *what* is
+> written, and "zero" was promoted from "what this fixture contained" to "what
+> the code stores". This is the v0732k episode again in a new place: a fixture
+> that failed to vary the variable under test.
+>
+> **Still correct and retained:** the 30-iteration count, the `0x2394c`
+> permutation, source stride 12 from `r8`, destination stride 16 from
+> `g7 + 0x0d00`, words 0/4/8 of each slot, the 211-instruction / 0-call count,
+> and the pre-clear discipline itself — which is what made the error
+> *detectable*.
+>
+> See `p2_producer_contract_v0732q.md`.
+
 **The block's producer is a completely determined, measured rule.** This is the
 block the whole `fa_player` corridor has been treating as an opaque 480-byte
 array. It is 30 iterations of a permuted 3→4-word expansion, and every clause
