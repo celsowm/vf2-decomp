@@ -106,7 +106,8 @@ Both files are now corrected: the measured bases, the block at `0x0d00`,
 `base_count == 2`, plus new pins on `reads == 480` / `writes == 480` and on
 the per-offset roll-up reporting `144 of them dual-base`. The test now
 **asserts the promotion**, so a regression to 1 fails loudly. 13/13 factory
-ctest entries pass.
+ctest entries pass, and the **full suite is 117/117 in 1635.00 s** with that
+assertion live.
 
 The synthetic unit suites (`test_frontier.py`, `test_factory_chain.py`,
 `test_infer_structs.py`) also use `0x510000`/`0x520000`, but those traces are

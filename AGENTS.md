@@ -504,6 +504,14 @@ dependency. P2-P4 chain the next downstream decomposition.
   (ctest #117) hardcoded the wrong bases *and* pinned `base_count == 1`, so
   the "pending promotion" was enforced by a green test. Fixed; the test now
   asserts `base_count == 2` plus the per-base read/write balance.
+  **Full suite 117/117 in 1635.00 s with the corrected assertion live.**
+- **The whole visible struct is dual-base, not just the block.** All 144
+  offsets are shared, and every one of the top 40 by access count is
+  `base_count == 2`. The promoted provisional layout is in
+  `p1_promoted_dualbase_layout_v0732m.md`; `+0x1a4` is the flags word (70
+  reads, 5 guest IPs, branches test bits 0/8/14/18/23) and `+0x0650` carries
+  a sign-bit dependency, while the `0x0d00` block has no branch on it - both
+  v0730 claims true at once.
 - **Retracted:** v0732h ("corpora are fighter0-only", "no fighter1 trace
   exists", the taint caveat), v0732i ("disjoint regions", "nothing
   promotes"), v0732j ("0 of 264 traces share an offset" — **81 of 264 do**,

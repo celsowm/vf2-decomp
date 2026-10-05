@@ -1,5 +1,53 @@
 # Changelog
 
+## v0732m: promoted dual-base provisional fighter layout
+
+**Evidence only. No C struct added, no field semantically named.** Records the
+offsets that now satisfy the v0704/v0706 dual-base discipline, using the
+corrected bases `0x510980` / `0x512980` (so every offset is `0x980` above the
+v0729/v0730 tables).
+
+`out/trace-both.jsonl` has **144 distinct offsets and 341 memory events in
+each fighter window, and all 144 are shared** — not just the block. Every one
+of the top 40 offsets by access count is `base_count == 2`. The struct is
+symmetric by construction, which is what a shared layout should look like.
+
+| offset | R | W | width | guest IPs |
+|---|---|---|---|---|
+| `0x0000` | 60 | 0 | 4 B | `0x23a94` |
+| `0x0004` | 4 | 0 | 1 B | `0x23974`, `0x22404` |
+| `0x0018` | 2 | 2 | 4 B | `0x2380c`…`0x23834` |
+| `0x0020` | 2 | 2 | 4 B | `0x23810`…`0x23838` |
+| `0x01a4` | **70** | 0 | 4 B | `0x23a9c`×60 + 4 more |
+| `0x01a8` / `0x01aa` | 4 | 0 | 2 B | `0x22410`…, `0x238b4`… |
+| `0x01f4/01f8/01fc` | 4 | 0 | 4 B | `0x23524`, `0x23528`, `0x2364c` (3-tuple) |
+| `0x0644` / `0x064c` / `0x0650` | 2 | 2 | 4 B | `0x23bac`…, `0x23bb0`…, `0x2383c`… |
+| `0x06dc` | 2 | 2 | 2 B | `0x223b4`, `0x224b4` |
+| `0x0808` / `0x0820` | 4 | 0 | 2 B / 1 B | `0x238b8`…, `0x238c0`… |
+| `0x0d00..0x0ee0` | 2 | 2 | 4 B | `0x2399c`, `0x23a38` (the 120-offset block) |
+
+The v0730 taint dependencies now line up concretely with this table:
+`0x01a4` is the most-accessed word (70 reads, 5 guest IPs) and is the
+scenario's `fighter0_flags` / `fighter1_flags`; branches test bits 0, 8, 14,
+18 and 23 of it. `0x0650` carries a sign-bit dependency. So the struct *does*
+have a flags word and a sign-sensitive word — while the `0x0d00` block still
+has no branch depending on it, which is exactly what the v0730 note claimed.
+Both statements are now true at once, which is a good sign that the
+measurement is sound.
+
+The layout is recorded in the note as a `struct vf2_fighter_provisional` with
+neutral `field_xxx` names, **not** as C code: nothing consumes it yet, and a
+struct with no consumer is not a recovery. The `0x0d00` block is deliberately
+left unnamed — two guest instructions write it (`0x2399c`), two read it
+(`0x23a38`), no branch depends on it, and that makes it a scratch/descriptor
+array, not a `pose` or `animation_state`.
+
+Validation: no `src/` change, so no rebuild. The 240-read/240-write-per-base
+balance and `base_count == 2` are pinned in `p1_real_trace_demo.py`
+(ctest #117). **Full suite 117/117 in 1635.00 s**, with ctest #117 asserting
+the promotion rather than the old `base_count == 1`. See
+`p1_promoted_dualbase_layout_v0732m.md`.
+
 ## v0732k: RETRACTION — the fighter bases were wrong; the 0xd00 block was dual-base all along
 
 **Retracts v0732h, v0732i and v0732j, and the correction v0732h made to the
