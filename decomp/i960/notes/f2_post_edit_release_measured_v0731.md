@@ -210,34 +210,97 @@ The edit frame is stable at 4636/4637 instructions across all nine samples
 (`credits[4]` = 3 and 7 give 4636, the rest 4637), so the *body* is nearly
 row-independent even though the *state* transform is not.
 
-## The value-driven digit render: rows 8 and 9 mapped, rows 6 and 7 not
+## COMPLETE: one shared derivation behind every value row
+
+The row-2 edit resolves the rest. Reaching a real `a5 = 2` boundary (UP
+tap from `out/f1-a2-idle`, then the usual chain) and editing there moves a
+**different** triple:
+
+| edit at `a5 = 2` | `credits` after |
+|---|---|
+| 1 | `[3,3,1,2,2,2]` |
+| 2 | `[4,3,2,2,2,2]` |
+
+The writes land at `0x5b904` (`credits[0]`), `0x5bb74` (`credits[1]`) and
+`0x5bb84` (`credits[2]`), and the routine behind them is:
+
+```asm
+0005bb4c  ld       0x0050016c, r4
+0005bb54  ldob     0x00003329(r4), r4    ; r4 = credits[0]   <-- different index byte
+0005bb5c  ldob     0x0005bc74[r4], r5    ; credits[1] = table1[credits[0]]
+0005bb64  ldob     0x0005bc84[r4], r6    ; credits[2] = table2[credits[0]]
+0005bb74  stob     r5, 0x0059c32a
+0005bb84  stob     r6, 0x0059c32b
+```
+
+Compare the row-3 routine at `0x5bb90`, which is byte-for-byte the same
+shape with `0x0000332c(r4)` (`credits[3]`) and stores to `0x0059c32d` /
+`0x0059c32e`.
+
+**It is one shared derivation, instantiated twice.** Same two tables
+(`0x5bc74`, `0x5bc84`), a different index byte:
+
+```text
+t1 = 1, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 5, 0   @ 0x5bc74
+t2 = 1, 1, 2, 1, 2, 3, 1, 2, 3, 4, 1, 2, 3, 4, 5, 0   @ 0x5bc84
+```
+
+All ten samples reconcile:
+
+| sample | index | `t1` / `t2` | measured pair |
+|---|---|---|---|
+| row 2, edit 1 | `credits[0]` = 3 | 3 / 1 | `credits[1],[2]` = 3,1 |
+| row 2, edit 2 | `credits[0]` = 4 | 3 / 2 | `credits[1],[2]` = 3,2 |
+| row 3, n = 3..10 | `credits[3]` | 3,3,3,4,4,4,4,5 / 1,2,3,1,2,3,4,1 | identical |
+
+### The whole value subsystem, in one block
+
+```text
+credits[0] += delta, clamped            (edited at a5 = 2)
+credits[1]  = t1[credits[0]]
+credits[2]  = t2[credits[0]]
+credits[3] += delta, clamped to [0,14]  (edited at a5 = 3)
+credits[4]  = t1[credits[3]]
+credits[5]  = t2[credits[3]]
+preset     += delta, clamped to [0,25]  (edited at a5 = 4)
+
+delta = +1 for a TEST edge (nav 0x4), -1 for KICK (nav 0x200)
+```
+
+Two independent counters (indices 0 and 3), each with a derived pair, plus
+the `preset` counter. The `credits[0]` clamp bound is **not measured** - only
+`credits[3]`'s `[0, 14]` and `preset`'s `[0, 25]` were disassembled; do not
+assume 14 for index 0.
+
+## The value-driven digit render: all four cells mapped
 
 `runs[]` hardcodes `{6,40,"2"}`, `{7,40,"2"}`, `{8,40,"2"}` and
-`{9,40,"2"}`. Tracing three edit frames with `--memory-trace` shows which
-of them actually track live state. The render happens **before** the
-`credits[3]` write in the same frame, so each trace shows the *pre-update*
-vector:
+`{9,40,"2"}`. Tracing edit frames with `--memory-trace` maps all four. The
+render happens **before** the counter write in the same frame, so each trace
+shows the *pre-update* vector:
 
 | pre-update `credits` | (6,40) | (7,40) | (8,40) | (9,40) |
 |---|---|---|---|---|
-| `[2,2,2,5,3,3]` | `'2'` | `'2'` | **`'3'`** | **`'3'`** |
-| `[2,2,2,8,4,3]` | `'2'` | `'2'` | **`'4'`** | **`'3'`** |
-| `[2,2,2,9,4,4]` | `'2'` | `'2'` | **`'4'`** | **`'4'`** |
+| `[2,2,2,5,3,3]` | `'2'` | `'2'` | `'3'` | `'3'` |
+| `[2,2,2,8,4,3]` | `'2'` | `'2'` | `'4'` | `'3'` |
+| `[2,2,2,9,4,4]` | `'2'` | `'2'` | `'4'` | `'4'` |
+| `[3,3,1,2,2,2]` | `'3'` | `'1'` | `'2'` | `'2'` |
 
-- **screen (8,40) tracks `credits[4]`** - `'3'` when `credits[4] = 3`,
-  `'4'` when it is 4. Two distinct values observed.
-- **screen (9,40) tracks `credits[5]`** - `'3'` and `'4'`. Two distinct
-  values observed.
-- **screen (6,40) and (7,40) stayed `'2'` in every sample.** Indices 0 and
-  1 never moved in any of the nine edit states, so
-  "`<- credits[0]` / `<- credits[1]`" is *consistent but unproven* - a
-  constant `'2'` fits the same data. Do not encode them until a state with
-  `credits[0] != 2` or `credits[1] != 2` is measured; that needs a proper
-  `a5 = 2` boundary (see the row-2 section).
+```text
+screen (6,40) <- credits[0]
+screen (7,40) <- credits[2]     (NOT credits[1] - the first guess was wrong)
+screen (8,40) <- credits[4]
+screen (9,40) <- credits[5]
+```
 
-Each cell is written with one 16-bit `stos` of `0x8000 | ASCII(digit)`,
-i.e. the same attribute form as the text runs, at four sites 100 bytes
-apart: `0x5bd04`, `0x5bd68`, `0x5bdcc`, `0x5be30`.
+Each mapping is backed by two distinct observed values. Note the second row
+corrects a plausible-looking guess: at `[3,3,1,...]` the cell shows `'1'`,
+which is `credits[2]`, while `credits[1]` is `3`. Had that frame not been
+measured the mapping would have been written down wrong.
+
+Each cell is written with one 16-bit `stos` of `0x8000 | ASCII(digit)`, the
+same attribute form as the text runs, at four sites 100 bytes apart:
+`0x5bd04`, `0x5bd68`, `0x5bdcc`, `0x5be30`.
 
 ```asm
 0005bd04  stos     r15, (g9)
@@ -308,18 +371,17 @@ Everything else at the release entry is gate-clean: `indirect_target =
 `a6 = a7 = 0xff`, and `phase_index = 0x85` at `0x5000a4` (so the dispatch
 routes to the same index-5 body as the a5 = 5 leg).
 
-## Row 2 is NOT measured
+## Row 2 is now measured
 
-The only a5 = 2 artifact is `out/f1-test-row2`, and its `ip` is `0x10d54` —
-past the frame wait, so `--raise-irq --until 0x9ff8` never reached the
-cluster entry and both of the first two steps burned the 4,000,000 step cap
-(`halt_reason: maximum steps`). The reference run that followed reported
-4422 instructions, but from a state that was not the intended boundary.
-
-**Do not use the 4422 figure.** To measure row 2 properly, reach it from a
-real idle: `out/f1-a2-idle` (a5 = 3) with an UP tap
+An `a5 = 2` boundary is reachable after all - via an UP tap
 (`{input 0x0f002000, previous 0x0f000000, released 0, nav 0x2000,
-a5 3}` — already admitted) lands on a5 = 2, then run the six steps above.
+a5 3}`, already admitted) from `out/f1-a2-idle`, then the standard chain.
+The UP frame is 4423 instructions.
+
+The earlier 4422 figure is still withdrawn: it came from `out/f1-test-row2`,
+whose `ip` is `0x10d54` (past the frame wait), so the first two steps burned
+the step cap. The numbers below are from the corrected boundary. The edit
+frame at row 2 is 4637 then 4636 - the same 4636/4637 pattern as row 3.
 
 ## What a recovery still needs
 
@@ -327,20 +389,16 @@ a5 3}` — already admitted) lands on a5 = 2, then run the six steps above.
    blanket relaxation: the `credits[index] != 2` refusal must admit the
    *derived* vectors only, and `preset != 0u` must admit `preset = 1` only
    where measured. Neither may become a general "any value" gate.
-2. The **value-driven digit render**, partially mapped. Rows (8,40) and
-   (9,40) are proven to track `credits[4]` and `credits[5]`; rows (6,40)
-   and (7,40) are unproven because indices 0 and 1 never moved in any
-   sampled state. `runs[]` must stop hardcoding `"2"` for all four, but
-   only two of the four mappings may be written down yet.
-3. The **derived-credits transform** is now **fully resolved** - clamped
-   counter + `mem8[0x5bc74 + n]` / `mem8[0x5bc84 + n]`. Encode the tables,
-   not a formula. Still needs its own differential proof before admission.
-4. The **`preset` update** for row 4, including what a second edit does to a
-   nonzero `preset`.
-5. Per-row bodies at 4189 / 4186 (and row 2's, once measured), each proven
-   against its own chained differential.
+2. The **value-driven digit render**, now mapped for all four cells - see
+   the section above. `runs[]` must stop hardcoding `"2"`.
+3. The **shared derivation** `credits[0] += delta; credits[1] = t1[...];
+   credits[2] = t2[...]` and the `credits[3]` twin - now fully characterised.
+   Encode the two tables, not a formula. The `credits[0]` clamp bound is
+   still unmeasured.
+4. Per-row release bodies at 4189 (row 3) / 4186 (row 4) and row 2's, each
+   proven against its own chained differential.
 
-Note the ordering: items 1 and 2 are what make the leg *reachable*; 3-5 are
+Note the ordering: items 1 and 2 are what make the leg *reachable*; 3-4 are
 what make it *correct*. Widening the gates without the render would just
 move the failure from "unsupported" to a poststate mismatch.
 

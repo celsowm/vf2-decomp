@@ -250,26 +250,27 @@ Admitting the release latch tuples does not help: row 3 still fails the
 two fail-closed checks *are* the F2 frontier, and each must be widened
 against a measured rule, not relaxed wholesale.
 
-**The value-driven digit render is partly mapped.** Three memory traces
-over edit frames with differing pre-update vectors show screen (8,40)
-tracking `credits[4]` and (9,40) tracking `credits[5]`, each with two
-distinct observed values. Rows (6,40) and (7,40) stayed `'2'` in every
-sample because indices 0 and 1 never moved, so their mapping is
-**unproven** - a constant fits the same data - and resolving it needs a real
-`a5 = 2` boundary. The render also happens *before* the `credits[3]` write
-in the same frame, so each frame renders the stale vector then updates it.
+**The value-driven digit render is fully mapped, and one guess was wrong.**
+Four memory traces give `screen (6,40) <- credits[0]`,
+`(7,40) <- credits[2]`, `(8,40) <- credits[4]`, `(9,40) <- credits[5]`, each
+with two distinct observed values. The (7,40) cell renders `'1'` at
+`credits = [3,3,1,...]` - that is `credits[2]`, **not** `credits[1]`, which is
+`3`. The render happens *before* the counter write in the same frame, so each
+frame renders the stale vector then updates it.
 
-**The derived-credits transform is RESOLVED by static analysis.** It is a
-clamped counter plus two ROM byte tables, not arithmetic:
-`credits[3] += delta` clamped to `[0, 14]`; `credits[4] = mem8[0x5bc74 +
-credits[3]]`; `credits[5] = mem8[0x5bc84 + credits[3]]` (`0x5b990` and
-`0x5bb90`). `preset` is likewise a clamped 0..25 counter at `0x5b770`, not
-the `mem8[0x61500 + preset]` routine at `0x5bbd4`, which does not run on
-these frames. The tables reproduce all eight sampled states; the two tables
-have different periods, which is exactly why a shared arithmetic formula
-fit n = 3..8 and failed at n = 9. Encode the tables, not a formula. Not yet
-proven differentially. Note `base` is `0x599000` at the `0xa6c0` boundary,
-not the `0x59a3d0` visible in the walk snapshots. See
+**The whole value subsystem is characterised: one shared table pair.**
+The row-2 routine at `0x5bb4c` is the same shape as row 3's at `0x5bb90`,
+differing only in the index byte (`credits[0]` vs `credits[3]`); both read
+the tables at `0x5bc74` / `0x5bc84`. `credits[0] += delta` and
+`credits[3] += delta` clamped to `[0, 14]` are the two counters; `preset` is a
+clamped 0..25 counter at `0x5b770`, **not** the `mem8[0x61500 + preset]`
+routine at `0x5bbd4`, which does not run on these frames. The tables have
+different periods, which is why a shared arithmetic formula fit n = 3..8 and
+failed at n = 9 - encode the tables. The `credits[0]` clamp bound is
+**unmeasured**; do not assume 14. Row 2 is measured (UP tap from
+`out/f1-a2-idle`); the earlier 4422 figure stays withdrawn. Not yet proven
+differentially. Note `base` is `0x599000` at the `0xa6c0` boundary, not the
+`0x59a3d0` visible in the walk snapshots. See
 `f2_post_edit_release_measured_v0731.md`.
 
 ## v0726 TEST+LEFT/RIGHT per-row edits 7-14 and post-edit releases native

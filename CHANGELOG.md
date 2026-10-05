@@ -1,5 +1,60 @@
 # Changelog
 
+## v0731l - F2 value subsystem COMPLETE: one shared table pair behind all four rows
+
+Evidence only. No behaviour change, no tuple admitted, no code touched.
+
+- **Row 2 is measured.** An `a5 = 2` boundary is reachable via an UP tap
+  from `out/f1-a2-idle` (the 4422 figure from `out/f1-test-row2` stays
+  withdrawn - that snapshot sits past the frame wait). The UP frame is 4423;
+  the row-2 edit frame is 4637 then 4636, the same 4636/4637 pattern as
+  row 3.
+
+- **One shared derivation, instantiated twice.** The row-2 routine at
+  `0x5bb4c` is byte-for-byte the same shape as the row-3 routine at
+  `0x5bb90`, differing only in the index byte: `0x00003329(r4)`
+  (`credits[0]`) versus `0x0000332c(r4)` (`credits[3]`). Both read the same
+  two tables at `0x5bc74` / `0x5bc84` and write the next two credit bytes.
+
+  ```text
+  t1 = 1, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 5, 0
+  t2 = 1, 1, 2, 1, 2, 3, 1, 2, 3, 4, 1, 2, 3, 4, 5, 0
+
+  credits[0] += delta, clamped            (a5 = 2)
+  credits[1]  = t1[credits[0]]
+  credits[2]  = t2[credits[0]]
+  credits[3] += delta, clamped to [0,14]  (a5 = 3)
+  credits[4]  = t1[credits[3]]
+  credits[5]  = t2[credits[3]]
+  preset     += delta, clamped to [0,25]  (a5 = 4)
+  ```
+
+  All ten samples reconcile. The `credits[0]` clamp bound is **not**
+  measured - only `credits[3]`'s `[0, 14]` and `preset`'s `[0, 25]` were
+  disassembled, so 14 must not be assumed for index 0.
+
+- **All four digit cells are now mapped**, which corrects a wrong guess in
+  v0731k:
+
+  ```text
+  screen (6,40) <- credits[0]
+  screen (7,40) <- credits[2]   (NOT credits[1])
+  screen (8,40) <- credits[4]
+  screen (9,40) <- credits[5]
+  ```
+
+  At the `credits = [3,3,1,...]` frame the (7,40) cell renders `'1'`, which
+  is `credits[2]`; `credits[1]` is `3`. Had that frame not been measured,
+  the mapping would have been written down wrong. Each cell is one 16-bit
+  `stos` of `0x8000 | ASCII(digit)` at `0x5bd04` / `0x5bd68` / `0x5bdcc` /
+  `0x5be30`, with the glyph conversion in an undisassembled `balx 0x9444`
+  helper.
+
+- The v0731k "unproven" note on rows (6,40) and (7,40) is now retired by
+  measurement, not by assumption.
+
+See `decomp/i960/notes/f2_post_edit_release_measured_v0731.md`.
+
 ## v0731k - F2 digit render: rows 8/9 map to credits[4]/credits[5], rows 6/7 unproven
 
 Evidence only. No behaviour change, no tuple admitted, no code touched.
