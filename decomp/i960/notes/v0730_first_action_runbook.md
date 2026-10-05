@@ -66,9 +66,12 @@ frames matching on registers, memory, instruction count and call count.
 body length is a counted singular-label rule, and three earlier mappings were
 corrected against the ROM (`f3_row3_release_count_rule_v0732.md`,
 `f3_row6_credit1_correction_v0732.md`,
-`f3_chute_slot_and_count_correction_v0732.md`). KICK -1 from INDIVIDUAL mode
-is the main item left in F3. F4 and F5 remain. The items below are kept
-verbatim as originally written so the original framing stays auditable.
+`f3_chute_slot_and_count_correction_v0732.md`). **F3 is measured, not recovered, at its last item** at v0732d
+(`f3_f4_individual_mode_measured_v0732.md`): INDIVIDUAL mode turns out to be
+reachable only up to row 2, its walk differs from COMMON, and the
+INDIVIDUAL KICK release measures 4061/38 - refused by the native. F4's shape
+difference is now recorded. F5 remains. The items below are kept verbatim as
+originally written so the original framing stays auditable.
 
 Each slice: 30-90 minutes of focused RAM-resident work plus a
 strict `vf2cmp|native-*` differential per the v0727 playbook.

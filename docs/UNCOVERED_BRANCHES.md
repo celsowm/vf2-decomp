@@ -225,6 +225,54 @@ the only difference is `r14` and memory reports no differences.
 tuple is COMMON-only; the nested `a7` editor; PUNCH/KICK at row 5. See
 `f1_manual_setting_entry_teardown_v0731.md`.
 
+## v0732d INDIVIDUAL mode is reachable, and its walk differs - F3/F4 evidence
+
+**Evidence only; no behaviour change.** Closes F3's last item as *measured*
+and lands a concrete F4 finding.
+
+**There is no INDIVIDUAL artifact, and the names lie.** Every `*-ind*` snapshot
+in `out/` reads `coin_flags = 0x00000000` at the `0x9ff8` boundary, which is
+**COMMON** mode - `f1-ind` and `f1-common` are identical in the state that
+matters. The leg had to be built from scratch with no state patched: walk up
+one row from the row-2 idle, then the `a5 = 1` PUNCH edit, which XORs
+`coin_flags ^= 1` (frame 4637, ending at `flags = 0x1`).
+
+**F4: the INDIVIDUAL walk is not the COMMON walk.** From the INDIVIDUAL idle
+at row 1, one nav-down reaches `a5 = 2` with `coin_flags = 0x1` as expected. A
+**second** nav-down does not reach row 3:
+
+```text
+step 1   a5=2   flags=0x00000001
+step 2   a5=0   flags=0x00000000
+```
+
+Row 2's down-neighbour in INDIVIDUAL is **row 0**, and the step also **leaves
+INDIVIDUAL mode**. Rows 3 and 4 are not reachable by walking while in
+INDIVIDUAL, and the selection list wraps early. So F3's "KICK -1 from
+INDIVIDUAL mode" has no row-3 or row-4 instance - only row 2, possibly row 1.
+
+**F3's last item, measured at row 2:**
+
+| leg | mode | body | ins | calls |
+|---|---|---|---|---|
+| row-2 KICK edit | COMMON | 4638 | 4638 | - |
+| row-2 KICK edit | INDIVIDUAL | 4506 | 4506 | - |
+| row-2 KICK release | COMMON | 4189 | 4421 | 41 |
+| row-2 KICK release | INDIVIDUAL | **4061** | **4293** | **38** |
+
+`credits = [1,2,1,2]` in both - the mode changes the rendering, not the
+derivation. A **fourth distinct shape**, alongside the COMMON value-row release
+(4189/41) and the existing INDIVIDUAL 4060/32 figure. **The native correctly
+refuses it** - `unsupported operation at 0x0000a6c0`, before the block is
+entered.
+
+Not recovered: one sample cannot pin 4061/38, the PUNCH counterpart is
+missing, and the existing 4060/32 was measured on row 1 - a different row with
+a different render. INDIVIDUAL also erases rows 24-33 and drops the chute
+section, so the digit cells and the `runs[]` filter both need re-deriving
+against a reference trace first. See
+`f3_f4_individual_mode_measured_v0732.md`.
+
 ## v0732c two corrections: (6,40) is credits[1]; row 24 shows the SELECTED chute
 
 Both came from states that had never been measured - the row-2 and row-4
