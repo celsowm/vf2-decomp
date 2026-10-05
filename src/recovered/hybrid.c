@@ -30782,11 +30782,21 @@ vf2_status vf2_hybrid_coli_23524_execute(
     }
     /* lda 0x01000550, g9 before the first 0x2396c.
      *
-     * g3 is deliberately NOT propagated to the CPU here. The shell's own
-     * contract is already proven by its differential, and whether 0x23524
-     * should publish the g3 its children left behind is a separate question
-     * that needs a shell differential to answer. Changing it here would alter
-     * a proven recovery on evidence gathered at a different entry. */
+     * g3 is deliberately NOT propagated to the CPU here, and v0733d replaced
+     * the open question this comment used to carry with a measurement. The
+     * shell's last write to g3 inside its own extent is 0x238a4's
+     * unconditional `mov 0, g3` at 0x238a8, which both admitted paths call
+     * before reading g3 at 0x235b8/0x235c8. So g3 is 0 at the exit on every
+     * admitted path and there is no children's g3 left to publish; the
+     * g6-bit0 leg, which skips those calls, is refused below. Likewise g4 is
+     * reloaded from the FIFO by the ROM at 0x23600, so the ~g4 from 0x2396c is
+     * discarded by the shell itself and not by this code.
+     *
+     * What is genuinely NOT published here is g14, compare_result and
+     * arithmetic_control. See tests/recovered/test_coli_23524_live.c and
+     * decomp/i960/notes/coli_shell_contract_v0733d.md - all three are measured
+     * to be unpinnable at this boundary, so they stay fail-closed and named
+     * rather than guessed. */
     cpu->registers[VF2_I960_G0_REGISTER + 9u] = VF2_COLI_SHELL_G9_CONST;
     if (coli_2396c_body(machine, g7, g13, &g4, &g3_child, &child_body) !=
         VF2_OK) {

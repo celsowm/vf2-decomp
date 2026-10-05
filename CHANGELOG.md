@@ -1,5 +1,67 @@
 # Changelog
 
+## v0733d: the 0x23524 shell differential — the g3 question was void, three real gaps named
+
+`hybrid.c` carried a standing TODO: *"whether 0x23524 should publish the g3 its
+children left behind is a separate question that needs a shell differential to
+answer."* This slice built that differential.
+
+**The question was void.** The shell's last write to g3 inside its own extent is
+`0x238a4`'s unconditional `mov 0, g3` at `0x238a8`, which both admitted paths
+call before reading g3 at `0x235b8`/`0x235c8`. The children *do* set it —
+measured mid-shell at `0x2359c`: `g3 = 0x0000fffe`, `g4 = 0xffffffff`, the v0732r
+body contract live inside the shell — and the shell then discards both, g4 by the
+ROM's own `ld (g11)[g12], g4` at `0x23600`. There was never a child's g3 to
+publish.
+
+**But the leg that skips `0x238a4` keeps them.** `0x233fc bbc 18, r9` sets g6 bit
+0 when bit 18 is set in either fighter's `+0x1a4`, and that path goes
+`call 0x2364c` / `b 0x23648` without ever re-zeroing g3:
+
+| leg | insn | calls | rets | g3 | g4 | g6 |
+|---|---|---|---|---|---|---|
+| A warm (admitted) | 9151 | 13 | 14 | `0x00000000` | `0x00000000` | 0 |
+| B live f0 (admitted) | 9300 | 12 | 13 | `0x00000000` | `0xffffdffc` | 2 |
+| C f0 `+0x1a4` bit 18 | 6193 | 10 | 11 | `0x0000fffe` | `0xffffffff` | 1 |
+
+A native shell that admitted leg C would publish `g3 = 0` and a FIFO `g4` while
+the reference has the 0x2396c leftovers — failing while appearing to succeed. The
+refusal at `hybrid.c:30814` is **load-bearing, not caution**, and the new test
+asserts the reference registers first so a refusal that stopped being necessary
+would fail rather than pass quietly.
+
+**Three divergences, all measured, none pinnable — so no C changed.** Admitted
+legs A and B match the native on counts, `g3`, `g4`, `g6`, all memory and every
+other register. They differ in exactly `g14` (`0x23648` vs `0x22428`),
+`compare_result` (EQUAL vs NONE) and `arithmetic_control` bit 1
+(`0x3f001002` vs `0x3f001000`). `g14` is path-dependent: legs A and B execute
+the `bal 0x23694` at `0x23644`, leg C branches to `0x23648` at `0x235a8` and
+keeps the entry value. `compare_result` is **dependent on the state inherited at
+the entry** — over the identical 6193 instructions, leg C exits EQUAL from an
+entry of NONE and LESS from an entry of EQUAL — so neither observed constant can
+be pinned. The obvious rule (the shell's last compare, `bbc 31, r15, 0x23870`) is
+already falsified: cc is EQUAL for every value of fighter `+0x650` tried.
+
+**Two harness findings worth keeping.**
+
+- `vf2i960 function roms/vf2 0x23524` reports `end=0x2364c`, which is `0x235a4`'s
+  *callee*. The tail is `bal 0x23694` … `bx (g14)`, so `bx` is a trampoline to the
+  `ret` at `0x23648` and the real boundary is `0x22210` at **9151** insn / 14
+  returns. A first draft stopped at `0x23648`, measured 9150, and reported a
+  fabricated +1 defect in a recovery that was right. Second time this repo has
+  hit the first-ret-lower-bound trap.
+- `vf2probe --output-snapshot` and a `vf2_i960_step` walk to the *same address*
+  do not agree on `compare_result`. The format does persist the field, so this is
+  about what each harness has executed, not serialisation. **Treat probe-read cc
+  values as unverified**; the test executes from the committed fixture.
+
+The gate can fail: planting `g3 = 0x0000fffe` makes both admitted legs report
+`2 register difference(s), expected exactly 1 at g14`.
+
+Validated: `vf2_coli_23524_live` + `_differential` pass, `ctest -R vf2_coli`
+14/14, full non-dominator suite see commit message. See
+`decomp/i960/notes/coli_shell_contract_v0733d.md`.
+
 ## v0733c: two container bounds measured and corrected; 15 of 20 are still wrong
 
 v0733b made the coverage *ranking* sound. It did not make `functions.csv`

@@ -145,6 +145,14 @@ first-return walk, not an extent oracle. Until someone measures the multi-exit
 cases properly, a reader who trusts it will shrink real functions to a few
 bytes.
 
+**The trap fired a second time the same day, on `0x23524`.** See
+`coli_shell_contract_v0733d.md`: `vf2i960 function roms/vf2 0x23524` reports
+`end=0x2364c`, which is `0x235a4`'s **callee**. The block's real boundary is
+`0x22210` at 9151 instructions, and a test written against the tool's answer
+invented a +1 defect in a recovery that was correct. The same lower bound
+produced a correct CSV repair here and a fabricated bug there; the difference is
+only whether a second source was consulted.
+
 ## Validated
 
 - `test_block_coverage.py`: 17/17 (the real-CSV loader still sees 69 entries).

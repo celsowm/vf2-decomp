@@ -381,6 +381,15 @@ if(VF2_BUILD_TESTS)
     vf2_set_project_warnings(vf2_coli_2396c_live_tests)
     add_test(NAME vf2_coli_2396c_live COMMAND vf2_coli_2396c_live_tests)
 
+    # The 0x23524 shell, whose g3/g4 publication was an open question in
+    # hybrid.c. Admitted warm leg must FULL MATCH; the g6-bit0 leg must fail
+    # closed, and the test proves that refusal is load-bearing rather than
+    # merely cautious.
+    add_executable(vf2_coli_23524_live_tests tests/recovered/test_coli_23524_live.c)
+    target_link_libraries(vf2_coli_23524_live_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_coli_23524_live_tests)
+    add_test(NAME vf2_coli_23524_live COMMAND vf2_coli_23524_live_tests)
+
     add_executable(vf2_coli_whole_task_live_tests tests/recovered/test_coli_whole_task_live.c)
     target_link_libraries(vf2_coli_whole_task_live_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_coli_whole_task_live_tests)
@@ -475,6 +484,7 @@ if(VF2_BUILD_TESTS)
         add_test(NAME vf2_coli_midbody_tail_live_differential COMMAND vf2_coli_midbody_tail_live_tests "${VF2_ROM_DIR}")
         add_test(NAME vf2_coli_238a4_live_differential COMMAND vf2_coli_238a4_live_tests "${VF2_ROM_DIR}")
         add_test(NAME vf2_coli_2396c_live_differential COMMAND vf2_coli_2396c_live_tests "${VF2_ROM_DIR}")
+        add_test(NAME vf2_coli_23524_live_differential COMMAND vf2_coli_23524_live_tests "${VF2_ROM_DIR}")
         add_test(NAME vf2_coli_whole_task_live_differential COMMAND vf2_coli_whole_task_live_tests "${VF2_ROM_DIR}")
         add_test(NAME vf2_player_4505_live_differential COMMAND vf2_player_4505_live_tests "${VF2_ROM_DIR}")
         add_test(NAME vf2_player_4505_mask_family_differential COMMAND vf2_player_4505_live_tests "${VF2_ROM_DIR}" "--mask-family")

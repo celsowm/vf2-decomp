@@ -3670,6 +3670,41 @@ and `+2` counted compares. Fixture `vf2_coli_whole_task_live`
 extended to three modes via `coli-parked-221e8`. See
 `decomp/i960/notes/fa_coli_whole_task_both_live_v0386.md`.
 
+Status (v0733d): the `0x23524` shell now has its own ROM-backed
+reference-vs-native differential, `vf2_coli_23524_live_differential`, over three
+legs measured from `coli-parked-221e8` (7 steps to the entry, `0x22210` as the
+boundary — see the `bx (g14)` trampoline note below).
+
+- **The `g3` propagation TODO is resolved as void.** The shell's last write to
+  `g3` in its own extent is `0x238a4`'s unconditional `mov 0, g3` at `0x238a8`,
+  called by both admitted paths before the reads at `0x235b8`/`0x235c8`. The
+  children do set it (`g3=0x0000fffe`, `g4=0xffffffff` measured mid-shell at
+  `0x2359c`) and the shell discards both — `g4` by the ROM's own
+  `ld (g11)[g12], g4` at `0x23600`. `hybrid.c:31308` was correct.
+- **The `g6`-bit-0 refusal is load-bearing, not caution.** Bit 18 of either
+  fighter's `+0x1a4` sets `g6` bit 0 (`0x233fc`/`0x23400`), and that leg skips
+  `0x238a4` entirely, so `0x0000fffe`/`0xffffffff` survive to the return. The
+  fixture asserts the reference registers before the refusal, so a refusal that
+  stopped being necessary fails instead of passing quietly.
+- **Still unrecovered, and now named:** `g14` (`0x23648` vs `0x22428`),
+  `compare_result` (EQUAL vs NONE) and `arithmetic_control` bit 1
+  (`0x3f001002` vs `0x3f001000`) at the shell's return. All three are pinned as
+  divergences by the fixture. `g14` is path-dependent (`bal 0x23694` vs
+  `b 0x23648`), and `compare_result` is **entry-state dependent** — leg C exits
+  EQUAL from an entry of NONE and LESS from an entry of EQUAL over identical
+  instructions — so neither can be pinned and **no C was changed**. The obvious
+  rule (`bbc 31, r15, 0x23870`) is falsified: cc is EQUAL for every fighter
+  `+0x650` tried.
+- **`vf2i960 function` is wrong for this block again:** it reports
+  `end=0x2364c`, which is `0x235a4`'s callee. Real boundary is `0x22210` at
+  `9151` insn / 14 returns, matching the v0386 whole-task pin. Stopping at
+  `0x23648` measures `9150` and invents a +1 defect in a correct recovery.
+- **Undiagnosed:** `vf2probe --output-snapshot` and a `vf2_i960_step` walk to the
+  same address disagree on `compare_result`. The snapshot format does persist the
+  field, so probe-read `cc` values are unverified.
+
+See `decomp/i960/notes/coli_shell_contract_v0733d.md`.
+
 Status (v0565): the measured both-bit-8/scan-5 sibling is native with full
 live-state equality at `9526/18/19`. Fighter0 `+0x821=5`, `+0x822=0` and
 `+0x804=0` select the `0x22298 -> 0x22338` ordering-miss arm, which stores

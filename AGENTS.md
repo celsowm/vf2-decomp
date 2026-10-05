@@ -237,6 +237,31 @@ At the time this handoff was written, `master` already contains:
   `f3_chute_slot_and_count_correction_v0732.md`,
   `f3_f4_individual_mode_measured_v0732.md` and
   `f3_individual_value_row_recovered_v0732.md`.
+- the v0733a-v0733d gate-integrity and `functions.csv` slice:
+  - **v0733a** proved the sanitizer gate can fail. Planted-defect map:
+    heap-buffer-overflow, stack-buffer-overflow, heap-use-after-free and null
+    deref are all caught; **stack-use-after-return is NOT** (MSVC limitation,
+    documented as a blind spot, not as a pass).
+  - **v0733b** found `block_coverage.py` ranking *container ranges* rather than
+    functions (all 12 top entries were containers), and a second bug where the
+    limit ran before the exclusion so the report rendered **completely empty** —
+    indistinguishable from "covered everything".
+  - **v0733c** corrected exactly 2 of 20 container bounds in
+    `decomp/i960/functions.csv`, each only where two independent sources agreed.
+    `vf2i960 function` is a **first-`ret` lower bound, not an extent oracle**
+    (it measures 4 bytes for `interrupt_return_wait_exit` and 24 for
+    `main_texture_orchestrator_call`); 13 rows still carry a container bound and
+    must be measured one at a time. Correcting two rows exposed 144 B and 28 B
+    of code with no CSV row at all.
+  - **v0733d** built the missing `0x23524` shell differential
+    (`vf2_coli_23524_live_differential`, 3 legs). The long-standing "should the
+    shell publish its children's g3?" TODO is **void** — the shell's last g3
+    write is `0x238a4`'s unconditional `mov 0, g3`. The `g6`-bit-0 refusal is
+    now proven **load-bearing** (that leg keeps `g3=0x0000fffe`/`g4=0xffffffff`).
+    Three exit fields remain unrecovered and are pinned as divergences: `g14`,
+    `compare_result` and `arithmetic_control` bit 1. **`compare_result` is
+    entry-state dependent and therefore unpinnable — do not "fix" it from a
+    single sample.** See `decomp/i960/notes/coli_shell_contract_v0733d.md`.
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.
