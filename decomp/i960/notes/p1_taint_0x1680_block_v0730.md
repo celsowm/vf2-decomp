@@ -11,6 +11,16 @@
 > carries fighter1 accesses before being relied on. See
 > `p1_dualbase_blocker_v0732h.md`, which also captures such a trace.
 
+> **Conclusion independently CONFIRMED at v0732j; the specific lines above are
+> not.** Re-running `taint.py` on `out/p1-f1-valid.jsonl` - a trace with 660
+> real fighter1 accesses - gives 17 branches and **0 with fighter taint**, so
+> the headline finding ("the block does not feed fighter-flag branches")
+> holds on a trace that genuinely carries fighter1 traffic. The specific
+> `fighter1 + 0x01a4` / `fighter1 + 0x5b8` lines and the 70-branch count
+> remain **unreproducible from any of the 264 traces in `out/`**; see
+> `p1_shared_offset_negative_v0732j.md` for the exhaustive scan. Treat them
+> as unverified.
+
 This note captures the **second factory-chain step** for P1
 (`fa_player` corridor downstream of `0x28918`/`0x29414`):
 running `taint.py` on the existing player trace (`out/trace-both.jsonl`)

@@ -506,9 +506,25 @@ dependency. P2-P4 chain the next downstream decomposition.
   `player = 0x520000` and degenerates back to the `0x27cc8` `cvtri`
   refusal. So the scratch selector is *not* read where the scratch base is;
   characterising that is the next step toward an overlapping corpus.
+- **Settled at v0732j.** Scanning all 264 traces in `out/` (92 with fighter
+  accesses, 3 with any fighter1 traffic) finds **0 traces with a single
+  shared fighter offset**. `infer_structs`' `base_count == 2` contract has
+  never had its input. **P1 is therefore a state-reconstruction problem, not
+  a tooling one** - not blocked on `infer_structs`, `frontier.py`, taint or a
+  longer reference run. What is needed is a state where the game itself
+  processes both fighters through the same offset (e.g. a 2-player VS state
+  with the per-fighter loop completing for both); a single-`player` helper
+  cannot produce the overlap.
+- The v0730 taint note's **conclusion** survives re-derivation on the
+  fighter1 trace (17 branches, 0 with fighter taint - the `cvtri`/`stis`
+  tail is not a control-flow decision). Its specific `fighter1 + 0x1a4`
+  lines and its 70-branch count are **not reproducible** from any trace on
+  disk and stay flagged.
 - Do **not** try to unblock the reference executor past `0x27cc8` by adding a
   saturating `cvtri` rule. The hardware behaviour is undefined, the refusal is
   correct, and the C side already recovers the tail.
+- Do not widen `--window` to manufacture a shared offset. "0 of 264" says no
+  captured state shows one, not that the game never produces one.
 
 **A correction to carry forward:** `tools/python/taint.py` takes its fighter
 bases from the *scenario*, not only from the trace. The `fighter1 + ...`

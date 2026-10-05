@@ -1,5 +1,75 @@
 # Changelog
 
+## v0732j: no trace on disk has a shared fighter offset - the dual-base input has never existed
+
+**Evidence only. No behaviour change, no tuple admitted, no field promoted.**
+A **negative** result, stated with the counts that back it. This closes the
+correction promised in v0732h and answers the question v0732i left open.
+
+Every `.jsonl` trace in `out/` under 6 MB was scanned for offsets touched
+from **both** `0x510000 + n` and `0x520000 + n` (window `0x2000`):
+
+```text
+traces scanned                                 264
+traces with any fighter-window access            92
+traces with fighter1 access at all                3
+traces with a single SHARED offset                0
+```
+
+**Not one trace has any offset touched from both bases.** The closest case,
+`out/player-19ef8-baseline.jsonl`, is genuinely dual-base and still disjoint:
+`fighter0 32 offsets, fighter1 63 offsets, SHARED 0`. The only three traces
+with fighter1 traffic are `p1-f1-valid` (2 / 300 / 0), the degenerate mirror
+(0 / 2 / 0) and that baseline.
+
+So `infer_structs`' `base_count == 2` contract **has never had its input**, in
+any corpus, at any point in the project. That is consistent with every earlier
+`base_count = 1` report, and it reclassifies the problem: the missing input is
+a **game-state** problem, not a tooling or corpus-collection one. Capturing a
+fighter1 trace (v0732h) and merging multiple traces (v0732i) were both
+necessary and neither is sufficient, because `0x27b5c` takes a single `player`
+pointer and can only ever produce one base.
+
+**P1 is now a state-reconstruction problem.** It is not blocked on
+`infer_structs`, `frontier.py`, taint, or a longer reference run - all four
+are demonstrably not the limiting factor.
+
+**The v0730 taint correction, closed out.** Re-running `taint.py` on the
+fighter1 trace that actually has fighter1 accesses:
+
+```text
+branches reported                  17
+branches with fighter taint         0
+```
+
+All 17 branches in the `0x27b98..0x27c24` window report `no fighter taint`,
+even though the trace has 660 fighter1 accesses. Expected: the fighter1
+traffic is the `cvtri`/`stis` conversion tail at `0x27cc4`/`0x27ccc`, which
+writes slots and is not a control-flow decision.
+
+**So the v0730 conclusion survives re-derivation** - the block/conversion tail
+does not feed fighter-flag branches - even though its specific
+`fighter1 + 0x01a4` lines are not reproducible from any on-disk trace. The
+note stays flagged; its headline finding is now independently confirmed on a
+trace with real fighter1 accesses. The 70-branch count it quotes is not
+reproducible from any of the 264 traces and is left unexplained rather than
+attributed to a file I cannot identify.
+
+New analysis script `out/sharedoff.py` (gitignored, reproducible) does the
+scan and prints per-side read/write counts, widths, guest IPs and IP overlap.
+It exists because answering "does any corpus have this?" by hand across 264
+files is a sample no human should do. If it proves repeatedly useful it
+belongs in `tools/python/` beside `infer_structs.py`, which already computes
+the same intersection internally as `base_count`.
+
+**Scope of the negative:** "0 of 264" says no state we have *captured* shows a
+shared offset. It does not say the game never shares fighter offsets - VF2 in
+a 2-player VS almost certainly does. The corpus has not been captured there.
+
+No ctest gate: no `src/` or `tests/` change. Full suite running for the
+v0732i slice; the last completed full run is v0732g's 117/117 in 1631.23 s.
+See `p1_shared_offset_negative_v0732j.md`.
+
 ## v0732i: infer_structs consumes multiple traces; the real corpus still does not overlap
 
 **Tooling slice. No game behaviour change, no tuple admitted, no field
