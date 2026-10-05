@@ -495,6 +495,17 @@ dependency. P2-P4 chain the next downstream decomposition.
   consume multiple traces**. The `0x27b5c` helper takes one `player` pointer,
   so same-offset-different-base evidence only exists *across* traces, and the
   current contract keys on `bases` within one trace.
+- **Done at v0732i.** `infer_structs.py` now takes `nargs="+"` traces and
+  merges them, with per-base `base_traces` provenance so a cross-trace
+  promotion is auditable. Unit suite 4 -> 8. **But no real candidate
+  promotes**: the two corpora cover *disjoint* offset regions
+  (`trace-both` fighter0 at `0x0980`/`0x0b24`, `p1-f1-valid` fighter1 at
+  `0x01e0..0x068c`), so there is no shared offset. The tool correctly refuses.
+- The player base **is** selected through `g7`: `g7=0x00510980` gives
+  `player = 0x510000` (9235 ins, ok), `g7=0x00520980` gives
+  `player = 0x520000` and degenerates back to the `0x27cc8` `cvtri`
+  refusal. So the scratch selector is *not* read where the scratch base is;
+  characterising that is the next step toward an overlapping corpus.
 - Do **not** try to unblock the reference executor past `0x27cc8` by adding a
   saturating `cvtri` rule. The hardware behaviour is undefined, the refusal is
   correct, and the C side already recovers the tail.

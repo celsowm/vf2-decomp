@@ -1,5 +1,77 @@
 # Changelog
 
+## v0732i: infer_structs consumes multiple traces; the real corpus still does not overlap
+
+**Tooling slice. No game behaviour change, no tuple admitted, no field
+promoted.** The concrete next P1 step named in
+`p1_dualbase_blocker_v0732h.md`.
+
+`tools/python/infer_structs.py` now takes one **or more** traces
+(`trace` became `nargs="+"`) and rolls them up into a single per-offset
+view, so same-offset evidence from different fighter bases can meet in one
+candidate:
+
+- `summarize_traces(paths, bases, window)` merges per-offset roll-ups;
+- `merge_fields` adds counters and unions base sets **and** per-base trace
+  provenance;
+- `field_records` gained `base_traces` and `trace_count`;
+- `--json` gained `traces` and `base_sources`, and the report prints a
+  `provenance:` line on every multi-base candidate.
+
+`summarize_trace` is untouched, so direct importers keep working and a
+one-trace invocation is unchanged. Per-base provenance is not decoration: a
+cross-trace promotion is a weaker claim than a within-trace one, and
+`provenance: fighter0<-out/trace-both.jsonl; fighter1<-out/p1-f1-valid.jsonl`
+is what makes it auditable in one line.
+
+Unit suite 4 -> 8. New cases pin the one-trace backward compatibility, the
+cross-trace promotion (neither trace promotes alone; together they reach
+`base_count == 2`, `trace_count == 2`, with both runs named), the merge
+algebra, and tolerance of a field with no provenance recorded. The
+cross-trace case also pins the *same-IP* half of the v0704 discipline: both
+runs use the same instruction pair, so merged IP counts **double** (2 each)
+rather than the IP set growing - that doubling is the evidence.
+
+Two defects, both mine: `merge_fields` used `target[offset]` and required a
+`defaultdict`, raising `KeyError` on a source-only offset; and the first
+cross-trace test asserted merged IP counts of 1 each when the correct answer
+is 2 each. `test_factory_chain.py` and `test_frontier.py` still pass, and the
+14 `vf2_python_factory_*` / `vf2_phase17_zero` ctest entries pass in 9.49 s.
+
+**The honest result: no candidate promotes on the real corpus.** The two
+traces cover **disjoint offset regions** - `trace-both.jsonl` touches
+fighter0 around `0x0980`/`0x0b24`, `p1-f1-valid.jsonl` touches fighter1 at
+`0x01e0..0x068c` - so there is no shared offset for the bases to meet on:
+
+```text
+traces: 2   accesses: 4977   unmatched: 3974
++0x0b24  bases=fighter0  R=35 W=0
++0x01e0  bases=fighter1  R=1  W=2
+...no base_count == 2 anywhere
+```
+
+The tool is refusing to promote on insufficient evidence, which is the
+correct behaviour: the capability is real, and the overlapping corpus is
+what is missing.
+
+**One more measured negative, which answers an open question from v0732h.**
+The player base *is* selected through `g7`:
+
+```text
+--set-reg g7=0x00510980  ->  player = 0x510000  ->  9235 ins, ok,  660 fighter1 accesses
+--set-reg g7=0x00520980  ->  player = 0x520000  ->  1400 ins, FAIL at 0x27cc8
+```
+
+Patching the mirrored `player + 0xbd8` / `player + 0x1a0` is therefore the
+right idea, but the fighter-1 player degenerates back to the documented
+`cvtri` refusal, so the selector is not read from the same place the scratch
+base is. The overlapping-corpus requirement stands until that is
+characterised.
+
+No ctest gate beyond the 14 targeted entries: the change is confined to
+`tools/python/`. The last full run remains v0732g's 117/117 in 1631.23 s.
+See `p1_infer_structs_multitrace_v0732i.md`.
+
 ## v0732h: P1 dual-base blocker characterised; a fighter1-inclusive trace now exists
 
 **Evidence only. No behaviour change, no tuple admitted, no field promoted.**
