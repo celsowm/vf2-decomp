@@ -120,32 +120,36 @@ The v0727 "Still open" list is the work queue:
 
 ### Layer 1 — fa_player corridor downstream (P1-P4)
 
-> **P1 is REFRAMED at v0732j. Read this before starting P1.**
+> **P1 is CLOSED at v0732k. Do not re-open the dual-base question.**
 >
-> The original P1 text below assumed the dual-base promotion was a tooling
-> or corpus-collection problem. It is not. Scanning **all 264 traces** in
-> `out/` (92 with fighter-window accesses, 3 with any fighter1 traffic at
-> all) finds **0 traces with a single offset touched from both fighter
-> bases**. `infer_structs`' `base_count == 2` contract has never had its
-> input. See `p1_shared_offset_negative_v0732j.md`.
+> The dual-base promotion this section described as pending **has fired.** The
+> whole v0729–v0732 line was measuring from the wrong fighter bases
+> (`0x510000`/`0x520000`); the measured ones are **`0x510980`/`0x512980`**,
+> recorded in the `fa_game_info` scenario metadata
+> (`out/state8-positive.json`). A window at `0x520000` does not contain the
+> real fighter1 struct at `0x512980`, so all fighter1 traffic was invisible
+> and every candidate silently reported `base_count == 1`.
 >
-> Already done and *not* the blocker: capturing a fighter1-inclusive trace
-> (`p1_dualbase_blocker_v0732h.md` — 660 fighter1 accesses, reproducible with
-> one command) and making `infer_structs` consume multiple traces
-> (`p1_infer_structs_multitrace_v0732i.md` — `nargs="+"`, unit suite 4 → 8).
-> Neither can help, because `0x27b5c` takes a **single `player` pointer** and
-> so can only ever emit one base.
+> With the correct bases `out/trace-both.jsonl` has **144 shared fighter
+> offsets, 341 events per base**, and the contiguous 4 B block is
+> `0x0d00..0x0ee0` — length 120, 480 B, `ip_overlap` 1.0, IPs `0x2399c` +
+> `0x23a38`, 240 reads + 240 writes **per base**, `base_count == 2`.
+> **PROMOTED.** The `0x1680..0x1860` in the original text is the same block
+> measured from the wrong base; the difference is exactly `0x980`.
 >
-> **The actual blocker is a game state**, not a tool: something where the
-> game itself processes both fighters through the same offset — a 2-player
-> VS state with the per-fighter loop completing for both. Start there.
-> Do not spend time on `infer_structs`, `frontier.py`, taint, or a longer
-> reference run; all four are demonstrably not the limiting factor.
+> The taint note quoted below was **right** — its `fighter1 + 0x01a4 bit 14`
+> and `fighter1 + 0x05b8 bit 0` lines reproduce exactly with the correct
+> scenario. My v0732h caveat on it is retracted and removed.
 >
-> Do **not** unblock the reference executor past `0x27cc8` with a saturating
-> `cvtri` rule. The i960 leaves out-of-range FP→int conversion undefined, the
-> refusal is correct, and the C side already recovers the tail in
-> `hybrid_execute_player_27b5c`.
+> Read `p1_fighter_bases_retraction_v0732k.md` before trusting any dual-base
+> number in this repository. `p1_real_trace_demo.py` (ctest #117) now asserts
+> `base_count == 2` and the per-base read/write balance, so a regression fails
+> loudly.
+>
+> Still true and worth keeping: do **not** unblock the reference executor past
+> `0x27cc8` with a saturating `cvtri` rule. The i960 leaves out-of-range
+> FP→int conversion undefined, the refusal is correct, and the C side already
+> recovers the tail in `hybrid_execute_player_27b5c`.
 
 1. **P1**: 0x29414 nonzero entry + dual-base struct upgrade. The
    measured entry evidence is already on master in
@@ -162,15 +166,14 @@ The v0727 "Still open" list is the work queue:
    `tools/python/p1_real_trace_demo.py` (ctest #117) reproduces
    both invariants on a fresh checkout.
 
-   **Corrections to the above, all measured:** `taint.py` takes its fighter
-   bases from the *scenario*, not only the trace, so the `fighter1 + ...`
-   lines in the taint note came from the scenario — `out/trace-both.jsonl`
-   has **zero** fighter1 accesses. The note's *conclusion* was independently
-   re-confirmed at v0732j (17 branches, 0 with fighter taint, on a trace with
-   660 real fighter1 accesses), but its specific `fighter1 + 0x01a4` lines
-   and its 70-branch count are **not reproducible from any trace on disk**
-   and stay flagged. Also, `taint.py --until 0x2399c` returns nothing because
-   `0x2399c`/`0x23a38` are `stq`/`ldq` *memory* IPs, not branch IPs.
+   **Corrections to the above, all measured at v0732k:** the `fighter0` /
+   `fighter1` bases in the `infer_structs` invocation must be the MEASURED
+   **`0x510980` / `0x512980`**, not `0x510000` / `0x520000`. With the right
+   bases the block is dual-base (`base_count == 2`) and the taint note's
+   `fighter1 + 0x01a4 bit 14` / `fighter1 + 0x05b8 bit 0` dependencies are
+   real and reproduce exactly. `taint.py --until 0x2399c` still returns
+   nothing, because `0x2399c`/`0x23a38` are `stq`/`ldq` *memory* IPs, not
+   branch IPs.
 2. **P2-P4**: Decomposition past `0x28918`/`0x29414` per the
    runbook chain.
 
