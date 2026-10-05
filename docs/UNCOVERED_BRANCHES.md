@@ -225,6 +225,51 @@ the only difference is `r14` and memory reports no differences.
 tuple is COMMON-only; the nested `a7` editor; PUNCH/KICK at row 5. See
 `f1_manual_setting_entry_teardown_v0731.md`.
 
+## v0732f INDIVIDUAL release count completes; the render is NOT recovered
+
+**Evidence only; no behaviour change.** Three INDIVIDUAL value-row releases,
+all built without patching state, take the count rule across the singular
+domain:
+
+| snapshot | `credits[0..3]` | rendered `{c1,c2,c4,c5}` | singulars | reference | body |
+|---|---|---|---|---|---|
+| `indk2-rel` | `[2,2,2,2]` | `{2,2,2,2}` | 0 | **4294** / 38 | 4062 |
+| `indk-rel` | `[1,2,1,2]` | `{2,1,2,2}` | 1 | **4293** / 38 | 4061 |
+| `indp-rel` | `[3,3,1,2]` | `{3,1,2,2}` | 1 | **4293** / 38 | 4061 |
+
+```text
+COMMON     value-row release body = 4190 - singulars,  41 calls
+INDIVIDUAL value-row release body = 4062 - singulars,  38 calls
+```
+
+The 0-singular case is higher by exactly one - the same direction as COMMON.
+Direction does not matter: KICK and PUNCH both give 4293/38.
+
+**The base is 4062, not the 4060 the existing INDIVIDUAL branch carries.**
+That 4060/32 was measured on **row 1** after the COMMON->INDIVIDUAL toggle -
+a different row, a different render, 6 fewer calls. Admitting `a5 = 2` in
+INDIVIDUAL must narrow the existing 4060/32 branch to `a5 == 1` first.
+
+**The render is a different shape, not a filtered COMMON one.** Reference row
+histograms, `indk2-rel` against COMMON `f2-r4-rel`:
+
+```text
+COMMON     416 writes
+  5:25  6:26  7:19  8:26  9:19 11:36 13:34 15:17 17:17 19:17 21:17
+  24:33 26:17 28:17 30:17 32:17 35:14 38:4 44:24 45:20
+INDIVIDUAL 510 writes
+  5:25  6:27  7:19  8:26  9:19 11:35 13:36 15:17 17:17 19:17 21:17
+  24:31 25:18 26:18 27:18 28:18 29:18 30:18 31:18 32:18 33:18
+  35:14 38:4 44:24 45:20
+```
+
+Rows **25-33 are erased** at 18 cells each (162 extra writes), row 24 drops
+33 -> 31, row 13 gains 2, row 6 gains 1, row 11 loses 1. So INDIVIDUAL is not
+"COMMON minus the chute section"; pinning the values needs a cell-by-cell
+comparison of the reference trace - a full slice, not a follow-up edit. The
+native still refuses all three, correctly. See
+`f3_individual_count_completed_v0732.md`.
+
 ## v0732e F5 is ALREADY CLOSED - the v0730 premise is false
 
 Documentation only; no behaviour or CMake change. The F5 item in
