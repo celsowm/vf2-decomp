@@ -66,9 +66,10 @@ the same intersection internally as `base_count`.
 shared offset. It does not say the game never shares fighter offsets - VF2 in
 a 2-player VS almost certainly does. The corpus has not been captured there.
 
-No ctest gate: no `src/` or `tests/` change. Full suite running for the
-v0732i slice; the last completed full run is v0732g's 117/117 in 1631.23 s.
-See `p1_shared_offset_negative_v0732j.md`.
+No ctest gate for this slice itself: no `src/` or `tests/` change. The full
+suite was run for the v0732i tooling slice that this one follows and
+**117/117 passed in 1619.56 s**. See
+`p1_shared_offset_negative_v0732j.md`.
 
 ## v0732i: infer_structs consumes multiple traces; the real corpus still does not overlap
 
