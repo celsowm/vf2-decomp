@@ -1,5 +1,85 @@
 # Changelog
 
+## v0732 - F2 RECOVERED: rows 2-4 post-edit release frames match the reference
+
+All three measured post-edit release frames now pass the full differential
+gate - registers, memory regions, instruction count and call count:
+
+| leg | a5 | `preset` | reference | native | result |
+|---|---|---|---|---|---|
+| `f2-r2` | 2 | 0 | 4422 ins / 41 calls | 4422 / 41 | MATCH |
+| `f2-r3` | 3 | 0 | 4421 / 41 | 4421 / 41 | MATCH |
+| `f2-r4` | 4 | 1 | 4418 / 41 | 4418 / 41 | MATCH |
+
+Controls re-verified: `f2-r3-edit` 4637/44 MATCH, `f2-r4-edit` 4635/43
+MATCH, `f2-r4-cl` 4425/41 MATCH, `f1-a5-cl-0x4` (a5 = 5) still fails closed.
+
+### The retraction that came first
+
+`vf2i960 native-resume` is **native only** - it calls
+`vf2_native_runtime_run_until` and never invokes the reference executor
+(`tools/vf2i960/commands.c:3054`). An early version of the F2 harness ran it
+twice, once labelled "reference" and once labelled "native", and reported
+`Snapshots match.` for all three rows. That was a self-comparison and the
+result was worthless. It was caught because the two legs reported identical
+instruction counts on every row, including rows already known to differ, and
+because the "reference" numbers did not move when the recovered render
+changed.
+
+The reference leg is `vf2probe --until 0xa010`. Per-frame deltas come from
+running the same snapshot with `--until 0x9ff8` first - that stops on the
+entry IP so `run_instructions` deltas to 0 and exposes the start counters.
+Counts are part of the contract: `test_phase17_zero.c:611` asserts
+`reference_cpu.executed_instructions` **and**
+`bridge_report.recovered_instruction_count` against the same expected value.
+
+### Recovered
+
+- **Latch shape.** `post_edit_release` is
+  `{test_held_entry != 0, released_flags == 4, previous_flags == 0x0f000004}`,
+  identified by shape rather than by the values it carries.
+
+- **Credit gate, validated not relaxed.** Post-edit credits are checked
+  against the v0731j derivation: `credits[0]` / `credits[3]` are clamped
+  counters and `credits[1,2,4,5]` must equal `0x5bc74[i]` / `0x5bc84[i]`.
+
+- **Four digit cells**, `(6,40) <- credits[0]`, `(7,40) <- credits[2]`,
+  `(8,40) <- credits[4]`, `(9,40) <- credits[5]`, encoded `0x8000 | ASCII`,
+  with the trailing `S` of `CREDITS` blanked to `0x8020` when the value is 1.
+  The first attempt used the bare numeric digit and a raw `0x0020` blank; the
+  differential reported 5 differing bytes at `0x350`, `0x3d0`, `0x450`,
+  `0x4d0`, `0x4e0` and the encoding was corrected.
+
+- **`runs[]` is the parked state.** On the COIN/CREDIT SETTING row the ROM
+  re-renders that section live. Rows 13 and 24 re-emit the plural label
+  `"  COINS   CREDITS"` and stamp a packed pair over it; the static
+  `"1 COIN  1 CREDIT "` is exactly that render over the default banks, which
+  is why the parked frames never revealed it. `sub_00060d30` loads a packed
+  byte with `ldob (r5), r6` at `0x060d30` - high nibble coins at column 31,
+  low nibble credits at column 39, and a value of 1 blanks the word's
+  trailing `S` (the same singular rule as rows 6-9). Row 11 column 45 carries
+  the 1-based chute number, so the hardcoded `"1"` is only right at
+  `preset == 0`.
+
+- **The pair table is a per-chute slot array at `0x61550`, stride 2**:
+  `0x11` chute 1, `0x12` chute 2, `0x13` chute 3, ... odd slot zero. The
+  first row of a bank reads the even slot; the other four read the odd zero
+  slot, take the `0x060e00` terminator and stay blank. The trace walks
+  `0x61552` once then `0x61553` four times.
+
+- **Per-row bodies pinned at 4190 / 4189 / 4186** for a5 = 2 / 3 / 4, applied
+  only on the post-edit-release latch so the shared 4190 and 4193 branches
+  keep their own proven values. These are measurements; the cause of the
+  4189 and 4186 deltas is not disassembled.
+
+- **The gate stays narrow.** `preset` is admitted only for a5 = 4, only for
+  values 0 and 1, and only in COMMON mode. Wider values fail closed rather
+  than rendering from a guess.
+
+No CTest was added: `test_phase17_zero.c` cannot host this boundary, so the
+gate is the ROM-backed differential. Full evidence in
+`f2_post_edit_release_recovered_v0732.md`.
+
 ## v0731l - F2 value subsystem COMPLETE: one shared table pair behind all four rows
 
 Evidence only. No behaviour change, no tuple admitted, no code touched.

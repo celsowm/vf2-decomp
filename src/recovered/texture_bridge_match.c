@@ -8018,6 +8018,7 @@ static vf2_status execute_frame_phase17_bit7_index5(
     uint32_t test_held_r14 = 0u;
     uint32_t test_held_r15 = 0u;
     int test_held_entry = 0;
+    int post_edit_release = 0;
     int natural_keep_globals = 0;
     int input_match = 0;
     vf2_status status = VF2_OK;
@@ -8157,6 +8158,13 @@ static vf2_status execute_frame_phase17_bit7_index5(
              * mode-dependent render below; g1 stays 0 like the edit
              * frame while g2/g6 keep their flat values). */
             {UINT32_C(0x0f000000), UINT32_C(0x0f000004), UINT32_C(4), 0u, UINT8_C(1), 0u, 2u},
+            /* Post-edit TEST release at the other value rows. The frame
+             * arrives with the vector the previous edit frame wrote, so the
+             * gate validates it against the derivation instead of requiring
+             * the parked default. Bodies are per-row and are pinned below. */
+            {UINT32_C(0x0f000000), UINT32_C(0x0f000004), UINT32_C(4), 0u, UINT8_C(2), 0u, 0u},
+            {UINT32_C(0x0f000000), UINT32_C(0x0f000004), UINT32_C(4), 0u, UINT8_C(3), 0u, 0u},
+            {UINT32_C(0x0f000000), UINT32_C(0x0f000004), UINT32_C(4), 0u, UINT8_C(4), 0u, 0u},
             /* TEST on the EXIT row: the real exit (clears bit 7 of
              * a4, 19056/74 body, the parked EXIT+ arm measured
              * identically from the natural walk). */
@@ -8216,11 +8224,31 @@ static vf2_status execute_frame_phase17_bit7_index5(
     input_match = (input_flags == base_input &&
                    previous_flags == base_input) ||
                   test_held_entry != 0;
+    /* The post-edit release frame is the one leg that legitimately arrives
+     * with a non-default value vector, because the deferred update ran at the
+     * end of the preceding edit frame. It is identified by its latch shape,
+     * not by the values themselves, and it is validated against the measured
+     * derivation rather than waved through - see the credits check below. */
+    post_edit_release = (test_held_entry != 0 &&
+                         released_flags == UINT32_C(4) &&
+                         previous_flags == UINT32_C(0x0f000004));
     if (status != VF2_OK || indirect_target != UINT32_C(0x0005b558) ||
         input_match == 0 ||
         (test_held_entry == 0 && released_flags != 0u) ||
         selector_mask != UINT32_C(0x00020000) ||
-        phase_a5 > UINT8_C(5) || phase_a6 != UINT8_C(0xff) || preset != 0u ||
+        phase_a5 > UINT8_C(5) || phase_a6 != UINT8_C(0xff) ||
+        (!post_edit_release && preset != 0u) ||
+        /* In the post-edit release a non-zero preset only has measured
+         * behaviour on the COIN/CREDIT SETTING row, and only for the two
+         * chute banks the ROM actually carries (preset 0 and 1, measured on
+         * out/f2-r4-rel.jsonl). Anything wider is refused rather than
+         * rendered from a guess, and the INDIVIDUAL-mode variant of that
+         * row has not been measured at all. */
+        (post_edit_release &&
+         (phase_a5 == UINT8_C(4)
+              ? (preset > UINT8_C(1) ||
+                 (coin_flags & UINT32_C(1)) != 0u)
+              : preset != 0u)) ||
         (coin_flags &
          (test_held_entry != 0 ? ~UINT32_C(1) : ~UINT32_C(2))) != 0u ||
         (phase_a5 < UINT8_C(5) &&
@@ -8251,8 +8279,32 @@ static vf2_status execute_frame_phase17_bit7_index5(
         edit_delta = 1;
     }
     else if (navigation_flags != 0u) return VF2_ERROR_UNSUPPORTED;
-    for (index = 0u; index < sizeof(credits); ++index) {
-        if (credits[index] != UINT8_C(2)) return VF2_ERROR_UNSUPPORTED;
+    if (post_edit_release) {
+        /* Validate the arrived vector against the measured derivation
+         * instead of requiring the parked default: both counters sit in
+         * [0, 14] (clamped at 0x5b8e0 and 0x5b9a4) and each derived pair
+         * is t1[counter] / t2[counter] read from 0x5bc74 / 0x5bc84
+         * (0x5bb4c for the credits[0] side, 0x5bb90 for credits[3]).
+         * Index 15 is the unreachable 0 sentinel, hence the 14 bound. */
+        static const uint8_t start_table[16] = {
+            1u, 2u, 2u, 3u, 3u, 3u, 4u, 4u,
+            4u, 4u, 5u, 5u, 5u, 5u, 5u, 0u
+        };
+        static const uint8_t continue_table[16] = {
+            1u, 1u, 2u, 1u, 2u, 3u, 1u, 2u,
+            3u, 4u, 1u, 2u, 3u, 4u, 5u, 0u
+        };
+        if (credits[0] > UINT8_C(14) || credits[3] > UINT8_C(14) ||
+            credits[1] != start_table[credits[0]] ||
+            credits[2] != continue_table[credits[0]] ||
+            credits[4] != start_table[credits[3]] ||
+            credits[5] != continue_table[credits[3]]) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+    } else {
+        for (index = 0u; index < sizeof(credits); ++index) {
+            if (credits[index] != UINT8_C(2)) return VF2_ERROR_UNSUPPORTED;
+        }
     }
 
     if (phase_a5 == UINT8_C(5) && phase_a7 == UINT8_C(0xff) && edit_delta != 0) {
@@ -8899,6 +8951,125 @@ static vf2_status execute_frame_phase17_bit7_index5(
         }
         if (status == VF2_OK) characters += UINT64_C(13 + 10 * 18);
     }
+    if (status == VF2_OK && post_edit_release) {
+        /* Measured digit render for the post-edit release frame. runs[] can
+         * only carry the parked "2", but the four credit cells track live
+         * state: (6,40) <- credits[0], (7,40) <- credits[2], (8,40) <- credits[4]
+         * and (9,40) <- credits[5]. Each mapping is proved twice - rows 6/7
+         * from an a5=2 edit and rows 8/9 from an a5=3 edit, two distinct
+         * values each. When the value is 1 the trailing "S" of that row's
+         * "CREDITS" label is blanked to a space tile, so the label reads
+         * "CREDIT"; measured on row 9 (credits[5] = 1) and row 7
+         * (credits[2] = 1). Cell encoding is 0x8000 | ASCII, the same
+         * convention as write_phase17_index0_text(). */
+        static const struct {
+            uint32_t row;
+            uint32_t credit;
+        } credit_cells[4] = {
+            {6u, 0u}, {7u, 2u}, {8u, 4u}, {9u, 5u}
+        };
+        size_t cell_index = 0u;
+        for (cell_index = 0u;
+             status == VF2_OK && cell_index < 4u; ++cell_index) {
+            const uint8_t value = credits[credit_cells[cell_index].credit];
+            status = write_u16(
+                machine,
+                UINT32_C(0x01000000) +
+                    credit_cells[cell_index].row * UINT32_C(0x80) +
+                    UINT32_C(40) * UINT32_C(2),
+                (uint16_t)(UINT16_C(0x8000) | (uint16_t)('0' + value))
+            );
+            if (status == VF2_OK && value == UINT8_C(1)) {
+                status = write_u16(
+                    machine,
+                    UINT32_C(0x01000000) +
+                        credit_cells[cell_index].row * UINT32_C(0x80) +
+                        UINT32_C(48) * UINT32_C(2),
+                    UINT16_C(0x8020)
+                );
+            }
+            if (status == VF2_OK) characters += UINT64_C(2);
+        }
+    }
+    if (status == VF2_OK && post_edit_release &&
+        phase_a5 == UINT8_C(4)) {
+        /* COIN/CREDIT SETTING live re-render, measured on the a5=4
+         * post-edit release (out/f2-r4-rel.jsonl, the 0x060c5c/0x060c7c/
+         * 0x060ca0/0x060cc0 stamper for bank 0 and its 0x060d94/0x060db4/
+         * 0x060dd8/0x060df8 twin for bank 1):
+         *   - row 11 column 45 carries the 1-based chute number, not a
+         *     literal, so the static runs[] "1" is only correct at preset 0;
+         *   - rows 13 and 24 re-emit the plural label "  COINS   CREDITS"
+         *     (17 cells from column 31) and then stamp the packed pair read
+         *     from the per-chute slot table at 0x61550 with stride 2: bank 0
+         *     feeds row 13, bank 1 feeds row 24. The high nibble is the coin
+         *     count at column 31, the low nibble the credit count at column
+         *     39, and a value of 1 additionally blanks that word's trailing
+         *     'S' at column 37 / 47 - the ROM's own singular form.
+         * The static runs[] text "1 COIN  1 CREDIT " is exactly this render
+         * over the default banks, so the parked frames are untouched; only
+         * the post-edit release needs the live path. The gate admits
+         * preset 0 and 1 only, so the two ROM banks below are the only ones
+         * reachable. */
+        static const struct {
+            uint32_t row;
+            uint32_t slot;
+        } chute_banks[2] = { {13u, 0u}, {24u, 2u} };
+        size_t bank = 0u;
+        status = write_u16(
+            machine,
+            UINT32_C(0x01000000) + UINT32_C(11 * 0x80) +
+                UINT32_C(45) * UINT32_C(2),
+            (uint16_t)(UINT16_C(0x8000) | (uint16_t)('0' + preset + 1u))
+        );
+        if (status == VF2_OK) characters += UINT64_C(1);
+        for (bank = 0u; status == VF2_OK && bank < 2u; ++bank) {
+            uint8_t packed = 0u;
+            uint8_t coin_count = 0u;
+            uint8_t credit_count = 0u;
+            const uint32_t row_base =
+                UINT32_C(0x01000000) +
+                chute_banks[bank].row * UINT32_C(0x80);
+            status = vf2_model2a_read(
+                machine,
+                UINT32_C(0x00061550) + chute_banks[bank].slot,
+                &packed, sizeof(packed)
+            );
+            if (status != VF2_OK) break;
+            coin_count = (uint8_t)((packed >> 4) & UINT8_C(0x0f));
+            credit_count = (uint8_t)(packed & UINT8_C(0x0f));
+            status = write_phase17_index0_text(
+                machine,
+                chute_banks[bank].row * UINT32_C(0x80), UINT32_C(31),
+                "  COINS   CREDITS"
+            );
+            if (status != VF2_OK) break;
+            characters += UINT64_C(17);
+            status = write_u16(
+                machine, row_base + UINT32_C(31) * UINT32_C(2),
+                (uint16_t)(UINT16_C(0x8000) | (uint16_t)('0' + coin_count))
+            );
+            if (status == VF2_OK && coin_count == UINT8_C(1)) {
+                status = write_u16(
+                    machine, row_base + UINT32_C(37) * UINT32_C(2),
+                    UINT16_C(0x8020)
+                );
+            }
+            if (status == VF2_OK) {
+                status = write_u16(
+                    machine, row_base + UINT32_C(39) * UINT32_C(2),
+                    (uint16_t)(UINT16_C(0x8000) | (uint16_t)('0' + credit_count))
+                );
+            }
+            if (status == VF2_OK && credit_count == UINT8_C(1)) {
+                status = write_u16(
+                    machine, row_base + UINT32_C(47) * UINT32_C(2),
+                    UINT16_C(0x8020)
+                );
+            }
+            characters += UINT64_C(2);
+        }
+    }
     if (status == VF2_OK) {
         status = write_u16(
             machine, cursor_addresses[phase_a5],
@@ -9059,6 +9230,19 @@ static vf2_status execute_frame_phase17_bit7_index5(
          * entry release). */
         instructions = UINT64_C(4060);
         calls = UINT64_C(32);
+    } else if (status == VF2_OK && post_edit_release) {
+        /* Measured post-edit release body lengths. The 4189/4186 figures are
+         * reference-executor deltas over the 0x9ff8 -> 0xa010 block measured
+         * with vf2probe (entry counted twice, run_instructions delta 4421 at
+         * a5=3 and 4418 at a5=4 against a 232-instruction prefix); a5=2 is
+         * 4422 and already agrees with the shared 4190 branch. The per-row
+         * cause of the 4189/4186 deltas is NOT yet disassembled - these are
+         * pinned measurements, not a derived rule. Only the post-edit
+         * release latch shape reaches here, so the shared 4190/4193
+         * branches above keep their own proven values. */
+        instructions = phase_a5 == UINT8_C(2)
+            ? UINT64_C(4190)
+            : (phase_a5 == UINT8_C(3) ? UINT64_C(4189) : UINT64_C(4186));
     } else if (status == VF2_OK && test_held_entry != 0 &&
                released_flags == 0u && phase_a5 >= UINT8_C(1) &&
                (coin_flags & UINT32_C(1)) != 0u) {

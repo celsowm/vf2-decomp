@@ -56,9 +56,16 @@ gate first.
 
 Per `docs/UNCOVERED_BRANCHES.md` and `decomp/i960/notes/v0727`:
 
-### Layer 0 — TEST MENU completion (F1-F5)
+### Layer 0 - TEST MENU completion (F1-F5)
 
-Each slice: 30–90 minutes of focused RAM-resident work plus a
+**Status: F1 and F2 are CLOSED.** F1 recovered in `f45f25bf`
+(`f1_manual_setting_entry_teardown_v0731.md`); F2 recovered at v0732
+(`f2_post_edit_release_recovered_v0732.md`), all three post-edit release
+frames matching on registers, memory, instruction count and call count.
+F3, F4 and F5 remain. The items below are kept verbatim as originally
+written so the original framing stays auditable.
+
+Each slice: 30-90 minutes of focused RAM-resident work plus a
 strict `vf2cmp|native-*` differential per the v0727 playbook.
 The v0727 "Still open" list is the work queue:
 

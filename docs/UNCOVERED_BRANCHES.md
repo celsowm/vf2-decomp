@@ -225,6 +225,70 @@ the only difference is `r14` and memory reports no differences.
 tuple is COMMON-only; the nested `a7` editor; PUNCH/KICK at row 5. See
 `f1_manual_setting_entry_teardown_v0731.md`.
 
+## v0732 rows 2-4 post-edit release frames RECOVERED and proven
+
+F2 is closed. All three measured release frames print `Snapshots match.` on
+both the register and the memory-region gate, with the instruction and call
+counters equal to the reference:
+
+| leg | a5 | `preset` | reference | native | result |
+|---|---|---|---|---|---|
+| `f2-r2` | 2 | 0 | 4422 / 41 | 4422 / 41 | MATCH |
+| `f2-r3` | 3 | 0 | 4421 / 41 | 4421 / 41 | MATCH |
+| `f2-r4` | 4 | 1 | 4418 / 41 | 4418 / 41 | MATCH |
+
+Controls re-verified unchanged: `f2-r3-edit` 4637/44 MATCH, `f2-r4-edit`
+4635/43 MATCH, `f2-r4-cl` 4425/41 MATCH, and the a5 = 5 control
+`f1-a5-cl-0x4` still **fails closed**.
+
+**A harness trap had to be retracted before any of this counted.**
+`vf2i960 native-resume` is native only - it calls
+`vf2_native_runtime_run_until` and never invokes the reference executor
+(`tools/vf2i960/commands.c:3054`). An early harness ran it twice and reported
+`Snapshots match.` for all three rows, which was a self-comparison. The
+reference leg must be `vf2probe --until 0xa010`; get the per-frame delta by
+running the same snapshot with `--until 0x9ff8` first, since that stops
+immediately and exposes the start counters. Instruction counts are part of
+the contract, not decoration: `test_phase17_zero.c:611` asserts both sides
+against the same expected value.
+
+Recovered beyond the previous note's measurement:
+
+- **The `runs[]` text is the parked state.** On the COIN/CREDIT SETTING row
+  the ROM re-renders that section from live data. Rows 13 and 24 re-emit the
+  **plural** label `"  COINS   CREDITS"` and stamp a packed pair over it; the
+  static `"1 COIN  1 CREDIT "` in `runs[]` is exactly that render over the
+  default banks, which is why parked frames never showed the difference.
+- **The stamper is `sub_00060d30`**, reached by `bx` dispatch. `ldob (r5), r6`
+  at `0x060d30` loads a packed byte: high nibble = coins at column 31, low
+  nibble = credits at column 39, and a value of 1 also blanks that word's
+  trailing `S` at column 37 / 47 - the ROM's own singular form, the same rule
+  as rows 6-9. Bank 0 (row 13) uses the `0x060c5c`/`0x060c7c`/`0x060ca0`/
+  `0x060cc0` instantiation of the same shape.
+- **The pair table is a per-chute slot array at `0x61550`, stride 2**:
+  `0x11` chute 1, `0x12` chute 2, `0x13` chute 3 ... with the odd slot zero.
+  The first row of a bank reads the even slot; the other four read the odd
+  zero slot, take the `0x060e00` terminator and stay blank. The trace shows
+  exactly that walk: `0x61552` once, then `0x61553` four times.
+- **Row 11 column 45 carries the 1-based chute number**, not a literal, so
+  the hardcoded `"1"` in `runs[]` is only right at `preset == 0`.
+- **The digit cell encoding is `0x8000 | ASCII`** and a blank is `0x8020`.
+  The first attempt wrote the bare numeric digit and a raw `0x0020` blank;
+  the differential caught it immediately as 5 differing bytes.
+- **Per-row bodies are pinned, not derived**: 4190 / 4189 / 4186 for a5 = 2 /
+  3 / 4, applied only on the post-edit-release latch so the shared 4190 and
+  4193 branches keep their own proven values. The cause of the 4189 and 4186
+  deltas is **not** disassembled.
+- **The gate is validated, not relaxed.** Post-edit release credits are
+  checked against the measured derivation (counter bounds plus table
+  consistency at `0x5bc74` / `0x5bc84`). `preset` is admitted only for a5 = 4,
+  only for values 0 and 1, and only in COMMON; everything wider fails closed.
+
+No CTest was added: `test_phase17_zero.c` cannot host this boundary (its
+harness enters at depth 1 and the chain blocks rewrite `0x50016c`, so `base`
+and frame depth do not match). The gate is the ROM-backed differential. See
+`f2_post_edit_release_recovered_v0732.md`.
+
 ## v0731 rows 2-4 post-edit release frames measured, still fail-closed
 
 F2 targets are now **measured** (not recovered) for rows 3 and 4. The
