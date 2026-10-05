@@ -277,6 +277,16 @@ At the time this handoff was written, `master` already contains:
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.
 
+## Completion plan
+
+The measured state and the full remaining plan — ordered by **dependency, not
+impact** — live in `decomp/i960/notes/completion_plan_v0734.md`. Read it before
+starting new work. Phase 0 (oracle integrity: the `vf2_i960_run` vs hand-stepped
+condition-state divergence, B45) gates the credibility of everything after it;
+Phase 1 is bookkeeping; Phase 2 is the named fail-closed admissions; Phase 3-4
+are the actual bulk (`fa_player` downstream, then the simulation systems, which
+are essentially unstarted); Phase 5 is semantic naming and is evidence-gated.
+
 ## Important current gameplay frontiers
 
 Always confirm these against `docs/UNCOVERED_BRANCHES.md` before coding.
