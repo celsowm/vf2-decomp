@@ -1,4 +1,25 @@
-# v0733d: the 0x23524 shell differential — the g3 question was void, and three real gaps are now named
+# v0733d: the 0x23524 shell differential — the g3 question was void, three real gaps are now named
+
+> ## RETRACTED IN PART by `executor_harness_cc_divergence_v0733e.md`
+>
+> **Two of the three divergences below did not exist.** `compare_result` and
+> `arithmetic_control` are **exact on the warm leg** when the reference is driven
+> with `vf2_i960_run` (EQUAL / `0x3f001002` on both sides). They diverge **only
+> on the live leg**.
+>
+> The cause was this slice's own fixture, which stepped the reference with a
+> hand-rolled `vf2_i960_step` loop while `vf2probe` and the differential tooling
+> use `vf2_i960_run`. Over the same 7 instructions from the same snapshot in the
+> same binary, the two paths leave different condition state at the shell entry
+> (NONE vs EQUAL), which then changed the exit value on every leg.
+>
+> **Therefore the "entry-state dependent, therefore unpinnable" conclusion is
+> withdrawn**, and so is the decision to leave `hybrid.c` unchanged *on that
+> basis*. The "still open" list below is wrong for those two fields.
+>
+> **Retained and unaffected:** the g3 analysis, the load-bearing refusal, the
+> measured leg table, and the `vf2i960 function` boundary trap. Those are all
+> independent of the driver and all re-measured unchanged.
 
 **`hybrid.c` carried a standing TODO in the `0x23524` shell: "whether 0x23524
 should publish the g3 its children left behind is a separate question that needs

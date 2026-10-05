@@ -3686,24 +3686,28 @@ boundary — see the `bx (g14)` trampoline note below).
   `0x238a4` entirely, so `0x0000fffe`/`0xffffffff` survive to the return. The
   fixture asserts the reference registers before the refusal, so a refusal that
   stopped being necessary fails instead of passing quietly.
-- **Still unrecovered, and now named:** `g14` (`0x23648` vs `0x22428`),
-  `compare_result` (EQUAL vs NONE) and `arithmetic_control` bit 1
-  (`0x3f001002` vs `0x3f001000`) at the shell's return. All three are pinned as
-  divergences by the fixture. `g14` is path-dependent (`bal 0x23694` vs
-  `b 0x23648`), and `compare_result` is **entry-state dependent** — leg C exits
-  EQUAL from an entry of NONE and LESS from an entry of EQUAL over identical
-  instructions — so neither can be pinned and **no C was changed**. The obvious
-  rule (`bbc 31, r15, 0x23870`) is falsified: cc is EQUAL for every fighter
-  `+0x650` tried.
+- **Still unrecovered, and now named:** `g14` (`0x23648` vs `0x22428`) on both
+  admitted legs, plus — **on the live single-fighter leg only** —
+  `compare_result` (`GREATER` vs the native's warm `EQUAL`) and
+  `arithmetic_control` bit 1 (`0x3f001001` vs `0x3f001002`). `g14` is
+  path-dependent (`bal 0x23694` vs `b 0x23648`), so no constant is correct for
+  all three legs. **No C was changed**; the fixture asserts the divergence set per
+  leg, so the warm leg's exact condition state stays visible.
+  **v0733e corrected this entry:** an earlier revision of this file claimed
+  `compare_result`/`arithmetic_control` diverged on *every* leg and were
+  "unpinnable". That was an artifact of a fixture that stepped the reference with
+  a hand-rolled `vf2_i960_step` loop instead of `vf2_i960_run`. Drive the
+  reference with `vf2_i960_run`, as `vf2probe` and the differential tooling do.
 - **`vf2i960 function` is wrong for this block again:** it reports
   `end=0x2364c`, which is `0x235a4`'s callee. Real boundary is `0x22210` at
   `9151` insn / 14 returns, matching the v0386 whole-task pin. Stopping at
   `0x23648` measures `9150` and invents a +1 defect in a correct recovery.
-- **Undiagnosed:** `vf2probe --output-snapshot` and a `vf2_i960_step` walk to the
-  same address disagree on `compare_result`. The snapshot format does persist the
-  field, so probe-read `cc` values are unverified.
+- **Undiagnosed, and it affects every hand-stepped fixture:** `vf2_i960_run` and
+  a `vf2_i960_step` loop leave different `compare_result` and
+  `arithmetic_control` at the same address from the same snapshot.
 
-See `decomp/i960/notes/coli_shell_contract_v0733d.md`.
+See `decomp/i960/notes/coli_shell_contract_v0733d.md` and
+`decomp/i960/notes/executor_harness_cc_divergence_v0733e.md`.
 
 Status (v0565): the measured both-bit-8/scan-5 sibling is native with full
 live-state equality at `9526/18/19`. Fighter0 `+0x821=5`, `+0x822=0` and

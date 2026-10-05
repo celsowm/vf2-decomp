@@ -30792,11 +30792,14 @@ vf2_status vf2_hybrid_coli_23524_execute(
      * reloaded from the FIFO by the ROM at 0x23600, so the ~g4 from 0x2396c is
      * discarded by the shell itself and not by this code.
      *
-     * What is genuinely NOT published here is g14, compare_result and
-     * arithmetic_control. See tests/recovered/test_coli_23524_live.c and
-     * decomp/i960/notes/coli_shell_contract_v0733d.md - all three are measured
-     * to be unpinnable at this boundary, so they stay fail-closed and named
-     * rather than guessed. */
+     * What is genuinely NOT published here is g14, plus the live-leg
+     * condition state. v0733e measured the shell's exit on three legs: the warm
+     * leg is exact on compare_result and arithmetic_control, and g14 diverges
+     * on both admitted legs because the bal at 0x23644 sets it only on those
+     * paths. On the live single-fighter leg the reference ends GREATER /
+     * 0x3f001001 where this code publishes the warm EQUAL / 0x3f001002. That
+     * gap is bounded and real; see tests/recovered/test_coli_23524_live.c and
+     * decomp/i960/notes/coli_shell_contract_v0733d.md. */
     cpu->registers[VF2_I960_G0_REGISTER + 9u] = VF2_COLI_SHELL_G9_CONST;
     if (coli_2396c_body(machine, g7, g13, &g4, &g3_child, &child_body) !=
         VF2_OK) {

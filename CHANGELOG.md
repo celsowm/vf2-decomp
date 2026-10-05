@@ -1,5 +1,64 @@
 # Changelog
 
+## v0733e: the "unpinnable compare_result" was this repo's own fixture — retracted
+
+**v0733d reported three unrecovered exit fields at the `0x23524` shell —
+`g14`, `compare_result` and `arithmetic_control` — and declared the last two
+"entry-state dependent, therefore unpinnable". Two of the three did not exist.**
+
+Driven the way `vf2probe` and the differential tooling drive the reference — via
+`vf2_i960_run` — the warm leg is **exact on condition state**:
+
+```text
+A warm:    9151 insn, 13 calls, 14 returns; cc 2 vs 2, arithmetic_control 0x3f001002 vs 0x3f001002
+B live f0: 9300 insn, 12 calls, 13 returns; cc 3 vs 2, arithmetic_control 0x3f001001 vs 0x3f001002
+```
+
+**The cause was v0733d's fixture, not the recovery.** It stepped the reference
+with a hand-rolled `vf2_i960_step` loop; `vf2probe`, `native_differential.c`,
+`native_differential_step.c` and `native_runtime.c` all use `vf2_i960_run`. Over
+the **same 7 instructions, from the same snapshot, in the same binary**, the two
+paths left different condition state at the shell entry:
+
+```text
+hand-rolled loop  : step 1 `bbs` -> cc equal -> none ... entry cc=none  arith=0x3f001000
+vf2_i960_run      : ...                            entry cc=equal arith=0x3f001002
+```
+
+That entry divergence propagated to the exit on all three legs, which is what
+made `compare_result` look entry-dependent. The mechanism inside the executor is
+**not yet isolated** — both paths call the same `vf2_i960_step`
+(`executor_arch.c:219`) and `vf2_i960_run` only adds a stop check — but it is
+reproducible, affects only condition state, and is not serialisation (the
+snapshot format persists both fields).
+
+This is the same shape as the `vf2i960 function` defect in v0733d: **the
+instrument was the defective part and produced a confident, specific, well
+formatted wrong answer.** Twice in one slice.
+
+**The real gap is smaller and better-defined.** Two items remain at this
+boundary, not three:
+
+1. **`g14` is never published** and is path-dependent — `0x23648` on both
+   admitted legs (they execute the `bal 0x23694` at `0x23644`), the entry value
+   `0x22428` on the refused leg. No constant is correct for all three.
+2. **On the live single-fighter leg only**, the native publishes the warm leg's
+   condition state (EQUAL, `0x3f001002`) where the reference has GREATER and
+   `0x3f001001`. **No existing test caught this** — `vf2_coli_whole_task_live`
+   compares through `0x10dcc`, by which point the compare state has been
+   recomputed downstream. The `0x23524` differential is what found it.
+
+The fixture now drives the reference with `vf2_i960_run` and asserts the
+divergence **set per leg**, so "warm diverges" and "live diverges" are both
+visible; asserting "always diverges" would hide the warm-leg match and "never
+diverges" would hide the live gap.
+
+Standing rule: **measure the instrument before measuring the thing.** Two
+fixtures in one slice invented defects, both times with self-consistent numbers
+and confident prose.
+
+See `decomp/i960/notes/executor_harness_cc_divergence_v0733e.md`.
+
 ## v0733d: the 0x23524 shell differential — the g3 question was void, three real gaps named
 
 `hybrid.c` carried a standing TODO: *"whether 0x23524 should publish the g3 its

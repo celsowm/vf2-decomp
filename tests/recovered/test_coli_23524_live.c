@@ -21,25 +21,34 @@
  * On g4: the shell's own `ld (g11)[g12], g4` at 0x23600 overwrites the ~g4 with
  * a FIFO reply, so the ~g4 is discarded by the ROM, not by the C. Also settled.
  *
- * What the differential found that was NOT settled
- * -----------------------------------------------
- * Two pieces of the shell's exit contract are unrecovered, and this test
- * measures both rather than leaving them implicit:
+ * What the differential found, and a RETRACTION
+ * ----------------------------------------------
+ * v0733d reported three unrecovered exit fields: `g14`, `compare_result` and
+ * `arithmetic_control` bit 1, and declared the last two unpinnable.
  *
- *   1. `compare_result` is never published. It is EQUAL on the warm leg and
- *      GREATER on the live leg, so it cannot be pinned to a constant.
- *   2. `g14` is never published either, and it is path-dependent: 0x23648 on
- *      both admitted legs (they execute the `bal 0x23694` at 0x23644) but the
- *      untouched entry value on the refused leg, which branches to 0x23648 at
- *      0x235a8 and skips the `bal` entirely.
+ * **Two of those three were an artifact of the fixture, and are retracted.**
+ * `compare_result` and `arithmetic_control` are NOT divergences on the warm leg:
+ * the native publishes exactly what the reference does (EQUAL, `0x3f001002`).
+ * They diverge only on the live leg.
  *
- * Both are genuine boundary gaps, and both obvious "fixes" are MEASURED TO BE
- * WRONG on a neighbouring leg - which is the whole reason this file runs three
- * legs instead of one. See the leg table below.
+ * The cause was this file's own driver. It stepped the reference with a
+ * hand-rolled `vf2_i960_step` loop; `vf2probe` and the differential tooling use
+ * `vf2_i960_run`. Over the same 7 instructions from the same snapshot, in the
+ * same binary, the two paths left different compare state at the shell entry
+ * (NONE vs EQUAL) - which then changed the exit value on every leg. The
+ * fixture now drives the reference with `vf2_i960_run`, and the bogus
+ * "entry-state dependent, therefore unpinnable" claim is withdrawn.
  *
- * So this test does not widen the gate. It pins the divergence: a shell that
- * starts publishing either value must change this file, and publishing a
- * constant is a bug the live leg will catch.
+ * What survives:
+ *
+ *   1. `g14` is never published, and is path-dependent: 0x23648 on both
+ *      admitted legs (they execute the `bal 0x23694` at 0x23644) but the
+ *      untouched entry value 0x22428 on the refused leg, which branches to
+ *      0x23648 at 0x235a8 and skips the `bal` entirely.
+ *   2. On the LIVE leg only, the native publishes cc EQUAL and
+ *      `arithmetic_control` `0x3f001002` where the reference has GREATER and
+ *      `0x3f001001`. This is a real, bounded gap on one admitted leg, and it
+ *      is the only condition-state gap left at this boundary.
  *
  * Measured witness (vf2probe 0.1.3, this build, real ROM; entry
  * out/coli-parked-221e8.vf2snap -> 0x23524 in 7 instructions, depth 6,
@@ -98,9 +107,6 @@
 #define CHILD_G3 UINT32_C(0x0000fffe)
 #define CHILD_G4 UINT32_C(0xffffffff)
 
-/* The two unrecovered exit fields, with the values each leg measures. */
-#define NATIVE_CC_NONE ((uint32_t)VF2_I960_COMPARE_NONE)
-
 static int failures = 0;
 
 #define CHECK(e)                                                       \
@@ -132,20 +138,25 @@ typedef struct {
      * the native is asserted; the value is not. */
     vf2_i960_compare_result ref_cc;
     int admits; /* 1: native must match. 0: native must fail closed. */
+    /* Whether the native is expected to DIVERGE on the two condition fields.
+     * Measured, not assumed: the warm leg already matches on both, and only the
+     * live leg does not. See the retraction in the header. */
+    int cc_diverges;
+    int arith_diverges;
 } leg_t;
 
 static const leg_t LEGS[] = {
     { "A warm", 0u, 0u, 0, 0u, UINT64_C(9151), UINT64_C(13), UINT64_C(14),
       UINT32_C(0x00000000), UINT32_C(0x00000000), UINT32_C(0),
-      UINT32_C(0x00023648), VF2_I960_COMPARE_EQUAL, 1 },
+      UINT32_C(0x00023648), VF2_I960_COMPARE_EQUAL, 1, 0, 0 },
     { "B live f0", UINT32_C(0x00000100), 0u, 1, UINT32_C(0x0000ffff),
       UINT64_C(9300), UINT64_C(12), UINT64_C(13),
       UINT32_C(0x00000000), UINT32_C(0xffffdffc), UINT32_C(2),
-      UINT32_C(0x00023648), VF2_I960_COMPARE_GREATER, 1 },
+      UINT32_C(0x00023648), VF2_I960_COMPARE_GREATER, 1, 1, 1 },
     { "C g6 bit0", UINT32_C(0x00040000), 0u, 0, 0u,
       UINT64_C(6193), UINT64_C(10), UINT64_C(11),
       UINT32_C(0x0000fffe), UINT32_C(0xffffffff), UINT32_C(1),
-      UINT32_C(0x00022428), VF2_I960_COMPARE_LESS, 0 },
+      UINT32_C(0x00022428), VF2_I960_COMPARE_LESS, 0, 0, 0 },
 };
 
 typedef struct {
@@ -205,25 +216,50 @@ static int side_apply(side_t *s, const leg_t *leg)
     return 1;
 }
 
-static int side_walk_to_entry(side_t *s, unsigned *walked)
+/* Drive the reference with vf2_i960_run, the same entry point vf2probe and the
+ * differential tooling use.
+ *
+ * This is not a stylistic choice. A hand-rolled `vf2_i960_step` loop over the
+ * same 7 instructions, from the same snapshot, in the same binary, produced a
+ * DIFFERENT compare_result at the shell entry (NONE instead of EQUAL) - which
+ * in turn changed the exit compare_result on every leg. See
+ * decomp/i960/notes/executor_harness_cc_divergence_v0733e.md. A fixture that
+ * measures compare state must measure it the way the tools do, or it is
+ * measuring its own harness. */
+static int side_run_to(side_t *s, uint32_t stop, unsigned long long *ran)
 {
-    size_t steps;
-    *walked = 0u;
-    for (steps = 0u; steps < 20000u; ++steps) {
-        if (s->cpu.ip == SHELL_ENTRY) {
-            break;
-        }
-        if (vf2_i960_step(&s->cpu, &s->m, NULL) != VF2_OK) {
-            fprintf(stderr, "FAILED: reference step to 0x%08x\n",
-                    (unsigned)SHELL_ENTRY);
-            return 0;
-        }
-        *walked = (unsigned)steps + 1u;
-    }
-    if (s->cpu.ip != SHELL_ENTRY) {
-        fprintf(stderr, "FAILED: never reached 0x%08x\n", (unsigned)SHELL_ENTRY);
+    vf2_i960_run_options options;
+    vf2_i960_run_result result;
+    vf2_status status;
+
+    memset(&options, 0, sizeof(options));
+    memset(&result, 0, sizeof(result));
+    options.stop_address = stop;
+    options.max_steps = 400000u;
+    options.stop_on_self_branch = true;
+    status = vf2_i960_run(&s->cpu, &s->m, &options, &result);
+    if (status != VF2_OK) {
+        fprintf(stderr, "FAILED: reference run to 0x%08x: %s\n", (unsigned)stop,
+                vf2_status_string(status));
         return 0;
     }
+    if (s->cpu.ip != stop) {
+        fprintf(stderr, "FAILED: reference stopped at 0x%08x, wanted 0x%08x\n",
+                (unsigned)s->cpu.ip, (unsigned)stop);
+        return 0;
+    }
+    *ran = (unsigned long long)result.executed_instructions;
+    return 1;
+}
+
+static int side_walk_to_entry(side_t *s, unsigned *walked)
+{
+    unsigned long long ran = 0u;
+    *walked = 0u;
+    if (!side_run_to(s, SHELL_ENTRY, &ran)) {
+        return 0;
+    }
+    *walked = (unsigned)ran;
     return 1;
 }
 
@@ -273,10 +309,10 @@ static int test_leg(const uint8_t *rom, size_t rom_sz, const uint8_t *data,
     unsigned reg_diffs = 0u;
     uint32_t which_reg = 0u;
     unsigned walked = 0u;
+    unsigned long long ran = 0u;
     int ref_cpu_at_entry_cc = 0;
     uint32_t ref_cpu_at_entry_arith = 0u;
     unsigned mismatches = 0u;
-    size_t steps;
     int result = 0;
 
     memset(&diff, 0, sizeof(diff));
@@ -314,19 +350,7 @@ static int test_leg(const uint8_t *rom, size_t rom_sz, const uint8_t *data,
             leg->name, ref.cpu.ip, walked, ref_cpu_at_entry_cc,
             ref_cpu_at_entry_arith);
 
-    for (steps = 0u; steps < 400000u; ++steps) {
-        if (ref.cpu.ip == SHELL_RETURN) {
-            break;
-        }
-        if (vf2_i960_step(&ref.cpu, &ref.m, NULL) != VF2_OK) {
-            fprintf(stderr, "FAILED %s: reference step through the shell\n",
-                    leg->name);
-            goto cleanup;
-        }
-    }
-    if (ref.cpu.ip != SHELL_RETURN) {
-        fprintf(stderr, "FAILED %s: reference never reached 0x%08x\n", leg->name,
-                (unsigned)SHELL_RETURN);
+    if (!side_run_to(&ref, SHELL_RETURN, &ran)) {
         goto cleanup;
     }
     ref_ins = ref.cpu.executed_instructions - ref_start_ins;
@@ -496,40 +520,30 @@ static int test_leg(const uint8_t *rom, size_t rom_sz, const uint8_t *data,
                 leg->name, reg_diffs, (unsigned)G14_INDEX);
         ++mismatches;
     }
-    if (nat.cpu.compare_result != NATIVE_CC_NONE) {
-        fprintf(stderr,
-                "MISMATCH %s: native cc %d, expected the unrecovered NONE\n",
-                leg->name, (int)nat.cpu.compare_result);
-        ++mismatches;
-    }
-    if (ref.cpu.compare_result == NATIVE_CC_NONE) {
-        fprintf(stderr,
-                "FAILED %s: the reference exit cc is NONE, so this leg no "
-                "longer demonstrates the compare_result divergence\n",
-                leg->name);
-        goto cleanup;
-    }
-    if (ref.cpu.arithmetic_control == nat.cpu.arithmetic_control) {
-        fprintf(stderr,
-                "FAILED %s: arithmetic_control is now equal (both 0x%08x) - "
-                "the divergence this file documents is gone\n",
-                leg->name, ref.cpu.arithmetic_control);
-        goto cleanup;
-    }
-    if ((ref.cpu.arithmetic_control & UINT32_C(2)) == 0u) {
-        fprintf(stderr,
-                "FAILED %s: the reference did not set the compare bit in "
-                "arithmetic_control (0x%08x), so this leg no longer "
-                "demonstrates that divergence\n",
-                leg->name, ref.cpu.arithmetic_control);
-        goto cleanup;
-    }
-    if ((nat.cpu.arithmetic_control & UINT32_C(2)) != 0u) {
-        fprintf(stderr,
-                "MISMATCH %s: native arithmetic_control 0x%08x already sets "
-                "the compare bit\n",
-                leg->name, nat.cpu.arithmetic_control);
-        ++mismatches;
+    /* Per-leg divergence set. The warm leg already agrees on both condition
+     * fields; only the live leg diverges. Asserting "always divergent" here
+     * would have hidden that, and asserting "never divergent" would have hidden
+     * the live gap. */
+    {
+        int cc_differs = (ref.cpu.compare_result != nat.cpu.compare_result);
+        int arith_differs =
+            (ref.cpu.arithmetic_control != nat.cpu.arithmetic_control);
+        if (cc_differs != leg->cc_diverges) {
+            fprintf(stderr,
+                    "MISMATCH %s: compare_result divergence is %d, measured %d "
+                    "(reference %d, native %d)\n",
+                    leg->name, cc_differs, leg->cc_diverges,
+                    (int)ref.cpu.compare_result, (int)nat.cpu.compare_result);
+            ++mismatches;
+        }
+        if (arith_differs != leg->arith_diverges) {
+            fprintf(stderr,
+                    "MISMATCH %s: arithmetic_control divergence is %d, "
+                    "measured %d (reference 0x%08x, native 0x%08x)\n",
+                    leg->name, arith_differs, leg->arith_diverges,
+                    ref.cpu.arithmetic_control, nat.cpu.arithmetic_control);
+            ++mismatches;
+        }
     }
 
     if (mismatches != 0u) {
@@ -538,8 +552,8 @@ static int test_leg(const uint8_t *rom, size_t rom_sz, const uint8_t *data,
     }
     fprintf(stderr,
             "%s: MATCH (%llu insn, %llu calls, %llu returns, g3=0x%08x "
-            "g4=0x%08x); 3 documented divergences: g14 0x%08x vs 0x%08x, "
-            "cc %d vs %d, arithmetic_control 0x%08x vs 0x%08x\n",
+            "g4=0x%08x); g14 0x%08x vs 0x%08x, cc %d vs %d, "
+            "arithmetic_control 0x%08x vs 0x%08x\n",
             leg->name, (unsigned long long)ref_ins, (unsigned long long)leg->calls,
             (unsigned long long)leg->rets, leg->g3, leg->g4, leg->ref_g14,
             nat.cpu.registers[G14_INDEX], (int)ref.cpu.compare_result,

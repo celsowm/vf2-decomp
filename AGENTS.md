@@ -262,6 +262,17 @@ At the time this handoff was written, `master` already contains:
     `compare_result` and `arithmetic_control` bit 1. **`compare_result` is
     entry-state dependent and therefore unpinnable — do not "fix" it from a
     single sample.** See `decomp/i960/notes/coli_shell_contract_v0733d.md`.
+  - **v0733e retracted two of those three.** `compare_result` and
+    `arithmetic_control` are **exact on the warm leg**; they diverge **only on
+    the live leg**. The v0733d "unpinnable" conclusion was an artifact of its own
+    fixture, which stepped the reference with a hand-rolled `vf2_i960_step` loop
+    while `vf2probe` and all the differential tooling use `vf2_i960_run`. **Any
+    fixture that steps the reference by hand measures a different machine — drive
+    it with `vf2_i960_run`.** What really remains: `g14` (path-dependent, never
+    published) and the live-leg condition state (`GREATER`/`0x3f001001` where the
+    native publishes the warm `EQUAL`/`0x3f001002`) — a real admitted-leg defect
+    no other test caught. The in-executor mechanism is **not yet isolated**. See
+    `decomp/i960/notes/executor_harness_cc_divergence_v0733e.md`.
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.
