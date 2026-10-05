@@ -225,6 +225,53 @@ the only difference is `r14` and memory reports no differences.
 tuple is COMMON-only; the nested `a7` editor; PUNCH/KICK at row 5. See
 `f1_manual_setting_entry_teardown_v0731.md`.
 
+## v0732b F3 row-3 release body: a COUNT of singular labels, not a table
+
+The 4421/4422 split is a counted rule with a mechanism:
+
+```text
+body = 4190 - (number of rendered credit values that equal 1)
+
+(6,40) <- credits[0]   (7,40) <- credits[2]
+(8,40) <- credits[4]   (9,40) <- credits[5]
+```
+
+`a5 == 4` keeps its own measured 4186 and is deliberately **not** covered by
+the count - one `a5 = 4` row is measured and it has no singular value, so the
+effect there is unknown rather than absent.
+
+**A hypothesis was falsified.** "`credits[3] == 3` gives 4421" is a
+coincidence: `credits[3] = 3` merely happens to be the only row where
+`credits[5] = 1`. Completing the domain settled it - `credits[3] = 6` also has
+`credits[5] = 1` and gives **4421**. The domain was completed by finishing the
+natural edit sequence (`f2-r3-e2end` / `f2-r3-e4end` are real edit-frame ends
+at `credits[3] = 4` and `6`; settle to `0x10fa0`, cross the frame IRQ, patch
+the release latch at `0x9ff8`), not by patching state. A separate controlled
+probe at `credits[3] = 0`, where **both** derived values are 1, gives **4420** -
+so it is a count, not a yes/no.
+
+Ten release frames now match on registers, memory, instruction count and call
+count: the original `f2-r2` / `f2-r3` / `f2-r4` plus `f2-r3-cl`, `f2-r3-n8-c`,
+`f2-r3-n9-c`, `f2-r3-n10-c`, `f2-r3-n11-c`, `f2-r3-k1-c`, `f2-r3-c3a-e2` and
+`f2-r3-c3a-e4`.
+
+**The singular label is a different string, not a substitution.**
+`write_text` at `0x007fc0` is a plain `0x8000 | char` writer with no
+conditional; the choice is a computed dispatch - `cmpobl` at `0x009478`
+compares the row label and `bx` at `0x00947c` jumps to a handler. The plural
+and singular handlers are separate and the singular one is one instruction
+shorter. That also disposes of the digit-stamper `cmpibne` sites:
+`sub_0005bd04` is `stos r15` / `addo 4, g9, g9` / `be` / `balx 0x9444` with
+`r15` = the credit byte OR'd with `0x8030`; there is no comparison against 1 in
+the digit path.
+
+Still open in F3: row 2 and row 4 **KICK** releases (only the PUNCH shapes are
+measured), KICK -1 from INDIVIDUAL mode (the `a5 = 4` release refuses the
+INDIVIDUAL variant explicitly, so it is a clean fail-closed start), and the
+`a5 = 4` singular case. The edit path's own 4636/4634 variation is also still
+refused, so nothing is silently accepted with a wrong count. See
+`f3_row3_release_count_rule_v0732.md`.
+
 ## v0732 rows 2-4 post-edit release frames RECOVERED and proven
 
 F2 is closed. All three measured release frames print `Snapshots match.` on

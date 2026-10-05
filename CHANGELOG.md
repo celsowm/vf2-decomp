@@ -1,5 +1,79 @@
 # Changelog
 
+## v0732b - F3 row-3 release body is a COUNT of singular labels, not a table
+
+The 4421/4422 split the first F3 pass could only fit is now a counted rule
+with a mechanism. Ten row-3/row-2/row-4 release frames print
+`Snapshots match.` on registers, memory, instruction count and call count.
+
+```text
+body = 4190 - (number of rendered credit values that equal 1)
+
+(6,40) <- credits[0]   (7,40) <- credits[2]
+(8,40) <- credits[4]   (9,40) <- credits[5]
+```
+
+`a5 == 4` keeps its own measured 4186 and is explicitly **not** covered by the
+count: only one `a5 = 4` row is measured and it has no singular value.
+
+### A hypothesis that was falsified
+
+The first reading of the six existing release artifacts was "`credits[3] == 3`
+gives 4421". That is a coincidence - `credits[3] = 3` merely happens to be the
+only row where `credits[5] = 1`. Completing the domain settled it:
+`credits[3] = 6` also has `credits[5] = 1` and gives **4421**.
+
+The domain was completed the honest way, by finishing the natural edit
+sequence: `f2-r3-e2end` / `f2-r3-e4end` are real edit-frame ends at
+`credits[3] = 4` and `6`, so settle to `0x10fa0`, cross the frame IRQ
+(`--raise-irq 0x1 --enter-interrupt 12=1 --until 0x9ff8`) and patch the
+release latch at that boundary. Both are naturally-reachable states.
+
+### The two-singular case
+
+A yes/no test cannot tell "any singular costs one" from "each costs one". A
+controlled probe at `credits[3] = 0`, where `t1[0] = 1` **and** `t2[0] = 1`, so
+two rendered values are 1, gives **4420** - the count, not a yes/no. That
+probe patches state and is a hypothesis test, not a recovery claim.
+
+| `credits[3]` | `credits[4]` | `credits[5]` | singulars | reference |
+|---|---|---|---|---|
+| 2 | 2 | 2 | 0 | 4422 |
+| 3 | 3 | 1 | 1 | 4421 |
+| 4 | 3 | 2 | 0 | 4422 |
+| 6 | 4 | 1 | 1 | 4421 |
+| 7 | 4 | 2 | 0 | 4422 |
+| 8 | 4 | 3 | 0 | 4422 |
+| 9 | 4 | 4 | 0 | 4422 |
+| 0 (probe) | 1 | 1 | 2 | 4420 |
+
+### Why one instruction per singular
+
+The singular label is not a substitution inside the emitter. `write_text` at
+`0x007fc0` is a plain `0x8000 | char` writer with no conditional; the trailing
+`'S'` becomes a space because a **different string** is passed. The choice is
+a computed dispatch: `cmpobl` at `0x009478` compares the row label against
+known strings and `bx` at `0x00947c` jumps to a handler. The plural and
+singular handlers are separate and the singular one is one instruction
+shorter.
+
+This also disposes of the digit-stamper `cmpibne` sites. `sub_0005bd04` is
+`stos r15` / `addo 4, g9, g9` / `be` / `balx 0x9444`, where `r15` is the credit
+byte OR'd with `0x8030` at `0x5bcfc`. There is no comparison against 1 in the
+digit path.
+
+### Validation
+
+117/117 ctest passed (1641.54 s) for this change, including
+`vf2_phase17_zero_differential`, `vf2_native_fifth_dispatch`,
+`vf2_native_sixth_dispatch` and `vf2_texture_bridge_differential`. Controls
+unchanged: `f2-r3-edit` 4637/44, `f2-r4-edit` 4635/43, `f2-r4-cl` 4425/41, all
+MATCH, and the a5=5 control `f1-a5-cl-0x4` still fails closed.
+
+Still open in F3: row 2 / row 4 KICK releases, KICK -1 from INDIVIDUAL mode,
+and the `a5 = 4` singular case. Evidence in
+`f3_row3_release_count_rule_v0732.md`.
+
 ## v0732 - F2 RECOVERED: rows 2-4 post-edit release frames match the reference
 
 All three measured post-edit release frames now pass the full differential

@@ -62,8 +62,11 @@ Per `docs/UNCOVERED_BRANCHES.md` and `decomp/i960/notes/v0727`:
 (`f1_manual_setting_entry_teardown_v0731.md`); F2 recovered at v0732
 (`f2_post_edit_release_recovered_v0732.md`), all three post-edit release
 frames matching on registers, memory, instruction count and call count.
-F3, F4 and F5 remain. The items below are kept verbatim as originally
-written so the original framing stays auditable.
+**F3 is partially closed** at v0732b: the row-3 release body is a counted
+singular-label rule (`f3_row3_release_count_rule_v0732.md`), with row 2 /
+row 4 KICK releases and KICK -1 from INDIVIDUAL mode still open. F4 and F5
+remain. The items below are kept verbatim as originally written so the
+original framing stays auditable.
 
 Each slice: 30-90 minutes of focused RAM-resident work plus a
 strict `vf2cmp|native-*` differential per the v0727 playbook.

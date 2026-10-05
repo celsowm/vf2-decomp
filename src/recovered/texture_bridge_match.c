@@ -9231,18 +9231,42 @@ static vf2_status execute_frame_phase17_bit7_index5(
         instructions = UINT64_C(4060);
         calls = UINT64_C(32);
     } else if (status == VF2_OK && post_edit_release) {
-        /* Measured post-edit release body lengths. The 4189/4186 figures are
-         * reference-executor deltas over the 0x9ff8 -> 0xa010 block measured
-         * with vf2probe (entry counted twice, run_instructions delta 4421 at
-         * a5=3 and 4418 at a5=4 against a 232-instruction prefix); a5=2 is
-         * 4422 and already agrees with the shared 4190 branch. The per-row
-         * cause of the 4189/4186 deltas is NOT yet disassembled - these are
-         * pinned measurements, not a derived rule. Only the post-edit
-         * release latch shape reaches here, so the shared 4190/4193
-         * branches above keep their own proven values. */
-        instructions = phase_a5 == UINT8_C(2)
-            ? UINT64_C(4190)
-            : (phase_a5 == UINT8_C(3) ? UINT64_C(4189) : UINT64_C(4186));
+        if (phase_a5 == UINT8_C(4)) {
+            /* COIN/CREDIT SETTING: its own body, measured once at 4418
+             * (4186 + the 232-instruction prefix) on the f2-r4 leg, where
+             * all four rendered credit values are 2. The singular-label
+             * subtraction below is NOT applied here - only one a5=4 row is
+             * measured and it has no singular value, so the effect is
+             * unknown on that row and must not be guessed. */
+            instructions = UINT64_C(4186);
+        } else {
+            /* Counted, not tabulated. Each of the four rendered credit
+             * values takes the singular label path when it is 1, and that
+             * path is exactly one instruction shorter. Measured across the
+             * whole natural domain of credits[3]:
+             *
+             *   credits[3] = 2  -> credits[4]=2 credits[5]=2 -> 0 -> 4422
+             *   credits[3] = 3  -> credits[4]=3 credits[5]=1 -> 1 -> 4421
+             *   credits[3] = 4  -> credits[4]=3 credits[5]=2 -> 0 -> 4422
+             *   credits[3] = 6  -> credits[4]=4 credits[5]=1 -> 1 -> 4421
+             *   credits[3] = 7  -> credits[4]=4 credits[5]=2 -> 0 -> 4422
+             *   credits[3] = 8  -> credits[4]=4 credits[5]=3 -> 0 -> 4422
+             *   credits[3] = 9  -> credits[4]=4 credits[5]=4 -> 0 -> 4422
+             *
+             * and a controlled probe at credits[3] = 0, where BOTH derived
+             * values are 1, gives 4420 - the two-singular case, which
+             * confirms the count rather than a yes/no test. The rule is
+             * driven by the four cells the renderer actually writes:
+             * (6,40) <- credits[0], (7,40) <- credits[2],
+             * (8,40) <- credits[4], (9,40) <- credits[5]. */
+            static const uint8_t rendered_cells[4] = {0u, 2u, 4u, 5u};
+            uint64_t singular = 0u;
+            size_t cell = 0u;
+            for (cell = 0u; cell < 4u; ++cell) {
+                if (credits[rendered_cells[cell]] == UINT8_C(1)) ++singular;
+            }
+            instructions = UINT64_C(4190) - singular;
+        }
     } else if (status == VF2_OK && test_held_entry != 0 &&
                released_flags == 0u && phase_a5 >= UINT8_C(1) &&
                (coin_flags & UINT32_C(1)) != 0u) {
