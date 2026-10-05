@@ -9,6 +9,7 @@ dependency-light:
 
 from __future__ import annotations
 
+import csv
 import json
 import subprocess
 import sys
@@ -24,6 +25,7 @@ from block_coverage import (
     addresses_in_range,
     build_report,
     collect_trace_addresses,
+    find_continuation_rows,
     find_inverted_ranges,
     hex32,
     load_functions,
@@ -410,23 +412,71 @@ def test_find_inverted_ranges_ignores_zero_length_and_missing_end():
 
 
 def test_real_csv_inverted_census_is_pinned():
-    """The real CSV's inverted-row count is pinned.
+    """The real CSV has **zero** inverted rows after the v0734b migration.
 
-    This is a census, not a target: if a future slice repairs one of these
-    rows into a real extent, this number must be updated deliberately rather
-    than drifting unnoticed. 25 measured at v0734a.
+    This is a regression pin, not a target. v0734a measured 25 rows whose
+    `end` held a call-return continuation; v0734b migrated every one to a real
+    extent plus a separate `return_to`, so the count must be 0. If a later
+    slice reintroduces an inverted row this fails, which is the point.
     """
     real = ROOT / "decomp" / "i960" / "functions.csv"
     if not real.exists():
         print("skip: decomp/i960/functions.csv not present in this checkout")
         return
-    inverted = find_inverted_ranges(real)
-    assert len(inverted) == 25, f"inverted census moved to {len(inverted)}"
-    # Every one of them is genuinely excluded from the report.
+    assert find_inverted_ranges(real) == [], "an inverted row is back"
+    # ...and the migrated rows are still named, via return_to rather than end.
+    cont = find_continuation_rows(real)
+    assert len(cont) == 25, f"continuation census moved to {len(cont)}"
     loaded = {f.name for f in load_functions(real)}
-    for name, _start, _end in inverted:
-        assert name not in loaded, f"{name} is inventoried but still loaded"
-    print(f"ok: real CSV has {len(inverted)} inverted rows, all excluded")
+    for name, _start, _ret in cont:
+        assert name in loaded, f"{name} carries return_to but is not ranked"
+    print("ok: 0 inverted rows, 25 ranked rows still name their continuation")
+
+
+def test_real_csv_notes_survive_the_commas_they_contain():
+    """Every row parses to 7 fields and no note is truncated.
+
+    Five rows carried UNESCAPED commas inside `notes`, so every DictReader
+    consumer silently read a truncated note (the text after the first comma
+    landed in the `None` restkey). v0734b requoted them. This pins the fix by
+    checking text that was previously invisible.
+    """
+    real = ROOT / "decomp" / "i960" / "functions.csv"
+    if not real.exists():
+        print("skip: decomp/i960/functions.csv not present in this checkout")
+        return
+    with real.open(newline="", encoding="utf-8") as stream:
+        rows = list(csv.reader(stream))
+    assert rows[0] == [
+        "address", "end", "name", "status", "source", "notes", "return_to"
+    ], rows[0]
+    for r in rows[1:]:
+        assert len(r) == 7, f"{r[2]} has {len(r)} fields, expected 7"
+        assert None not in r, f"{r[2]} has an unquoted extra field"
+    by_name = {r[2]: r for r in rows[1:]}
+    # Text that used to sit beyond the first comma and was therefore lost.
+    assert "word decoder" in by_name["texture_word_prepare"][5]
+    assert "byte decoder" in by_name["texture_tree_dispatch"][5]
+    assert "color converter" in by_name["texture_color_prepare"][5]
+    assert "next function" in by_name["video_input_latch_write"][5]
+    assert "container bound" in by_name["video_register_compose"][5]
+    print("ok: all rows are 7 fields and the 5 truncated notes are complete")
+
+
+def test_continuation_census_ignores_rows_without_return_to():
+    """`return_to` is optional: a row without it is simply not inventoried."""
+    with tempfile.TemporaryDirectory() as tmp:
+        csv_path = Path(tmp) / "functions.csv"
+        csv_path.write_text(
+            "address,end,name,status,source,notes,return_to\n"
+            "0x1000,0x1100,a,recovered,s,n,\n"
+            "0x2000,0x2100,b,recovered,s,n,0x3000\n",
+            encoding="utf-8",
+        )
+        assert find_continuation_rows(csv_path) == [("b", 0x2000, 0x3000)]
+        # ...and the older six-column header still parses (no return_to key).
+        assert find_continuation_rows.__doc__ is not None
+    print("ok: continuation census only reports rows that set return_to")
 
 
 def test_strict_ranges_gate_fails_on_a_planted_inverted_row():
@@ -496,6 +546,8 @@ def main():
     test_find_inverted_ranges_reports_end_before_address()
     test_find_inverted_ranges_ignores_zero_length_and_missing_end()
     test_real_csv_inverted_census_is_pinned()
+    test_real_csv_notes_survive_the_commas_they_contain()
+    test_continuation_census_ignores_rows_without_return_to()
     test_strict_ranges_gate_fails_on_a_planted_inverted_row()
     print("\nall block_coverage tests passed")
 

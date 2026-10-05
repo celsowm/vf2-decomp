@@ -1,5 +1,76 @@
 # Changelog
 
+## v0734b: `end` is now always an extent — the 25 inverted rows are migrated, and 5 rows were losing half their note
+
+Phase 1.2b. v0734a found that `functions.csv`'s `end` column carried two
+different quantities and that 25 rows were deleted from every report. This is
+the repair, done with the schema change v0734a called for rather than by
+rewriting `end` into a guess.
+
+**`end` is now always a code extent.** The call-return continuation moves to a
+new trailing `return_to` column:
+
+```text
+address,end,name,status,source,notes,return_to
+```
+
+Trailing is deliberate. `src/analysis/symbols.c` reads this file by column
+**index** (`name_column = 2`), so an inserted column would have silently renamed
+every function. It caps at 8 fields and reads only indices 0 and 2, so a 7th is
+ignored — verified rather than assumed: the C analyzer still resolves **53
+user-named functions and an identical 263-name set**, with `basic_blocks`
+unchanged at 3758.
+
+**A row was migrated only with an independent second source**: the instruction
+at `measured_end - 4` decoding as `ret` straight from the ROM (independent of the
+CFG sweep), plus, for 9 rows, `measured_end` equalling another row's address.
+**24 of 25 confirmed; 0 refused.**
+
+`main_post_timer` is the case worth reading: its extent is a **lower bound**,
+not an extent. Its highest block ends `b 0x00009fb0`, not `ret`, so the sweep
+stops at `0xa048` and never reaches the `b 0x0000a0c0` sitting there. Its `notes`
+now say so in place. Three more are lower bounds because the sweep cannot follow
+indirect flow: `frame_dispatch_tick`, `player_update_gate`,
+`tile_controller_update`. **A lower bound must not be laundered into an
+extent** — all four are labelled, not repaired.
+
+The refusal path is proven, not assumed: the classifier fed `0xa030` reports
+`call` and refuses.
+
+**Second defect found and fixed: five rows were losing half their note.** They
+carried an *unescaped comma* inside `notes`, so `csv.DictReader` split them into
+seven fields and everything past the first comma landed in the `None` restkey —
+silently, for every consumer. `texture_word_prepare`'s note really ends "...prepares
+the **word decoder**"; nobody reading the table could see it. All five are quoted
+now. The migration script itself dropped that text on its first attempt; the
+102-line field audit is what caught it.
+
+Effect:
+
+| | before | after |
+|---|---|---|
+| bounded rows visible to `block_coverage.py` | 69 | **94** |
+| inverted rows | 25, deleted silently | **0** |
+| rows with truncated notes | 5 | **0** |
+| rows naming their continuation | 0 | **25** |
+
+**The published number is unchanged** — `decomp_dev_report.py` still reports
+`2336/524288 program-ROM bytes (0.4456%), 13/13 fully tracked functions`, exactly
+as v0734a's audit predicted, now confirmed by construction rather than inference.
+
+Both gates proven able to fail by planting the defect:
+
+| planted defect | failure |
+|---|---|
+| unquote a note containing a comma | `texture_word_prepare has 8 fields, expected 7` |
+| restore an inverted `end` | `an inverted row is back` |
+
+`--strict-ranges` now exits 0 on the real CSV, having exited 1 before; that
+transition is the fix.
+
+`test_block_coverage.py` 24/24 (was 21/21). See
+`decomp/i960/notes/function_extent_migrated_v0734b.md`.
+
 ## v0734a: `functions.csv`'s `end` column is overloaded — 25 rows were being deleted from every report silently
 
 Phase 1.1 of the completion plan asked whether `vf2i960 function` could be turned

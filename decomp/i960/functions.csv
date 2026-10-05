@@ -1,102 +1,102 @@
-address,end,name,status,source,notes
-0x000000b0,0x000001b0,boot_entry,recovered,reset-vector+differential,Initial CPU and RAM setup
-0x000001b0,0x0000052c,boot_stage_2,recovered,manual-entry+differential,Post-IAC hardware initialization
-0x00000b58,0x00000b6c,iac_reinitialize_copy,recovered,dynamic-differential+boot,Observed boot quad-copy leaf at both call sites; exact CPU condition state registers instruction counts and RAM
-0x00010cbc,0x00010d54,task_registry_initialize,recovered,manual+differential,29-entry scheduler registry initializer
-0x00010d54,,scheduler_dispatch,recovered-prefix,dynamic+semantic,Runnable registry scan and indirect dispatch
-0x0001645c,0x00016504,task_game_info,recovered-first-dispatch,dynamic-differential,Direct no-call first-dispatch branch
-0x000221e8,0x00010dcc,task_coli,recovered-observed-branch,dynamic-differential,Whole-task fa_coli corridor admits the measured 9398/17/18 stale-empty witness in addition to the existing matrix
-0x00029748,0x0002974c,task_user,recovered,dynamic-differential,Complete no-op task
-0x000439fc,0x00043a40,task_sound_initialize,recovered,dynamic-differential,Complete first-entry initializer
-0x000640f4,0x0006428c,task_osage,recovered-first-dispatch,dynamic-differential,Initialization path for both instances
-0x0001d320,0x0001eff0,task_camera,recovered-prefixes,dynamic-differential,Initialization update and observed post-update fast gate match
-0x000657dc,0x00065838,task_kill_osage,recovered,dynamic-differential,Complete timer-derived two-record evaluation
-0x000214dc,0x00021550,camera_classify_range,recovered,dynamic-differential,Complete scalar helper
-0x00020558,0x00020660,camera_derived_state_update,recovered-observed-branch,dynamic-differential,First-dispatch early return after task flag bit 8
-0x0001fc00,0x0001fcc0,camera_mode_dispatch,recovered-observed-branch,dynamic-differential,First-dispatch early return while input flag bit 6 is clear
-0x0001d660,0x0001d984,camera_post_update_gate,recovered-control-block,dynamic-differential,Observed fast return at 0x1e524 and normal flag path through 0x1d984
-0x0001d678,0x0001d8e8,camera_viewport_construct,recovered-control-block,synthetic-differential,Optional fixed and calculated viewport table construction
-0x0001fbb4,,camera_range_window,recovered,synthetic-differential,Centered range helper
-0x0001facc,,camera_fill_viewport_table,recovered,synthetic-differential,ROM-backed viewport lookup table fill
-0x00009444,,inline_text_thunk,recovered-observed-branch,dynamic-differential,v0.0.22 balx-continuation inline string thunk
-0x0004d2c0,,texture_status_line,recovered-observed-branch,dynamic-differential,v0.0.22 texture TEX/t4e status line writer
-0x0000281c,,game_state_classify,recovered-observed-branch,dynamic-differential,v0.0.22 observed game-state classifier
-0x000026ec,,game_color_lookup,recovered-observed-branch,dynamic-differential,v0.0.22 color/control lookup with 0x00010101 adjustment
-0x000028d4,0x00002a10,game_threshold_evaluate,recovered-observed-branch,dynamic-differential+unit,Combines two color lookups and a game-state classification into the observed below-nine threshold result; observed twice
-0x0006dcb8,0x0000a03c,system_memory_diagnostic,recovered-observed-branch,dynamic-differential+unit,Runs the observed four-byte memory probe and increments the mirrored 64-bit diagnostic counter in seventy-five instructions
-0x000110f4,0x00000ce0,video_input_sync,recovered-observed-branch,dynamic-differential+unit,Synchronizes input latch bits and runtime video flags in twenty-eight instructions
-0x000112f8,0x0000a040,frame_counter_advance,recovered-observed-branch,dynamic-differential+unit,Advances the observed frame counter and validates its phase mask in twenty-one instructions
-0x00011c78,0x0000a044,frame_phase_advance,recovered-observed-branch,dynamic-differential+unit,Advances and mirrors the packed frame phase byte in ten instructions
-0x00000530,0x00009ffc,frame_shadow_verify,recovered-observed-branch,dynamic-differential+unit,Verifies nine live bytes against their shadow copy and returns in twenty-eight instructions
-0x000110b0,0x0000a004,frame_buffer_gate,recovered-observed-branch,dynamic-differential+unit,Loads both frame-buffer records and follows the observed clear-bit gate in nine instructions
-0x0000a6c0,0x0000a010,frame_dispatch_tick,recovered-observed-branch,dynamic-differential+unit,Mirrors the frame selector and executes the observed countdown callback in fourteen instructions
-0x000438ec,0x00002020,game_event_queue_write,recovered-observed-branch,dynamic-differential+unit,Queues the observed game event and returns in nineteen instructions
-0x0004b8d8,0x0004bb98,texture_maintenance,recovered-observed-branch,dynamic-differential+unit,Performs two texture-record consistency checks and returns in seventeen instructions
-0x0004ba80,0x00002de4,texture_upload_dispatch,recovered-observed-branch,dynamic-differential+unit,Checks three upload sentinels and enters palette upload in ten instructions
-0x0004bd00,0x0004bd24,texture_orchestrator_entry_gate,recovered-observed-branch,dynamic-differential+unit,Zero orchestrator state enters the record loop in two instructions
-0x0004bd5c,0x0004bde0,texture_record_status_setup,recovered-observed-branch,dynamic-differential+unit,Handles the direct branch and active record setup paths across four visits
-0x0004be6c,0x0004c180,texture_stream_header_call,recovered-observed-branch,dynamic-differential+unit,Loads the encoded stream and enters the header decoder in five instructions; observed four times
-0x0004bd24,0x0004d2c0,texture_status_dispatch_call,recovered-observed-branch,dynamic-trace+unit,Four observed record dispatches recover eight instructions each
-0x0004bde0,0x0004d16c,texture_active_prepare_call,recovered-observed-branch,dynamic-differential+unit,Loads the active record and coordinate table state then enters the address-table helper in twenty-two instructions; observed four times
-0x0004c180,0x0004c3f0,texture_header_decode,recovered-observed-branch,dynamic-differential+unit,Decodes the bit-packed texture header and prepares the symbol-table builder in 120 instructions; observed four times
-0x0004c544,0x0004c6e0,texture_tree_dispatch,recovered-observed-branch,dynamic-differential+unit,Saves the wrapper frame, expands the decode tree and prepares the byte decoder; sixty-three wrapper instructions plus the recovered tree; observed four times
-0x0004cb64,0x0004cc28,texture_word_prepare,recovered-observed-branch,dynamic-differential+unit,Computes the timer threshold, executes the recovered timer helper and prepares the word decoder; observed four times
-0x0004cd18,0x0004cdb0,texture_color_prepare,recovered-observed-branch,dynamic-differential+unit,Computes the timer threshold, executes the recovered timer helper and prepares the color converter; observed four times
-0x0004bd24,0x0004bf90,texture_status_scan_end,recovered-observed-branch,dynamic-differential+unit,Final pass scans ten inactive records in 43 instructions through the hybrid bridge
-0x0004bebc,0x0004cb64,texture_child_zero_gate_a,recovered-observed-branch,dynamic-differential+unit,Zero child-state path enters 0x0004cb64 in three instructions through the hybrid bridge; observed four times
-0x0004bef4,0x0004cd18,texture_child_zero_gate_b,recovered-observed-branch,dynamic-differential+unit,Zero child-state path enters 0x0004cd18 in three instructions through the hybrid bridge; observed four times
-0x0004bf2c,0x0004bf60,texture_loop_zero_gate,recovered-observed-branch,dynamic-differential+unit,Zero child-state loop-tail branch in two instructions through the hybrid bridge; observed four times
-0x0004bf60,0x0004bd24,texture_record_advance,recovered-observed-branch,dynamic-differential+unit,Positive record count decrements and advances both source pointers in twelve instructions; observed four times
-0x0004bf90,0x0004d25c,texture_final_status_call,recovered-observed-branch,dynamic-trace+unit,Final counter gate clears status and enters the final status helper
-0x0004bfdc,0x0004bb94,texture_body_return,recovered-control-block,dynamic-trace+unit,Architectural return from the texture body
-0x0004bb94,0x0004b8d8,texture_post_body_call,recovered-control-block,dynamic-trace+unit,Post-body call into the short maintenance helper
-0x0004bb98,0x0004bc58,texture_counter_update,recovered-observed-branch,dynamic-differential+unit,Two zero counters are skipped and the third counter is decremented in fourteen instructions
-0x0004bc58,0x0000a034,texture_orchestrator_epilogue,recovered-control-block,dynamic-trace+unit,Restores 28 saved registers and returns to the main loop
-0x0004bb18,0x0004bcd4,texture_orchestrator_save_call,recovered-control-block,dynamic-trace+unit,Twenty register-save instructions plus the call into 0x0004bcd4
-0x0004bcd4,0x0004bfe0,texture_frame_gate_call,recovered-observed-branch,dynamic-trace+unit,Zero-frame-state path clears 0x0050006d and calls 0x0004bfe0
-0x0004bfe0,0x0004c120,texture_default_limits_select,recovered-observed-branch,dynamic-differential+unit,Default observed branch validated by the ROM-backed native second-dispatch match
-0x000020f0,0x00001f98,game_meter_update,recovered-observed-branch,dynamic-differential+unit,Composes threshold and color helpers into the observed two-meter update in 389 architectural instructions
-0x0000a748,0x0000a014,frame_geometry_gate,recovered-observed-branch,dynamic-differential+unit,Observed clear geometry flags return in five instructions plus recovered 0x0000a75c busy retry-write and 0x0000a778 alt-return; unobserved 0x0000a784 deep reset (0x00008ef0 0x0006116c 0x000000b0) still rejected
-0x00001064,0x00001200,video_register_compose,recovered-observed-branch,dynamic-differential+unit,Composes and commits the observed packed video register state in sixty-three instructions. v0733b: end was 0x0000cfc0, a container bound; ret is at 0x11fc and 0x1200 is the next function
-0x00001290,0x000012bc,video_input_latch_write,recovered-observed-branch,dynamic-differential+unit,Writes the observed input latch and returns in seven instructions. v0733b: end was 0x0000cfcc, a container bound; ret is at 0x12b8 and 0x12bc is the next function
-0x00024534,0x0000cfd0,player_update_gate,recovered-observed-branch,dynamic-differential+unit,Observed clear player-update gate returns in five instructions
-0x00023f6c,0x0000cfd4,video_layer_commit,recovered-observed-branch,dynamic-differential+unit,Commits the observed layer state in forty instructions
-0x00001e6c,0x0000cfd8,input_bit0_sequence_gate,recovered-observed-branch,dynamic-differential+unit,Observed zero index/countdown bit-zero gate returns in seven instructions
-0x00001edc,0x0000cfdc,input_bit1_sequence_gate,recovered-observed-branch,dynamic-differential+unit,Observed zero index/countdown bit-one gate returns in seven instructions
-0x000012d8,0x0000cfe0,input_ring_poll,recovered-observed-branch,dynamic-differential+unit,Equal producer and consumer path returns minus one in five instructions
-0x00044268,0x0000cfe4,tile_runtime_gate,recovered-observed-branch,dynamic-differential+unit,Observed clear tile runtime flags return in four instructions
-0x00001abc,0x00000c90,game_input_update,recovered-observed-branch,dynamic-differential,Composes both observed input sequence gates and returns to the interrupt dispatcher
-0x00001f5c,0x00000cd4,game_state_update,recovered-observed-branch,dynamic-differential,Composes classification threshold event and meter helpers for the observed frame state
-0x0004e808,0x00000cdc,tile_controller_update,recovered-observed-branch,dynamic-differential,Runs the observed tile controller path and the recovered glyph expansion
-0x00010f08,0x00010f90,frame_timer_prefix,recovered-observed-branch,dynamic-differential,Computes frame timing state and enters the recovered four-visit wait phase
-0x00000bc0,0x00000c00,interrupt_save_prefix,recovered-control-block,dynamic-differential,Saves the observed interrupt working set and validates the runtime enable flag
-0x00000d30,0x00000040,interrupt_ack,recovered-control-block,static-lift+unit-differential,Stores the measured interrupt acknowledge value at 0x00e80000 and returns
-0x00000c0c,0x00000c78,interrupt_buffer_gate,recovered-observed-branch,dynamic-differential,Processes the observed interrupt buffer and geometry gate path
-0x00000c94,0x00000cd4,interrupt_input_ring,recovered-observed-branch,dynamic-differential,Runs the observed input ring poll and control-flow tail
-0x00000ce0,0x00000d20,interrupt_restore_prefix,recovered-control-block,dynamic-differential,Restores the interrupt working set up to the architectural return
-0x00010fa4,0x0000a038,frame_timer_suffix,recovered-observed-branch,dynamic-differential,Completes the changed-frame-byte timer path and returns to the main loop
-0x0004d25c,0x0004d2bc,texture_status_tail,recovered-observed-branch,dynamic-differential,Completes the final texture status text path through the shared inline thunk
-0x00000c78,0x00000c80,interrupt_player_layer,recovered-control-block,dynamic-differential,Composes player-update and video-layer procedures
-0x00000c80,0x00000c90,interrupt_game_input,recovered-observed-branch,dynamic-differential,Checks the runtime flag and executes the complete game-input update
-0x00000c90,0x00000c94,interrupt_game_state,recovered-control-block,dynamic-differential,Calls the complete observed game-state update
-0x00000cd4,0x00000ce0,interrupt_tile_sync,recovered-control-block,dynamic-differential,Composes tile runtime controller and video-input synchronization procedures
-0x0000a038,0x00009fb0,main_post_timer,recovered-control-block,dynamic-differential,Composes memory diagnostic frame counters and the branch into the main clear tail
-0x00009fb0,0x00009ff8,main_clear_prefix,recovered-observed-branch,dynamic-differential,Clears the observed main-loop globals and validates the runtime gate
-0x00009ff8,0x0000a010,main_final_cluster,recovered-control-block,dynamic-differential,Composes shadow buffer geometry scratch and frame-dispatch helpers
-0x0000a014,0x0000a030,main_geometry_prefix,recovered-control-block,dynamic-differential,Commits geometry applies the gate and advances the frame counter
-0x0000a030,0x0004bcd4,main_texture_orchestrator_call,recovered-control-block,dynamic-differential,Enters the texture orchestrator and performs its complete register-save prefix
-0x0000a034,0x00010f90,main_frame_timer_call,recovered-control-block,dynamic-differential,Enters the frame timer and executes its recovered prefix
-0x00000c00,0x00000c0c,interrupt_initial_cluster,recovered-control-block,dynamic-differential,Composes video register input latch texture upload and both nested returns
-0x00010f90,0x00000bc0,frame_wait_poll,recovered-observed-branch,dynamic-differential+unit,Executes seven polling instructions four visits and vector-12 interrupt injection
-0x00000d20,0x00010fa4,interrupt_return_wait_exit,recovered-observed-branch,dynamic-differential+unit,Returns from the interrupt records the resumed wait visit and exits on the changed frame byte
-0x0004b410,0x0004b44c,video_command_submit,recovered-rom-anchor,rom-disassembly,Stores command selector 3 plus r0/r1/r2 at 0x005502e0 then returns
-0x00002c38,0x00002de4,color_table_rebuild,recovered-rom-anchor,rom-disassembly,Clears and rebuilds 0x00546008 channel triples then commits ready=1 busy=0
-0x00011704,0x00011744,video_table_expand_128,recovered-rom-anchor,rom-disassembly,Copies 128 source bytes per outer iteration to 32-bit-spaced destination entries
-0x00065838,0x000658a4,kill_osage_evaluate_record,recovered-rom-anchor,rom-disassembly,Shared fa_kill_osage record evaluator; continuation/flag gate age threshold bit-3 mark and global kill counter exactly match the semantic helper in src/recovered/tasks.c
-0x0006ca64,0x0006ca78,task_object,recovered-observed-branch,dynamic-differential,fa_object0/1/2 dispatcher: instance-indexed table at 0x6ca78 rewrites registry+0x0c
-0x0006cae0,0x0006caf0,task_object_init0,recovered-observed-branch,dynamic-differential,fa_object0 init stub: rewrites registry+0x0c to 0x6caf0 then returns
-0x0006caf0,0x0006caf4,task_object_init0_ret,recovered-observed-branch,dynamic-differential,Bare ret continuation for fa_object0
-0x0006caf4,0x0006cb04,task_object_init1,recovered-observed-branch,dynamic-differential,fa_object1 init stub: rewrites registry+0x0c to 0x6cb04 then returns
-0x0006cb04,0x0006cb08,task_object_init1_ret,recovered-observed-branch,dynamic-differential,Bare ret continuation for fa_object1
-0x0006cb08,0x0006cb0c,task_object_init2,recovered-observed-branch,dynamic-differential,fa_object2 handler: bare ret
-0x0006ca84,0x0006cad0,object_service_loop,recovered,dynamic-differential+runtime,Iterates the three object control blocks in reverse table order; bit-31-active entries call registry+0x0c; helper and public native runtime match ROM CPU and RAM exactly
+address,end,name,status,source,notes,return_to
+0x000000b0,0x000001b0,boot_entry,recovered,reset-vector+differential,Initial CPU and RAM setup,
+0x000001b0,0x0000052c,boot_stage_2,recovered,manual-entry+differential,Post-IAC hardware initialization,
+0x00000b58,0x00000b6c,iac_reinitialize_copy,recovered,dynamic-differential+boot,Observed boot quad-copy leaf at both call sites; exact CPU condition state registers instruction counts and RAM,
+0x00010cbc,0x00010d54,task_registry_initialize,recovered,manual+differential,29-entry scheduler registry initializer,
+0x00010d54,,scheduler_dispatch,recovered-prefix,dynamic+semantic,Runnable registry scan and indirect dispatch,
+0x0001645c,0x00016504,task_game_info,recovered-first-dispatch,dynamic-differential,Direct no-call first-dispatch branch,
+0x000221e8,0x00022298,task_coli,recovered-observed-branch,dynamic-differential,"Whole-task fa_coli corridor admits the measured 9398/17/18 stale-empty witness in addition to the existing matrix v0734b: end was 0x00010dcc, a call-return continuation (now in return_to); extent measured by vf2i960 function and confirmed by `ret` at 0x00022294",0x00010dcc
+0x00029748,0x0002974c,task_user,recovered,dynamic-differential,Complete no-op task,
+0x000439fc,0x00043a40,task_sound_initialize,recovered,dynamic-differential,Complete first-entry initializer,
+0x000640f4,0x0006428c,task_osage,recovered-first-dispatch,dynamic-differential,Initialization path for both instances,
+0x0001d320,0x0001eff0,task_camera,recovered-prefixes,dynamic-differential,Initialization update and observed post-update fast gate match,
+0x000657dc,0x00065838,task_kill_osage,recovered,dynamic-differential,Complete timer-derived two-record evaluation,
+0x000214dc,0x00021550,camera_classify_range,recovered,dynamic-differential,Complete scalar helper,
+0x00020558,0x00020660,camera_derived_state_update,recovered-observed-branch,dynamic-differential,First-dispatch early return after task flag bit 8,
+0x0001fc00,0x0001fcc0,camera_mode_dispatch,recovered-observed-branch,dynamic-differential,First-dispatch early return while input flag bit 6 is clear,
+0x0001d660,0x0001d984,camera_post_update_gate,recovered-control-block,dynamic-differential,Observed fast return at 0x1e524 and normal flag path through 0x1d984,
+0x0001d678,0x0001d8e8,camera_viewport_construct,recovered-control-block,synthetic-differential,Optional fixed and calculated viewport table construction,
+0x0001fbb4,,camera_range_window,recovered,synthetic-differential,Centered range helper,
+0x0001facc,,camera_fill_viewport_table,recovered,synthetic-differential,ROM-backed viewport lookup table fill,
+0x00009444,,inline_text_thunk,recovered-observed-branch,dynamic-differential,v0.0.22 balx-continuation inline string thunk,
+0x0004d2c0,,texture_status_line,recovered-observed-branch,dynamic-differential,v0.0.22 texture TEX/t4e status line writer,
+0x0000281c,,game_state_classify,recovered-observed-branch,dynamic-differential,v0.0.22 observed game-state classifier,
+0x000026ec,,game_color_lookup,recovered-observed-branch,dynamic-differential,v0.0.22 color/control lookup with 0x00010101 adjustment,
+0x000028d4,0x00002a10,game_threshold_evaluate,recovered-observed-branch,dynamic-differential+unit,Combines two color lookups and a game-state classification into the observed below-nine threshold result; observed twice,
+0x0006dcb8,0x0006dd4c,system_memory_diagnostic,recovered-observed-branch,dynamic-differential+unit,"Runs the observed four-byte memory probe and increments the mirrored 64-bit diagnostic counter in seventy-five instructions v0734b: end was 0x0000a03c, a call-return continuation (now in return_to); extent measured by vf2i960 function and confirmed by `ret` at 0x0006dd48",0x0000a03c
+0x000110f4,0x0001128c,video_input_sync,recovered-observed-branch,dynamic-differential+unit,"Synchronizes input latch bits and runtime video flags in twenty-eight instructions v0734b: end was 0x00000ce0, a call-return continuation (now in return_to); extent measured by vf2i960 function and confirmed by `ret` at 0x00011288",0x00000ce0
+0x000112f8,0x000113f4,frame_counter_advance,recovered-observed-branch,dynamic-differential+unit,"Advances the observed frame counter and validates its phase mask in twenty-one instructions v0734b: end was 0x0000a040, a call-return continuation (now in return_to); extent measured by vf2i960 function and confirmed by `ret` at 0x000113f0",0x0000a040
+0x00011c78,0x00011cb4,frame_phase_advance,recovered-observed-branch,dynamic-differential+unit,"Advances and mirrors the packed frame phase byte in ten instructions v0734b: end was 0x0000a044, a call-return continuation (now in return_to); extent measured by vf2i960 function and confirmed by `ret` at 0x00011cb0",0x0000a044
+0x00000530,0x00009ffc,frame_shadow_verify,recovered-observed-branch,dynamic-differential+unit,Verifies nine live bytes against their shadow copy and returns in twenty-eight instructions,
+0x000110b0,0x000110f4,frame_buffer_gate,recovered-observed-branch,dynamic-differential+unit,"Loads both frame-buffer records and follows the observed clear-bit gate in nine instructions v0734b: end was 0x0000a004, a call-return continuation (now in return_to); extent measured by vf2i960 function and confirmed by `ret` at 0x000110f0; end equals the start of video_input_sync",0x0000a004
+0x0000a6c0,0x0000a6f8,frame_dispatch_tick,recovered-observed-branch,dynamic-differential+unit,"Mirrors the frame selector and executes the observed countdown callback in fourteen instructions v0734b: end was 0x0000a010, a call-return continuation (now in return_to); extent measured by vf2i960 function and confirmed by `ret` at 0x0000a6f4; indirect flow present so this is a LOWER BOUND",0x0000a010
+0x000438ec,0x00043950,game_event_queue_write,recovered-observed-branch,dynamic-differential+unit,"Queues the observed game event and returns in nineteen instructions v0734b: end was 0x00002020, a call-return continuation (now in return_to); extent measured by vf2i960 function and confirmed by `ret` at 0x0004394c",0x00002020
+0x0004b8d8,0x0004bb98,texture_maintenance,recovered-observed-branch,dynamic-differential+unit,Performs two texture-record consistency checks and returns in seventeen instructions,
+0x0004ba80,0x0004bb18,texture_upload_dispatch,recovered-observed-branch,dynamic-differential+unit,"Checks three upload sentinels and enters palette upload in ten instructions v0734b: end was 0x00002de4, a call-return continuation (now in return_to); extent measured by vf2i960 function and confirmed by `ret` at 0x0004bb14; end equals the start of texture_orchestrator_save_call",0x00002de4
+0x0004bd00,0x0004bd24,texture_orchestrator_entry_gate,recovered-observed-branch,dynamic-differential+unit,Zero orchestrator state enters the record loop in two instructions,
+0x0004bd5c,0x0004bde0,texture_record_status_setup,recovered-observed-branch,dynamic-differential+unit,Handles the direct branch and active record setup paths across four visits,
+0x0004be6c,0x0004c180,texture_stream_header_call,recovered-observed-branch,dynamic-differential+unit,Loads the encoded stream and enters the header decoder in five instructions; observed four times,
+0x0004bd24,0x0004d2c0,texture_status_dispatch_call,recovered-observed-branch,dynamic-trace+unit,Four observed record dispatches recover eight instructions each,
+0x0004bde0,0x0004d16c,texture_active_prepare_call,recovered-observed-branch,dynamic-differential+unit,Loads the active record and coordinate table state then enters the address-table helper in twenty-two instructions; observed four times,
+0x0004c180,0x0004c3f0,texture_header_decode,recovered-observed-branch,dynamic-differential+unit,Decodes the bit-packed texture header and prepares the symbol-table builder in 120 instructions; observed four times,
+0x0004c544,0x0004c6e0,texture_tree_dispatch,recovered-observed-branch,dynamic-differential+unit,"Saves the wrapper frame, expands the decode tree and prepares the byte decoder; sixty-three wrapper instructions plus the recovered tree; observed four times",
+0x0004cb64,0x0004cc28,texture_word_prepare,recovered-observed-branch,dynamic-differential+unit,"Computes the timer threshold, executes the recovered timer helper and prepares the word decoder; observed four times",
+0x0004cd18,0x0004cdb0,texture_color_prepare,recovered-observed-branch,dynamic-differential+unit,"Computes the timer threshold, executes the recovered timer helper and prepares the color converter; observed four times",
+0x0004bd24,0x0004bf90,texture_status_scan_end,recovered-observed-branch,dynamic-differential+unit,Final pass scans ten inactive records in 43 instructions through the hybrid bridge,
+0x0004bebc,0x0004cb64,texture_child_zero_gate_a,recovered-observed-branch,dynamic-differential+unit,Zero child-state path enters 0x0004cb64 in three instructions through the hybrid bridge; observed four times,
+0x0004bef4,0x0004cd18,texture_child_zero_gate_b,recovered-observed-branch,dynamic-differential+unit,Zero child-state path enters 0x0004cd18 in three instructions through the hybrid bridge; observed four times,
+0x0004bf2c,0x0004bf60,texture_loop_zero_gate,recovered-observed-branch,dynamic-differential+unit,Zero child-state loop-tail branch in two instructions through the hybrid bridge; observed four times,
+0x0004bf60,0x0004bfe0,texture_record_advance,recovered-observed-branch,dynamic-differential+unit,"Positive record count decrements and advances both source pointers in twelve instructions; observed four times v0734b: end was 0x0004bd24, a call-return continuation (now in return_to); extent measured by vf2i960 function and confirmed by `ret` at 0x0004bfdc; end equals the start of texture_default_limits_select",0x0004bd24
+0x0004bf90,0x0004d25c,texture_final_status_call,recovered-observed-branch,dynamic-trace+unit,Final counter gate clears status and enters the final status helper,
+0x0004bfdc,0x0004bfe0,texture_body_return,recovered-control-block,dynamic-trace+unit,"Architectural return from the texture body v0734b: end was 0x0004bb94, a call-return continuation (now in return_to); extent measured by vf2i960 function and confirmed by `ret` at 0x0004bfdc; end equals the start of texture_default_limits_select",0x0004bb94
+0x0004bb94,0x0004bcd4,texture_post_body_call,recovered-control-block,dynamic-trace+unit,"Post-body call into the short maintenance helper v0734b: end was 0x0004b8d8, a call-return continuation (now in return_to); extent measured by vf2i960 function and confirmed by `ret` at 0x0004bcd0; end equals the start of texture_frame_gate_call",0x0004b8d8
+0x0004bb98,0x0004bc58,texture_counter_update,recovered-observed-branch,dynamic-differential+unit,Two zero counters are skipped and the third counter is decremented in fourteen instructions,
+0x0004bc58,0x0004bcd4,texture_orchestrator_epilogue,recovered-control-block,dynamic-trace+unit,"Restores 28 saved registers and returns to the main loop v0734b: end was 0x0000a034, a call-return continuation (now in return_to); extent measured by vf2i960 function and confirmed by `ret` at 0x0004bcd0; end equals the start of texture_frame_gate_call",0x0000a034
+0x0004bb18,0x0004bcd4,texture_orchestrator_save_call,recovered-control-block,dynamic-trace+unit,Twenty register-save instructions plus the call into 0x0004bcd4,
+0x0004bcd4,0x0004bfe0,texture_frame_gate_call,recovered-observed-branch,dynamic-trace+unit,Zero-frame-state path clears 0x0050006d and calls 0x0004bfe0,
+0x0004bfe0,0x0004c120,texture_default_limits_select,recovered-observed-branch,dynamic-differential+unit,Default observed branch validated by the ROM-backed native second-dispatch match,
+0x000020f0,0x000023f0,game_meter_update,recovered-observed-branch,dynamic-differential+unit,"Composes threshold and color helpers into the observed two-meter update in 389 architectural instructions v0734b: end was 0x00001f98, a call-return continuation (now in return_to); extent measured by vf2i960 function and confirmed by `ret` at 0x000023ec",0x00001f98
+0x0000a748,0x0000a804,frame_geometry_gate,recovered-observed-branch,dynamic-differential+unit,"Observed clear geometry flags return in five instructions plus recovered 0x0000a75c busy retry-write and 0x0000a778 alt-return; unobserved 0x0000a784 deep reset (0x00008ef0 0x0006116c 0x000000b0) still rejected v0734b: end was 0x0000a014, a call-return continuation (now in return_to); extent measured by vf2i960 function and confirmed by `ret` at 0x0000a800",0x0000a014
+0x00001064,0x00001200,video_register_compose,recovered-observed-branch,dynamic-differential+unit,"Composes and commits the observed packed video register state in sixty-three instructions. v0733b: end was 0x0000cfc0, a container bound; ret is at 0x11fc and 0x1200 is the next function",
+0x00001290,0x000012bc,video_input_latch_write,recovered-observed-branch,dynamic-differential+unit,"Writes the observed input latch and returns in seven instructions. v0733b: end was 0x0000cfcc, a container bound; ret is at 0x12b8 and 0x12bc is the next function",
+0x00024534,0x00024680,player_update_gate,recovered-observed-branch,dynamic-differential+unit,"Observed clear player-update gate returns in five instructions v0734b: end was 0x0000cfd0, a call-return continuation (now in return_to); extent measured by vf2i960 function and confirmed by `ret` at 0x0002467c; indirect flow present so this is a LOWER BOUND",0x0000cfd0
+0x00023f6c,0x00024158,video_layer_commit,recovered-observed-branch,dynamic-differential+unit,"Commits the observed layer state in forty instructions v0734b: end was 0x0000cfd4, a call-return continuation (now in return_to); extent measured by vf2i960 function and confirmed by `ret` at 0x00024154",0x0000cfd4
+0x00001e6c,0x0000cfd8,input_bit0_sequence_gate,recovered-observed-branch,dynamic-differential+unit,Observed zero index/countdown bit-zero gate returns in seven instructions,
+0x00001edc,0x0000cfdc,input_bit1_sequence_gate,recovered-observed-branch,dynamic-differential+unit,Observed zero index/countdown bit-one gate returns in seven instructions,
+0x000012d8,0x0000cfe0,input_ring_poll,recovered-observed-branch,dynamic-differential+unit,Equal producer and consumer path returns minus one in five instructions,
+0x00044268,0x0004429c,tile_runtime_gate,recovered-observed-branch,dynamic-differential+unit,"Observed clear tile runtime flags return in four instructions v0734b: end was 0x0000cfe4, a call-return continuation (now in return_to); extent measured by vf2i960 function and confirmed by `ret` at 0x00044298",0x0000cfe4
+0x00001abc,0x00001e50,game_input_update,recovered-observed-branch,dynamic-differential,"Composes both observed input sequence gates and returns to the interrupt dispatcher v0734b: end was 0x00000c90, a call-return continuation (now in return_to); extent measured by vf2i960 function and confirmed by `ret` at 0x00001e4c",0x00000c90
+0x00001f5c,0x000020f0,game_state_update,recovered-observed-branch,dynamic-differential,"Composes classification threshold event and meter helpers for the observed frame state v0734b: end was 0x00000cd4, a call-return continuation (now in return_to); extent measured by vf2i960 function and confirmed by `ret` at 0x000020ec; end equals the start of game_meter_update",0x00000cd4
+0x0004e808,0x0004ec00,tile_controller_update,recovered-observed-branch,dynamic-differential,"Runs the observed tile controller path and the recovered glyph expansion v0734b: end was 0x00000cdc, a call-return continuation (now in return_to); extent measured by vf2i960 function and confirmed by `ret` at 0x0004ebfc; indirect flow present so this is a LOWER BOUND",0x00000cdc
+0x00010f08,0x00010f90,frame_timer_prefix,recovered-observed-branch,dynamic-differential,Computes frame timing state and enters the recovered four-visit wait phase,
+0x00000bc0,0x00000c00,interrupt_save_prefix,recovered-control-block,dynamic-differential,Saves the observed interrupt working set and validates the runtime enable flag,
+0x00000d30,0x00000d44,interrupt_ack,recovered-control-block,static-lift+unit-differential,"Stores the measured interrupt acknowledge value at 0x00e80000 and returns v0734b: end was 0x00000040, a call-return continuation (now in return_to); extent measured by vf2i960 function and confirmed by `ret` at 0x00000d40",0x00000040
+0x00000c0c,0x00000c78,interrupt_buffer_gate,recovered-observed-branch,dynamic-differential,Processes the observed interrupt buffer and geometry gate path,
+0x00000c94,0x00000cd4,interrupt_input_ring,recovered-observed-branch,dynamic-differential,Runs the observed input ring poll and control-flow tail,
+0x00000ce0,0x00000d20,interrupt_restore_prefix,recovered-control-block,dynamic-differential,Restores the interrupt working set up to the architectural return,
+0x00010fa4,0x000110b0,frame_timer_suffix,recovered-observed-branch,dynamic-differential,"Completes the changed-frame-byte timer path and returns to the main loop v0734b: end was 0x0000a038, a call-return continuation (now in return_to); extent measured by vf2i960 function and confirmed by `ret` at 0x000110ac; end equals the start of frame_buffer_gate",0x0000a038
+0x0004d25c,0x0004d2bc,texture_status_tail,recovered-observed-branch,dynamic-differential,Completes the final texture status text path through the shared inline thunk,
+0x00000c78,0x00000c80,interrupt_player_layer,recovered-control-block,dynamic-differential,Composes player-update and video-layer procedures,
+0x00000c80,0x00000c90,interrupt_game_input,recovered-observed-branch,dynamic-differential,Checks the runtime flag and executes the complete game-input update,
+0x00000c90,0x00000c94,interrupt_game_state,recovered-control-block,dynamic-differential,Calls the complete observed game-state update,
+0x00000cd4,0x00000ce0,interrupt_tile_sync,recovered-control-block,dynamic-differential,Composes tile runtime controller and video-input synchronization procedures,
+0x0000a038,0x0000a048,main_post_timer,recovered-control-block,dynamic-differential,"Composes memory diagnostic frame counters and the branch into the main clear tail v0734b: end was 0x00009fb0, a call-return continuation (now in return_to); extent is a LOWER BOUND - the highest block terminates in `b` at 0x0000a044 rather than a ret, so more code may belong to this row",0x00009fb0
+0x00009fb0,0x00009ff8,main_clear_prefix,recovered-observed-branch,dynamic-differential,Clears the observed main-loop globals and validates the runtime gate,
+0x00009ff8,0x0000a010,main_final_cluster,recovered-control-block,dynamic-differential,Composes shadow buffer geometry scratch and frame-dispatch helpers,
+0x0000a014,0x0000a030,main_geometry_prefix,recovered-control-block,dynamic-differential,Commits geometry applies the gate and advances the frame counter,
+0x0000a030,0x0004bcd4,main_texture_orchestrator_call,recovered-control-block,dynamic-differential,Enters the texture orchestrator and performs its complete register-save prefix,
+0x0000a034,0x00010f90,main_frame_timer_call,recovered-control-block,dynamic-differential,Enters the frame timer and executes its recovered prefix,
+0x00000c00,0x00000c0c,interrupt_initial_cluster,recovered-control-block,dynamic-differential,Composes video register input latch texture upload and both nested returns,
+0x00010f90,0x000110b0,frame_wait_poll,recovered-observed-branch,dynamic-differential+unit,"Executes seven polling instructions four visits and vector-12 interrupt injection v0734b: end was 0x00000bc0, a call-return continuation (now in return_to); extent measured by vf2i960 function and confirmed by `ret` at 0x000110ac; end equals the start of frame_buffer_gate",0x00000bc0
+0x00000d20,0x00010fa4,interrupt_return_wait_exit,recovered-observed-branch,dynamic-differential+unit,Returns from the interrupt records the resumed wait visit and exits on the changed frame byte,
+0x0004b410,0x0004b44c,video_command_submit,recovered-rom-anchor,rom-disassembly,Stores command selector 3 plus r0/r1/r2 at 0x005502e0 then returns,
+0x00002c38,0x00002de4,color_table_rebuild,recovered-rom-anchor,rom-disassembly,Clears and rebuilds 0x00546008 channel triples then commits ready=1 busy=0,
+0x00011704,0x00011744,video_table_expand_128,recovered-rom-anchor,rom-disassembly,Copies 128 source bytes per outer iteration to 32-bit-spaced destination entries,
+0x00065838,0x000658a4,kill_osage_evaluate_record,recovered-rom-anchor,rom-disassembly,Shared fa_kill_osage record evaluator; continuation/flag gate age threshold bit-3 mark and global kill counter exactly match the semantic helper in src/recovered/tasks.c,
+0x0006ca64,0x0006ca78,task_object,recovered-observed-branch,dynamic-differential,fa_object0/1/2 dispatcher: instance-indexed table at 0x6ca78 rewrites registry+0x0c,
+0x0006cae0,0x0006caf0,task_object_init0,recovered-observed-branch,dynamic-differential,fa_object0 init stub: rewrites registry+0x0c to 0x6caf0 then returns,
+0x0006caf0,0x0006caf4,task_object_init0_ret,recovered-observed-branch,dynamic-differential,Bare ret continuation for fa_object0,
+0x0006caf4,0x0006cb04,task_object_init1,recovered-observed-branch,dynamic-differential,fa_object1 init stub: rewrites registry+0x0c to 0x6cb04 then returns,
+0x0006cb04,0x0006cb08,task_object_init1_ret,recovered-observed-branch,dynamic-differential,Bare ret continuation for fa_object1,
+0x0006cb08,0x0006cb0c,task_object_init2,recovered-observed-branch,dynamic-differential,fa_object2 handler: bare ret,
+0x0006ca84,0x0006cad0,object_service_loop,recovered,dynamic-differential+runtime,Iterates the three object control blocks in reverse table order; bit-31-active entries call registry+0x0c; helper and public native runtime match ROM CPU and RAM exactly,

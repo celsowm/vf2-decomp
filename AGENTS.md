@@ -330,6 +330,25 @@ At the time this handoff was written, `master` already contains:
     `indirect=yes` and remain **lower bounds only**. **The coverage arithmetic
     carried through v0733b-v0733g (the 267 628 B overlap, the 93 748 B gap) is
     contaminated and must be recomputed once these rows are classified.**
+- **v0734b repaired them, and found a second malformation in the same file.**
+    `end` is now **always** a code extent; the call-return continuation moved to
+    a new **trailing** `return_to` column. Trailing is load-bearing:
+    `src/analysis/symbols.c` reads this CSV by **column index**
+    (`name_column = 2`), so an inserted column would have silently renamed every
+    function. Migration required an independent second source per row — the
+    instruction at `measured_end - 4` decoding as `ret` straight from the ROM —
+    and **24 of 25 confirmed, 0 refused**; 9 also land on another row's start.
+    `main_post_timer` is a **lower bound** (its highest block ends `b 0x9fb0`,
+    not `ret`) and is labelled in its own `notes` rather than laundered into an
+    extent, as are the three `indirect=yes` rows.
+    **Five more rows carried UNESCAPED commas inside `notes`**, so every
+    `DictReader` consumer silently read a truncated note and dropped the rest
+    into the `None` restkey. All five are quoted now.
+    Bounded rows visible to `block_coverage.py` went **69 -> 94**; inverted rows
+    **25 -> 0**; `--strict-ranges` now exits 0 where it exited 1.
+    The published decomp.dev number is **unchanged** (0.4456%), as v0734a's
+    audit predicted. Both gates proven able to fail by planting the defect. See
+    `function_extent_migrated_v0734b.md`.
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.

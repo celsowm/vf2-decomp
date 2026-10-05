@@ -126,12 +126,17 @@ the provenance in the row's `notes`. Do not bulk-rewrite from a lower bound.
 
 - **1.2a** — the **13 remaining container rows**. Each needs its own measured
   extent; the v0733c table lists them with their tool answers.
-- **1.2b (new, v0734a)** — the **25 inverted rows**, which are not currently in
-  the table at all because they are silently dropped. All 25 true extents are
-  ROM-measured in `function_extent_measured_v0734a.md`. **Do not "repair" them by
-  guessing**: an inverted row is a *different quantity*, not corrupt data, and
-  the correct fix is a schema change (a separate `return_to` column), not a
-  rewritten `end`. Three of the 25 are `indirect=yes` and are lower bounds only.
+- **1.2b — DONE at v0734b.** The 25 inverted rows are migrated. `end` is now
+  always a code extent and the continuation lives in a trailing `return_to`
+  column. Migration required an independent second source per row (a `ret` at
+  `measured_end - 4`, decoded from the ROM); **24 of 25 confirmed, 0 refused**,
+  9 with a second adjacency confirmation. `main_post_timer` is a **lower bound**
+  (highest block ends `b`, not `ret`) and is labelled, not repaired — as are the
+  three `indirect=yes` rows. Bounded rows visible to `block_coverage.py` went
+  **69 -> 94**. Five further rows were losing half their note to an unescaped
+  comma; those are quoted now. See `function_extent_migrated_v0734b.md`.
+  **Do not "repair" the four labelled lower bounds by guessing** — they need the
+  same two-source treatment as `0x23524`.
 
 **Acceptance:** zero rows whose span is a region bound; each repaired row names
 its two agreeing sources; no row is dropped without being named.

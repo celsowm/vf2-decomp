@@ -1,5 +1,15 @@
 # v0734a: `functions.csv`'s `end` column is overloaded; 25 rows were being deleted silently
 
+> **v0734b repaired all 25.** `end` is now always a code extent and the
+> call-return continuation moved to a trailing `return_to` column. Bounded rows
+> visible to `block_coverage.py` went **69 -> 94**, inverted rows **25 -> 0**,
+> and `--strict-ranges` now exits 0 where it exited 1. Four rows are labelled
+> **lower bounds** in their own `notes` and deliberately not repaired
+> (`main_post_timer` plus three `indirect=yes`). See
+> `function_extent_migrated_v0734b.md`.
+>
+> Everything below is left as the measurement record it was.
+
 **Phase 1.1 of `completion_plan_v0734.md` ("replace or document `vf2i960
 function`") is closed with a different answer than the plan assumed.** The
 instrument was not the broken part. The *table* is.

@@ -89,9 +89,20 @@ as a function boundary.
 
 Note that `decomp/i960/functions.csv` is a **hand-maintained name overlay**, not
 this tool's output — its `end` column is documentation for human readers and is
-never read by the C analyzer. See
-`decomp/i960/notes/function_extent_measured_v0734a.md` for a column that
-overloads `end` with a second meaning.
+never read by the C analyzer.
+
+Since v0734b that file's schema is:
+
+```text
+address,end,name,status,source,notes,return_to
+```
+
+`end` is **always** a code extent. `return_to` is the *call-return
+continuation* — where control resumes in the caller — and is populated only on
+the rows that record it; it is a different quantity from `end` and must never be
+used as a range. The column is **trailing on purpose**: this overlay is read by
+column index (not name), so inserting a column would silently rename every
+function. See `decomp/i960/notes/function_extent_migrated_v0734b.md`.
 
 ## Symbol overlays
 

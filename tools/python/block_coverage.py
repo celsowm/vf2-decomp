@@ -170,6 +170,30 @@ def find_inverted_ranges(path: Path) -> List[Tuple[str, int, int]]:
     return out
 
 
+def find_continuation_rows(path: Path) -> List[Tuple[str, int, int]]:
+    """Rows that also record a call-return continuation in ``return_to``.
+
+    Since v0734b these rows carry a real code extent in ``end``, so they are
+    ranked normally -- this census exists so they stay *visible*. They are not
+    an error: ``return_to`` is a second, different quantity (where control
+    resumes in the caller) that a reader of the table would otherwise have no
+    way to know exists.
+    """
+    out: List[Tuple[str, int, int]] = []
+    with path.open("r", encoding="utf-8", newline="") as stream:
+        for row in csv.DictReader(stream):
+            text = (row.get("return_to") or "").strip()
+            if not text:
+                continue
+            try:
+                start = parse_int(row["address"])
+                end = parse_int(text)
+            except (KeyError, ValueError):
+                continue
+            out.append(((row.get("name") or "").strip(), start, end))
+    return out
+
+
 def parse_int(value) -> int:
     if isinstance(value, bool):
         raise ValueError("boolean is not an address")
@@ -506,6 +530,7 @@ def main() -> int:
     # that silently lost 25 of 94 rows is indistinguishable from a report
     # over a well-covered table.
     inverted = find_inverted_ranges(functions_path)
+    continuations = find_continuation_rows(functions_path)
     if inverted:
         sys.stderr.write(
             f"warning: {len(inverted)} functions.csv rows have end < address "
@@ -519,6 +544,12 @@ def main() -> int:
                 f"--strict-ranges: {len(inverted)} inverted row(s) in "
                 f"{functions_path}"
             )
+    if continuations:
+        sys.stderr.write(
+            f"note: {len(continuations)} functions.csv rows also record a "
+            f"call-return continuation in the 'return_to' column (ranked by "
+            f"their 'end' extent, as everywhere else).\n"
+        )
 
     trace_paths: List[Path] = []
     if args.trace_glob:
@@ -570,6 +601,15 @@ def main() -> int:
             text += "".join(
                 f"  {name[:34]:<34} {hex32(start)}..{hex32(end)}\n"
                 for name, start, end in inverted
+            )
+        if continuations:
+            text += (
+                f"\n{len(continuations)} ranked rows also record a call-return "
+                f"continuation in 'return_to' (not an extent; informational):\n"
+            )
+            text += "".join(
+                f"  {name[:34]:<34} returns to {hex32(end)}\n"
+                for name, _start, end in continuations
             )
         if args.output == "-":
             sys.stdout.write(text)
