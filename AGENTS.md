@@ -381,6 +381,34 @@ At the time this handoff was written, `master` already contains:
     exact-snapshot differential, and a one-conditional filter
     (`coin_flags & 1`). No `src/` change. See
     `phase_2_6_f4_status_v0734j.md`.
+- **v0734k closed Phase 1.3b.** Disassembly pass on the four smaller
+    gap runs that v0734h did not cover: 0x4d2c0..0x4e808 (5,448 B),
+    0x6428c..0x657dc (5,456 B), 0x6cb0c..0x6dcb8 (4,524 B),
+    0x658a4..0x6ca64 (29,120 B). All four are real functions, not
+    padding. Each has a shared-epilogue cluster in the middle (the
+    same pattern v0734a documented at 0x4bfe0 for the texture cluster)
+    and a bulk of unparseable bytes at the front. `src/` byte-identical.
+    See `phase_1_3b_gap_characterisation_v0734k.md`.
+- **v0734l closed Phase 2.6 / F4.** Three INDIVIDUAL releases FULL MATCH
+    on the current build: `indk-c` (row-1 KICK) 4293/38,
+    `indp-c` (row-1 PUNCH) 4293/38, `indk2-c` (row-2 KICK) 4294/38.
+    Both reference (`vf2probe --until 0x9ff8`/`0xa010`) and native
+    (`vf2i960 native-resume`) legs reproduce the v0732g measurements.
+    New ctest entry: `vf2_f4_individual_release` (ctest #123, 15.26 s).
+    `src/` byte-identical. See
+    `f4_individual_release_recovered_v0734l.md`.
+- **v0734m documented Phase 2.3-2.5.** Status record, not a fix. None
+    of the three are admitted beyond what v0732c/v0732g pinned.
+    **2.3** (`+0x110`/`+0x114` setbits): warm leg never fires them
+    (per `fa_coli_2396c_v0285.md`); live leg that fires has never been
+    measured — needs fixture + memory trace. **2.4** (7-instruction
+    `a5=4` delta): `preset 0 -> 4193`, `preset >= 1 -> 4186`; render
+    difference is one tile write (second blank at (24,47)), so cause
+    is elsewhere in the body — needs two `vf2probe --trace` runs and
+    IP-precise comparison. **2.5** (edit paths 4505/4506/4509, 4625,
+    4634, 4636): all six refuse at the `0xa6c0` gate by design —
+    honest refusal, no silent acceptance. Needs only a ctest audit.
+    `src/` byte-identical. See `phase_2_3_to_2_5_status_v0734m.md`.
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.
