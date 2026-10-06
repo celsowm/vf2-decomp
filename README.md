@@ -53,16 +53,16 @@ These bars are a qualitative view of progress toward running the **complete game
 
 ```text
 ROM / boot              ██████████  very advanced
-Model 2A hardware       ███████░░░  functional for the current corridor
+Model 2A hardware       ████████░░  bounded bus + TGP/SCSP/framebuffer services
 scheduler / runtime     ██████████  validated native corridor
-input                    ████████░░
+input                    ████████░░  game-facing input path; platform adapter open
 camera                   ████████░░
-HUD / game_disp          ███████░░░
-fighter / game logic     ██████░░░░
-geometry / rendering     ██████░░░░  recovered corridors; broader renderer open
-audio                    ███░░░░░░░
-complete game flow       ███░░░░░░░
-fully playable match     ██░░░░░░░░
+HUD / game_disp          ████████░░  menus/test-mode/game_disp corridors
+fighter / game logic     ██████░░░░  player/collision corridors; simulation bulk open
+geometry / rendering     ███████░░░  TGP/object paths recovered; rasterizer open
+audio                    █████░░░░░  68000/SCSP/PCM path partly recovered; FM/DSP open
+complete game flow       ████░░░░░░  boot/menu/phase corridors; match flow open
+fully playable match     ██░░░░░░░░  combat/physics/AI still open
 ```
 
 For detailed development history, recovered branches and release-by-release progress, see [`CHANGELOG.md`](CHANGELOG.md).
