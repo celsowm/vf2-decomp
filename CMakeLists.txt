@@ -667,6 +667,12 @@ if(VF2_BUILD_TESTS)
                     ${CMAKE_SOURCE_DIR}/tools/python/test_f4_individual_release.py
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         )
+        add_test(
+            NAME vf2_phase_2_5_refused_audit
+            COMMAND ${Python3_EXECUTABLE}
+                    ${CMAKE_SOURCE_DIR}/tools/python/test_phase_2_5_refused_audit.py
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        )
         set_tests_properties(
             vf2_python_factory_frontier
             vf2_python_factory_taint
@@ -683,6 +689,7 @@ if(VF2_BUILD_TESTS)
             vf2_python_factory_p1_real_trace_demo
             vf2_python_factory_block_coverage
             vf2_f4_individual_release
+            vf2_phase_2_5_refused_audit
             PROPERTIES TIMEOUT 900
         )
     else()
