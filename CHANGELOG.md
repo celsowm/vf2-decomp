@@ -13,6 +13,57 @@
 > live branch of the shell's `cmpobl 0, r3` split now publishes GREATER and the
 > differential FULL MATCHes. `g14` remains the one open divergence.
 
+## v0734f: g14 is recovered at the `0x23524` return — the boundary is FULL MATCH
+
+**Closes Phase 2.1.** Together with v0734e, both named divergences at the
+`0x22210` boundary are gone. The differential is **FULL MATCH** on every
+admitted leg, and the refused leg C still refuses and is still load-bearing.
+
+The shell's `bal 0x23694` at `0x23644` leaves `g14 = 0x23648` on every admitted
+path. The native never explicitly wrote `g14`, so the test recorded a divergence
+on both admitted legs (`native 0x22428`, the entry value, vs `ref 0x23648`).
+
+**The fix** is one line, before `hybrid_complete_procedure`:
+
+```c
+cpu->registers[VF2_I960_G0_REGISTER + 14u] = UINT32_C(0x00023648);
+```
+
+The warm arm is left alone (it already reaches `0x23648`). The refused leg C
+never reaches this code — its g6-bit0 check returns `VF2_ERROR_UNSUPPORTED` at
+the entry gate before any of the recovered tail runs — so publishing
+unconditionally here matches the reference on admitted paths and cannot bring C
+back to life.
+
+**An easy mistake to avoid, recorded.** The first attempt used
+`cpu->registers[14]`. That is a **local** register, not the global one — the
+i960 distinguishes the two and the test compares at the global index
+(`VF2_I960_G0_REGISTER + 14u`, defined in the test as `G14_INDEX`). The test
+printed `native 0x22428` and the gate would not have fired without re-reading it.
+
+**Gate integrity.** The test's "two documented divergences, and nothing else"
+branch became the test's own "FULL MATCH" assertion, with `diff.equal == true`
+the success case. Negative control — publish `g14 = 0`:
+
+```text
+MISMATCH A warm: native state does not FULL MATCH the reference
+A warm: 1 mismatch(es)
+MISMATCH B live f0: native state does not FULL MATCH the reference
+B live f0: 1 mismatch(es)
+```
+
+`src/` diff is a pure insertion (0 removals).
+
+**Validated** — both legs FULL MATCH:
+
+```text
+A warm:    g14 0x00023648 vs 0x00023648, cc 2 vs 2, arithmetic_control 0x3f001002 vs 0x3f001002
+B live f0: g14 0x00023648 vs 0x00023648, cc 3 vs 3, arithmetic_control 0x3f001001 vs 0x3f001001
+C g6 bit0: correctly REFUSED, load-bearing
+```
+
+See `decomp/i960/notes/coli_23524_live_g14_recovered_v0734f.md`.
+
 ## v0734e: the live-leg condition state is recovered — the last writer is `cmpobne` at `0x236c8`
 
 **Closes Phase 2.2.** The defect v0733e found is fixed and differentially proved.

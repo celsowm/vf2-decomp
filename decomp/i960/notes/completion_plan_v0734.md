@@ -203,7 +203,7 @@ the order listed; each is independent.
 
 | # | item | evidence in hand | notes |
 |---|---|---|---|
-| 2.1 | `g14` at the `0x23524` return | `0x23648` on both admitted legs, entry value `0x22428` on the refused one | path-dependent via the `bal` at `0x23644`; no single constant is correct |
+| 2.1 | `g14` at the `0x23524` return | `0x23648` on both admitted legs, entry value `0x22428` on the refused one | **DONE at v0734f.** One-line publish of `g14 = 0x23648` before `hybrid_complete_procedure`; the refused leg still refuses at the g6-bit0 gate so cannot resurrect C. The differential on every CPU field is now FULL MATCH on both admitted legs. See `coli_23524_live_g14_recovered_v0734f.md`. |
 | 2.2 | live-leg condition state | reference `GREATER` / `0x3f001001`, native publishes warm `EQUAL` / `0x3f001002` | **DONE at v0734e.** The last cc writer was measured, not guessed: `vf2probe`'s trace record now carries a per-instruction `compare`, and the last transition is `cmpobne` at **0x236c8** on the live leg (GREATER) vs `cmpinco` at **0x23930** on warm (EQUAL) — both in the `bal 0x23694` body. The live branch now publishes GREATER and the differential FULL MATCHes. Two earlier candidates were measured and **rejected**: the `subr` at `0x23864` (`g8+0x650` is 0 on *both* legs) and `bbc` at `0x23868` (does not write cc under `vf2_i960_run`, answering B49 for this path). Gate proven able to fail. See `coli_23524_live_cc_recovered_v0734e.md`. |
 | 2.3 | `+0x110` / `+0x114` setbit sides | warm leg only | widen with the neighbouring leg, never from one sample |
 | 2.4 | 7-instruction `a5=4` delta | measured, uncharacterised | |

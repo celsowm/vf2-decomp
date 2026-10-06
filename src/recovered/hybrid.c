@@ -31346,6 +31346,24 @@ vf2_status vf2_hybrid_coli_23524_execute(
     cpu->registers[VF2_I960_G0_REGISTER + 5u] = r15;
     cpu->registers[VF2_I960_G0_REGISTER + 6u] = g6;
     cpu->registers[VF2_I960_G0_REGISTER + 7u] = g7;
+
+    /* v0734f: publish g14.
+     *
+     * The shell's `bal 0x23694` at 0x23644 leaves g14 = 0x23648 on every
+     * admitted path - both warm and live execute it. The native never
+     * explicitly wrote g14 before this slice, so the test recorded a g14
+     * divergence with the reference on both admitted legs (test expected
+     * `ref_g14 = 0x23648`, native kept the entry value 0x22428). It was the
+     * last open divergence at the 0x23524 boundary.
+     *
+     * Measured, not assumed. With the trace + the ref exit dump, both admitted
+     * legs carry 0x23648 across the boundary and the refused leg C never
+     * reaches this point (g6-bit0 returns VF2_ERROR_UNSUPPORTED at
+     * hybrid.c:30828 before any of the recovered tail runs), so publishing
+     * unconditionally here matches the reference and cannot resurrect C.
+     */
+    cpu->registers[VF2_I960_G0_REGISTER + 14u] = UINT32_C(0x00023648);
+
     return hybrid_complete_procedure(machine, cpu, body, total_calls, total_rets);
 }
 

@@ -65,7 +65,17 @@
  *          so it does not write cc under `vf2_i960_run`.
  *      See decomp/i960/notes/coli_23524_live_cc_located_v0734d.md.
  *
- *   3. `g14` remains the one open divergence (item 2.1).
+ *   3. ~~`g14` (item 2.1).~~ **CLOSED at v0734f.** The shell's `bal 0x23694`
+ *      at 0x23644 leaves g14 = 0x23648 on every admitted path. The native now
+ *      publishes that value before `hybrid_complete_procedure`, and the
+ *      refused leg's full-refusal gate (g6-bit0 at 0x23524) fires before any
+ *      of the recovered tail runs, so it cannot resurrect C.
+ *
+ * Both phase-2 gaps closed. The differential on this boundary is FULL MATCH
+ * on every admitted leg. See
+ *   decomp/i960/notes/coli_23524_live_cc_recovered_v0734e.md
+ *   decomp/i960/notes/coli_23524_live_g14_recovered_v0734f.md
+ * for the measurements and the negative controls.
  *
  * Measured witness (vf2probe 0.1.3, this build, real ROM; entry
  * out/coli-parked-221e8.vf2snap -> 0x23524 in 7 instructions, depth 6,
@@ -162,29 +172,23 @@ typedef struct {
     uint32_t ref_g14;
     /* Recorded for documentation only. NOT asserted: the exit compare_result
      * is measurably entry-state dependent, so pinning it would encode a
-     * property of the fixture rather than of the shell. The divergence against
-     * the native is asserted; the value is not. */
+     * property of the fixture rather than of the shell. */
     vf2_i960_compare_result ref_cc;
-    int admits; /* 1: native must match. 0: native must fail closed. */
-    /* Whether the native is expected to DIVERGE on the two condition fields.
-     * Measured, not assumed: the warm leg already matches on both, and only the
-     * live leg does not. See the retraction in the header. */
-    int cc_diverges;
-    int arith_diverges;
+    int admits; /* 1: native must FULL MATCH. 0: native must fail closed. */
 } leg_t;
 
 static const leg_t LEGS[] = {
     { "A warm", 0u, 0u, 0, 0u, UINT64_C(9151), UINT64_C(13), UINT64_C(14),
       UINT32_C(0x00000000), UINT32_C(0x00000000), UINT32_C(0),
-      UINT32_C(0x00023648), VF2_I960_COMPARE_EQUAL, 1, 0, 0 },
+      UINT32_C(0x00023648), VF2_I960_COMPARE_EQUAL, 1 },
     { "B live f0", UINT32_C(0x00000100), 0u, 1, UINT32_C(0x0000ffff),
       UINT64_C(9300), UINT64_C(12), UINT64_C(13),
       UINT32_C(0x00000000), UINT32_C(0xffffdffc), UINT32_C(2),
-      UINT32_C(0x00023648), VF2_I960_COMPARE_GREATER, 1, 0, 0 },
+      UINT32_C(0x00023648), VF2_I960_COMPARE_GREATER, 1 },
     { "C g6 bit0", UINT32_C(0x00040000), 0u, 0, 0u,
       UINT64_C(6193), UINT64_C(10), UINT64_C(11),
       UINT32_C(0x0000fffe), UINT32_C(0xffffffff), UINT32_C(1),
-      UINT32_C(0x00022428), VF2_I960_COMPARE_LESS, 0, 0, 0 },
+      UINT32_C(0x00022428), VF2_I960_COMPARE_LESS, 0 },
 };
 
 typedef struct {
@@ -334,8 +338,6 @@ static int test_leg(const uint8_t *rom, size_t rom_sz, const uint8_t *data,
     uint64_t nat_ins;
     vf2_status nat_status;
     vf2_i960_snapshot_diff diff;
-    unsigned reg_diffs = 0u;
-    uint32_t which_reg = 0u;
     unsigned walked = 0u;
     unsigned long long ran = 0u;
     int ref_cpu_at_entry_cc = 0;
@@ -487,21 +489,13 @@ static int test_leg(const uint8_t *rom, size_t rom_sz, const uint8_t *data,
         goto cleanup;
     }
 
-    /* The two documented divergences, and nothing else. compare_live_state is
-     * all-or-nothing, so the remainder is re-checked field by field here: a
-     * third divergence, or a divergence in a field this file has not named,
-     * must still be a hard failure. */
-    if (diff.equal) {
-        fprintf(stderr, "FAILED %s: expected the two documented divergences "
-                        "(g14, compare_result) but the states are identical - "
-                        "someone published them, so this test is now stale\n",
-                leg->name);
-        goto cleanup;
-    }
-    if (!equal_except_named(&ref.cpu, &nat.cpu, &reg_diffs, &which_reg)) {
+    /* Both Phases 2.1 (g14) and 2.2 (compare_result) closed at v0734f - the
+    * differential is now FULL MATCH on the 0x22210 boundary for every
+    * admitted leg. Anything less is a regression. */
+    if (!diff.equal) {
         unsigned reg;
         fprintf(stderr,
-                "MISMATCH %s: cpu state differs outside the two named fields\n",
+                "MISMATCH %s: native state does not FULL MATCH the reference\n",
                 leg->name);
         if (ref.cpu.sat != nat.cpu.sat) {
             fprintf(stderr, "  sat: 0x%08x vs 0x%08x\n", ref.cpu.sat, nat.cpu.sat);
@@ -515,6 +509,10 @@ static int test_leg(const uint8_t *rom, size_t rom_sz, const uint8_t *data,
         if (ref.cpu.process_control != nat.cpu.process_control) {
             fprintf(stderr, "  process_control: 0x%08x vs 0x%08x\n",
                     ref.cpu.process_control, nat.cpu.process_control);
+        }
+        if (ref.cpu.compare_result != nat.cpu.compare_result) {
+            fprintf(stderr, "  compare_result: %d vs %d\n",
+                    (int)ref.cpu.compare_result, (int)nat.cpu.compare_result);
         }
         if (ref.cpu.arithmetic_control != nat.cpu.arithmetic_control) {
             fprintf(stderr, "  arithmetic_control: 0x%08x vs 0x%08x\n",
@@ -541,37 +539,6 @@ static int test_leg(const uint8_t *rom, size_t rom_sz, const uint8_t *data,
             }
         }
         ++mismatches;
-    } else if (reg_diffs != 1u || which_reg != G14_INDEX) {
-        fprintf(stderr,
-                "MISMATCH %s: %u register difference(s), expected exactly 1 "
-                "at g14 (index %u)\n",
-                leg->name, reg_diffs, (unsigned)G14_INDEX);
-        ++mismatches;
-    }
-    /* Per-leg divergence set. The warm leg already agrees on both condition
-     * fields; only the live leg diverges. Asserting "always divergent" here
-     * would have hidden that, and asserting "never divergent" would have hidden
-     * the live gap. */
-    {
-        int cc_differs = (ref.cpu.compare_result != nat.cpu.compare_result);
-        int arith_differs =
-            (ref.cpu.arithmetic_control != nat.cpu.arithmetic_control);
-        if (cc_differs != leg->cc_diverges) {
-            fprintf(stderr,
-                    "MISMATCH %s: compare_result divergence is %d, measured %d "
-                    "(reference %d, native %d)\n",
-                    leg->name, cc_differs, leg->cc_diverges,
-                    (int)ref.cpu.compare_result, (int)nat.cpu.compare_result);
-            ++mismatches;
-        }
-        if (arith_differs != leg->arith_diverges) {
-            fprintf(stderr,
-                    "MISMATCH %s: arithmetic_control divergence is %d, "
-                    "measured %d (reference 0x%08x, native 0x%08x)\n",
-                    leg->name, arith_differs, leg->arith_diverges,
-                    ref.cpu.arithmetic_control, nat.cpu.arithmetic_control);
-            ++mismatches;
-        }
     }
 
     if (mismatches != 0u) {
