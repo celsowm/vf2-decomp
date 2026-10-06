@@ -1,5 +1,66 @@
 # Changelog
 
+> **v0734d supersedes the commit immediately below it** (`db0dbcf6`), which
+> claimed the live-leg condition state is the `subr` at `0x23864`. That claim was
+> **disproved** by measurement — `g8 + 0x650` is `0` on both legs, so the `subr`
+> has identical operands yet the reference exits EQUAL on warm and GREATER on
+> live. The follow-up commit `9e60f1c3` builds that fix, shows it breaks the warm
+> leg, and reverts it. `src/` is byte-identical. Read `9e60f1c3`, not
+> `db0dbcf6`, for Phase 2.2.
+
+## v0734d: the obvious Phase 2.2 fix is disproved — `t1` is 0 on both legs
+
+Phase 2.2, measured twice. The first measurement of this slice was **wrong** and is
+corrected in place; the correction is the useful part. A plausible fix was built,
+measured, and thrown away because the evidence refused it. **`src/` is
+byte-identical to v0734c — no C is changed.**
+
+**The candidate.** The last arithmetic instruction before the `bx (g14)` tail is
+`subr r14, r15, r15` at `0x23864` — `g8`'s `+0x650` clamp — and
+`hybrid.c:31149-31182` recovers that clamp without publishing any compare state.
+Publishing the subr's result looks like the fix.
+
+**Three measurements kill it.**
+
+1. **`bbc` is exonerated.** Stopping the reference either side of `bbc 0x23868` on
+   the live leg gives the **same** state — GREATER at `0x23868` (after the subr)
+   and GREATER at `0x2386c` (after the bbc). Under `vf2_i960_run` the `bbc` does
+   not write cc, so it is not the last writer either. **This answers B49's
+   sub-question for this path, and the answer is no.**
+2. **The operands are identical on both legs.** `g8 + 0x650` is `0x511F50`, and
+   `--read-u32` at `0x2385c` — after the `ld` at `0x23858` has put it in `r15` and
+   before the `lda` sets `r14` — reads **`0` on warm and `0` on live**.
+3. **The reference still exits differently**: EQUAL (warm) / GREATER (live). One
+   `subr` with identical operands cannot produce two compare states, so it **is
+   not the last writer**.
+
+**The fix was built anyway, on that assumption, and failed.** It published `LESS`
+on *both* legs and broke the warm one:
+
+```text
+MISMATCH A warm: compare_result divergence is 1, measured 0 (reference 2, native 1)
+MISMATCH A warm: arithmetic_control divergence is 1, measured 0 (reference 0x3f001002, native 0x3f001004)
+B live f0: MATCH (... cc 3 vs 1 ...)   <- reference GREATER, native now LESS
+```
+
+With `t1 == 0` neither `0 - thr` nor `thr - 0` yields the EQUAL that warm
+requires. Reverted, rebuilt, re-measured.
+
+**What survives.** The live-leg defect is real and still open — it is just not the
+clamp. The warm leg agrees with the reference **by accident** (it inherits EQUAL),
+which is worth stating because it was never evidence the recovery was right.
+
+**Next step.** The last cc writer is before `0x23864`. Walk both legs from the
+entry recording `compare_result` after **every** instruction and report the first
+`ip` where the two cc sequences differ. The existing `--trace` records
+`ip_before`/`ip_after`/`mnemonic` but **not** the cc, so this needs a `compare`
+field on the trace record — that is the whole remaining cost of item 2.2.
+
+`g14` (item 2.1) is untouched and remains open.
+
+**Validated:** `src/` byte-identical; full suite **119/119 in 331.79 s** after the
+revert. See `decomp/i960/notes/coli_23524_live_cc_located_v0734d.md`.
+
 ## v0734c: the container rows are measured — and they block the gap arithmetic, not the other way round
 
 Phase 1.2a measurement and the Phase 1.3 recomputation. **No row is mutated,
