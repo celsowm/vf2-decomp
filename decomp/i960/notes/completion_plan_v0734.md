@@ -183,7 +183,18 @@ Current list (provisional, v0734c):
 it contains, computed on the post-1.2a table. Characterisation is the
 deliverable, not recovery.
 
-### 1.4 Make the coverage tool certify, not just rank
+### 1.4 Make the coverage tool certify, not just rank — **DONE at v0734g**
+
+When no trace was supplied the `cov` field printed `0.00` and the table looked
+like a measurement that said "we tried, nothing was covered" — but it was
+actually the absence of measurement, not 0% coverage. `render_text` now takes
+`addresses_measured` and prints `n/a` plus a banner when no trace was supplied.
+`byte_size`, `in_trace`, `largest_uncovered_run` and `range` are still shown
+verbatim — only `cov` and the implied `uncovered` reading are honest-ed.
+
+The JSON output still carries `coverage_ratio: 0.0` (the audit trail is
+unchanged) — a JSON consumer decides its own unmeasured semantics. See
+`block_coverage_admits_unmeasured_v0734g.md`.
 
 `block_coverage.py` reports `coverage_ratio = 0.00` for every ranked row: the
 v0729-v0732 corpus (`trace-both.jsonl`, `trace-f0.jsonl`) never reaches those
