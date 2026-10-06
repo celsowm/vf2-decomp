@@ -132,6 +132,7 @@ def main() -> int:
 
     print()
     print("-- Known fail-open: silent admission documented in v0732c --")
+    fail_open_failing = False
     for name, ref_ins, got_ins, got_calls in FAIL_OPEN_CASES:
         path = ROOT / "out" / name
         if not path.exists():
@@ -140,11 +141,15 @@ def main() -> int:
         refused, ins, calls = run_native(path)
         if not refused and ins == got_ins and calls == got_calls and ins != ref_ins:
             print(f"  {name}: ADMITTED ins={ins} calls={calls} "
-                  f"(reference={ref_ins}) - SILENT-ADMISSION HOLE confirmed")
+                  f"(reference={ref_ins}) - SILENT-ADMISSION HOLE still open!")
+            fail_open_failing = True
         elif refused:
             print(f"  {name}: now REFUSED (reference={ref_ins}) - hole closed!")
         else:
             print(f"  {name}: admitted ins={ins} calls={calls} - re-measure")
+            fail_open_failing = True
+    if fail_open_failing:
+        failures += 1
 
     if failures:
         print(f"\n{failures} test FAILED")
