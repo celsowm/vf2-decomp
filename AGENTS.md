@@ -349,6 +349,38 @@ At the time this handoff was written, `master` already contains:
     The published decomp.dev number is **unchanged** (0.4456%), as v0734a's
     audit predicted. Both gates proven able to fail by planting the defect. See
     `function_extent_migrated_v0734b.md`.
+- **v0734i took the Phase 1.2a conservative decisions.** One bound repaired
+    under the two-source rule, eight annotated. **Repaired**: `interrupt_return_wait_exit`
+    `0xd20..0x10fa4` -> `0xd20..0xd24` (4 B; `vf2i960 function` measures
+    `0xd24` AND `vf2i960 disasm` fails at `0xd24`); the intervening 66,556 B
+    is a real unknown gap, not part of the row (v0734h's `0x1200..0x1290`
+    and `0x12bc..0x12d8` are the first two real functions inside it).
+    **Shrunk**: `texture_final_status_call` `0x4bf90..0x4d25c` ->
+    `0x4bf90..0x4bfe0` (80 B in 7 blocks; shared `ret` at `0x4bfdc`).
+    **Annotated, kept at region bound** (5 texture cluster rows):
+    `texture_status_dispatch_call`, `texture_active_prepare_call`,
+    `texture_status_scan_end`, `texture_child_zero_gate_a`,
+    `texture_child_zero_gate_b`. The convergence on `0x4bfe0` is a real
+    CFG result (50 blocks, six entry points) — the overlap is by design.
+    **Annotated, identity open** (2 rows): `camera_post_update_gate`
+    (prose `0x1d984`, sweep `0x1ee34`) and `frame_shadow_verify` (prose
+    "28 instructions", sweep 110 words). `src/` byte-identical.
+    Published percentage unchanged at 0.4456%. See
+    `phase_1_2a_conservative_decisions_v0734i.md`.
+- **v0734j bounded Phase 2.6 / F4.** Status record, not a fix. F4 is
+    INDIVIDUAL walks at rows 1-2 only (rows 3-5 are unreachable by walking
+    in INDIVIDUAL mode: row 2's down-neighbour is row 0, and the step
+    also exits INDIVIDUAL mode). Four-evidence failure modes documented:
+    (1) the 4061 vs 4060 one-instruction delta between two row-2
+    INDIVIDUAL samples; (2) the 38 vs 32 call-count delta;
+    (3) the INDIVIDUAL render structural difference (rows 24-33 erased,
+    chute section dropped, digit cells + `runs[]` filter need
+    re-deriving against a reference trace); (4) the 4293 total which has
+    to agree on the exact snapshot, not a cold-start. The focused slice
+    needs the row-1 INDIVIDUAL PUNCH/KICK samples + row-2 ones, an
+    exact-snapshot differential, and a one-conditional filter
+    (`coin_flags & 1`). No `src/` change. See
+    `phase_2_6_f4_status_v0734j.md`.
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.
