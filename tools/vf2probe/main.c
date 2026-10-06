@@ -380,12 +380,15 @@ static void trace_callback(
     }
     printf(
         "{\"type\":\"step\",\"step\":%" PRIu64
-        ",\"ip_before\":%u,\"ip_after\":%u,\"size\":%u,\"mnemonic\":\"%s\"}\n",
+        ",\"ip_before\":%u,\"ip_after\":%u,\"size\":%u,\"mnemonic\":\"%s\""
+        ",\"compare\":%u,\"arith\":%u}\n",
         event->step,
         event->ip_before,
         event->ip_after,
         (unsigned)event->instruction.size,
-        event->instruction.mnemonic
+        event->instruction.mnemonic,
+        (unsigned)cpu->compare_result,
+        (unsigned)cpu->arithmetic_control
     );
 }
 

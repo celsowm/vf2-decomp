@@ -7,6 +7,78 @@
 > live. The follow-up commit `9e60f1c3` builds that fix, shows it breaks the warm
 > leg, and reverts it. `src/` is byte-identical. Read `9e60f1c3`, not
 > `db0dbcf6`, for Phase 2.2.
+>
+> **v0734e** is the actual fix: the last cc writer is `cmpobne` at `0x236c8`
+> (GREATER on the live leg) vs `cmpinco` at `0x23930` (EQUAL on warm). The
+> live branch of the shell's `cmpobl 0, r3` split now publishes GREATER and the
+> differential FULL MATCHes. `g14` remains the one open divergence.
+
+## v0734e: the live-leg condition state is recovered — the last writer is `cmpobne` at `0x236c8`
+
+**Closes Phase 2.2.** The defect v0733e found is fixed and differentially proved.
+`g14` (item 2.1) is untouched and is now the only open divergence at the
+`0x23524` boundary.
+
+**The measurement.** v0734d named the missing piece: `vf2probe --trace` emitted
+`ip_before`/`ip_after`/`mnemonic` but **not** the compare state, so the last
+compare-setting instruction could not be found. `tools/vf2probe/main.c` now
+emits `compare` and `arith` per step — the callback already received the CPU, so
+this was two fields, not a new instrument. Walking warm and live from `0x23524`
+and reporting the last `compare` transition:
+
+| leg | last cc writer | leaves | reference at `0x22210` |
+|---|---|---|---|
+| warm | `cmpinco` at **0x23930** | EQUAL | EQUAL, `0x3f001002` |
+| live | `cmpobne` at **0x236c8** | GREATER | GREATER, `0x3f001001` |
+
+Both sit in the `bal 0x23694` body. The live one is the first instruction of the
+`cmpobl` target:
+
+```text
+000236b0  cmpobl   0, r3, 0x000236c4   <- LESS on the way in
+000236c4  ld       ...                 <- target; does not touch cc
+000236c8  cmpobne  ...                 <- GREATER. LAST WRITER.
+```
+
+**The trace's `compare` is the state AFTER `ip_before` executes.** Reading it as
+pre-execution puts the writer one instruction early — which is exactly what made
+`subr 0x23864` look like the culprit in v0734d.
+
+**TWO REJECTED EXPLANATIONS, kept because they are easy to fall back into.** The
+`subr` at `0x23864` (the `+0x650` clamp) cannot be it: `g8 + 0x650` is **0 on
+both legs**, so one `subr` with identical operands cannot yield EQUAL on warm and
+GREATER on live — the whole `0x23840..0x23874` tail holds cc unchanged. And
+`bbc` at `0x23868` does **not** write cc under `vf2_i960_run` (same state either
+side), which **answers B49's sub-question for this path**.
+
+**The fix** is one line in the live arm of the shell's `cmpobl 0, r3` split:
+`hybrid_set_compare_result(cpu, VF2_I960_COMPARE_GREATER);`. The warm arm is
+deliberately untouched (it already reaches EQUAL) and the refused leg C never
+reaches this code, so its LESS state and load-bearing refusal are unaffected.
+
+**The gate.** The test recorded `cc_diverges = 1` / `arith_diverges = 1` for leg
+B — the divergence itself was asserted, so the fix first appeared as a *failure*
+(`divergence is 0, measured 1 (reference 3, native 3)`). Both flags are now `0`.
+Negative control on this exact tree, publishing EQUAL instead:
+
+```text
+MISMATCH B live f0: compare_result divergence is 1, measured 0 (reference 3, native 2)
+MISMATCH B live f0: arithmetic_control divergence is 1, measured 0 (reference 0x3f001001, native 0x3f001002)
+```
+
+It pins both the cc and the packed `arithmetic_control`.
+
+**A process note worth keeping.** An earlier negative control in this slice was
+run through a scripted whole-file replace that silently hit **ten** unrelated
+`hybrid_set_compare_result` sites. The diff review caught it and `hybrid.c` was
+restored from git before the real control was run. That is why every control in
+this slice is diff-reviewed rather than trusted — and the shipped diff is a **pure
+insertion, 23 lines added and 0 removed**.
+
+`g14` (item 2.1) remains open: the reference's is `0x23648` on both admitted legs
+because both execute `bal 0x23694` at `0x23644`; the native never writes it.
+
+See `decomp/i960/notes/coli_23524_live_cc_recovered_v0734e.md`.
 
 ## v0734d: the obvious Phase 2.2 fix is disproved — `t1` is 0 on both legs
 

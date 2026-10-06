@@ -45,10 +45,27 @@
  *      admitted legs (they execute the `bal 0x23694` at 0x23644) but the
  *      untouched entry value 0x22428 on the refused leg, which branches to
  *      0x23648 at 0x235a8 and skips the `bal` entirely.
- *   2. On the LIVE leg only, the native publishes cc EQUAL and
+ *   2. ~~On the LIVE leg only, the native publishes cc EQUAL and
  *      `arithmetic_control` `0x3f001002` where the reference has GREATER and
- *      `0x3f001001`. This is a real, bounded gap on one admitted leg, and it
- *      is the only condition-state gap left at this boundary.
+ *      `0x3f001001`.~~ **CLOSED at v0734e.** The last compare-setting
+ *      instruction was measured, not guessed: the vf2probe trace record now
+ *      carries a per-instruction `compare`, and on both legs the final `cc`
+ *      change comes from a different compare in the `bal 0x23694` body --
+ *      `cmpinco` at 0x23930 (EQUAL) on warm, `cmpobne` at 0x236c8 (GREATER) on
+ *      live. The live branch of the shell now publishes GREATER at
+ *      hybrid.c's `cmpobl 0, r3` split, and the differential FULL MATCHes the
+ *      reference on both condition fields.
+ *
+ *      Two earlier candidate explanations were measured and REJECTED, and are
+ *      kept because the trap is easy to fall back into:
+ *        - the `subr` at 0x23864 (the `+0x650` clamp). `g8 + 0x650` is 0 on
+ *          BOTH legs, so it cannot produce EQUAL on one and GREATER on the
+ *          other. The whole 0x23840..0x23874 tail holds cc unchanged.
+ *        - `bbc` at 0x23868. Stopping either side of it gives the same state,
+ *          so it does not write cc under `vf2_i960_run`.
+ *      See decomp/i960/notes/coli_23524_live_cc_located_v0734d.md.
+ *
+ *   3. `g14` remains the one open divergence (item 2.1).
  *
  * Measured witness (vf2probe 0.1.3, this build, real ROM; entry
  * out/coli-parked-221e8.vf2snap -> 0x23524 in 7 instructions, depth 6,
@@ -163,7 +180,7 @@ static const leg_t LEGS[] = {
     { "B live f0", UINT32_C(0x00000100), 0u, 1, UINT32_C(0x0000ffff),
       UINT64_C(9300), UINT64_C(12), UINT64_C(13),
       UINT32_C(0x00000000), UINT32_C(0xffffdffc), UINT32_C(2),
-      UINT32_C(0x00023648), VF2_I960_COMPARE_GREATER, 1, 1, 1 },
+      UINT32_C(0x00023648), VF2_I960_COMPARE_GREATER, 1, 0, 0 },
     { "C g6 bit0", UINT32_C(0x00040000), 0u, 0, 0u,
       UINT64_C(6193), UINT64_C(10), UINT64_C(11),
       UINT32_C(0x0000fffe), UINT32_C(0xffffffff), UINT32_C(1),

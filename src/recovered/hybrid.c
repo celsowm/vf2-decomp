@@ -31017,6 +31017,29 @@ vf2_status vf2_hybrid_coli_23524_execute(
                 }
             }
         }
+
+        /* v0734e: publish the compare state this path leaves behind.
+         *
+         * Measured, not assumed. The vf2probe trace record now carries a
+         * per-instruction `compare`, and on the live leg the LAST instruction
+         * that changes cc is `cmpobne` at 0x236c8 - the first instruction of
+         * this branch's target. The reference exits 0x22210 with cc 3 /
+         * arithmetic_control 0x3f001001. The `cmpobl` at 0x236b0 sets LESS on
+         * the way in and the `ld` at 0x236c4 does not touch cc, so 0x236c8 is
+         * the last writer on this path.
+         *
+         * The warm leg is a different branch with a different last writer
+         * (`cmpinco` at 0x23930 -> EQUAL), and the refused leg C never reaches
+         * here. Two other candidate explanations were measured and REJECTED
+         * first: the `subr` at 0x23864 (the `+0x650` clamp - `g8 + 0x650` is 0
+         * on BOTH legs, so it cannot produce two different results) and `bbc`
+         * at 0x23868 (same cc either side, so it does not write cc under
+         * vf2_i960_run). See
+         * decomp/i960/notes/coli_23524_live_cc_located_v0734d.md.
+         *
+         * This closes the live-leg divergence recorded by
+         * tests/recovered/test_coli_23524_live.c. */
+        hybrid_set_compare_result(cpu, VF2_I960_COMPARE_GREATER);
     } else {
         return VF2_ERROR_UNSUPPORTED;
     }
