@@ -204,7 +204,7 @@ the order listed; each is independent.
 | # | item | evidence in hand | notes |
 |---|---|---|---|
 | 2.1 | `g14` at the `0x23524` return | `0x23648` on both admitted legs, entry value `0x22428` on the refused one | path-dependent via the `bal` at `0x23644`; no single constant is correct |
-| 2.2 | live-leg condition state | reference `GREATER` / `0x3f001001`, native publishes warm `EQUAL` / `0x3f001002` | a **real admitted-leg defect**; needs the live path's last compare-setting instruction |
+| 2.2 | live-leg condition state | reference `GREATER` / `0x3f001001`, native publishes warm `EQUAL` / `0x3f001002` | **LOCATED at v0734d.** The cc is set by the `subr r14, r15, r15` at `0x23864` — `g8`'s `+0x650` clamp — just before the `bx (g14)` tail. `hybrid.c:31161-31181` recovers the clamp but never publishes `compare_result`, so the native inherits a cc that is right on the warm leg **by accident** and wrong on the live one. The fix site is named; **it is gated on B49** (whether `bbc 0x23868` also writes cc). See `coli_23524_live_cc_located_v0734d.md`. |
 | 2.3 | `+0x110` / `+0x114` setbit sides | warm leg only | widen with the neighbouring leg, never from one sample |
 | 2.4 | 7-instruction `a5=4` delta | measured, uncharacterised | |
 | 2.5 | edit paths 4505/4506/4509, 4625, 4634, 4636 | all currently refuse | |
