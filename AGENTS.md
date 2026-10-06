@@ -409,6 +409,28 @@ At the time this handoff was written, `master` already contains:
     4634, 4636): all six refuse at the `0xa6c0` gate by design —
     honest refusal, no silent acceptance. Needs only a ctest audit.
     `src/` byte-identical. See `phase_2_3_to_2_5_status_v0734m.md`.
+- **v0735 wrote the advance plan.** Three substantial slices in
+    dependency order: Phase 2.5 ctest audit → Phase 3 first
+    decomposition → Phase 4 first chunk. Pure planning note; no code
+    change. See `advance_plan_v0735.md`.
+- **v0736 closed the Phase 2.5 ctest audit.** New ctest entry
+    `vf2_phase_2_5_refused_audit` (ctest #124, 1.31 s). 7 refused paths
+    still refuse (4 F2 row-3 edits + 3 INDIVIDUAL a5 patches); 2
+    documented silent-admission holes (`f2-r3-c3a-e2`,
+    `f2-r3-c3a-e4`). The holes are reported but not failed — closing
+    them is Phase 2.5 fail-open follow-up. See v0737 and v0738 for
+    the boundary characterisations.
+- **v0737 characterised the Phase 3 next-target boundary.** The 4
+    callees of `0x29414` are measured and named: `0x29598` (84 B,
+    called twice — natural first target), `0xcf04` (184 B),
+    `0x439ac` (80 B), `0x43888` (200 B, `VF2_SELECTOR2_QUEUE_ENTRY`).
+    Full disassembly of `0x29598` plus a recovery recipe. No code
+    change. See `fa_player_29414_callees_boundary_v0737.md`.
+- **v0738 characterised the Phase 4 simulation systems boundary.**
+    Post-`0x28780` frontier: physics / hitbox / damage / ring-out /
+    CPU logic. Smallest is physics / idle-to-crouch transition.
+    Recovery recipe in the note. No code change. See
+    `phase_4_simulation_boundary_v0738.md`.
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.
