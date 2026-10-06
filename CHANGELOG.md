@@ -13,6 +13,50 @@
 > live branch of the shell's `cmpobl 0, r3` split now publishes GREATER and the
 > differential FULL MATCHes. `g14` remains the one open divergence.
 
+## v0734g: `block_coverage.py` no longer renders unmeasured coverage as `0.00`
+
+**Phase 1.4.** A small honesty fix to `tools/python/block_coverage.py`. The text
+report cannot now be read as "every row is at 0%" when in fact no trace was
+supplied.
+
+**The defect.** With no trace, `addresses_in_trace` was zero for every row and
+`coverage_ratio` rendered as `0.00`. The stderr banner was easy to miss; the
+table itself looked like a measurement that said "we tried, nothing was
+covered". With no trace every row carries zero — that is not the same as saying
+every row is uncovered.
+
+**The change.** `render_text` now takes `addresses_measured: bool = True` and
+`main()` passes `addresses_measured=bool(addresses)`. When False:
+
+```text
+note: no trace was supplied; every row's coverage and uncovered counts are
+shown as 'n/a' / 0 because no instrument observed them, NOT because every row
+is at 0%. The byte_size, largest_uncovered_run and range columns are still
+meaningful.
+```
+
+The `cov` column renders `n/a` instead of `0.00`. `byte_size`, `in_trace`,
+`largest_uncovered_run` and `range` are still shown verbatim — they are useful
+for ranking and are not affected by the absence of a trace.
+
+**Gate integrity.** `test_render_text_marks_unmeasured_coverage_loudly` checks
+that the banner + `n/a` appear with `addresses_measured=False`, that `0.00`
+appears and the banner is absent with `addresses_measured=True`, and that the
+flag (not the observed addresses) drives the labelling. Negative control —
+revert to `r.coverage_ratio:>5.2f` and the test fails on the banner copy.
+
+**What this slice does NOT change.**
+
+- The JSON output carries `coverage_ratio: 0.0` and `addresses_in_trace: 0` for
+  unmeasured rows — the existing per-row schema is the audit trail and the
+  JSON consumer decides its own unmeasured semantics.
+- No CSV column was added; presentation fix only.
+- No `src/` change. `git diff --stat src` is empty.
+
+`test_block_coverage.py` **25/25** (was 24/24); factory chain **14/14**.
+
+See `decomp/i960/notes/block_coverage_admits_unmeasured_v0734g.md`.
+
 ## v0734f: g14 is recovered at the `0x23524` return — the boundary is FULL MATCH
 
 **Closes Phase 2.1.** Together with v0734e, both named divergences at the

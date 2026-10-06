@@ -423,23 +423,45 @@ def rank_reports(rows: List[FunctionReport], key: str) -> List[FunctionReport]:
     return rows
 
 
-def render_text(rows: List[FunctionReport]) -> str:
+def render_text(
+    rows: List[FunctionReport],
+    addresses_measured: bool = True,
+) -> str:
     """Render a human-readable report (text table).
 
     `rows` arrives already filtered and limited; see the comment at the call
     site for why the order matters.
+
+    ``addresses_measured`` says whether the caller supplied at least one trace
+    of executed addresses. When False, every row's coverage and uncovered counts
+    are carried as zeros - not because the rows are uncovered, but because no
+    instrument observed them. The rendering marks the `cov` column `n/a` and
+    prints a banner so the table cannot be read as "every row is at 0%".
     """
     lines = [
         f"{'name':<32} {'status':<26} {'size':>7} "
         f"{'in_trace':>9} {'cov':>5} {'uncovered':>10} "
         f"{'long_run':>9}  range"
     ]
+    if not addresses_measured:
+        # A report over an unmeasured table is still useful - it ranks by
+        # byte_size / total_uncovered_words / largest_uncovered_run - but the
+        # coverage column would be all 0.00 and look like coverage when it is
+        # actually the absence of measurement. Say so loudly.
+        lines.insert(
+            0,
+            "note: no trace was supplied; every row's coverage and uncovered "
+            "counts are shown as 'n/a' / 0 because no instrument observed them, "
+            "NOT because every row is at 0%. The byte_size, largest_uncovered_run "
+            "and range columns are still meaningful.\n",
+        )
     for r in rows:
+        cov = "  n/a" if not addresses_measured else f"{r.coverage_ratio:>5.2f}"
         lines.append(
             f"{r.name[:32]:<32} {r.status:<26} "
             f"{r.byte_size:>7} "
             f"{r.addresses_in_trace:>9} "
-            f"{r.coverage_ratio:>5.2f} "
+            f"{cov} "
             f"{r.total_uncovered_words:>10} "
             f"{r.largest_uncovered_run:>9}  "
             f"{hex32(r.start)}..{hex32(r.end)}"
@@ -591,7 +613,7 @@ def main() -> int:
             if out is not sys.stdout:
                 out.close()
     else:
-        text = render_text(rows)
+        text = render_text(rows, addresses_measured=bool(addresses))
         if inverted:
             text += (
                 f"\n{len(inverted)} bounded functions.csv rows are EXCLUDED "

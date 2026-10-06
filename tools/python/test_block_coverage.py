@@ -247,6 +247,44 @@ def test_rank_reports_rejects_unknown_key():
     raise AssertionError("rank_reports accepted unknown --sort key")
 
 
+def test_render_text_marks_unmeasured_coverage_loudly():
+    """A report with no trace must NOT look like 'every row is at 0%'.
+
+    The Phase 1.4 fix: when addresses_measured is False, render_text prints a
+    banner and writes 'n/a' in the cov column instead of a misleading 0.00.
+    Proven here by inspecting the rendered text on a known input.
+    """
+    funcs = [
+        FunctionRange(0x1000, 0x1080, "real_function", "recovered"),
+        FunctionRange(0x2000, 0x3000, "another_function", "recovered"),
+    ]
+    rows = build_report(funcs, set())  # empty trace
+
+    text_unmeasured = render_text(rows, addresses_measured=False)
+    # Banner names the absence of measurement, not 0%.
+    assert "no trace was supplied" in text_unmeasured, text_unmeasured
+    # The cov column is marked 'n/a', not '0.00'.
+    assert "n/a" in text_unmeasured
+    assert "0.00" not in text_unmeasured, text_unmeasured
+
+    text_measured = render_text(rows, addresses_measured=True)
+    # When measured, the numbers are honest: 0.00 is real coverage.
+    assert "0.00" in text_measured, text_measured
+    assert "n/a" not in text_measured
+    # And the banner does not appear.
+    assert "no trace was supplied" not in text_measured
+
+    # With a real trace that covers every word, the cov column is 1.00 and
+    # the n/a path is not taken even with addresses_measured=False (the
+    # rendering still says n/a because the *measured* flag is the source of
+    # truth, not the addresses observed).
+    rows_partial = build_report(funcs, {0x1000})
+    text_partial_unmeasured = render_text(rows_partial, addresses_measured=False)
+    assert "n/a" in text_partial_unmeasured, text_partial_unmeasured
+
+    print("ok: render_text says 'n/a' and prints a banner when not measured")
+
+
 def test_render_text_excludes_wrappers_by_default():
     funcs = [
         FunctionRange(0x1000, 0x1080, "real_function", "recovered"),
@@ -537,6 +575,7 @@ def main():
     test_build_report_marks_wrappers_separately()
     test_rank_reports_orders_by_largest_uncovered_run_desc()
     test_rank_reports_rejects_unknown_key()
+    test_render_text_marks_unmeasured_coverage_loudly()
     test_render_text_excludes_wrappers_by_default()
     test_mark_containers_flags_strict_containers()
     test_mark_containers_leaves_abutting_siblings_alone()
