@@ -431,6 +431,41 @@ At the time this handoff was written, `master` already contains:
     CPU logic. Smallest is physics / idle-to-crouch transition.
     Recovery recipe in the note. No code change. See
     `phase_4_simulation_boundary_v0738.md`.
+- **v0741 recovered `0x29598` in C** (the first callee of `0x29414`
+    from v0737). Three paths admitted: skip (g0 bit 4 clear),
+    bbc-taken (g1=0), addo-1 g1 (g1 != 15). Path D (g1 == 15,
+    setbit + 3 sub-calls) REFUSED — the sub-callees `0xcf04`,
+    `0x439ac`, `0x43888` are not yet recovered. New ctest entry
+    `vf2_player_29598` (ctest #38, 0.03 s) PASSES. The function
+    is a standalone execute hook, **not** yet wired into the
+    dispatcher chain. Wiring is a separate slice. See
+    `fa_player_29598_recovered_v0741.md`.
+- **v0742 closed Slice 4 attempt** as a Phase 4 / crouch
+    boundary status, NOT a recovery. The v0738 recipe was
+    hand-wavy on the actual state byte offset and the
+    post-`0x28780` corridor is a 32-iteration object/stream
+    expansion loop, not a crouch transition. The actual fighter
+    state byte is at `+0x01b0` (1B), and the state descriptor
+    table is at `0x0200620c` (32 entries). The crouch transition
+    is in some input-processing callee between `0x14288` and
+    `0x180bc`; TBD via trace. Smaller alternative Phase 4
+    chunk: hitbox/hurtbox at `+0x61e`/`+0x626` (state-25
+    walker scaffolding already in place). See
+    `phase_4_crouch_boundary_v0742.md`.
+- **v0743 measured the 7-instruction a5=4 delta.** Two
+    `vf2probe --trace` runs (preset=0 vs preset=1) diverge at
+    step 2653 (`ip_before=0x60dbc`). The conditional is
+    `r9 = r6 & 0xf; if (r9 != 1) jmp 0x60ddc`, where
+    `r6 = *(uint8_t*)(*(uint32_t*)(0x614c4 + (r3 & 0xf) * 4))`.
+    At preset=0 the indirect byte has lower nibble 1, so the
+    7-instruction body (`stos r10, (g9)` to the row-24 chute
+    slot) runs. At preset>=1 the byte has a different lower
+    nibble, so the body is skipped. The 7-instruction delta
+    is the chute-slot write that v0732c corrected. The
+    recovered `phase17_bit7_index5` keeps the
+    measured-constant rule; this note documents the
+    mechanical cause. No `src/` change. See
+    `phase_2_4_a5_4_divergence_v0743.md`.
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.
