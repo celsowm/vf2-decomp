@@ -92,4 +92,15 @@ vf2_status vf2_hybrid_player_1fee4_execute(
     vf2_i960_cpu *cpu
 );
 
+/* Recover 0x1ff0c: display_profile_mode_constants (240 B, 5
+ * blocks, 3 paths). IP must be 0x1ff0c with a pushed frame.
+ * REFUSES the sub-call to 0x1fee4 (the dispatcher's interpreted
+ * fallback will run the 26-iter init); then dispatches on
+ * 0x500064: == 10 -> write 2 floats; == 6 -> write 10 floats;
+ * default -> ret. */
+vf2_status vf2_hybrid_player_1ff0c_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 #endif

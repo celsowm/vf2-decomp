@@ -33184,6 +33184,11 @@ vf2_status vf2_hybrid_player_cf04_execute(
  * (0x3f800000) to 26 consecutive 4-byte locations starting at
  * 0x50a0e0 (covering 0x50a0e0..0x50a144). This is the init
  * routine called by 0x1ff0c (display_profile_mode_constants).
+ *
+ * IMPORTANT: this function does NOT pop the local frame. The
+ * caller (0x1ff0c) is expected to pop the frame at its own ret.
+ * The 0x1fee4 unit test (v0749) calls this function from a
+ * test frame that 0x1fee4 itself pops via return_procedure.
  */
 static vf2_status hybrid_execute_player_1fee4(
     vf2_model2a *machine,
@@ -33209,16 +33214,8 @@ static vf2_status hybrid_execute_player_1fee4(
     }
 
     cpu->ip = UINT32_C(0x0001ff08);
-    /* Body count: 1 (mov) + 1 (lda r6) + 1 (lda r7) +
-     * 26 * (1 (st) + 1 (addo) + 1 (cmpdeco) + 1 (bl)) = 26*4 = 104
-     * (minus 1 for the last fall-through bl = 103) +
-     * 1 (ret) = 1 + 1 + 1 + 103 + 1 = 107 */
-    cpu->executed_instructions += UINT64_C(107);
-    status = vf2_i960_cpu_return_procedure(cpu, machine);
-    if (status == VF2_OK) {
-        ++cpu->executed_instructions;
-    }
-    return status;
+    cpu->executed_instructions += UINT64_C(106);
+    return VF2_OK;
 }
 
 vf2_status vf2_hybrid_player_1fee4_execute(
@@ -33226,5 +33223,179 @@ vf2_status vf2_hybrid_player_1fee4_execute(
     vf2_i960_cpu *cpu
 )
 {
-    return hybrid_execute_player_1fee4(machine, cpu);
+    vf2_status status = hybrid_execute_player_1fee4(machine, cpu);
+    if (status == VF2_OK) {
+        status = vf2_i960_cpu_return_procedure(cpu, machine);
+        if (status == VF2_OK) {
+            ++cpu->executed_instructions;
+        }
+    }
+    return status;
+}
+
+/* ====================================================================
+ * fa_player 0x1ff0c - display_profile_mode_constants (v0750)
+ *
+ * Disassembly (per vf2i960 disasm, 240 B, 5 blocks):
+ *
+ *   block 0x1ff0c (init + dispatch):
+ *     0001ff0c  call     0x0001fee4            # init 26 x float 1.0
+ *     0001ff10  ldob     0x00500064, r15
+ *     0001ff18  cmpobe   10, r15, 0x0001ff24   # path A: r15 == 10
+ *     0001ff1c  cmpobe   6, r15, 0x0001ff48    # path B: r15 == 6
+ *     0001ff20  ret                            # path C: default
+ *
+ *   block 0x1ff24 (path A: r15 == 10):
+ *     0001ff24  lda      0x3f0f5c29, r15
+ *     0001ff2c  st       r15, 0x0050a124
+ *     0001ff34  lda      0x3ef0a3d7, r15
+ *     0001ff3c  st       r15, 0x0050a128
+ *     0001ff44  ret
+ *
+ *   block 0x1ff48 (path B: r15 == 6):
+ *     0001ff48  lda      0x3f0a3d71, r15
+ *     0001ff50  st       r15, 0x0050a0e4
+ *     0001ff58  lda      0x3f0a3d71, r15
+ *     0001ff60  st       r15, 0x0050a0e8
+ *     0001ff68  lda      0x3f6b851f, r15
+ *     0001ff70  st       r15, 0x0050a0f0
+ *     0001ff78  lda      0x3f5eb852, r15
+ *     0001ff80  st       r15, 0x0050a0f8
+ *     0001ff88  lda      0x3f028f5c, r15
+ *     0001ff90  st       r15, 0x0050a100
+ *     0001ff98  lda      0x3f0a3d71, r15
+ *     0001ffa0  st       r15, 0x0050a118
+ *     0001ffa8  lda      0x3f0a3d71, r15
+ *     0001ffb0  st       r15, 0x0050a11c
+ *     0001ffb8  lda      0x3f07ae14, r15
+ *     0001ffc0  st       r15, 0x0050a124
+ *     0001ffc8  lda      0x3f28f5c3, r15
+ *     0001ffd0  st       r15, 0x0050a128
+ *     0001ffd8  lda      0x3f11eb85, r15
+ *     0001ffe0  st       r15, 0x0050a12c
+ *     0001ffe8  lda      0x3f028f5c, r15
+ *     0001fff0  st       r15, 0x0050a134
+ *     0001fff8  ret
+ *
+ * Three paths:
+ *   A: r15 == 10 -> write 2 floats (0x50a124, 0x50a128)
+ *   B: r15 == 6  -> write 10 floats (0x50a0e4..0x50a134)
+ *   C: default   -> ret (no writes)
+ *
+ * The function calls 0x1fee4 (the 26-iter init) at entry. We
+ * delegate that to vf2_hybrid_player_1fee4_execute (v0749).
+ */
+static vf2_status hybrid_execute_player_1ff0c(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    vf2_status status;
+    uint8_t r15 = 0u;
+
+    if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x0001ff0c)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    /* Step 1: call 0x1fee4 (the 26-iter init). We push a fresh
+     * frame for the 0x1fee4 call so that 0x1fee4's
+     * vf2_i960_cpu_return_procedure (called at the end of the
+     * public execute function) only pops OUR pushed frame, not
+     * the caller's frame. */
+    status = vf2_i960_cpu_enter_procedure(
+        cpu, UINT32_C(0x0001fee4), UINT32_C(0x0001ff10)
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+    status = vf2_hybrid_player_1fee4_execute(machine, cpu);
+    if (status != VF2_OK) {
+        return status;
+    }
+    /* After 0x1fee4's return_procedure, cpu->ip = 0x1ff10. */
+    cpu->ip = UINT32_C(0x0001ff10);
+
+    /* Step 2: read 0x500064. */
+    status = vf2_model2a_read(
+        machine, UINT32_C(0x00500064), &r15, sizeof(r15)
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+
+    /* Step 3: dispatch. */
+    if (r15 == 10u) {
+        /* Path A: 2 floats. */
+        status = vf2_model2a_write_u32(
+            machine, UINT32_C(0x0050a124), UINT32_C(0x3f0f5c29)
+        );
+        if (status != VF2_OK) {
+            return status;
+        }
+        status = vf2_model2a_write_u32(
+            machine, UINT32_C(0x0050a128), UINT32_C(0x3ef0a3d7)
+        );
+        if (status != VF2_OK) {
+            return status;
+        }
+    } else if (r15 == 6u) {
+        /* Path B: 10 floats. */
+        const struct {
+            uint32_t address;
+            uint32_t value;
+        } writes[10] = {
+            { UINT32_C(0x0050a0e4), UINT32_C(0x3f0a3d71) },
+            { UINT32_C(0x0050a0e8), UINT32_C(0x3f0a3d71) },
+            { UINT32_C(0x0050a0f0), UINT32_C(0x3f6b851f) },
+            { UINT32_C(0x0050a0f8), UINT32_C(0x3f5eb852) },
+            { UINT32_C(0x0050a100), UINT32_C(0x3f028f5c) },
+            { UINT32_C(0x0050a118), UINT32_C(0x3f0a3d71) },
+            { UINT32_C(0x0050a11c), UINT32_C(0x3f0a3d71) },
+            { UINT32_C(0x0050a124), UINT32_C(0x3f07ae14) },
+            { UINT32_C(0x0050a128), UINT32_C(0x3f28f5c3) },
+            { UINT32_C(0x0050a12c), UINT32_C(0x3f11eb85) }
+        };
+        const uint32_t extra_writes[2] = {
+            UINT32_C(0x0050a134), UINT32_C(0x3f028f5c)
+        };
+        size_t i;
+        for (i = 0; i < 10u; ++i) {
+            status = vf2_model2a_write_u32(
+                machine, writes[i].address, writes[i].value
+            );
+            if (status != VF2_OK) {
+                return status;
+            }
+        }
+        /* Plus 2 more writes that I noted in the disassembly. */
+        status = vf2_model2a_write_u32(
+            machine, extra_writes[0], extra_writes[1]
+        );
+        if (status != VF2_OK) {
+            return status;
+        }
+    }
+    /* Path C (default): no writes. */
+
+    /* Return via ret. */
+    cpu->ip = UINT32_C(0x0001ff44);
+    if (r15 == 6u) {
+        cpu->ip = UINT32_C(0x0001fff8);
+    } else if (r15 != 10u) {
+        cpu->ip = UINT32_C(0x0001ff20);
+    }
+    cpu->executed_instructions += UINT64_C(1);
+    status = vf2_i960_cpu_return_procedure(cpu, machine);
+    if (status == VF2_OK) {
+        ++cpu->executed_instructions;
+    }
+    return status;
+}
+
+vf2_status vf2_hybrid_player_1ff0c_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_1ff0c(machine, cpu);
 }
