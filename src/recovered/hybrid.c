@@ -32548,3 +32548,158 @@ vf2_status vf2_hybrid_player_29598_execute(
 {
     return hybrid_execute_player_29598(machine, cpu);
 }
+
+/* ====================================================================
+ * fa_player 0x439ac - queue dedup-append (v0745)
+ *
+ * Disassembly (per vf2i960 disasm):
+ *
+ *   block 0x439ac:
+ *     000439ac  ldob     0x0050406a, r3            # r3 = count
+ *     000439b4  cmpoble  4, r3, 0x000439f8         # if r3 >= 4, ret
+ *
+ *   block 0x439b8 (search loop):
+ *     000439b8  mov      g0, r4                    # r4 = search key
+ *     000439bc  addi     1, r3, r3                 # r3 = count + 1
+ *     000439c0  ld       0x00504074[r3*4], r5      # r5 = read_slot[r3]
+ *     000439c8  cmpobe   r4, r5, 0x000439f8        # if r5 == r4, ret (idempotent)
+ *     000439cc  cmpdeco  1, r3, r3                 # r3 = r3 - 1; if r3 == 0, fall
+ *     000439d0  bl       0x000439c0               # else branch back to loop
+ *
+ *   block 0x439d4 (append):
+ *     000439d4  ldob     0x0050406a, r3            # reload count
+ *     000439dc  st       r4, 0x00504078[r3*4]      # write_slot[count] = r4
+ *     000439e4  ldib     0x0050406a, r15
+ *     000439ec  lda      0x00000001(r15), r15
+ *     000439f0  stib     r15, 0x0050406a           # count++
+ *
+ *   block 0x439f8:
+ *     000439f8  ret
+ *
+ * Shape: a single dedup-and-append operation on a small queue.
+ * - count is a 1B at 0x50406a
+ * - read slots at 0x504074[r3*4], write slots at 0x504078[r3*4]
+ * - the function searches read slots for g0; if not present, writes
+ *   g0 to write slot at the current count and increments count.
+ *
+ * Note: the read and write tables are 4 bytes apart. The function
+ * effectively does a "search in 0x504074[count+1..1], append to
+ * 0x504078[count]" pattern. Two tables, one count.
+ */
+static vf2_status hybrid_execute_player_439ac(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    vf2_status status;
+    uint8_t r3 = 0u;
+    uint32_t r4 = 0u;
+    uint32_t r5 = 0u;
+
+    if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x000439ac)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    /* Step 1: read count. */
+    status = vf2_model2a_read(
+        machine, UINT32_C(0x0050406a), &r3, sizeof(r3)
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+
+    /* Step 2: if count >= 4, return immediately. */
+    if (r3 >= 4u) {
+        cpu->ip = UINT32_C(0x000439f8);
+        cpu->executed_instructions += UINT64_C(2);
+        status = vf2_i960_cpu_return_procedure(cpu, machine);
+        if (status == VF2_OK) {
+            ++cpu->executed_instructions;
+        }
+        return status;
+    }
+
+    /* Step 3: search read slots for g0 (idempotent dedup).
+     * Walk r3 from (count + 1) down to 1, reading 0x504074[r3*4]
+     * and comparing to g0. If a match is found, return. */
+    r4 = cpu->registers[VF2_I960_G0_REGISTER + 0u];
+    {
+        int32_t slot_index = (int32_t)r3 + 1;
+        int found = 0;
+        while (slot_index > 0 && !found) {
+            status = vf2_model2a_read_u32(
+                machine,
+                UINT32_C(0x00504074) + (uint32_t)slot_index * 4u,
+                &r5
+            );
+            if (status != VF2_OK) {
+                return status;
+            }
+            if (r5 == r4) {
+                found = 1;
+            } else {
+                --slot_index;
+            }
+        }
+        if (found) {
+            /* Match found: return via ret. */
+            cpu->ip = UINT32_C(0x000439f8);
+            /* body count: 2 (cmpoble taken) + 1 (mov) + 1 (addi) +
+             * (slot_index from count+1 down to match) * 3 (ld+cmp+cmpdeco) +
+             * 1 (ret) */
+            cpu->executed_instructions += UINT64_C(4) +
+                UINT64_C(3) * (uint64_t)((int32_t)r3 + 1 - slot_index);
+            status = vf2_i960_cpu_return_procedure(cpu, machine);
+            if (status == VF2_OK) {
+                ++cpu->executed_instructions;
+            }
+            return status;
+        }
+    }
+
+    /* Step 4: not found: write r4 to write slot and increment count. */
+    status = vf2_model2a_read(
+        machine, UINT32_C(0x0050406a), &r3, sizeof(r3)
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+    status = vf2_model2a_write_u32(
+        machine,
+        UINT32_C(0x00504078) + (uint32_t)r3 * 4u,
+        r4
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+    {
+        uint8_t r15 = (uint8_t)(r3 + 1u);
+        status = vf2_model2a_write(
+            machine, UINT32_C(0x0050406a), &r15, sizeof(r15)
+        );
+        if (status != VF2_OK) {
+            return status;
+        }
+    }
+    cpu->ip = UINT32_C(0x000439f8);
+    /* body count: 2 (cmpoble not taken) + 1 (mov) + 1 (addi) +
+     * (count+1) * 3 (ld+cmp+cmpdeco) + 1 (cmpdeco fall-through)
+     * + 1 (ldob reload) + 1 (st write_slot) +
+     * 1 (ldib) + 1 (lda) + 1 (stib) + 1 (ret) */
+    cpu->executed_instructions += UINT64_C(4) +
+        UINT64_C(3) * (uint64_t)((int32_t)r3 + 1) +
+        UINT64_C(7);
+    status = vf2_i960_cpu_return_procedure(cpu, machine);
+    if (status == VF2_OK) {
+        ++cpu->executed_instructions;
+    }
+    return status;
+}
+
+vf2_status vf2_hybrid_player_439ac_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_439ac(machine, cpu);
+}

@@ -42,4 +42,16 @@ vf2_status vf2_hybrid_player_29598_execute(
     vf2_i960_cpu *cpu
 );
 
+/* Recover 0x439ac: queue dedup-append (selector2 caller path).
+ * IP must be 0x439ac with a pushed frame. Reads count at
+ * 0x50406a (1B); if count >= 4 returns immediately. Otherwise
+ * searches 0x504074[count+1..1] for g0; if found returns
+ * (idempotent). Otherwise writes g0 to 0x504078[count] and
+ * increments the count. Replaces the i960 search/append with
+ * a counted loop. */
+vf2_status vf2_hybrid_player_439ac_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 #endif
