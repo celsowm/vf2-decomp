@@ -33526,3 +33526,93 @@ vf2_status vf2_hybrid_player_1fffc_execute(
 {
     return hybrid_execute_player_1fffc(machine, cpu);
 }
+
+/* ====================================================================
+ * fa_player 0x4b410 - video_command_submit (v0752)
+ *
+ * Disassembly (per vf2i960 disasm, 60 B, 1 block):
+ *
+ *   block 0x4b410:
+ *     0004b410  mov      1, r3               # r3 = 1
+ *     0004b414  st       r3, 0x00550000      # *0x550000 = 1 (control)
+ *     0004b41c  lda      0x005502e0, r3      # r3 = 0x5502e0 (status addr)
+ *     0004b424  mov      3, r15             # r15 = 3
+ *     0004b428  st       r15, [r3]           # *0x5502e0 = 3 (status)
+ *     0004b430  st       g0, 0x00000004[r3]  # 0x5502e4 = g0
+ *     0004b438  st       g1, 0x00000008[r3]  # 0x5502e8 = g1
+ *     0004b440  st       g2, 0x0000000c[r3]  # 0x5502ec = g2
+ *     0004b448  ret
+ *
+ * Shape: a single, simple video-command submission. Writes a
+ * control word to 0x550000, then a status word plus 3
+ * argument words (g0, g1, g2) to the 0x5502e0 ring buffer.
+ * The hardware side effect is not modeled (this is a one-way
+ * submission); the writes are the recoverable part.
+ */
+static vf2_status hybrid_execute_player_4b410(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    vf2_status status;
+
+    if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x0004b410)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    /* *0x550000 = 1 */
+    status = vf2_model2a_write_u32(
+        machine, UINT32_C(0x00550000), UINT32_C(1)
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+
+    /* *0x5502e0 = 3 */
+    status = vf2_model2a_write_u32(
+        machine, UINT32_C(0x005502e0), UINT32_C(3)
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+
+    /* *0x5502e4 = g0, *0x5502e8 = g1, *0x5502ec = g2 */
+    status = vf2_model2a_write_u32(
+        machine, UINT32_C(0x005502e4),
+        cpu->registers[VF2_I960_G0_REGISTER + 0u]
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+    status = vf2_model2a_write_u32(
+        machine, UINT32_C(0x005502e8),
+        cpu->registers[VF2_I960_G0_REGISTER + 1u]
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+    status = vf2_model2a_write_u32(
+        machine, UINT32_C(0x005502ec),
+        cpu->registers[VF2_I960_G0_REGISTER + 2u]
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+
+    /* ret. */
+    cpu->ip = UINT32_C(0x0004b448);
+    cpu->executed_instructions += UINT64_C(8);
+    status = vf2_i960_cpu_return_procedure(cpu, machine);
+    if (status == VF2_OK) {
+        ++cpu->executed_instructions;
+    }
+    return status;
+}
+
+vf2_status vf2_hybrid_player_4b410_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_4b410(machine, cpu);
+}

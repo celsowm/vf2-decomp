@@ -456,6 +456,11 @@ if(VF2_BUILD_TESTS)
     vf2_set_project_warnings(vf2_player_1fffc_tests)
     add_test(NAME vf2_player_1fffc COMMAND vf2_player_1fffc_tests)
 
+    add_executable(vf2_player_4b410_tests tests/recovered/test_player_4b410_native.c)
+    target_link_libraries(vf2_player_4b410_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_player_4b410_tests)
+    add_test(NAME vf2_player_4b410 COMMAND vf2_player_4b410_tests)
+
     add_executable(vf2_player_142c0_live_tests tests/recovered/test_player_142c0_live.c)
     target_link_libraries(vf2_player_142c0_live_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_player_142c0_live_tests)

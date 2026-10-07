@@ -116,4 +116,13 @@ vf2_status vf2_hybrid_player_1fffc_execute(
     vf2_i960_cpu *cpu
 );
 
+/* Recover 0x4b410: video_command_submit (60 B, 1 block).
+ * IP must be 0x4b410 with a pushed frame. Writes 1 to
+ * 0x550000 (a control word), then writes 3 to 0x5502e0 (a
+ * status), and 4 words (g0, g1, g2) to 0x5502e0 + 0..0xc. */
+vf2_status vf2_hybrid_player_4b410_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 #endif
