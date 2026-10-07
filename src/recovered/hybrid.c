@@ -482,6 +482,13 @@ static const vf2_hybrid_callee_hook_entry g_callee_hooks[] = {
 #define VF2_CALLEE_HOOK_COUNT \
     (sizeof(g_callee_hooks) / sizeof(g_callee_hooks[0]))
 
+/* Per-hook fire counters (v0755c instrumentation). Each counter
+ * records how many times the corresponding hook was called by
+ * the per-step loop. Exposed via vf2_hybrid_get_callee_hook_counts
+ * so ctest entries can verify the hook actually fired (vs. the
+ * interpretation fallback being used). */
+static uint64_t g_callee_hook_fire_count[VF2_CALLEE_HOOK_COUNT] = {0};
+
 static const vf2_hybrid_callee_hook_entry *hybrid_find_callee_hook(
     uint32_t ip)
 {
@@ -492,6 +499,18 @@ static const vf2_hybrid_callee_hook_entry *hybrid_find_callee_hook(
         }
     }
     return NULL;
+}
+
+/* Index lookup by entry_ip; returns -1 if not found. */
+static int hybrid_callee_hook_index(uint32_t ip)
+{
+    size_t i;
+    for (i = 0; i < VF2_CALLEE_HOOK_COUNT; ++i) {
+        if (g_callee_hooks[i].entry_ip == ip) {
+            return (int)i;
+        }
+    }
+    return -1;
 }
 
 /* Returns 1 if the [entry_address, stop_address) range contains at
@@ -557,6 +576,11 @@ static vf2_status hybrid_execute_interpreted_until(
             const vf2_hybrid_callee_hook_entry *hook =
                 hybrid_find_callee_hook(cpu->ip);
             if (hook != NULL) {
+                /* v0755c instrumentation: count each hook fire. */
+                int hook_index = hybrid_callee_hook_index(cpu->ip);
+                if (hook_index >= 0) {
+                    g_callee_hook_fire_count[hook_index]++;
+                }
                 status = hook->hook(machine, cpu);
                 if (status == VF2_OK) {
                     /* Function fully handled the call;
@@ -591,6 +615,21 @@ static vf2_status hybrid_execute_interpreted_until(
     return result.halt_reason == VF2_I960_HALT_STOP_ADDRESS &&
             cpu->ip == stop_address
         ? VF2_OK : VF2_ERROR_UNSUPPORTED;
+}
+
+/* Public wrapper (v0755c) for hybrid_execute_interpreted_until.
+ * Same semantics, but exposed via the vf2_hybrid_player.h header
+ * so ctest entries can drive the per-step loop directly with a
+ * hand-constructed state (cpu->ip = entry_address, frame pushed,
+ * main_rom attached). */
+vf2_status vf2_hybrid_run_interpreted_until(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu,
+    uint32_t entry_address,
+    uint32_t stop_address)
+{
+    return hybrid_execute_interpreted_until(
+        machine, cpu, entry_address, stop_address);
 }
 
 /* Recover the observed player-task bootstrap through the first nested call.
@@ -34110,4 +34149,48 @@ vf2_status vf2_hybrid_player_2eab8_execute(
 )
 {
     return hybrid_execute_player_2eab8(machine, cpu);
+}
+
+/* ====================================================================
+ * Per-step hook instrumentation (v0755c)
+ *
+ * Read-only access to the per-hook fire counters. Each counter
+ * records how many times the corresponding callee hook was called
+ * by the per-step loop in hybrid_execute_interpreted_until.
+ * Ctest entries use this to verify the hook actually fires
+ * (vs. the interpretation fallback being used).
+ *
+ * out_counts must point to an array of at least
+ * VF2_CALLEE_HOOK_PUBLIC_COUNT (4) uint64_t values. The order
+ * matches the g_callee_hooks[] table: 0=0x29598, 1=0x439ac,
+ * 2=0x43888, 3=0xcf04.
+ *
+ * out_total (may be NULL) receives the sum of all counters.
+ */
+#define VF2_CALLEE_HOOK_PUBLIC_COUNT 4u
+
+void vf2_hybrid_get_callee_hook_counts(
+    uint64_t *out_counts,
+    uint64_t *out_total)
+{
+    uint64_t total = 0u;
+    size_t i;
+    if (out_counts == NULL) {
+        return;
+    }
+    for (i = 0; i < VF2_CALLEE_HOOK_PUBLIC_COUNT; ++i) {
+        out_counts[i] = g_callee_hook_fire_count[i];
+        total += g_callee_hook_fire_count[i];
+    }
+    if (out_total != NULL) {
+        *out_total = total;
+    }
+}
+
+void vf2_hybrid_reset_callee_hook_counts(void)
+{
+    size_t i;
+    for (i = 0; i < VF2_CALLEE_HOOK_COUNT; ++i) {
+        g_callee_hook_fire_count[i] = 0u;
+    }
 }

@@ -146,4 +146,40 @@ vf2_status vf2_hybrid_player_2eab8_execute(
     vf2_i960_cpu *cpu
 );
 
+/* Per-step hook instrumentation (v0755c).
+ *
+ * Read-only access to the per-hook fire counters maintained by
+ * the per-step loop in hybrid_execute_interpreted_until. Each
+ * counter records how many times the corresponding callee hook
+ * was called. Ctest entries use this to verify the hook actually
+ * fires (vs. the interpretation fallback being used).
+ *
+ * out_counts must point to an array of at least 4 uint64_t
+ * values. The order is: 0=0x29598, 1=0x439ac, 2=0x43888,
+ * 3=0xcf04. out_total (may be NULL) receives the sum of all
+ * counters.
+ */
+void vf2_hybrid_get_callee_hook_counts(
+    uint64_t *out_counts,
+    uint64_t *out_total);
+
+/* Reset all per-hook fire counters to zero. Use at the start of
+ * a test to scope counter measurements. */
+void vf2_hybrid_reset_callee_hook_counts(void);
+
+/* Public wrapper (v0755c) for the per-step loop in
+ * hybrid_execute_interpreted_until. Same semantics as the
+ * internal function: cpu->ip must equal entry_address with a
+ * pushed frame, and the loop runs until cpu->ip == stop_address
+ * or a registered hook fires (and either returns VF2_OK to
+ * continue or VF2_ERROR_UNSUPPORTED for clean refusal). The
+ * per-step loop is used only for ranges that have at least one
+ * registered callee hook; other ranges use vf2_i960_run.
+ */
+vf2_status vf2_hybrid_run_interpreted_until(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu,
+    uint32_t entry_address,
+    uint32_t stop_address);
+
 #endif

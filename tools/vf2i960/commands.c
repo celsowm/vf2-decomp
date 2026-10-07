@@ -14,6 +14,7 @@
 #include "vf2/rom.h"
 #include "vf2/hash.h"
 #include "vf2/hybrid.h"
+#include "vf2/hybrid/player.h"
 #include "vf2/model2a.h"
 #include "vf2/native_differential.h"
 #include "vf2/recovered.h"
@@ -3112,6 +3113,23 @@ static int command_native_resume(
             (unsigned long long)report.recovered_procedure_returns,
             (unsigned)fighter_flags_or
         );
+        /* v0755c: per-step hook fire counts. 4 entries in the
+         * g_callee_hooks table: 0=0x29598, 1=0x439ac, 2=0x43888,
+         * 3=0xcf04. */
+        {
+            uint64_t hook_counts[4] = {0};
+            uint64_t hook_total = 0;
+            vf2_hybrid_get_callee_hook_counts(hook_counts, &hook_total);
+            printf(
+                "  hook_fires: 0x29598=%llu 0x439ac=%llu "
+                "0x43888=%llu 0xcf04=%llu total=%llu\n",
+                (unsigned long long)hook_counts[0],
+                (unsigned long long)hook_counts[1],
+                (unsigned long long)hook_counts[2],
+                (unsigned long long)hook_counts[3],
+                (unsigned long long)hook_total
+            );
+        }
     } else if (budget_exhausted) {
         fprintf(
             stderr,
