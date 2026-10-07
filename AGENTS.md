@@ -513,6 +513,54 @@ At the time this handoff was written, `master` already contains:
     never runs. New ctest entry `vf2_player_cf04` (ctest #41,
     0.02 s) PASSES. Standalone execute hook. See
     `fa_player_cf04_recovered_v0747.md`.
+- **v0748 `0x1fcc0` boundary investigation** — 6 sub-callees named,
+    5 of which became standalone recovery targets (v0749–v0754).
+    See `fa_player_1fcc0_boundary_v0748.md`.
+- **v0749 recovered `0x1fee4` in C** — trivial 26-iter init writing
+    IEEE 754 1.0 to `0x50a0e0..0x50a144`. ctest #42, 0.02 s PASSES.
+    See `fa_player_1fee4_recovered_v0749.md`.
+- **v0750 recovered `0x1ff0c` in C** — display_profile_mode_constants
+    (240 B, 3 paths: mode==10 / mode==6 / default). Calls v0749
+    inline. ctest #43, 0.02 s PASSES. See
+    `fa_player_1ff0c_recovered_v0750.md`.
+- **v0751 recovered `0x1fffc` in C** — display_color_profile_apply
+    (88 B, 2 paths: bit 21 of `0x500068` clear / set). 3 byte-stores
+    to `0x5000e0..0x5000e2` from ROM table at `0x6eeb8+offset`;
+    refuses the sub-call to `0x2c38` (color_table_rebuild, 432 B,
+    11 blocks, complex — deferred). **Test bug fix**: original
+    test used `0xffefffff` for "bit 21 clear" but that's actually
+    bit 21 SET; correct value is `0xffdfffff`. ctest #44, 0.02 s
+    PASSES. See `fa_player_1fffc_recovered_v0751.md`.
+- **v0752 recovered `0x4b410` in C** — video_command_submit
+    (60 B, 5 writes to `0x5502e4..0x5502f4`). ctest #45, 0.02 s
+    PASSES. See `fa_player_4b410_recovered_v0752.md`.
+- **v0753 recovered `0x11704` in C** — video_table_expand_128
+    (64 B, 5 blocks, nested loop). Reads outer count from
+    `0x78d0c`, copies 128 bytes per outer iter from `0x78d10` to
+    `0x12800000` (luma RAM) byte-by-byte (ldob) with 4-byte
+    destination stride (st). ctest #46, 0.01 s PASSES. See
+    `fa_player_11704_recovered_v0753.md`.
+- **v0754 recovered `0x2eab8` in C** — display_runtime_initialize
+    (364 B, 1 block). Performs ~36 writes to `(*0x500814 + offset)`
+    and 3 work-RAM stores at `0x50a160..0x168`. Sub-call to
+    `0x31004` (display_transform_defaults) fully INLINED (6 writes
+    to `(*0x50084c + offset)`). No refused sub-calls. ctest #47,
+    0.02 s PASSES. See `fa_player_2eab8_recovered_v0754.md`.
+    **Sub-callees of `0x1fcc0` — final state**: 5 of 6 recovered
+    (v0749/v0750/v0751/v0752/v0753/v0754). Only `0x2c38` remains
+    (deferred — disasm ambiguity at `0x2d40` `subo 1, 0, g1`).
+- **v0755 per-step hook boundary investigation** — NOT yet wired.
+    Design documented. 10 recovered sub-callees (v0741–v0754)
+    would be activated by a per-step hook in
+    `hybrid_execute_interpreted_until`. Discovered a compatibility
+    issue with v0741 path D's partial-simulation pattern: setting
+    `cpu->ip = 0x295e8` on refuse skips the 3 sub-calls and the
+    `mov 0, g1` between entry and ret, which would diverge from
+    the original i960 if the dispatcher falls back to
+    interpretation. Two ways to resolve: (A) retract path D's
+    partial simulation, or (B) inline the 3 sub-calls into path D.
+    Recommended: (A) for cleanest per-step fit. See
+    `per_step_hook_boundary_v0755.md`.
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.
