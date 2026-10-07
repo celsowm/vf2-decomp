@@ -103,4 +103,17 @@ vf2_status vf2_hybrid_player_1ff0c_execute(
     vf2_i960_cpu *cpu
 );
 
+/* Recover 0x1fffc: display_color_profile_apply (88 B, 3
+ * blocks, 2 paths). IP must be 0x1fffc with a pushed frame.
+ * Reads 0x500064 and 0x500068; if bit 21 of 0x500068 clear,
+ * uses the 0x500064 value; else uses 3. Shifts left by 8 to
+ * get an index, reads 3 bytes from a ROM-resident table at
+ * 0x6eeb8 + index, and stores them to 0x5000e0/0x5000e1/
+ * 0x5000e2. REFUSES the sub-call to 0x2c38 (color_table_rebuild,
+ * not yet recovered). */
+vf2_status vf2_hybrid_player_1fffc_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 #endif

@@ -33399,3 +33399,130 @@ vf2_status vf2_hybrid_player_1ff0c_execute(
 {
     return hybrid_execute_player_1ff0c(machine, cpu);
 }
+
+/* ====================================================================
+ * fa_player 0x1fffc - display_color_profile_apply (v0751)
+ *
+ * Disassembly (per vf2i960 disasm, 88 B, 3 blocks):
+ *
+ *   block 0x1fffc (parameter load):
+ *     0001fffc  ldob     0x00500064, r12       # r12 = mode byte
+ *     00020004  ld       0x00500068, r15
+ *     0002000c  bbc      21, r15, 0x00020018  # if bit 21 clear -> use r12
+ *     00020010  lda      0x00000003, r12      # else r12 = 3
+ *
+ *   block 0x20018 (table lookup + stores):
+ *     00020018  shlo     8, r12, r4            # r4 = r12 << 8 (index)
+ *     0002001c  ldob     0x0006eeb8(r4), r5    # r5 = table[index + 0]
+ *     00020024  ldob     0x0006eeb9(r4), r6    # r6 = table[index + 1]
+ *     0002002c  ldob     0x0006eeba(r4), r7    # r7 = table[index + 2]
+ *     00020034  stob     r5, 0x005000e0
+ *     0002003c  stob     r6, 0x005000e1
+ *     00020044  stob     r7, 0x005000e2
+ *     0002004c  call     0x00002c38           # REFUSE: color_table_rebuild
+ *     00020050  ret
+ *
+ * Two paths:
+ *   A: bit 21 of 0x500068 clear -> r12 = *(0x500064); use as index
+ *   B: bit 21 of 0x500068 set   -> r12 = 3; use as index
+ *
+ * The sub-call to 0x2c38 (color_table_rebuild, 432 B, 11 blocks)
+ * is REFUSED. The dispatcher's interpreted fallback runs the
+ * call and the ret.
+ */
+static vf2_status hybrid_execute_player_1fffc(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    vf2_status status;
+    uint8_t r12 = 0u;
+    uint32_t r15 = 0u;
+    uint32_t r4 = 0u;
+    uint8_t r5 = 0u;
+    uint8_t r6 = 0u;
+    uint8_t r7 = 0u;
+
+    if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x0001fffc)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    /* Read mode byte and 0x500068. */
+    status = vf2_model2a_read(
+        machine, UINT32_C(0x00500064), &r12, sizeof(r12)
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+    status = vf2_model2a_read_u32(
+        machine, UINT32_C(0x00500068), &r15
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+    if ((r15 & (UINT32_C(1) << 21u)) != 0u) {
+        /* Path B: bit 21 set -> r12 = 3. */
+        r12 = 3u;
+    }
+    /* else Path A: r12 = *(0x500064). */
+
+    /* Compute index = r12 << 8. */
+    r4 = ((uint32_t)r12) << 8u;
+
+    /* Read 3 bytes from the ROM table at 0x6eeb8 + r4. The
+     * addresses are in MAIN_ROM, so vf2_model2a_read returns
+     * VF2_OK and reads the actual ROM bytes (or zero if no
+     * main_rom is attached). */
+    status = vf2_model2a_read(
+        machine, UINT32_C(0x0006eeb8) + r4, &r5, sizeof(r5)
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+    status = vf2_model2a_read(
+        machine, UINT32_C(0x0006eeb9) + r4, &r6, sizeof(r6)
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+    status = vf2_model2a_read(
+        machine, UINT32_C(0x0006eeba) + r4, &r7, sizeof(r7)
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+
+    /* Store the 3 bytes to 0x5000e0..0x5000e2. */
+    status = vf2_model2a_write(
+        machine, UINT32_C(0x005000e0), &r5, sizeof(r5)
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+    status = vf2_model2a_write(
+        machine, UINT32_C(0x005000e1), &r6, sizeof(r6)
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+    status = vf2_model2a_write(
+        machine, UINT32_C(0x005000e2), &r7, sizeof(r7)
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+
+    /* REFUSE the sub-call to 0x2c38 (color_table_rebuild). The
+     * dispatcher's interpreted fallback runs the call and the ret. */
+    cpu->ip = UINT32_C(0x00020050);
+    cpu->executed_instructions += UINT64_C(11);
+    return VF2_ERROR_UNSUPPORTED;
+}
+
+vf2_status vf2_hybrid_player_1fffc_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_1fffc(machine, cpu);
+}
