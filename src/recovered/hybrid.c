@@ -32512,30 +32512,18 @@ static vf2_status hybrid_execute_player_29598(
                 return status;
             }
 
-            /* Path D: g1 == 15, setbit + 3 sub-calls.
-             * Sub-calls (0xcf04, 0x439ac, 0x43888) are not yet recovered;
-             * refuse this path so the dispatcher falls back to
-             * hybrid_execute_interpreted_task. */
-            {
-                uint32_t r15 = 0u;
-                status = vf2_model2a_read_u32(
-                    machine, UINT32_C(0x00500068), &r15
-                );
-                if (status != VF2_OK) {
-                    return status;
-                }
-                r15 |= UINT32_C(1) << 20u;
-                status = vf2_model2a_write_u32(
-                    machine, UINT32_C(0x00500068), r15
-                );
-                if (status != VF2_OK) {
-                    return status;
-                }
-                cpu->registers[VF2_I960_G0_REGISTER + 0u] =
-                    UINT32_C(0x00ad231f);
-                cpu->ip = UINT32_C(0x000295e8);
-                cpu->executed_instructions += UINT64_C(8);
-            }
+            /* Path D: g1 == 15, setbit + 3 sub-calls + mov 0, g1.
+             * The 3 sub-calls (0xcf04, 0x439ac, 0x43888) ARE recovered
+             * (v0747/v0745/v0746) but expanding path D to inline them
+             * would require frame-push/pop plumbing inside this
+             * function. Instead, we refuse cleanly with cpu->ip
+             * UNCHANGED so the per-step hook (v0755) can step one
+             * instruction forward and fall back to interpretation
+             * (which will execute the setbit, the 3 sub-calls, the
+             * mov 0, g1, and the ret). The function MUST NOT partially
+             * simulate path D — that would diverge from the original
+             * i960's state at the entry. See
+             * per_step_hook_boundary_v0755.md. */
             return VF2_ERROR_UNSUPPORTED;
         }
     }

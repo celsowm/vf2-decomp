@@ -119,22 +119,34 @@ static void run_path_c(vf2_model2a *machine, vf2_i960_cpu *cpu) {
 static void run_path_d_refused(vf2_model2a *machine, vf2_i960_cpu *cpu) {
     /* Path D: g0 bit 4 set; bit r13 of g0 set; g1 == 15 -> REFUSED.
      * Negative control: the recovered function MUST refuse this path
-     * because the sub-calls (0xcf04, 0x439ac, 0x43888) are not yet
-     * recovered in this slice.
-     * The setbit at 0x500068 writes 0x500068 in work RAM (NOT in the
-     * fake ROM region), so the test can read it back.
+     * cleanly. After v0755a, the refusal is "clean" (no partial
+     * simulation): cpu->ip is UNCHANGED at the entry 0x29598, and
+     * no side-effects have been applied. The per-step hook (v0755b)
+     * will step one instruction forward and fall back to
+     * interpretation, which will execute the setbit, the 3 sub-calls,
+     * the mov 0, g1, and the ret — matching the original i960.
+     *
+     * The setbit at 0x500068 is NOT applied by the function anymore
+     * (was previously, retracted in v0755a because partial
+     * simulation diverges from the original i960's state at entry).
      */
     setup_cpu(cpu, UINT32_C(0x10), 15u);
-    /* Prime 0x500068 so we can detect the setbit wrote. */
+    /* Prime 0x500068 with a known value; the function must NOT
+     * modify it. */
     CHECK(vf2_model2a_write_u32(machine, UINT32_C(0x00500068), 0u) == VF2_OK);
+    /* Save g0 so we can verify it is not modified. */
+    uint32_t g0_before = cpu->registers[VF2_I960_G0_REGISTER + 0u];
     vf2_status status = vf2_hybrid_player_29598_execute(machine, cpu);
     CHECK(status == VF2_ERROR_UNSUPPORTED);
-    /* setbit at 0x500068 should have run before the refuse:
-     * the function applies the setbit, writes g0 = 0xad231f, then refuses. */
+    /* The function refuses cleanly: cpu->ip is UNCHANGED at the
+     * entry 0x29598, and g0 is NOT modified. */
+    CHECK(cpu->ip == ENTRY_IP);
+    CHECK(cpu->registers[VF2_I960_G0_REGISTER + 0u] == g0_before);
+    /* 0x500068 is also NOT modified (the setbit is interpreted
+     * by the dispatcher fallback, not simulated here). */
     uint32_t r15_after = 0u;
     CHECK(vf2_model2a_read_u32(machine, UINT32_C(0x00500068), &r15_after) == VF2_OK);
-    CHECK((r15_after & (UINT32_C(1) << 20u)) != 0u);
-    CHECK(cpu->registers[VF2_I960_G0_REGISTER + 0u] == UINT32_C(0x00ad231f));
+    CHECK(r15_after == 0u);
 }
 
 int main(void) {

@@ -1,5 +1,22 @@
 # 0x29598 recovered in C (v0741) — Phase 3 first decomposition
 
+## ⚠️ Retracted in v0755a
+
+**v0755a retracted path D's partial-simulation pattern.** The
+function previously applied the setbit at 0x500068 and set
+`cpu->g0 = 0x00ad231f` before returning `VF2_ERROR_UNSUPPORTED`
+with `cpu->ip = 0x295e8`. This was incompatible with the per-step
+hook design (v0755b): setting `cpu->ip` past the function's body
+would have caused the hook to skip the 3 sub-calls and the
+`mov 0, g1` between the entry and the ret. Path D now refuses
+**cleanly** with `cpu->ip` unchanged at 0x29598 and no
+side-effects applied, so the per-step hook can step one
+instruction forward and fall back to interpretation. See
+`per_step_hook_boundary_v0755.md` for the full design rationale.
+
+The ctest (entry #38) is updated to verify the clean-refusal
+behavior: cpu->ip == 0x29598, g0 unchanged, 0x500068 unchanged.
+
 ## Status
 
 `vf2_hybrid_player_29598_execute` is a recovered C implementation of the
