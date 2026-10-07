@@ -54,4 +54,15 @@ vf2_status vf2_hybrid_player_439ac_execute(
     vf2_i960_cpu *cpu
 );
 
+/* Recover 0x43888: selector2 queue entry (200 B, 6 paths).
+ * IP must be 0x43888 with a pushed frame. Gates on
+ * (0x50002c & 0xc) and 0x500068 bit 20 and a g0 magic-value
+ * check; on accept, writes g0 to the 16-entry ring buffer
+ * at 0x504020 indexed by 0x504003, and updates 0x504001 count.
+ * Also pokes the video register at 0xe80004 with 33 and 0x421. */
+vf2_status vf2_hybrid_player_43888_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 #endif

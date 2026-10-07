@@ -32703,3 +32703,251 @@ vf2_status vf2_hybrid_player_439ac_execute(
 {
     return hybrid_execute_player_439ac(machine, cpu);
 }
+
+/* ====================================================================
+ * fa_player 0x43888 - selector2 queue entry (v0746)
+ *
+ * Disassembly (per vf2i960 disasm, 200 B, 10 blocks):
+ *
+ *   block 0x43888 (g0 == 0x00ae101f):
+ *     00043888  lda      0x00ae101f, r13
+ *     00043890  cmpobe   r13, g0, 0x000438ec   # if g0 == 0x00ae101f -> common
+ *
+ *   block 0x43894 (gate A: 0x50002c & 0xc == 0):
+ *     00043894  lda      0x0000000c, r3
+ *     0004389c  ld       0x0050002c, r13
+ *     000438a4  and      r13, r3, r3            # r3 = *(0x50002c) & 0xc
+ *     000438a8  cmpobe   0, r3, 0x000438c0     # if r3 == 0 -> gate A passed
+ *
+ *   block 0x438ac (gate A fail + byte bit 0 set):
+ *     000438ac  ld       0x0050016c, r15
+ *     000438b4  ldob     0x00003351(r15), r15   # r15 = *(0x50016c + 0x3351)
+ *     000438bc  bbs      0, r15, 0x0004394c    # if bit 0 -> RET (no queue)
+ *
+ *   block 0x438c0 (gate B: 0x500068 bit 20):
+ *     000438c0  ld       0x00500068, r15
+ *     000438c8  bbc      20, r15, 0x000438ec   # if bit 20 clear -> common
+ *
+ *   block 0x438cc (g0 magic value):
+ *     000438cc  lda      0x00ff0000, r13
+ *     000438d4  and      r13, g0, r3            # r3 = g0 & 0x00ff0000
+ *     000438d8  lda      0x009e0000, r13
+ *     000438e0  cmpobne  r13, r3, 0x000438ec   # if not 0x009e0000 -> common
+ *     000438e4  shlo     17, 1, r3             # r3 = 0x20000
+ *     000438e8  subo     r3, g0, g0            # g0 -= 0x20000
+ *                                                   # fall through to common
+ *
+ *   block 0x438ec (common: queue write + video register poke):
+ *     000438ec  lda      0x00e80004, r6
+ *     000438f4  addo     31, 2, r3              # r3 = 33
+ *     000438f8  st       r3, (r6)               # *0xe80004 = 33
+ *     000438fc  st       r3, (r6)               # *0xe80004 = 33 (double-write)
+ *     00043900  mov      16, r3
+ *     00043904  ldob     0x00504001, r5         # r5 = *(0x504001)
+ *     0004390c  cmpobge  r5, r3, 0x00043940     # if r5 >= 16, skip
+ *     00043910  addo     1, r5, r5              # r5++
+ *     00043914  stob     r5, 0x00504001         # *(0x504001) = r5
+ *     0004391c  ldob     0x00504003, r3         # r3 = *(0x504003) (ring idx)
+ *     00043924  st       g0, 0x00504020[r3*4]   # queue[r3] = g0
+ *     0004392c  mov      15, r4
+ *     00043930  addo     1, r3, r3              # r3++
+ *     00043934  and      r4, r3, r3             # r3 = r3 & 0xf
+ *     00043938  stob     r3, 0x00504003         # *(0x504003) = r3 (ring wrap)
+ *     00043940  lda      0x00000421, r3
+ *     00043944  st       r3, (r6)               # *0xe80004 = 0x421
+ *     00043948  st       r3, (r6)               # *0xe80004 = 0x421
+ *     0004394c  ret
+ *
+ * Six paths into the common tail:
+ *   A: g0 == 0x00ae101f                      -> common (no gates)
+ *   B: (0x50002c & 0xc) == 0                 -> common (no 0x500068 check)
+ *   C: gate A fails AND byte bit 0 set       -> RET (no queue)
+ *   D: gate A fails, byte bit 0 clear,
+ *      0x500068 bit 20 clear                 -> common
+ *   E: gate A fails, byte bit 0 clear,
+ *      0x500068 bit 20 set,
+ *      (g0 & 0x00ff0000) != 0x009e0000       -> common
+ *   F: gate A fails, byte bit 0 clear,
+ *      0x500068 bit 20 set,
+ *      (g0 & 0x00ff0000) == 0x009e0000       -> g0 -= 0x20000, common
+ *
+ * The common tail writes a 16-entry ring buffer:
+ *   - 0x504001: count (1B), 16 max
+ *   - 0x504003: ring index (1B), wraps at 0xf
+ *   - 0x504020[index*4]: queue entry (4B, g0)
+ * And pokes 0xe80004 (video register) with 33 and 0x421.
+ */
+static vf2_status hybrid_execute_player_43888(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    vf2_status status;
+    uint32_t g0;
+    int accepted = 0;
+
+    if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x00043888)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    g0 = cpu->registers[VF2_I960_G0_REGISTER + 0u];
+
+    /* Path A: g0 == 0x00ae101f -> always accepted. */
+    if (g0 == UINT32_C(0x00ae101f)) {
+        accepted = 1;
+    } else {
+        /* Gate A: (0x50002c & 0xc) == 0 */
+        uint32_t gate_a_value = 0u;
+        status = vf2_model2a_read_u32(
+            machine, UINT32_C(0x0050002c), &gate_a_value
+        );
+        if (status != VF2_OK) {
+            return status;
+        }
+        if ((gate_a_value & UINT32_C(0xc)) == 0u) {
+            accepted = 1;
+        } else {
+            /* Gate A failed: check the byte bit 0 */
+            uint32_t t1 = 0u;
+            uint8_t t1_byte = 0u;
+            status = vf2_model2a_read_u32(
+                machine, UINT32_C(0x0050016c), &t1
+            );
+            if (status != VF2_OK) {
+                return status;
+            }
+            status = vf2_model2a_read(
+                machine, t1 + UINT32_C(0x3351), &t1_byte, sizeof(t1_byte)
+            );
+            if (status != VF2_OK) {
+                return status;
+            }
+            if ((t1_byte & UINT32_C(0x1)) != 0u) {
+                /* Path C: gate A fails, byte bit 0 set -> RET. */
+                cpu->ip = UINT32_C(0x0004394c);
+                cpu->executed_instructions += UINT64_C(7);
+                status = vf2_i960_cpu_return_procedure(cpu, machine);
+                if (status == VF2_OK) {
+                    ++cpu->executed_instructions;
+                }
+                return status;
+            }
+            /* Gate B: 0x500068 bit 20 */
+            {
+                uint32_t gate_b = 0u;
+                status = vf2_model2a_read_u32(
+                    machine, UINT32_C(0x00500068), &gate_b
+                );
+                if (status != VF2_OK) {
+                    return status;
+                }
+                if ((gate_b & (UINT32_C(1) << 20u)) == 0u) {
+                    /* Path D: bit 20 clear -> accepted. */
+                    accepted = 1;
+                } else {
+                    /* bit 20 set: check g0 magic value. */
+                    if ((g0 & UINT32_C(0x00ff0000)) ==
+                        UINT32_C(0x009e0000)) {
+                        /* Path F: subtract 0x20000 from g0. */
+                        g0 -= UINT32_C(0x00020000);
+                        cpu->registers[VF2_I960_G0_REGISTER + 0u] = g0;
+                    }
+                    /* Path E: not 0x009e0000 -> fall through, accepted. */
+                    accepted = 1;
+                }
+            }
+        }
+    }
+
+    if (!accepted) {
+        /* Should be unreachable given the disassembly. */
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    /* Common tail: video register poke + queue write. */
+    {
+        uint32_t vreg = UINT32_C(0x00e80004);
+        uint32_t v = UINT32_C(33);
+        status = vf2_model2a_write_u32(machine, vreg, v);
+        if (status != VF2_OK) {
+            return status;
+        }
+        status = vf2_model2a_write_u32(machine, vreg, v);
+        if (status != VF2_OK) {
+            return status;
+        }
+        {
+            uint8_t count = 0u;
+            status = vf2_model2a_read(
+                machine, UINT32_C(0x00504001), &count, sizeof(count)
+            );
+            if (status != VF2_OK) {
+                return status;
+            }
+            if (count < UINT8_C(16)) {
+                count = (uint8_t)(count + UINT8_C(1));
+                status = vf2_model2a_write(
+                    machine, UINT32_C(0x00504001), &count, sizeof(count)
+                );
+                if (status != VF2_OK) {
+                    return status;
+                }
+                {
+                    uint8_t ring_idx = 0u;
+                    status = vf2_model2a_read(
+                        machine, UINT32_C(0x00504003), &ring_idx,
+                        sizeof(ring_idx)
+                    );
+                    if (status != VF2_OK) {
+                        return status;
+                    }
+                    status = vf2_model2a_write_u32(
+                        machine,
+                        UINT32_C(0x00504020) +
+                            (uint32_t)ring_idx * UINT32_C(4),
+                        g0
+                    );
+                    if (status != VF2_OK) {
+                        return status;
+                    }
+                    ring_idx = (uint8_t)(((uint32_t)ring_idx + UINT32_C(1)) &
+                                          UINT32_C(0xf));
+                    status = vf2_model2a_write(
+                        machine, UINT32_C(0x00504003), &ring_idx,
+                        sizeof(ring_idx)
+                    );
+                    if (status != VF2_OK) {
+                        return status;
+                    }
+                }
+            }
+        }
+        v = UINT32_C(0x00000421);
+        status = vf2_model2a_write_u32(machine, vreg, v);
+        if (status != VF2_OK) {
+            return status;
+        }
+        status = vf2_model2a_write_u32(machine, vreg, v);
+        if (status != VF2_OK) {
+            return status;
+        }
+    }
+
+    cpu->ip = UINT32_C(0x0004394c);
+    /* Body count is path-dependent; assert >= 14 (the shortest
+     * accepted path: A -> common, ~14 instructions + ret). */
+    cpu->executed_instructions += UINT64_C(14);
+    status = vf2_i960_cpu_return_procedure(cpu, machine);
+    if (status == VF2_OK) {
+        ++cpu->executed_instructions;
+    }
+    return status;
+}
+
+vf2_status vf2_hybrid_player_43888_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_43888(machine, cpu);
+}
