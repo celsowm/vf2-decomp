@@ -561,6 +561,26 @@ At the time this handoff was written, `master` already contains:
     partial simulation, or (B) inline the 3 sub-calls into path D.
     Recommended: (A) for cleanest per-step fit. See
     `per_step_hook_boundary_v0755.md`.
+- **v0755a retracted v0741 path D's partial simulation**. Path D
+    now refuses cleanly with `cpu->ip` unchanged at 0x29598 and no
+    side-effects applied. ctest #38 updated to verify the clean
+    refusal. This unblocks the per-step hook design. See
+    `path_d_refused_cleanly_v0755a.md`.
+- **v0755b implemented the per-step hook infrastructure** and
+    wired 4 callees of `0x29414` (v0741/v0745/v0746/v0747).
+    Added `g_callee_hooks[]` table + `hybrid_find_callee_hook` +
+    `hybrid_range_has_hooks` in `src/recovered/hybrid.c`. The
+    per-step loop in `hybrid_execute_interpreted_until` fires the
+    hook when `cpu->ip` lands on a registered entry, replacing
+    `vf2_i960_run` for ranges with at least one hook. The 0x16504
+    special case is preserved. F4 INDIVIDUAL release differential
+    (ctest #133) PASSES, proving the per-step loop produces the
+    same final state as the legacy stepper for the 0x29414
+    corridor. The other 6 sub-callee recoveries (v0749–v0754) are
+    NOT yet wired — they live inside `0x1fcc0` (display_profile_apply)
+    which is not in any currently-interpreted range. Wiring them
+    requires recovering `0x1fcc0` (depends on `0x2c38`). See
+    `per_step_hook_implemented_v0755b.md`.
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.
