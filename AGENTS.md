@@ -466,6 +466,53 @@ At the time this handoff was written, `master` already contains:
     measured-constant rule; this note documents the
     mechanical cause. No `src/` change. See
     `phase_2_4_a5_4_divergence_v0743.md`.
+- **v0744 documented the 0x29598 wiring boundary.** The v0741
+    recovery is unit-tested (ctest #38 PASSES) but not yet
+    active in the running code. The dispatcher chain in
+    `hybrid_execute_player_post_29414` runs 0x29598 via
+    `hybrid_execute_interpreted_until(0x28178, 0x14400)`,
+    which uses `vf2_i960_run` with only `stop_address` /
+    `max_steps` — not a per-step callback. Three candidate
+    wiring approaches documented. The cleanest is a generic
+    per-IP hook table checked after each `vf2_i960_step`. No
+    `src/` change. See `fa_player_29598_wiring_v0744.md`.
+- **v0745 recovered `0x439ac` in C** (the second callee of
+    `0x29414` from v0737). A 80-byte queue dedup-append:
+    read count at `0x50406a`; if >= 4, return; else search
+    `0x504074[count+1..1]` for g0; if found return (idempotent);
+    else write g0 to `0x504078[count]` and increment count. All
+    4 paths recovered (full / match / append / mid-match).
+    New ctest entry `vf2_player_439ac` (ctest #39, 0.01 s)
+    PASSES. Standalone execute hook. See
+    `fa_player_439ac_recovered_v0745.md`.
+- **v0746 recovered `0x43888` in C** (the third callee of
+    `0x29414`). A 200-byte selector2 queue entry with 6 paths
+    plus a count-full negative control. Gates on
+    `(0x50002c & 0xc)`, `0x500068` bit 20, and a g0 magic-value
+    check (`(g0 & 0x00ff0000) == 0x009e0000`); on accept, writes
+    g0 to the 16-entry ring buffer at `0x504020` indexed by
+    `0x504003`, increments `0x504001` count, and pokes the
+    video register `0xe80004` with 33 and 0x421. Path F
+    subtracts 0x20000 from g0 before the queue write. New ctest
+    entry `vf2_player_43888` (ctest #40, 0.02 s) PASSES.
+    Standalone execute hook. See
+    `fa_player_43888_recovered_v0746.md`.
+- **v0747 recovered `0xcf04` in C** (the fourth callee of
+    `0x29414`). A 184-byte post-frame IRQ handler with 2 paths
+    (bit 15 of `0x500068` set vs clear). Path A reads
+    `0x50005b`, mods by 11, writes to `0x50005b` and `0x500064`,
+    copies `0x50a700` to `0x50a00c`. Path B reads `0x50054`,
+    looks up `0x12508[r3*2]`, writes to `0x500064`, copies
+    `0x50a704` to `0x50a00c`. Common tail clrbit 15 of
+    `0x500068` and refuses the sub-call to `0x1fcc0`
+    (`display_profile_apply`, 548 B, not yet recovered).
+    **Notable finding**: the `addo 1, r3, r3` at `0xcf38` is
+    **dead code** — the prologue's setbit 21 at `0x500068` is
+    unconditional and the `bbs 21` at `0xcf34` re-reads after
+    the setbit, so the branch is always taken and the addo
+    never runs. New ctest entry `vf2_player_cf04` (ctest #41,
+    0.02 s) PASSES. Standalone execute hook. See
+    `fa_player_cf04_recovered_v0747.md`.
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.
