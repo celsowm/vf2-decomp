@@ -125,4 +125,14 @@ vf2_status vf2_hybrid_player_4b410_execute(
     vf2_i960_cpu *cpu
 );
 
+/* Recover 0x11704: video_table_expand_128 (64 B, 5 blocks).
+ * IP must be 0x11704 with a pushed frame. Reads a 32-bit outer
+ * count from 0x78d0c, then for each of those iterations
+ * copies 128 bytes from 0x78d10 to 0x12800000. The copy is
+ * byte-by-byte (ldob/st) with 4-byte pointer increments. */
+vf2_status vf2_hybrid_player_11704_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 #endif

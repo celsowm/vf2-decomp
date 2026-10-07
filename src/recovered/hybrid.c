@@ -33616,3 +33616,103 @@ vf2_status vf2_hybrid_player_4b410_execute(
 {
     return hybrid_execute_player_4b410(machine, cpu);
 }
+
+/* ====================================================================
+ * fa_player 0x11704 - video_table_expand_128 (v0753)
+ *
+ * Disassembly (per vf2i960 disasm, 64 B, 5 blocks):
+ *
+ *   block 0x11704 (setup):
+ *     00011704  lda      0x12800000, g0     # g0 = 0x12800000 (dst)
+ *     0001170c  lda      0x00078d10, g1     # g1 = 0x78d10 (src)
+ *     00011714  ld       0x00078d0c, g2     # g2 = outer count
+ *
+ *   block 0x1171c (inner loop, 128 iter):
+ *     0001171c  shlo     7, 1, g3            # g3 = 128
+ *     00011720  ldob     (g1), r3            # r3 = *g1
+ *     00011724  st       r3, (g0)            # *(uint32_t*)g0 = r3
+ *     00011728  addo     1, g1, g1            # g1++
+ *     0001172c  addo     4, g0, g0            # g0 += 4
+ *     00011730  cmpdeco  1, g3, g3            # g3--; if g3 == 0, fall
+ *     00011734  bl       0x00011720         # else inner-loop
+ *
+ *   block 0x11738 (outer loop):
+ *     00011738  cmpdeco  1, g2, g2            # g2--; if g2 == 0, fall
+ *     0001173c  bl       0x0001171c         # else restart inner
+ *
+ *   block 0x11740:
+ *     00011740  ret
+ *
+ * Shape: a nested loop that copies 128 bytes (32 word-stores)
+ * from 0x78d10 to 0x12800000, repeated g2 times where g2 is
+ * read from 0x78d0c. The 4-byte stride is unusual — only
+ * one byte is loaded per iteration but a 4-byte word is
+ * stored (the upper 3 bytes come from work RAM initial state).
+ * The recovered C reads the byte and stores it back as a
+ * 4-byte word to match the visible side effect.
+ */
+static vf2_status hybrid_execute_player_11704(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    vf2_status status;
+    uint32_t dst = UINT32_C(0x12800000);
+    uint32_t src = UINT32_C(0x00078d10);
+    uint32_t outer = 0u;
+    int32_t i_outer = 0;
+    int32_t i_inner = 0;
+
+    if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x00011704)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    /* Read the outer count. */
+    status = vf2_model2a_read_u32(machine, UINT32_C(0x00078d0c), &outer);
+    if (status != VF2_OK) {
+        return status;
+    }
+
+    /* Outer loop: g2 times. */
+    for (i_outer = (int32_t)outer; i_outer > 0; --i_outer) {
+        /* Inner loop: 128 iterations. */
+        for (i_inner = 128; i_inner > 0; --i_inner) {
+            uint8_t b = 0u;
+            uint32_t word = 0u;
+            status = vf2_model2a_read(machine, src, &b, sizeof(b));
+            if (status != VF2_OK) {
+                return status;
+            }
+            /* The original instruction does `st r3, (g0)` where
+             * r3 is a 32-bit register containing the byte in its
+             * low 8 bits and zeros in the upper 24. We replicate
+             * that by storing the byte as a 4-byte word. */
+            word = (uint32_t)b;
+            status = vf2_model2a_write_u32(machine, dst, word);
+            if (status != VF2_OK) {
+                return status;
+            }
+            src += 1u;
+            dst += 4u;
+        }
+    }
+
+    cpu->ip = UINT32_C(0x00011740);
+    /* Body count: 3 (setup) + outer * (1 + 128 * 4 + 2) + 1 (ret)
+     * = 3 + outer * 515 + 1. (For outer = 4, body = 2064.) */
+    cpu->executed_instructions += UINT64_C(4) +
+        UINT64_C(515) * (uint64_t)outer;
+    status = vf2_i960_cpu_return_procedure(cpu, machine);
+    if (status == VF2_OK) {
+        ++cpu->executed_instructions;
+    }
+    return status;
+}
+
+vf2_status vf2_hybrid_player_11704_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_11704(machine, cpu);
+}
