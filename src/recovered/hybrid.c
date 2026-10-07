@@ -32404,3 +32404,147 @@ vf2_status vf2_hybrid_first_dispatch_scheduler_finish(
     }
     return VF2_OK;
 }
+
+/* ====================================================================
+ * fa_player 0x29598 - selector2_queue_path bit-test dispatcher
+ * (v0741, Phase 3 first decomposition target)
+ *
+ * Disassembly (per fa_player_29414_callees_boundary_v0737.md):
+ *
+ *   block 0x29598:
+ *     00029598  shlo     4, 15, r14      # r14 = 15 << 4 = 0xf0
+ *     0002959c  and      r14, g0, g0     # g0 = g0 & 0xf0 (bit 4 mask)
+ *     000295a0  cmpobe   0, g0, 0x000295e8  # if g0 == 0, jump to ret
+ *
+ *   block 0x295a4:
+ *     000295a4  ldob     0x000295ec(g1), r13   # r13 = *(uint8_t*)(0x295ec + g1)
+ *     000295ac  bbc      r13, g0, 0x000295e4    # if bit r13 of g0 clear, jmp
+ *
+ *   block 0x295b0:
+ *     000295b0  cmpobe   15, g1, 0x000295bc   # if g1 == 15, jmp to setbit path
+ *
+ *   block 0x295b4:
+ *     000295b4  addo     1, g1, g1            # g1 += 1
+ *     000295b8  b        0x000295e8            # jmp to ret
+ *
+ *   block 0x295bc (g1 == 15 path, setbit + 3 sub-calls):
+ *     000295bc  ld       0x00500068, r15
+ *     000295c4  setbit   20, r15, r15
+ *     000295c8  st       r15, 0x00500068
+ *     000295d0  call     0x0000cf04         # -> 0xcf04 (UNRECOVERED)
+ *     000295d4  lda      0x00ad231f, g0
+ *     000295dc  call     0x000439ac         # -> 0x439ac (UNRECOVERED)
+ *     000295e0  call     0x00043888         # -> 0x43888 (VF2_SELECTOR2_QUEUE_ENTRY)
+ *
+ *   block 0x295e4 (g1 != 15, bbc-taken path):
+ *     000295e4  mov      0, g1                # g1 = 0
+ *
+ *   block 0x295e8 (return):
+ *     000295e8  ret
+ *
+ * Shape: 4 paths through the function.
+ *
+ *   Path A (bit 4 of g0 clear):  skip -> ret = 3 instructions
+ *   Path B (bbc taken, g1 != 15): ldob + bbc + mov 0 g1 + ret = 4 instructions
+ *   Path C (bbc not taken, g1 != 15): ldob + bbc + cmpobe + addo + b + ret = 6 instructions
+ *   Path D (g1 == 15): setbit + 3 sub-calls (REFUSED: callees not yet recovered)
+ *
+ * This slice recovers paths A, B, and C in C and refuses path D
+ * explicitly, leaving the sub-calls as a future slice.
+ */
+static vf2_status hybrid_execute_player_29598(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    vf2_status status;
+
+    if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x00029598)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    {
+        const uint32_t g0 = cpu->registers[VF2_I960_G0_REGISTER + 0u];
+        const uint32_t g1 = cpu->registers[VF2_I960_G0_REGISTER + 1u];
+
+        /* Path A: shlo + and + cmpobe + ret (bit 4 of g0 clear). */
+        if ((g0 & UINT32_C(0x00000010)) == 0u) {
+            cpu->ip = UINT32_C(0x000295e8);
+            cpu->executed_instructions += UINT64_C(3);
+            status = vf2_i960_cpu_return_procedure(cpu, machine);
+            if (status == VF2_OK) {
+                ++cpu->executed_instructions;
+            }
+            return status;
+        }
+
+        /* Path B / C / D common prefix: ldob 0x295ec(g1), r13. */
+        {
+            uint8_t r13 = 0u;
+            status = vf2_model2a_read(
+                machine, UINT32_C(0x000295ec) + g1, &r13, sizeof(r13)
+            );
+            if (status != VF2_OK) {
+                return status;
+            }
+
+            /* Path B: bbc taken (bit r13 of g0 clear) -> mov 0, g1; ret. */
+            if ((g0 & (UINT32_C(1) << r13)) == 0u) {
+                cpu->registers[VF2_I960_G0_REGISTER + 1u] = 0u;
+                cpu->ip = UINT32_C(0x000295e8);
+                cpu->executed_instructions += UINT64_C(4);
+                status = vf2_i960_cpu_return_procedure(cpu, machine);
+                if (status == VF2_OK) {
+                    ++cpu->executed_instructions;
+                }
+                return status;
+            }
+
+            /* Path C: bbc not taken, g1 != 15 -> addo 1, g1; b -> ret. */
+            if (g1 != UINT32_C(15)) {
+                cpu->registers[VF2_I960_G0_REGISTER + 1u] = g1 + 1u;
+                cpu->ip = UINT32_C(0x000295e8);
+                cpu->executed_instructions += UINT64_C(5);
+                status = vf2_i960_cpu_return_procedure(cpu, machine);
+                if (status == VF2_OK) {
+                    ++cpu->executed_instructions;
+                }
+                return status;
+            }
+
+            /* Path D: g1 == 15, setbit + 3 sub-calls.
+             * Sub-calls (0xcf04, 0x439ac, 0x43888) are not yet recovered;
+             * refuse this path so the dispatcher falls back to
+             * hybrid_execute_interpreted_task. */
+            {
+                uint32_t r15 = 0u;
+                status = vf2_model2a_read_u32(
+                    machine, UINT32_C(0x00500068), &r15
+                );
+                if (status != VF2_OK) {
+                    return status;
+                }
+                r15 |= UINT32_C(1) << 20u;
+                status = vf2_model2a_write_u32(
+                    machine, UINT32_C(0x00500068), r15
+                );
+                if (status != VF2_OK) {
+                    return status;
+                }
+                cpu->registers[VF2_I960_G0_REGISTER + 0u] =
+                    UINT32_C(0x00ad231f);
+                cpu->ip = UINT32_C(0x000295e8);
+                cpu->executed_instructions += UINT64_C(8);
+            }
+            return VF2_ERROR_UNSUPPORTED;
+        }
+    }
+}
+
+vf2_status vf2_hybrid_player_29598_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_29598(machine, cpu);
+}

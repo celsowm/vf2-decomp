@@ -32,4 +32,14 @@ vf2_status vf2_hybrid_player_1441c_execute(
     vf2_i960_cpu *cpu
 );
 
+/* Recover the measured fa_player 0x29598 bit-4 dispatch
+ * (selector2_queue_path). IP must be 0x29598 with a pushed frame.
+ * Three paths recovered: skip (g0 bit 4 clear), bbc-taken (g1=0),
+ * addo-1 g1 (g1 != 15). Path D (g1 == 15, sub-calls) REFUSED
+ * (sub-callees not yet recovered). */
+vf2_status vf2_hybrid_player_29598_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 #endif
