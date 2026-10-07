@@ -433,6 +433,82 @@ static vf2_status hybrid_execute_interpreted_task(
     return VF2_OK;
 }
 
+/* ====================================================================
+ * Per-step hook (v0755b)
+ *
+ * Recovered sub-callees that are stand-alone execute hooks
+ * (v0741/v0745/v0746/v0747) are activated by a per-step loop
+ * that checks cpu->ip against a small table of {entry_ip, hook_fn}
+ * pairs after each instruction. When cpu->ip lands on a hook's
+ * entry_ip, the hook is called. The hook returns:
+ *   - VF2_OK: function fully handled the call; cpu->ip is at the
+ *     post-function IP, loop continues.
+ *   - VF2_ERROR_UNSUPPORTED: function refused cleanly; cpu->ip is
+ *     at the entry IP, but the loop has already stepped past the
+ *     call site, so no re-fire.
+ *   - other: abort.
+ *
+ * The loop uses vf2_i960_step (which is the arch stepper in
+ * hybrid.c, since the legacy rename applies only to executor.c).
+ * This is consistent with the existing 0x16504 per-step special
+ * case below.
+ *
+ * The per-step loop is used ONLY for ranges that have at least
+ * one registered hook. Other ranges continue to use vf2_i960_run
+ * (the legacy-stepper path), preserving their existing behavior.
+ *
+ * See per_step_hook_boundary_v0755.md for the full design.
+ */
+typedef vf2_status (*vf2_hybrid_callee_hook_fn)(
+    vf2_model2a *machine, vf2_i960_cpu *cpu);
+
+typedef struct vf2_hybrid_callee_hook_entry {
+    uint32_t entry_ip;
+    vf2_hybrid_callee_hook_fn hook;
+} vf2_hybrid_callee_hook_entry;
+
+static const vf2_hybrid_callee_hook_entry g_callee_hooks[] = {
+    /* v0741: 4-path dispatch (paths A/B/C recovered; path D cleanly
+     * refused per v0755a). */
+    { UINT32_C(0x00029598), vf2_hybrid_player_29598_execute },
+    /* v0745: queue dedup-append (4 paths). */
+    { UINT32_C(0x000439ac), vf2_hybrid_player_439ac_execute },
+    /* v0746: selector2 queue entry (6 paths + count-full control). */
+    { UINT32_C(0x00043888), vf2_hybrid_player_43888_execute },
+    /* v0747: post-frame IRQ (2 paths; refuses sub-call to 0x1fcc0). */
+    { UINT32_C(0x0000cf04), vf2_hybrid_player_cf04_execute },
+};
+
+#define VF2_CALLEE_HOOK_COUNT \
+    (sizeof(g_callee_hooks) / sizeof(g_callee_hooks[0]))
+
+static const vf2_hybrid_callee_hook_entry *hybrid_find_callee_hook(
+    uint32_t ip)
+{
+    size_t i;
+    for (i = 0; i < VF2_CALLEE_HOOK_COUNT; ++i) {
+        if (g_callee_hooks[i].entry_ip == ip) {
+            return &g_callee_hooks[i];
+        }
+    }
+    return NULL;
+}
+
+/* Returns 1 if the [entry_address, stop_address) range contains at
+ * least one registered callee hook; 0 otherwise. */
+static int hybrid_range_has_hooks(
+    uint32_t entry_address, uint32_t stop_address)
+{
+    size_t i;
+    for (i = 0; i < VF2_CALLEE_HOOK_COUNT; ++i) {
+        const uint32_t h = g_callee_hooks[i].entry_ip;
+        if (h >= entry_address && h < stop_address) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static vf2_status hybrid_execute_interpreted_until(
     vf2_model2a *machine,
     vf2_i960_cpu *cpu,
@@ -464,6 +540,44 @@ static vf2_status hybrid_execute_interpreted_until(
                cpu->procedure_calls - start_calls == UINT64_C(16) &&
                cpu->procedure_returns - start_returns == UINT64_C(17)
             ? VF2_OK : VF2_ERROR_UNSUPPORTED;
+    }
+    /* Per-step loop with hook support (v0755b). Used for ranges
+     * that have at least one registered callee hook. */
+    if (hybrid_range_has_hooks(entry_address, stop_address)) {
+        size_t steps = 0u;
+        while (status == VF2_OK && cpu->ip != stop_address &&
+               steps < VF2_INTERPRETED_TASK_STEP_LIMIT) {
+            /* Step one instruction. */
+            status = vf2_i960_step(cpu, machine, NULL);
+            if (status != VF2_OK) {
+                return status;
+            }
+            ++steps;
+            /* Check if cpu->ip now matches a registered hook. */
+            const vf2_hybrid_callee_hook_entry *hook =
+                hybrid_find_callee_hook(cpu->ip);
+            if (hook != NULL) {
+                status = hook->hook(machine, cpu);
+                if (status == VF2_OK) {
+                    /* Function fully handled the call;
+                     * cpu->ip is at the post-function IP. */
+                    continue;
+                } else if (status == VF2_ERROR_UNSUPPORTED) {
+                    /* Function refused cleanly; cpu->ip is at
+                     * the entry IP. We've already stepped past
+                     * the call site, so the next iteration will
+                     * not re-fire. */
+                    continue;
+                } else {
+                    /* Other error: abort. */
+                    return status;
+                }
+            }
+        }
+        if (status != VF2_OK) {
+            return status;
+        }
+        return cpu->ip == stop_address ? VF2_OK : VF2_ERROR_UNSUPPORTED;
     }
     memset(&options, 0, sizeof(options));
     options.stop_address = stop_address;
