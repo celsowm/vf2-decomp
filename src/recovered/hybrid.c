@@ -33716,3 +33716,296 @@ vf2_status vf2_hybrid_player_11704_execute(
 {
     return hybrid_execute_player_11704(machine, cpu);
 }
+
+/* ====================================================================
+ * fa_player 0x2eab8 - display_runtime_initialize (v0754)
+ *
+ * Disassembly (per vf2i960 disasm, 364 B, 1 block, sub-call to
+ * 0x31004 at 0x2ec1c):
+ *
+ *   block 0x2eab8 (linear, 38 instructions):
+ *     1)  st      0xc0900000, 0x0050a160   (r15 = -7.5 as f32)
+ *     2)  st      0x3dcccccd, 0x0050a164   (r15 = 0.1 as f32)
+ *     3)  st      0x3dcccccd, 0x0050a168   (r15 = 0.1 as f32)
+ *     4)  mov     0, r15; stib  r15, 0x0050a14d
+ *     5)  ld      0x00500814, r3
+ *     6)  ldob    0xdf(r3), r4
+ *     7)  clrbit  0, r4, r4
+ *     8)  stob    r4, 0xdf(r3)
+ *     9)  mov     0, r15; stib  r15, 0x27c(r3)
+ *     10) st      0x3c872b02, 0x234(r3)   (f32 = 0.0161)
+ *     11) st      0x3ca3d70a, 0x238(r3)   (f32 = 0.0199)
+ *     12) mov     0, r15; stis  r15, 0x260(r3)
+ *     13) mov     13, r15; stis  r15, 0x23c(r3)
+ *     14) mov     0, r15; stis  r15, 0x26c(r3)
+ *     15) mov     0, r15; stis  r15, 0x26e(r3)
+ *     16) st      0x409851ec, 0x264(r3)   (f32 = 4.380)
+ *     17) st      0x40d051ec, 0x268(r3)   (f32 = 6.520)
+ *     18) shlo    3, 11, r15 (= 88); stib  r15, 0x23e(r3)
+ *     19) mov     0, r15; stib  r15, 0x27d(r3)
+ *     20) mov     0, r15; stib  r15, 0x23f(r3)
+ *     21) mov     0, r15; st     r15, 0x240(r3)
+ *     22) mov     0, r15; stis  r15, 0x244(r3)
+ *     23) lda     0xff, r15; stib  r15, 0x246(r3)
+ *     24) mov     0, r15; stib  r15, 0x27e(r3)
+ *     25) mov     0, r15; stib  r15, 0x27f(r3)
+ *     26) mov     0, r15; stis  r15, 0x2b0(r3)
+ *     27) mov     0, r15; stis  r15, 0x2b2(r3)
+ *     28) mov     0, r15; stis  r15, 0x2b4(r3)
+ *     29) mov     0, r15; stis  r15, 0x2b6(r3)
+ *     30) mov     0, r15; stis  r15, 0x2b8(r3)
+ *     31) mov     0, r15; stis  r15, 0x2ba(r3)
+ *     32) lda     0, r15; st     r15, 0x2bc(r3)
+ *     33) lda     0, r15; st     r15, 0x2c0(r3)
+ *     34) lda     0x3e19999a, r15; st     r15, 0x2c4(r3)  (f32 = 0.15)
+ *     35) lda     0, r15; st     r15, 0x2c8(r3)
+ *     36) lda     0xbcf5c28f, r15; st     r15, 0x2cc(r3)  (f32 = -0.48)
+ *     37) ld      0x0050084c, r4
+ *     38) mov     0, r15; st     r15, 0x40(r4)
+ *     39) call    0x00031004          (display_transform_defaults)
+ *     40) ret
+ *
+ * Sub-call 0x31004 (60 B, 1 block, no indirect):
+ *     a)  ld      0x0050084c, r4     (same r4 as caller)
+ *     b)  lda     0x40c00000, r8
+ *     c)  lda     0x40966666, r9
+ *     d)  lda     0x41940000, r10
+ *     e)  stt     r8, 0x54(r4)        (8 bytes: r8+r9 to r4+0x54..0x5c)
+ *     f)  mov     0, r12; mov r12, r13; mov r12, r14
+ *     g)  stt     r12, 0x60(r4)       (zero 8 bytes: r4+0x60..0x68)
+ *     h)  st      r12, 0x70(r4)       (zero 4 bytes: r4+0x70)
+ *     i)  ret
+ *
+ * The sub-call is INLINED below (all of its side effects are
+ * direct memory writes; there is no branch out or I/O). The
+ * function therefore has no refused sub-calls.
+ *
+ * Note: r3 and r4 are loaded from 0x500814 / 0x50084c which
+ * the game populates with pointers into work RAM. The recovered
+ * C dereferences these as the original i960 does.
+ */
+static vf2_status hybrid_execute_player_2eab8(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    vf2_status status;
+    uint32_t r3 = 0u;
+    uint32_t r4 = 0u;
+    uint8_t byte_buf = 0u;
+    uint16_t word_buf = 0u;
+
+    if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x0002eab8)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    /* Step 1-3: st 0xc0900000, 0x3dcccccd, 0x3dcccccd to 0x50a160..0x168. */
+    status = vf2_model2a_write_u32(
+        machine, UINT32_C(0x0050a160), UINT32_C(0xc0900000));
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_write_u32(
+        machine, UINT32_C(0x0050a164), UINT32_C(0x3dcccccd));
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_write_u32(
+        machine, UINT32_C(0x0050a168), UINT32_C(0x3dcccccd));
+    if (status != VF2_OK) return status;
+
+    /* Step 4: mov 0, r15; stib r15, 0x50a14d. */
+    byte_buf = 0u;
+    status = vf2_model2a_write(
+        machine, UINT32_C(0x0050a14d), &byte_buf, 1);
+    if (status != VF2_OK) return status;
+
+    /* Step 5: ld 0x500814, r3. */
+    status = vf2_model2a_read_u32(
+        machine, UINT32_C(0x00500814), &r3);
+    if (status != VF2_OK) return status;
+
+    /* Step 6-8: ldob 0xdf(r3), r4; clrbit 0, r4, r4; stob r4, 0xdf(r3). */
+    status = vf2_model2a_read(
+        machine, r3 + UINT32_C(0xdf), &byte_buf, 1);
+    if (status != VF2_OK) return status;
+    byte_buf = (uint8_t)(byte_buf & (uint8_t)~UINT8_C(0x01));
+    status = vf2_model2a_write(
+        machine, r3 + UINT32_C(0xdf), &byte_buf, 1);
+    if (status != VF2_OK) return status;
+
+    /* Step 9: mov 0, r15; stib r15, 0x27c(r3). */
+    byte_buf = 0u;
+    status = vf2_model2a_write(
+        machine, r3 + UINT32_C(0x27c), &byte_buf, 1);
+    if (status != VF2_OK) return status;
+
+    /* Step 10: st 0x3c872b02, 0x234(r3). */
+    status = vf2_model2a_write_u32(
+        machine, r3 + UINT32_C(0x234), UINT32_C(0x3c872b02));
+    if (status != VF2_OK) return status;
+
+    /* Step 11: st 0x3ca3d70a, 0x238(r3). */
+    status = vf2_model2a_write_u32(
+        machine, r3 + UINT32_C(0x238), UINT32_C(0x3ca3d70a));
+    if (status != VF2_OK) return status;
+
+    /* Step 12: mov 0, r15; stis r15, 0x260(r3). */
+    word_buf = 0u;
+    status = vf2_model2a_write(
+        machine, r3 + UINT32_C(0x260), &word_buf, 2);
+    if (status != VF2_OK) return status;
+
+    /* Step 13: mov 13, r15; stis r15, 0x23c(r3). */
+    word_buf = UINT16_C(13);
+    status = vf2_model2a_write(
+        machine, r3 + UINT32_C(0x23c), &word_buf, 2);
+    if (status != VF2_OK) return status;
+
+    /* Step 14-15: mov 0, r15; stis r15, 0x26c(r3) and 0x26e(r3). */
+    word_buf = 0u;
+    status = vf2_model2a_write(
+        machine, r3 + UINT32_C(0x26c), &word_buf, 2);
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_write(
+        machine, r3 + UINT32_C(0x26e), &word_buf, 2);
+    if (status != VF2_OK) return status;
+
+    /* Step 16-17: st 0x409851ec, 0x264(r3); st 0x40d051ec, 0x268(r3). */
+    status = vf2_model2a_write_u32(
+        machine, r3 + UINT32_C(0x264), UINT32_C(0x409851ec));
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_write_u32(
+        machine, r3 + UINT32_C(0x268), UINT32_C(0x40d051ec));
+    if (status != VF2_OK) return status;
+
+    /* Step 18: shlo 3, 11, r15 (= 88); stib r15, 0x23e(r3). */
+    byte_buf = UINT8_C(88);
+    status = vf2_model2a_write(
+        machine, r3 + UINT32_C(0x23e), &byte_buf, 1);
+    if (status != VF2_OK) return status;
+
+    /* Step 19-20: mov 0, r15; stib r15, 0x27d(r3) and 0x23f(r3). */
+    byte_buf = 0u;
+    status = vf2_model2a_write(
+        machine, r3 + UINT32_C(0x27d), &byte_buf, 1);
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_write(
+        machine, r3 + UINT32_C(0x23f), &byte_buf, 1);
+    if (status != VF2_OK) return status;
+
+    /* Step 21: mov 0, r15; st r15, 0x240(r3). */
+    status = vf2_model2a_write_u32(
+        machine, r3 + UINT32_C(0x240), 0u);
+    if (status != VF2_OK) return status;
+
+    /* Step 22: mov 0, r15; stis r15, 0x244(r3). */
+    word_buf = 0u;
+    status = vf2_model2a_write(
+        machine, r3 + UINT32_C(0x244), &word_buf, 2);
+    if (status != VF2_OK) return status;
+
+    /* Step 23: lda 0xff, r15; stib r15, 0x246(r3). */
+    byte_buf = UINT8_C(0xff);
+    status = vf2_model2a_write(
+        machine, r3 + UINT32_C(0x246), &byte_buf, 1);
+    if (status != VF2_OK) return status;
+
+    /* Step 24-25: mov 0, r15; stib r15, 0x27e(r3) and 0x27f(r3). */
+    byte_buf = 0u;
+    status = vf2_model2a_write(
+        machine, r3 + UINT32_C(0x27e), &byte_buf, 1);
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_write(
+        machine, r3 + UINT32_C(0x27f), &byte_buf, 1);
+    if (status != VF2_OK) return status;
+
+    /* Step 26-31: mov 0, r15; stis r15, 0x2b0..0x2ba (6 shorts). */
+    word_buf = 0u;
+    status = vf2_model2a_write(
+        machine, r3 + UINT32_C(0x2b0), &word_buf, 2);
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_write(
+        machine, r3 + UINT32_C(0x2b2), &word_buf, 2);
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_write(
+        machine, r3 + UINT32_C(0x2b4), &word_buf, 2);
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_write(
+        machine, r3 + UINT32_C(0x2b6), &word_buf, 2);
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_write(
+        machine, r3 + UINT32_C(0x2b8), &word_buf, 2);
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_write(
+        machine, r3 + UINT32_C(0x2ba), &word_buf, 2);
+    if (status != VF2_OK) return status;
+
+    /* Step 32-33: lda 0, r15; st r15, 0x2bc(r3) and 0x2c0(r3). */
+    status = vf2_model2a_write_u32(
+        machine, r3 + UINT32_C(0x2bc), 0u);
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_write_u32(
+        machine, r3 + UINT32_C(0x2c0), 0u);
+    if (status != VF2_OK) return status;
+
+    /* Step 34: lda 0x3e19999a, r15; st r15, 0x2c4(r3). */
+    status = vf2_model2a_write_u32(
+        machine, r3 + UINT32_C(0x2c4), UINT32_C(0x3e19999a));
+    if (status != VF2_OK) return status;
+
+    /* Step 35: lda 0, r15; st r15, 0x2c8(r3). */
+    status = vf2_model2a_write_u32(
+        machine, r3 + UINT32_C(0x2c8), 0u);
+    if (status != VF2_OK) return status;
+
+    /* Step 36: lda 0xbcf5c28f, r15; st r15, 0x2cc(r3). */
+    status = vf2_model2a_write_u32(
+        machine, r3 + UINT32_C(0x2cc), UINT32_C(0xbcf5c28f));
+    if (status != VF2_OK) return status;
+
+    /* Step 37-38: ld 0x50084c, r4; mov 0, r15; st r15, 0x40(r4). */
+    status = vf2_model2a_read_u32(
+        machine, UINT32_C(0x0050084c), &r4);
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_write_u32(
+        machine, r4 + UINT32_C(0x40), 0u);
+    if (status != VF2_OK) return status;
+
+    /* Inlined 0x31004 (display_transform_defaults):
+     *   stt r8 (= 0x40c00000) + r9 (= 0x40966666) -> r4+0x54 (8 bytes)
+     *   stt 0 -> r4+0x60 (8 bytes)
+     *   st  0 -> r4+0x70 (4 bytes)
+     */
+    status = vf2_model2a_write_u32(
+        machine, r4 + UINT32_C(0x54), UINT32_C(0x40c00000));
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_write_u32(
+        machine, r4 + UINT32_C(0x58), UINT32_C(0x40966666));
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_write_u32(
+        machine, r4 + UINT32_C(0x60), 0u);
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_write_u32(
+        machine, r4 + UINT32_C(0x64), 0u);
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_write_u32(
+        machine, r4 + UINT32_C(0x70), 0u);
+    if (status != VF2_OK) return status;
+
+    /* The call to 0x31004 is fully inlined (it has no remaining
+     * side-effects). Body instruction count: 72 (0x2eab8..0x2ec1c
+     * inclusive, including the call) + 10 (0x31004..0x3103c
+     * inclusive, excluding its own ret) = 82. ret. */
+    cpu->ip = UINT32_C(0x0002ec20);
+    cpu->executed_instructions += UINT64_C(82);
+    status = vf2_i960_cpu_return_procedure(cpu, machine);
+    if (status == VF2_OK) {
+        ++cpu->executed_instructions;
+    }
+    return status;
+}
+
+vf2_status vf2_hybrid_player_2eab8_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_2eab8(machine, cpu);
+}

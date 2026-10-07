@@ -135,4 +135,15 @@ vf2_status vf2_hybrid_player_11704_execute(
     vf2_i960_cpu *cpu
 );
 
+/* Recover 0x2eab8: display_runtime_initialize (364 B, 1 block).
+ * IP must be 0x2eab8 with a pushed frame. Performs a long
+ * struct init at *0x500814 (offset 0x234..0x2cc) plus 3
+ * work-RAM stores at 0x50a160..0x168 and a zero byte at
+ * 0x50a14d. The sub-call to 0x31004 is fully inlined (writes
+ * to *0x50084c+0x40, +0x54..+0x5c, +0x60..+0x68, +0x70). */
+vf2_status vf2_hybrid_player_2eab8_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 #endif
