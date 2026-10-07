@@ -581,6 +581,28 @@ At the time this handoff was written, `master` already contains:
     which is not in any currently-interpreted range. Wiring them
     requires recovering `0x1fcc0` (depends on `0x2c38`). See
     `per_step_hook_implemented_v0755b.md`.
+- **v0755c added per-hook fire counters** and exposed
+    `vf2_hybrid_get_callee_hook_counts` + `vf2_hybrid_reset_callee_hook_counts`
+    + `vf2_hybrid_run_interpreted_until` (public wrapper for the
+    per-step loop). `vf2i960 native-resume` now prints a
+    `hook_fires:` line showing how many times each hook fired.
+    **Significant finding (v0755c)**: investigation revealed
+    that the per-step loop is **DORMANT in all current test
+    scenarios**. The 4 wired callees of `0x29414` are wired in
+    the dispatcher chain, but no test snapshot triggers the
+    `hybrid_execute_player_post_29414` entry point that calls
+    `hybrid_execute_interpreted_until(0x28178, 0x14400)`. The
+    F4 differential's native leg starts at 0x9ff8 (from
+    `out/indk-c.vf2snap`), which is INSIDE the 0x28178..0x14400
+    range BUT only reached AFTER the post-29414 task has
+    finished. The native resume's block chain doesn't
+    re-dispatch the post-29414 task. The hook is wired but
+    currently inactive. The infrastructure is in place for
+    future use. Two new ctest entries added: #48
+    (vf2_callee_hook_counters, PASSES — sanity check on the
+    instrumentation) and #49 (vf2_callee_hook_fires_native,
+    FAILS — focused test in place for future debugging).
+    See `per_step_hook_counters_v0755c.md`.
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.
