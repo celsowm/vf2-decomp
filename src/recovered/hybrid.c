@@ -32951,3 +32951,212 @@ vf2_status vf2_hybrid_player_43888_execute(
 {
     return hybrid_execute_player_43888(machine, cpu);
 }
+
+/* ====================================================================
+ * fa_player 0xcf04 - post-frame IRQ handler (v0747)
+ *
+ * Disassembly (per vf2i960 disasm, 184 B, 6 blocks):
+ *
+ *   block 0xcf04 (setbit prologue):
+ *     0000cf04  ld       0x00500068, r15
+ *     0000cf0c  setbit   21, r15, r15
+ *     0000cf10  st       r15, 0x00500068
+ *     0000cf18  ld       0x00500068, r15
+ *     0000cf20  bbc      15, r15, 0x0000cf64    # if bit 15 clear -> path B
+ *
+ *   block 0xcf24 (path A: bit 15 set):
+ *     0000cf24  ldob     0x0050005b, r3
+ *     0000cf2c  ld       0x00500068, r15
+ *     0000cf34  bbs      21, r15, 0x0000cf3c    # if bit 21 set, skip addo
+ *     0000cf38  addo     1, r3, r3              # r3++
+ *     0000cf3c  remo     11, r3, r3             # r3 = r3 % 11
+ *     0000cf40  stob     r3, 0x0050005b
+ *     0000cf48  stob     r3, 0x00500064
+ *     0000cf50  ld       0x0050a700, r15
+ *     0000cf58  st       r15, 0x0050a00c
+ *     0000cf60  b        0x0000cf8c             # -> common tail
+ *
+ *   block 0xcf64 (path B: bit 15 clear):
+ *     0000cf64  ldob     0x00500054, r3
+ *     0000cf6c  ldob     0x00012508[r3*2], r3   # r3 = *(uint8_t*)(0x12508 + r3*2)
+ *     0000cf74  stob     r3, 0x00500064
+ *     0000cf7c  ld       0x0050a704, r15
+ *     0000cf84  st       r15, 0x0050a00c
+ *     # fall through to common tail
+ *
+ *   block 0xcf8c (common tail):
+ *     0000cf8c  ld       0x00500068, r15
+ *     0000cf94  clrbit   15, r15, r15
+ *     0000cf98  st       r15, 0x00500068
+ *     0000cfa0  call     0x0001fcc0            # display_profile_apply (REFUSED)
+ *     0000cfa4  ld       0x00500068, r15
+ *     0000cfac  clrbit   21, r15, r15
+ *     0000cfb0  st       r15, 0x00500068
+ *     0000cfb8  ret
+ *
+ * Two paths + shared tail. The setbit 21 at the prologue is
+ * unconditionally applied; the dispatch on bit 15 of 0x500068
+ * selects path A or B. The sub-call to 0x1fcc0 (display_profile_apply)
+ * is NOT recovered; we refuse at that point so the dispatcher's
+ * interpreted fallback runs the call and the trailing clrbit 21
+ * from 0xcfa4 onward.
+ */
+static vf2_status hybrid_execute_player_cf04(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    vf2_status status;
+    uint32_t r15 = 0u;
+
+    if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x0000cf04)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    /* Prologue: setbit 21 of 0x500068. */
+    status = vf2_model2a_read_u32(
+        machine, UINT32_C(0x00500068), &r15
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+    r15 |= UINT32_C(1) << 21u;
+    status = vf2_model2a_write_u32(
+        machine, UINT32_C(0x00500068), r15
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+
+    /* Re-read for the bbc test. */
+    status = vf2_model2a_read_u32(
+        machine, UINT32_C(0x00500068), &r15
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+
+    if ((r15 & (UINT32_C(1) << 15u)) != 0u) {
+        /* Path A: bit 15 set. */
+        uint8_t r3 = 0u;
+        status = vf2_model2a_read(
+            machine, UINT32_C(0x0050005b), &r3, sizeof(r3)
+        );
+        if (status != VF2_OK) {
+            return status;
+        }
+        /* Re-read bit 21 of 0x500068 for the bbs test. */
+        status = vf2_model2a_read_u32(
+            machine, UINT32_C(0x00500068), &r15
+        );
+        if (status != VF2_OK) {
+            return status;
+        }
+        if ((r15 & (UINT32_C(1) << 21u)) == 0u) {
+            /* bbs not taken: addo 1, r3, r3 */
+            r3 = (uint8_t)(r3 + UINT8_C(1));
+        }
+        /* remo 11, r3, r3 -- r3 = r3 % 11 */
+        r3 = (uint8_t)((uint32_t)r3 % UINT32_C(11));
+        status = vf2_model2a_write(
+            machine, UINT32_C(0x0050005b), &r3, sizeof(r3)
+        );
+        if (status != VF2_OK) {
+            return status;
+        }
+        status = vf2_model2a_write(
+            machine, UINT32_C(0x00500064), &r3, sizeof(r3)
+        );
+        if (status != VF2_OK) {
+            return status;
+        }
+        {
+            uint32_t v = 0u;
+            status = vf2_model2a_read_u32(
+                machine, UINT32_C(0x0050a700), &v
+            );
+            if (status != VF2_OK) {
+                return status;
+            }
+            status = vf2_model2a_write_u32(
+                machine, UINT32_C(0x0050a00c), v
+            );
+            if (status != VF2_OK) {
+                return status;
+            }
+        }
+    } else {
+        /* Path B: bit 15 clear. */
+        uint8_t r3 = 0u;
+        status = vf2_model2a_read(
+            machine, UINT32_C(0x00500054), &r3, sizeof(r3)
+        );
+        if (status != VF2_OK) {
+            return status;
+        }
+        {
+            uint8_t v = 0u;
+            status = vf2_model2a_read(
+                machine,
+                UINT32_C(0x00012508) + (uint32_t)r3 * UINT32_C(2),
+                &v, sizeof(v)
+            );
+            if (status != VF2_OK) {
+                return status;
+            }
+            r3 = v;
+        }
+        status = vf2_model2a_write(
+            machine, UINT32_C(0x00500064), &r3, sizeof(r3)
+        );
+        if (status != VF2_OK) {
+            return status;
+        }
+        {
+            uint32_t v = 0u;
+            status = vf2_model2a_read_u32(
+                machine, UINT32_C(0x0050a704), &v
+            );
+            if (status != VF2_OK) {
+                return status;
+            }
+            status = vf2_model2a_write_u32(
+                machine, UINT32_C(0x0050a00c), v
+            );
+            if (status != VF2_OK) {
+                return status;
+            }
+        }
+    }
+
+    /* Common tail: clrbit 15 of 0x500068. */
+    status = vf2_model2a_read_u32(
+        machine, UINT32_C(0x00500068), &r15
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+    r15 &= ~(UINT32_C(1) << 15u);
+    status = vf2_model2a_write_u32(
+        machine, UINT32_C(0x00500068), r15
+    );
+    if (status != VF2_OK) {
+        return status;
+    }
+
+    /* REFUSE the sub-call to 0x1fcc0. The dispatcher's interpreted
+     * fallback will run the call and the trailing clrbit 21 from
+     * 0xcfa4 onward. The setbit 21 from the prologue is already
+     * applied (idempotent on the second application). */
+    cpu->ip = UINT32_C(0x0000cfb8);
+    cpu->executed_instructions += UINT64_C(13);
+    return VF2_ERROR_UNSUPPORTED;
+}
+
+vf2_status vf2_hybrid_player_cf04_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_cf04(machine, cpu);
+}

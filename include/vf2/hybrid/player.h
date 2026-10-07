@@ -65,4 +65,21 @@ vf2_status vf2_hybrid_player_43888_execute(
     vf2_i960_cpu *cpu
 );
 
+/* Recover 0xcf04: post-frame IRQ handler (184 B, 2 paths).
+ * IP must be 0xcf04 with a pushed frame. Sets bit 21 of
+ * 0x500068, dispatches on bit 15 of 0x500068 (path A: set ->
+ * r3 = *(0x50005b) [+1 if bit 21 of 0x500068 clear] mod 11,
+ * store to 0x50005b and 0x500064, write 0x50a700 to 0x50a00c;
+ * path B: clear -> r3 = *(0x500054), r3 = *(0x12508[r3*2]),
+ * store to 0x500064, write 0x50a704 to 0x50a00c), then
+ * common tail: clrbit 15 of 0x500068, REFUSE the sub-call to
+ * 0x1fcc0 (display_profile_apply, not yet recovered), clrbit
+ * 21 of 0x500068, ret. The clrbit 21 is NOT applied; the
+ * dispatcher's interpreted fallback runs the call and the
+ * clrbit 21 from 0xcfa4 onward. */
+vf2_status vf2_hybrid_player_cf04_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 #endif
