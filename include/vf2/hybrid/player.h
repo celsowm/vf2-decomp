@@ -82,4 +82,14 @@ vf2_status vf2_hybrid_player_cf04_execute(
     vf2_i960_cpu *cpu
 );
 
+/* Recover 0x1fee4: trivial init (36 B, 5 blocks).
+ * IP must be 0x1fee4 with a pushed frame. Writes the IEEE 754
+ * float 1.0 (0x3f800000) to 26 consecutive 4-byte locations
+ * starting at 0x50a0e0 (covering 0x50a0e0..0x50a144). This is
+ * the initializer called by 0x1ff0c. */
+vf2_status vf2_hybrid_player_1fee4_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 #endif

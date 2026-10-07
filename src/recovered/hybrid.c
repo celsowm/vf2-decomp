@@ -33160,3 +33160,71 @@ vf2_status vf2_hybrid_player_cf04_execute(
 {
     return hybrid_execute_player_cf04(machine, cpu);
 }
+
+/* ====================================================================
+ * fa_player 0x1fee4 - trivial init for 0x1ff0c (v0749)
+ *
+ * Disassembly (per vf2i960 disasm, 36 B, 5 blocks):
+ *
+ *   block 0x1fee4 (setup):
+ *     0001fee4  mov      26, r5                  # r5 = 26 (loop counter)
+ *     0001fee8  lda      0x0050a0e0, r6          # r6 = write pointer
+ *     0001fef0  lda      0x3f800000, r7          # r7 = float 1.0 in IEEE 754
+ *
+ *   block 0x1fef8 (loop body):
+ *     0001fef8  st       r7, (r6)               # *(r6) = 1.0
+ *     0001fefc  addo     4, r6, r6               # r6 += 4
+ *     0001ff00  cmpdeco  1, r5, r5               # r5 = r5 - 1; if r5 == 0 fall
+ *     0001ff04  bl       0x0001fef8             # else branch back to body
+ *
+ *   block 0x1ff08:
+ *     0001ff08  ret
+ *
+ * Shape: a 26-iteration loop writing the IEEE 754 float 1.0
+ * (0x3f800000) to 26 consecutive 4-byte locations starting at
+ * 0x50a0e0 (covering 0x50a0e0..0x50a144). This is the init
+ * routine called by 0x1ff0c (display_profile_mode_constants).
+ */
+static vf2_status hybrid_execute_player_1fee4(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    vf2_status status;
+    uint32_t address = UINT32_C(0x0050a0e0);
+    uint32_t constant = UINT32_C(0x3f800000);
+    int32_t i;
+
+    if (machine == NULL || cpu == NULL || cpu->ip != UINT32_C(0x0001fee4)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    /* 26-iteration loop: write 1.0 to address, address += 4. */
+    for (i = 26; i > 0; --i) {
+        status = vf2_model2a_write_u32(machine, address, constant);
+        if (status != VF2_OK) {
+            return status;
+        }
+        address += 4u;
+    }
+
+    cpu->ip = UINT32_C(0x0001ff08);
+    /* Body count: 1 (mov) + 1 (lda r6) + 1 (lda r7) +
+     * 26 * (1 (st) + 1 (addo) + 1 (cmpdeco) + 1 (bl)) = 26*4 = 104
+     * (minus 1 for the last fall-through bl = 103) +
+     * 1 (ret) = 1 + 1 + 1 + 103 + 1 = 107 */
+    cpu->executed_instructions += UINT64_C(107);
+    status = vf2_i960_cpu_return_procedure(cpu, machine);
+    if (status == VF2_OK) {
+        ++cpu->executed_instructions;
+    }
+    return status;
+}
+
+vf2_status vf2_hybrid_player_1fee4_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_1fee4(machine, cpu);
+}
