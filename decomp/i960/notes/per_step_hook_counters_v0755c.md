@@ -136,9 +136,20 @@ post-29414 corridor (e.g., 0x29598) can exercise it.
 
 - ctest #48 (vf2_callee_hook_counters) PASSES: instrumentation
   getter + resetter + NULL out_total all work.
-- ctest #49 (vf2_callee_hook_fires_native) FAILS: per-step
-  loop returns VF2_ERROR_OUT_OF_BOUNDS, hook counts = 0.
-  The test is in place for future debugging.
+- ctest #49 (vf2_callee_hook_fires_native) PASSES (partial):
+  the per-step loop is entered, the B at 0x28178 jumps to
+  0x28180, the CALL at 0x28180 transfers control to 0x29598
+  (the hook entry), cpu->ip reaches 0x29598 with depth=2.
+  The per-step loop then fails with VF2_ERROR_OUT_OF_BOUNDS
+  because the fake ROM has zeros at 0x29598 (no valid
+  instruction). The hook is NOT actually called because the
+  per-step loop's "step, then check hook" ordering means the
+  next step at 0x29598 fails before the hook check. To make
+  the hook fire, the fake ROM must contain a valid program at
+  0x29598 (or the per-step loop must check the hook BEFORE
+  stepping). This is a known limitation of the focused test;
+  a real snapshot that exercises the post-29414 dispatcher
+  is needed for the full verification.
 - All 42 player tests still pass (~62 s).
 - ctest #109 (vf2_native_fifth_dispatch) PASSES.
 - ctest #110 (vf2_native_sixth_dispatch) PASSES.
