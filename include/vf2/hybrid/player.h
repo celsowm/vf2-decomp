@@ -146,6 +146,20 @@ vf2_status vf2_hybrid_player_2eab8_execute(
     vf2_i960_cpu *cpu
 );
 
+/* Recover 0x2c38: color_table_rebuild (432 B, 11 blocks).
+ * IP must be 0x2c38 with a pushed frame. Zeros the color
+ * table at 0x546008..0x54612d, then runs a 27x47 nested loop
+ * that fills 0x54612e..0x?? with computed color values.
+ * The "subo 1, 0, g1" at 0x2d40 is the disasm-vs-executor
+ * ambiguity flagged in v0755; the recovery matches the
+ * executor's interpretation (g1 = 0xFFFFFFFF when g1 >= 256).
+ * See color_table_rebuild_executor_v0755f.md for the design
+ * rationale. Stand-alone execute hook, not yet wired. */
+vf2_status vf2_hybrid_player_2c38_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 /* Per-step hook instrumentation (v0755c).
  *
  * Read-only access to the per-hook fire counters maintained by

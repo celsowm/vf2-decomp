@@ -471,6 +471,11 @@ if(VF2_BUILD_TESTS)
     vf2_set_project_warnings(vf2_player_2eab8_tests)
     add_test(NAME vf2_player_2eab8 COMMAND vf2_player_2eab8_tests)
 
+    add_executable(vf2_player_2c38_tests tests/recovered/test_player_2c38_native.c)
+    target_link_libraries(vf2_player_2c38_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_player_2c38_tests)
+    add_test(NAME vf2_player_2c38 COMMAND vf2_player_2c38_tests)
+
     add_executable(vf2_callee_hook_counters_tests tests/recovered/test_callee_hook_counters.c)
     target_link_libraries(vf2_callee_hook_counters_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_callee_hook_counters_tests)

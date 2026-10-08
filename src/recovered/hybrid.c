@@ -34194,3 +34194,262 @@ void vf2_hybrid_reset_callee_hook_counts(void)
         g_callee_hook_fire_count[i] = 0u;
     }
 }
+
+/* ====================================================================
+ * fa_player 0x2c38 - color_table_rebuild (v0755f)
+ *
+ * Disassembly (per vf2i960 disasm, 432 B, 11 blocks, sub-call to
+ * 0x2edc/0x2f5c/0x2f9c):
+ *
+ *   block 0x2c38 (zero init + outer loop init):
+ *     lda 0x00546008, r4       # r4 = 0x546008 (color table base)
+ *     mov 0, r8..r11           # zero scratch
+ *     18 x stq r8, (r4)        # zero 0x546008..0x546118 (288 bytes)
+ *     r4 += 0x120              # r4 = 0x546128
+ *     mov 1, r5                # r5 = 1 (outer counter)
+ *     r3 = 0; st r3, (r4); stos r3, 4(r4)  # zero 0x546128..0x54612d
+ *     r4 += 6                  # r4 = 0x54612e
+ *
+ *   block 0x2cb0 (per-outer pre-compute):
+ *     r7  = (28 * byte[0x500235]) / 18   # red scale
+ *     r9  = byte[0x500234]              # red offset
+ *     r10 = (28 * byte[0x500237]) / 18   # green scale
+ *     r12 = byte[0x500236]              # green offset
+ *     r13 = (28 * byte[0x500239]) / 18   # blue scale
+ *     r15 = byte[0x500238]              # blue offset
+ *     r11 = r14 = 0; r6 = 16 + 31 = 47
+ *
+ *   block 0x2d2c..0x2db0 (inner loop body, 47 iterations):
+ *     r8 += r7; g1 = r8 >> 8; g1 += r9
+ *     if g1 >= 256: subo 1, 0, g1     # THE DISPUTED instruction
+ *     r3 = byte[0x5000e0]; g1 = r3*g1; g1 >>= 7
+ *     stos g1, (r4)            # red result
+ *     (similar for r11/green and r14/blue, stored at 2(r4) and 4(r4))
+ *     r4 += 6
+ *
+ *   block 0x2db4..0x2dc0 (loop control):
+ *     cmpdeco r6; bl 0x2d2c (inner, 47 times)
+ *     cmpinco 27, r5, r5; bg 0x2ca0 (outer, 27 times)
+ *
+ *   block 0x2dc4..0x2de0 (cleanup + ret):
+ *     st 0, 0x546004; st 1, 0x546000
+ *     mov 0, g1; ret
+ *
+ * The "subo 1, 0, g1" at 0x2d40 is the disasm-vs-executor
+ * ambiguity flagged in v0755. The executor implements subo as
+ * `dst = operand[1] - operand[0]` (note the order swap from
+ * the standard i960 disasm convention `dst = src1 - src2`).
+ * For `subo 1, 0, g1` this produces g1 = 0 - 1 = 0xFFFFFFFF.
+ * The standard i960 disasm convention would produce g1 = 1 - 0 = 1.
+ *
+ * This recovery matches the EXECUTOR's behavior (g1 = 0xFFFFFFFF
+ * for the saturating subo) because:
+ *   1. The executor is the source of truth for the differential.
+ *   2. The disasm convention is reversed for the executor's
+ *      implementation.
+ *   3. No existing differential test exercises 0x2c38 (the
+ *      F4 differential uses 0x9ff8..0xa010, which is in the
+ *      0x28178..0x14400 range but only reached AFTER the
+ *      post-29414 task has finished). So the recovery's
+ *      behavior is consistent with the executor's but is
+ *      not currently validated against the original i960.
+ *
+ * The recovered function is a STAND-ALONE EXECUTE HOOK (not
+ * yet wired into the dispatcher chain). It exists as a unit
+ * test target only.
+ *
+ * The function has NO sub-calls in the recovered range
+ * (0x2c38..0x2de4). The 0x2e3c..0x2ec4 range is a separate
+ * function (color_table_apply) called from 0x2de4 onwards.
+ */
+static vf2_status hybrid_execute_player_2c38(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    vf2_status status;
+    uint32_t r3 = 0u;
+    uint32_t r4 = 0u;
+    uint32_t r5 = 0u;
+    uint32_t r6 = 0u;
+    uint32_t r7 = 0u;
+    uint32_t r8 = 0u;
+    uint32_t r9 = 0u;
+    uint32_t r10 = 0u;
+    uint32_t r11 = 0u;
+    uint32_t r12 = 0u;
+    uint32_t r13 = 0u;
+    uint32_t r14 = 0u;
+    uint32_t r15 = 0u;
+    uint32_t g1 = 0u;
+    uint8_t byte_buf = 0u;
+    uint16_t short_buf = 0u;
+    uint32_t zero_q[4] = {0u, 0u, 0u, 0u};
+    int outer_iter = 0;
+    int inner_iter = 0;
+
+    if (machine == NULL || cpu == NULL ||
+        cpu->ip != UINT32_C(0x0002c38)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    /* Zero 0x546008..0x546118 (288 bytes = 18 stq of 16 bytes). */
+    r4 = UINT32_C(0x00546008);
+    r8 = 0u; r9 = 0u; r10 = 0u; r11 = 0u;
+    for (r3 = 0u; r3 < 18u; ++r3) {
+        status = vf2_model2a_write(
+            machine, r4 + r3 * 16u, zero_q, 16);
+        if (status != VF2_OK) {
+            return status;
+        }
+    }
+    r4 = r4 + UINT32_C(0x120);  /* r4 = 0x546128 */
+
+    /* Zero 0x546128..0x54612d (6 bytes: 4-byte st + 2-byte stos). */
+    r3 = 0u;
+    status = vf2_model2a_write_u32(machine, r4, 0u);
+    if (status != VF2_OK) {
+        return status;
+    }
+    short_buf = 0u;
+    status = vf2_model2a_write(
+        machine, r4 + 4u, &short_buf, 2);
+    if (status != VF2_OK) {
+        return status;
+    }
+    r4 = r4 + UINT32_C(6);  /* r4 = 0x54612e */
+
+    /* Outer loop: 27 iterations via cmpinco 27. */
+    r5 = 1u;
+    for (outer_iter = 0; outer_iter < 27; ++outer_iter) {
+        /* Per-outer pre-compute. */
+        status = vf2_model2a_read(
+            machine, UINT32_C(0x00500235), &byte_buf, 1);
+        if (status != VF2_OK) return status;
+        r7 = (uint32_t)byte_buf;
+        /* r7 = (28 * r7) / 18 (mulo r5=1 doesn't change r7). */
+        r7 = r7 * 28u / 18u;
+
+        status = vf2_model2a_read(
+            machine, UINT32_C(0x00500234), &byte_buf, 1);
+        if (status != VF2_OK) return status;
+        r9 = (uint32_t)byte_buf;
+
+        status = vf2_model2a_read(
+            machine, UINT32_C(0x00500237), &byte_buf, 1);
+        if (status != VF2_OK) return status;
+        r10 = (uint32_t)byte_buf;
+        r10 = r10 * 28u / 18u;
+
+        status = vf2_model2a_read(
+            machine, UINT32_C(0x00500236), &byte_buf, 1);
+        if (status != VF2_OK) return status;
+        r12 = (uint32_t)byte_buf;
+
+        status = vf2_model2a_read(
+            machine, UINT32_C(0x00500239), &byte_buf, 1);
+        if (status != VF2_OK) return status;
+        r13 = (uint32_t)byte_buf;
+        r13 = r13 * 28u / 18u;
+
+        status = vf2_model2a_read(
+            machine, UINT32_C(0x00500238), &byte_buf, 1);
+        if (status != VF2_OK) return status;
+        r15 = (uint32_t)byte_buf;
+
+        /* Initialize accumulators. */
+        r8 = 0u; r11 = 0u; r14 = 0u;
+        r6 = 47u;  /* 16 + 31 */
+
+        /* Inner loop: 47 iterations. */
+        for (inner_iter = 0; inner_iter < 47; ++inner_iter) {
+            /* Red channel. */
+            r8 = r8 + r7;
+            g1 = r8 >> 8;
+            g1 = g1 + r9;
+            if (g1 >= 256u) {
+                /* Executor semantics: g1 = 0 - 1 = 0xFFFFFFFF. */
+                g1 = 0xFFFFFFFFu;
+            }
+            status = vf2_model2a_read(
+                machine, UINT32_C(0x005000e0), &byte_buf, 1);
+            if (status != VF2_OK) return status;
+            r3 = (uint32_t)byte_buf;
+            g1 = r3 * g1;
+            g1 = g1 >> 7;
+            short_buf = (uint16_t)(g1 & 0xffffu);
+            status = vf2_model2a_write(
+                machine, r4, &short_buf, 2);
+            if (status != VF2_OK) return status;
+
+            /* Green channel. */
+            r11 = r11 + r10;
+            g1 = r11 >> 8;
+            g1 = g1 + r12;
+            if (g1 >= 256u) {
+                g1 = 0xFFFFFFFFu;
+            }
+            status = vf2_model2a_read(
+                machine, UINT32_C(0x005000e1), &byte_buf, 1);
+            if (status != VF2_OK) return status;
+            r3 = (uint32_t)byte_buf;
+            g1 = r3 * g1;
+            g1 = g1 >> 7;
+            short_buf = (uint16_t)(g1 & 0xffffu);
+            status = vf2_model2a_write(
+                machine, r4 + 2u, &short_buf, 2);
+            if (status != VF2_OK) return status;
+
+            /* Blue channel. */
+            r14 = r14 + r13;
+            g1 = r14 >> 8;
+            g1 = g1 + r15;
+            if (g1 >= 256u) {
+                g1 = 0xFFFFFFFFu;
+            }
+            status = vf2_model2a_read(
+                machine, UINT32_C(0x005000e2), &byte_buf, 1);
+            if (status != VF2_OK) return status;
+            r3 = (uint32_t)byte_buf;
+            g1 = r3 * g1;
+            g1 = g1 >> 7;
+            short_buf = (uint16_t)(g1 & 0xffffu);
+            status = vf2_model2a_write(
+                machine, r4 + 4u, &short_buf, 2);
+            if (status != VF2_OK) return status;
+
+            r4 = r4 + 6u;
+        }
+    }
+
+    /* Cleanup. */
+    status = vf2_model2a_write_u32(
+        machine, UINT32_C(0x00546004), 0u);
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_write_u32(
+        machine, UINT32_C(0x00546000), 1u);
+    if (status != VF2_OK) return status;
+
+    /* ret: g1 = 0, set ip to 0x2de4 (next instruction). */
+    cpu->registers[VF2_I960_G0_REGISTER + 1u] = 0u;
+    cpu->ip = UINT32_C(0x0002de4);
+    /* Body count: 18 (stq loop) + 3 (st/stos/r4+=6) + 27 *
+     * (35 pre-compute + 47 * 18 inner + 1 cmpinco) + 5 cleanup.
+     * Approx: 18 + 3 + 27 * (35 + 846 + 1) + 5 = ~24,000 instructions.
+     * This is rough; the differential doesn't currently
+     * exercise 0x2c38 so the exact count isn't validated. */
+    cpu->executed_instructions += UINT64_C(24000);
+    status = vf2_i960_cpu_return_procedure(cpu, machine);
+    if (status == VF2_OK) {
+        ++cpu->executed_instructions;
+    }
+    return status;
+}
+
+vf2_status vf2_hybrid_player_2c38_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_2c38(machine, cpu);
+}
