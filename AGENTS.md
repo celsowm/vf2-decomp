@@ -601,8 +601,12 @@ At the time this handoff was written, `master` already contains:
     future use. Two new ctest entries added: #48
     (vf2_callee_hook_counters, PASSES — sanity check on the
     instrumentation) and #49 (vf2_callee_hook_fires_native,
-    FAILS — focused test in place for future debugging).
-    See `per_step_hook_counters_v0755c.md`.
+    PASSES partial — reaches hook entry 0x29598 with depth=2
+    via a hand-crafted fake-ROM program; the hook itself
+    doesn't fire because the fake ROM has zeros at 0x29598,
+    which fails the per-step loop's "step, then check hook"
+    ordering before the hook check). See
+    `per_step_hook_counters_v0755c.md`.
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.
