@@ -160,6 +160,26 @@ vf2_status vf2_hybrid_player_2c38_execute(
     vf2_i960_cpu *cpu
 );
 
+/* Recover 0x1fcc0: display_profile_apply (548 B, 15 blocks,
+ * 6 sub-calls). IP must be 0x1fcc0 with a pushed frame.
+ * Decides a mode byte (0x500064) from a 2+1 / 1+2 fighter-type
+ * combo plus the pre-existing 0x500064/0x50004c/0x500068
+ * state, and writes 0x500064/0x500068/0x50a000/0x50a004
+ * accordingly. Then runs the 5 inlined sub-callees:
+ *   0x1ff0c (mode constants, which itself inlines 0x1fee4),
+ *   0x1fffc (color profile apply; refuses 0x2c38),
+ *   0x4b410 (video command submit),
+ *   0x2eab8 (display runtime initialize),
+ *   0x11704 (video table expand_128).
+ * The refused 0x2c38 sub-call comes from inside the inlined
+ * 0x1fffc, so this function returns VF2_ERROR_UNSUPPORTED with
+ * cpu->ip == 0x20050 (the 0x1fffc sub-call's post-return slot)
+ * and the per-step loop's fallback will run the call+ret. */
+vf2_status vf2_hybrid_player_1fcc0_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 /* Per-step hook instrumentation (v0755c).
  *
  * Read-only access to the per-hook fire counters maintained by

@@ -34453,3 +34453,479 @@ vf2_status vf2_hybrid_player_2c38_execute(
 {
     return hybrid_execute_player_2c38(machine, cpu);
 }
+
+/* ====================================================================
+ * fa_player 0x1fcc0 - display_profile_apply (v0755g)
+ *
+ * Disassembly (per vf2i960 disasm, 548 B, 15 blocks):
+ *
+ *   block_0001fcc0:        (entry)
+ *     0001fcc0  ld       0x00500804, r3       ; r3 = fighter_base_p1
+ *     0001fcc8  ld       0x00500808, r4       ; r4 = fighter_base_p2
+ *     0001fcd0  ldob     0x000001b1(r3), r14
+ *     0001fcd4  cmpobne  2, r14, 0x0001fce0
+ *
+ *   block_0001fcd8:        (p1 == 2)
+ *     0001fcd8  ldob     0x000001b1(r4), r14
+ *     0001fcdc  cmpobe   1, r14, 0x0001fcf0
+ *
+ *   block_0001fce0:
+ *     0001fce0  ldob     0x000001b1(r3), r14
+ *     0001fce4  cmpobne  1, r14, 0x0001fd14
+ *
+ *   block_0001fce8:        (p1 == 1)
+ *     0001fce8  ldob     0x000001b1(r4), r14
+ *     0001fcec  cmpobne  2, r14, 0x0001fd14
+ *
+ *   block_0001fcf0:        (combo: 2+1 OR 1+2)
+ *     0001fcf0  lda      0x0000000c, r15
+ *     0001fcf8  stib     r15, 0x00500064      ; 0x500064 = 0x0c
+ *     0001fd00  ld       0x00500068, r15
+ *     0001fd08  clrbit   20, r15, r15         ; 0x500068 &= ~(1<<20)
+ *     0001fd0c  st       r15, 0x00500068
+ *     ; falls through to 0x1fd14
+ *
+ *   block_0001fd14:
+ *     0001fd14  ld       0x00500068, r15
+ *     0001fd1c  bbc      21, r15, 0x0001fd2c  ; if bit21 clear -> 0x1fd2c
+ *
+ *   block_0001fd20:
+ *     0001fd20  ld       0x00500068, r15
+ *     0001fd28  bbs      20, r15, 0x0001fd44  ; if bit20 set  -> 0x1fd44
+ *     ; bit21-set, bit20-clear falls through to 0x1fd2c
+ *
+ *   block_0001fd2c:        (bit21 clear OR (bit21 set & bit20 clear))
+ *     0001fd2c  ldob     0x00500064, r15
+ *     0001fd34  cmpobne  10, r15, 0x0001fd9c  ; if 0x500064 != 10 -> 0x1fd9c
+ *
+ *   block_0001fd38:
+ *     0001fd38  ldob     0x0050004c, r14
+ *     0001fd40  cmpobe   2, r14, 0x0001fd8c   ; if 0x50004c == 2 -> 0x1fd8c
+ *     ; else falls through to 0x1fd9c
+ *
+ *   block_0001fd44:        (bit21 set & bit20 set)
+ *     0001fd44  lda      0x0000000a, r15
+ *     0001fd4c  stib     r15, 0x00500064      ; 0x500064 = 0x0a
+ *     0001fd54  ld       0x00500068, r15
+ *     0001fd5c  setbit   20, r15, r15
+ *     0001fd60  st       r15, 0x00500068
+ *     0001fd68  lda      0x3a3117c4, r15
+ *     0001fd70  st       r15, 0x0050a000
+ *     0001fd78  lda      0x40000000, r15
+ *     0001fd80  st       r15, 0x0050a004
+ *     0001fd88  b        0x0001fdd0
+ *
+ *   block_0001fd8c:        (mode==10 && 0x50004c==2)
+ *     0001fd8c  lda      0x0000000b, r15
+ *     0001fd94  stib     r15, 0x00500064      ; 0x500064 = 0x0b
+ *
+ *   block_0001fd9c:        (default mode override)
+ *     0001fd9c  ld       0x00500068, r15
+ *     0001fda4  clrbit   20, r15, r15         ; 0x500068 &= ~(1<<20)
+ *     0001fda8  st       r15, 0x00500068
+ *     0001fdb0  lda      0x3b32674f, r15
+ *     0001fdb8  st       r15, 0x0050a000
+ *     0001fdc0  lda      0x3f800000, r15
+ *     0001fdc8  st       r15, 0x0050a004
+ *
+ *   block_0001fdd0:        (convergence: 0x1ff0c + the body)
+ *     0001fdd0  call     0x0001ff0c           ; inlined: 0x1fee4 + mode dispatch
+ *     0001fdd4  lda      0x00001388, r15
+ *     0001fddc  st       r15, 0x00501018      ; 0x501018 = 0x1388
+ *     0001fde4  ldob     0x00500064, r12
+ *     0001fdec  shlo     8, r12, r4           ; r4 = mode_byte << 8
+ *     0001fdf0  ldob     0x0006eeae(r4), r15
+ *     0001fdf8  cmpobne  4, r15, 0x0001fe0c
+ *
+ *   block_0001fdfc:        (mode table byte == 4)
+ *     0001fdfc  lda      0x000010cc, r15
+ *     0001fe04  st       r15, 0x00501018      ; 0x501018 = 0x10cc
+ *
+ *   block_0001fe0c:        (merge for the load+store cluster)
+ *     0001fe0c  lda      0x018021ee, r6
+ *     0001fe14  ldos     0x0006ef0c(r4), r5   ; r5 = short from table
+ *     0001fe1c  stos     r5, (r6)             ; *(0x018021ee) = r5
+ *     0001fe20  ldob     0x0006eeae(r4), r5
+ *     0001fe28  stob     r5, 0x00500170
+ *     0001fe30  ld       0x0006eea4(r4), r5
+ *     0001fe38  ldos     0x0006eea8(r4), r6
+ *     0001fe40  ldos     0x0006eeaa(r4), r7
+ *     0001fe48  st       r5, 0x00501098
+ *     0001fe50  stos     r6, 0x00501020
+ *     0001fe58  stos     r7, 0x00501022
+ *     0001fe60  call     0x0001fffc           ; inlined
+ *     0001fe64  ld       0x0006eeb0(r4), g0
+ *     0001fe6c  ld       0x0006eeb4(r4), g1
+ *     0001fe74  call     0x0004b410           ; video_command_submit (inlined)
+ *     0001fe78-0x1fed0   zero 0x50a014..0x50a026 (4 st + 4 stis)
+ *     0001fed8  call     0x0002eab8           ; display_runtime_initialize (inlined)
+ *     0001fedc  call     0x00011704           ; video_table_expand_128 (inlined)
+ *     0001fee0  ret
+ *
+ * Shape: a single complex profile apply routine that:
+ *   1. Decides a mode byte (0x500064) from the fighter-type pair.
+ *      Two combos (2+1 / 1+2) force mode=0x0c + clear bit20.
+ *      Otherwise it depends on the prior bit21/bit20 state of
+ *      0x500068 plus the value of 0x500064 (10 vs not) and
+ *      0x50004c (==2).
+ *   2. Writes 0x50a000/0x50a004 with one of two float pairs
+ *      (0x3b32674f/0x3f800000 vs 0x3a3117c4/0x40000000).
+ *   3. Calls the 5 sub-callees of which all are now recovered:
+ *         0x1ff0c (display_profile_mode_constants; inlines 0x1fee4)
+ *         0x1fffc (display_color_profile_apply; refuses 0x2c38)
+ *         0x4b410 (video_command_submit)
+ *         0x2eab8 (display_runtime_initialize)
+ *         0x11704 (video_table_expand_128)
+ *      plus a 6th sub-call (0x2c38) refused inside 0x1fffc.
+ *
+ * The recovery inlines all 6 sub-callees. 0x1fffc refuses the
+ * 0x2c38 sub-call from within itself (matches v0751's existing
+ * refusal pattern), so this function ends with refusal in the
+ * same place.
+ */
+static vf2_status hybrid_execute_player_1fcc0(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    vf2_status status;
+    uint32_t r3 = 0u;        /* fighter_base_p1 */
+    uint32_t r4 = 0u;        /* fighter_base_p2 -> mode<<8 */
+    uint8_t r14_p1 = 0u;
+    uint8_t r14_p2 = 0u;
+    uint32_t r15_u32 = 0u;
+    uint8_t r12_mode = 0u;
+    uint8_t mode_byte = 0u;
+    uint8_t table_byte = 0u;
+    uint16_t r5_short = 0u;
+    uint8_t r5_byte = 0u;
+    uint32_t r5_word = 0u;
+    uint16_t r6_short = 0u;
+    uint16_t r7_short = 0u;
+    uint8_t r5_b = 0u, r6_b = 0u, r7_b = 0u;
+
+    if (machine == NULL || cpu == NULL ||
+        cpu->ip != UINT32_C(0x0001fcc0)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    /* Entry reads. */
+    status = vf2_model2a_read_u32(
+        machine, UINT32_C(0x00500804), &r3);
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_read_u32(
+        machine, UINT32_C(0x00500808), &r4);
+    if (status != VF2_OK) return status;
+
+    /* block_0001fcc0: read p1. */
+    status = vf2_model2a_read(
+        machine, r3 + UINT32_C(0x1b1), &r14_p1, sizeof(r14_p1));
+    if (status != VF2_OK) return status;
+
+    if (r14_p1 == 2u) {
+        /* block_0001fcd8: read p2; if 1 -> combo. */
+        status = vf2_model2a_read(
+            machine, r4 + UINT32_C(0x1b1), &r14_p2, sizeof(r14_p2));
+        if (status != VF2_OK) return status;
+        if (r14_p2 == 1u) {
+            goto combo_set;
+        }
+        /* else fall through to block_0001fce0 */
+    }
+    /* else (r14_p1 != 2): fall through to block_0001fce0 */
+
+    /* block_0001fce0: re-read p1; if != 1 -> no_combo. */
+    status = vf2_model2a_read(
+        machine, r3 + UINT32_C(0x1b1), &r14_p1, sizeof(r14_p1));
+    if (status != VF2_OK) return status;
+    if (r14_p1 != 1u) goto no_combo_path;
+
+    /* block_0001fce8: read p2; if != 2 -> no_combo. */
+    status = vf2_model2a_read(
+        machine, r4 + UINT32_C(0x1b1), &r14_p2, sizeof(r14_p2));
+    if (status != VF2_OK) return status;
+    if (r14_p2 != 2u) goto no_combo_path;
+    /* fall through to combo */
+
+combo_set:
+    /* block_0001fcf0: COMBO (2+1 or 1+2 detected). */
+    {
+        uint8_t val_0c = 0x0cu;
+        status = vf2_model2a_write(
+            machine, UINT32_C(0x00500064), &val_0c, sizeof(val_0c));
+        if (status != VF2_OK) return status;
+        status = vf2_model2a_read_u32(
+            machine, UINT32_C(0x00500068), &r15_u32);
+        if (status != VF2_OK) return status;
+        r15_u32 &= ~(UINT32_C(1) << 20u);
+        status = vf2_model2a_write_u32(
+            machine, UINT32_C(0x00500068), r15_u32);
+        if (status != VF2_OK) return status;
+    }
+    /* fall through to 0x1fd14 (no_combo_path) */
+
+no_combo_path:
+    /* block_0001fd14 + block_0001fd20: check bit21 then bit20. */
+    status = vf2_model2a_read_u32(
+        machine, UINT32_C(0x00500068), &r15_u32);
+    if (status != VF2_OK) return status;
+    if ((r15_u32 & (UINT32_C(1) << 21u)) != 0u) {
+        /* bit21 set: re-read 0x500068 and check bit20. */
+        status = vf2_model2a_read_u32(
+            machine, UINT32_C(0x00500068), &r15_u32);
+        if (status != VF2_OK) return status;
+        if ((r15_u32 & (UINT32_C(1) << 20u)) != 0u) {
+            /* block_0001fd44: bit21 set & bit20 set. */
+            uint8_t val_0a = 0x0au;
+            status = vf2_model2a_write(
+                machine, UINT32_C(0x00500064), &val_0a, sizeof(val_0a));
+            if (status != VF2_OK) return status;
+            status = vf2_model2a_read_u32(
+                machine, UINT32_C(0x00500068), &r15_u32);
+            if (status != VF2_OK) return status;
+            r15_u32 |= (UINT32_C(1) << 20u);
+            status = vf2_model2a_write_u32(
+                machine, UINT32_C(0x00500068), r15_u32);
+            if (status != VF2_OK) return status;
+            status = vf2_model2a_write_u32(
+                machine, UINT32_C(0x0050a000), UINT32_C(0x3a3117c4));
+            if (status != VF2_OK) return status;
+            status = vf2_model2a_write_u32(
+                machine, UINT32_C(0x0050a004), UINT32_C(0x40000000));
+            if (status != VF2_OK) return status;
+            goto merge_point;
+        }
+        /* bit21 set & bit20 clear: fall through to bit21_clear_path */
+    }
+    /* bit21_clear_path: block_0001fd2c */
+    status = vf2_model2a_read(
+        machine, UINT32_C(0x00500064), &mode_byte, sizeof(mode_byte));
+    if (status != VF2_OK) return status;
+    if (mode_byte == 10u) {
+        /* block_0001fd38: check 0x50004c == 2 */
+        uint8_t byte_4c = 0u;
+        status = vf2_model2a_read(
+            machine, UINT32_C(0x0050004c), &byte_4c, sizeof(byte_4c));
+        if (status != VF2_OK) return status;
+        if (byte_4c == 2u) {
+            /* block_0001fd8c: 0x500064 = 0x0b */
+            uint8_t val_0b = 0x0bu;
+            status = vf2_model2a_write(
+                machine, UINT32_C(0x00500064), &val_0b, sizeof(val_0b));
+            if (status != VF2_OK) return status;
+            /* falls through to 0x1fd9c */
+        }
+        /* else falls through to 0x1fd9c */
+    }
+    /* block_0001fd9c: default mode override */
+    status = vf2_model2a_read_u32(
+        machine, UINT32_C(0x00500068), &r15_u32);
+    if (status != VF2_OK) return status;
+    r15_u32 &= ~(UINT32_C(1) << 20u);
+    status = vf2_model2a_write_u32(
+        machine, UINT32_C(0x00500068), r15_u32);
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_write_u32(
+        machine, UINT32_C(0x0050a000), UINT32_C(0x3b32674f));
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_write_u32(
+        machine, UINT32_C(0x0050a004), UINT32_C(0x3f800000));
+    if (status != VF2_OK) return status;
+    /* falls through to 0x1fdd0 (merge_point) */
+
+merge_point:
+    /* block_0001fdd0: call 0x1ff0c (display_profile_mode_constants).
+     * 0x1ff0c itself inlines 0x1fee4. We mirror its call+ret
+     * pattern: push a frame for 0x1fee4, run it, then run
+     * 0x1ff0c's body, then return_procedure pops OUR (caller's)
+     * frame. Since the caller IS this function, we ultimately
+     * want to return from this function leaving cpu->ip at the
+     * 0x1fee4 call's continuation OR (more pragmatically) at the
+     * end of this whole function's body, and refuse the
+     * final 0x2c38 sub-call inside the inlined 0x1fffc.
+     *
+     * To match the existing 0x1ff0c recovery, we delegate to
+     * vf2_hybrid_player_1fee4_execute directly with a pushed
+     * frame, then run 0x1ff0c's body inline, then
+     * return_procedure to pop the caller frame.
+     *
+     * Step 1: push a frame for 0x1fee4 so it has a stack record
+     * for its ret (matching 0x1ff0c's behavior). */
+    status = vf2_i960_cpu_enter_procedure(
+        cpu, UINT32_C(0x0001fee4), UINT32_C(0x0001ff10));
+    if (status != VF2_OK) return status;
+    /* Step 2: set cpu->ip = 0x1fee4 (required by the recovery). */
+    cpu->ip = UINT32_C(0x0001fee4);
+    status = vf2_hybrid_player_1fee4_execute(machine, cpu);
+    if (status != VF2_OK) return status;
+    /* 0x1fee4 set cpu->ip = 0x1ff08; advance to the return slot. */
+    cpu->ip = UINT32_C(0x0001ff10);
+
+    /* 0x1ff0c body: read 0x500064 mode byte and dispatch. */
+    status = vf2_model2a_read(
+        machine, UINT32_C(0x00500064), &mode_byte, sizeof(mode_byte));
+    if (status != VF2_OK) return status;
+    if (mode_byte == 10u) {
+        status = vf2_model2a_write_u32(
+            machine, UINT32_C(0x0050a124), UINT32_C(0x3f0f5c29));
+        if (status != VF2_OK) return status;
+        status = vf2_model2a_write_u32(
+            machine, UINT32_C(0x0050a128), UINT32_C(0x3ef0a3d7));
+        if (status != VF2_OK) return status;
+        cpu->ip = UINT32_C(0x0001ff44);
+    } else if (mode_byte == 6u) {
+        const uint32_t address_first_10[10] = {
+            UINT32_C(0x0050a0e4), UINT32_C(0x0050a0e8),
+            UINT32_C(0x0050a0f0), UINT32_C(0x0050a0f8),
+            UINT32_C(0x0050a100), UINT32_C(0x0050a118),
+            UINT32_C(0x0050a11c), UINT32_C(0x0050a124),
+            UINT32_C(0x0050a128), UINT32_C(0x0050a12c)
+        };
+        const uint32_t value_first_10[10] = {
+            UINT32_C(0x3f0a3d71), UINT32_C(0x3f0a3d71),
+            UINT32_C(0x3f6b851f), UINT32_C(0x3f5eb852),
+            UINT32_C(0x3f028f5c), UINT32_C(0x3f0a3d71),
+            UINT32_C(0x3f0a3d71), UINT32_C(0x3f07ae14),
+            UINT32_C(0x3f28f5c3), UINT32_C(0x3f11eb85)
+        };
+        size_t ii;
+        for (ii = 0; ii < 10u; ++ii) {
+            status = vf2_model2a_write_u32(
+                machine, address_first_10[ii], value_first_10[ii]);
+            if (status != VF2_OK) return status;
+        }
+        /* Plus the 11th write: 0x50a134 = 0x3f028f5c. */
+        status = vf2_model2a_write_u32(
+            machine, UINT32_C(0x0050a134), UINT32_C(0x3f028f5c));
+        if (status != VF2_OK) return status;
+        cpu->ip = UINT32_C(0x0001fff8);
+    } else {
+        cpu->ip = UINT32_C(0x0001ff20);
+    }
+    /* return_procedure pops the frame that was on the stack for
+     * the call from this function's caller. The caller is OUR
+     * caller's caller (0x1fcc0 wasn't pushed as a frame; only
+     * 0x1fee4 was). The proper semantics: do not pop here,
+     * because we're not actually returning from 0x1fcc0 yet.
+     * Skip return_procedure; the function continues in C. */
+    (void)status;
+
+    /* block_0001fdd4..0x1fdfc: 0x501018 + conditional override. */
+    status = vf2_model2a_write_u32(
+        machine, UINT32_C(0x00501018), UINT32_C(0x1388));
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_read(
+        machine, UINT32_C(0x00500064), &r12_mode, sizeof(r12_mode));
+    if (status != VF2_OK) return status;
+    r4 = ((uint32_t)r12_mode) << 8u;
+    status = vf2_model2a_read(
+        machine, UINT32_C(0x0006eeae) + r4,
+        &table_byte, sizeof(table_byte));
+    if (status != VF2_OK) return status;
+    if (table_byte == 4u) {
+        /* block_0001fdfc: override 0x501018 = 0x10cc. */
+        status = vf2_model2a_write_u32(
+            machine, UINT32_C(0x00501018), UINT32_C(0x10cc));
+        if (status != VF2_OK) return status;
+    }
+
+    /* block_0001fe0c: video-register + table stores. */
+    /* r6 = 0x018021ee; ldos r5 = 0x6ef0c[r4]; stos r5 -> (r6).
+     * The 0x018021ee address is a Model 2A VDP1 control register,
+     * outside the model2a memory regions. The recovery cannot
+     * model the hardware write; we attempt it but ignore the
+     * result so the table-driven stores can still be verified. */
+    status = vf2_model2a_read(
+        machine, UINT32_C(0x0006ef0c) + r4,
+        &r5_short, sizeof(r5_short));
+    if (status != VF2_OK) return status;
+    {
+        vf2_status video_status = vf2_model2a_write(
+            machine, UINT32_C(0x018021ee),
+            &r5_short, sizeof(r5_short));
+        /* EXPECTED: VF2_ERROR_OUT_OF_BOUNDS — hardware register
+         * not in model2a memory map. Anything else is a real
+         * failure. */
+        if (video_status != VF2_OK &&
+            video_status != VF2_ERROR_OUT_OF_BOUNDS) {
+            return video_status;
+        }
+    }
+    /* ldob r5 = 0x6eeae[r4] (the byte we already read above). */
+    r5_byte = table_byte;
+    status = vf2_model2a_write(
+        machine, UINT32_C(0x00500170), &r5_byte, sizeof(r5_byte));
+    if (status != VF2_OK) return status;
+    /* ld r5 = 0x6eea4[r4]; ldos r6 = 0x6eea8[r4]; ldos r7 = 0x6eeaa[r4]. */
+    status = vf2_model2a_read_u32(
+        machine, UINT32_C(0x0006eea4) + r4, &r5_word);
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_read(
+        machine, UINT32_C(0x0006eea8) + r4,
+        &r6_short, sizeof(r6_short));
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_read(
+        machine, UINT32_C(0x0006eeaa) + r4,
+        &r7_short, sizeof(r7_short));
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_write_u32(
+        machine, UINT32_C(0x00501098), r5_word);
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_write(
+        machine, UINT32_C(0x00501020),
+        &r6_short, sizeof(r6_short));
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_write(
+        machine, UINT32_C(0x00501022),
+        &r7_short, sizeof(r7_short));
+    if (status != VF2_OK) return status;
+
+    /* block_0001fe60: inline 0x1fffc (display_color_profile_apply).
+     * Reads mode byte (with bit21-of-0x500068 fallback to 3),
+     * shifts <<8, reads 3 bytes from 0x6eeb8[r4], stores to
+     * 0x5000e0..0x5000e2, then REFUSES the sub-call to 0x2c38. */
+    {
+        uint8_t r12_2 = r12_mode;
+        status = vf2_model2a_read_u32(
+            machine, UINT32_C(0x00500068), &r15_u32);
+        if (status != VF2_OK) return status;
+        if ((r15_u32 & (UINT32_C(1) << 21u)) != 0u) {
+            r12_2 = 3u;
+        }
+        r4 = ((uint32_t)r12_2) << 8u;
+        status = vf2_model2a_read(
+            machine, UINT32_C(0x0006eeb8) + r4,
+            &r5_b, sizeof(r5_b));
+        if (status != VF2_OK) return status;
+        status = vf2_model2a_read(
+            machine, UINT32_C(0x0006eeb9) + r4,
+            &r6_b, sizeof(r6_b));
+        if (status != VF2_OK) return status;
+        status = vf2_model2a_read(
+            machine, UINT32_C(0x0006eeba) + r4,
+            &r7_b, sizeof(r7_b));
+        if (status != VF2_OK) return status;
+        status = vf2_model2a_write(
+            machine, UINT32_C(0x005000e0), &r5_b, sizeof(r5_b));
+        if (status != VF2_OK) return status;
+        status = vf2_model2a_write(
+            machine, UINT32_C(0x005000e1), &r6_b, sizeof(r6_b));
+        if (status != VF2_OK) return status;
+        status = vf2_model2a_write(
+            machine, UINT32_C(0x005000e2), &r7_b, sizeof(r7_b));
+        if (status != VF2_OK) return status;
+
+        /* REFUSE the sub-call to 0x2c38 (color_table_rebuild). */
+        cpu->ip = UINT32_C(0x00020050);
+        cpu->executed_instructions += UINT64_C(11);
+        return VF2_ERROR_UNSUPPORTED;
+    }
+}
+
+vf2_status vf2_hybrid_player_1fcc0_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_1fcc0(machine, cpu);
+}
