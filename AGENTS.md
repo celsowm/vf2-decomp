@@ -607,6 +607,23 @@ At the time this handoff was written, `master` already contains:
     which fails the per-step loop's "step, then check hook"
     ordering before the hook check). See
     `per_step_hook_counters_v0755c.md`.
+- **v0755f recovered `0x2c38` in C** — color_table_rebuild
+    (432 B, 11 blocks). A 27x47 nested-loop color table fill
+    into `0x54612e..0x54612e + 7614 bytes`. The recovery
+    matches the EXECUTOR's interpretation of the
+    `subo 1, 0, g1` instruction at `0x2d40` (the disasm-vs-
+    executor ambiguity flagged in v0755). The recovery is
+    **not currently validated** against the original i960
+    because no differential test exercises `0x2c38` (the
+    F4 differential's native leg starts at `0x9ff8`, in the
+    `0x28178..0x14400` range but only reached AFTER the
+    post-29414 task has finished). New ctest entry
+    `vf2_player_2c38` (ctest #48, 0.03 s) PASSES. **All 6
+    sub-callees of `0x1fcc0` (display_profile_apply) are now
+    recovered** (v0749–v0755f). The `0x1fcc0` parent is
+    recoverable by inlining all 6 sub-callees once the
+    per-step hook is activated. See
+    `color_table_rebuild_executor_v0755f.md`.
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.
