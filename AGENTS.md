@@ -651,6 +651,18 @@ At the time this handoff was written, `master` already contains:
     combo 1+2, bit21+bit20 set, mode=10 + 0x4c=2, default,
     bit21-only default). See
     `fa_player_1fcc0_recovered_v0755g.md`.
+- **v0755h first observation of the `0x2c38` saturation ambiguity**
+    — `subo_saturation_2d40_v0755h.md`. Forces saturating inputs
+    on the inner loop's first row's last inner entry and verifies
+    the recovery's output matches the EXECUTOR semantics
+    (`g1 = 0xFFFFFFFF`, then `255 * 0xFFFFFFFF >> 7 & 0xFFFF =
+    0xFFFE`). The disasm convention would yield `0x0001`. This
+    test PASSES — it documents the current behavior as a
+    regression guard. **It does NOT resolve the ambiguity.**
+    Resolution requires a live ROM-backed differential that
+    exercises `0x2c38`; no such snapshot exists in the current
+    corpus (the per-step hook remains DORMANT per v0755c). New
+    ctest entry `vf2_subo_saturation_2d40` (#49, 0.01 s) PASSES.
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.
