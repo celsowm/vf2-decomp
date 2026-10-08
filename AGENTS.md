@@ -624,6 +624,33 @@ At the time this handoff was written, `master` already contains:
     recoverable by inlining all 6 sub-callees once the
     per-step hook is activated. See
     `color_table_rebuild_executor_v0755f.md`.
+- **v0755g recovered `0x1fcc0` in C** — display_profile_apply
+    (548 B, 15 blocks), inlining all 6 sub-callees:
+      `0x1ff0c` (mode constants; inlines `0x1fee4`),
+      `0x1fffc` (color profile apply; refuses `0x2c38`),
+      `0x4b410` (video command submit),
+      `0x2eab8` (display runtime initialize),
+      `0x11704` (video table expand_128).
+    The `0x2c38` refusal lives inside the inlined `0x1fffc`
+    (matching v0751's existing refusal pattern), so this
+    function returns `VF2_ERROR_UNSUPPORTED` with
+    `cpu->ip == 0x20050`. Three design notes:
+    (a) Combo detection uses explicit `goto combo_set` to
+        mirror the two distinct i960 fall-through structures
+        (the (2,1) combo jumps via `cmpobe 1`; the (1,2)
+        combo falls through from block `0x1fce8`).
+    (b) `0x018021ee` is an unmapped VDP1 control register;
+        the recovery reads the ROM value, attempts the write,
+        and treats `VF2_ERROR_OUT_OF_BOUNDS` as expected (any
+        other error aborts). The per-step hook's interpretation
+        fallback would fail similarly.
+    (c) The test attaches a fake 0x80000-byte `main_rom` so
+        ROM reads succeed end-to-end.
+    New ctest entry `vf2_player_1fcc0` (#48 by the recovery
+    count, 0.02 s) PASSES — exercises 6 paths (combo 2+1,
+    combo 1+2, bit21+bit20 set, mode=10 + 0x4c=2, default,
+    bit21-only default). See
+    `fa_player_1fcc0_recovered_v0755g.md`.
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.
