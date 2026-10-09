@@ -199,6 +199,15 @@ vf2_status vf2_hybrid_player_323fc_execute(
     vf2_i960_cpu *cpu
 );
 
+/* Recover 0x32284: post_cf04_combat_state_clear_v18 sibling of
+ * 0x323fc (v0756). Same shape as 0x323fc but clrbits bit 18 of
+ * 0x500068 instead of bit 19, then jumps to the shared body at
+ * 0x3240c. Stand-alone execute hook. */
+vf2_status vf2_hybrid_player_32284_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 /* Per-step hook instrumentation (v0755c).
  *
  * Read-only access to the per-hook fire counters maintained by

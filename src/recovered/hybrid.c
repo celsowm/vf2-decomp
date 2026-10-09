@@ -35120,3 +35120,117 @@ vf2_status vf2_hybrid_player_323fc_execute(
 {
     return hybrid_execute_player_323fc(machine, cpu);
 }
+
+/* ====================================================================
+ * fa_player 0x32284 - post_cf04_combat_state_clear_v18 (v0756b)
+ *
+ * Sibling of 0x323fc; shares block 0x3240c onwards (jump target
+ * at 0x3240c). The clrbit is bit 18 instead of bit 19; the
+ * rest of the body is identical to 0x323fc.
+ */
+static vf2_status hybrid_execute_player_32284(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    vf2_status status;
+    uint32_t r13 = 0u;
+    uint8_t r14 = 0u;
+    uint32_t work_word = 0u;
+    uint8_t work_byte = 0u;
+    const uint32_t g13_idx = VF2_I960_G0_REGISTER + 13u;
+    uint32_t g13_base;
+
+    if (machine == NULL || cpu == NULL ||
+        cpu->ip != UINT32_C(0x00032284)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    g13_base = cpu->registers[g13_idx];
+
+    /* Call 0xcf04 first (with a pushed frame). The 0xcf04
+     * recovery refuses the 0x1fcc0 sub-call; we discard the
+     * refusal (cf04's body work has been applied). */
+    status = vf2_i960_cpu_enter_procedure(
+        cpu, UINT32_C(0x0000cf04), UINT32_C(0x00032288));
+    if (status != VF2_OK) return status;
+    (void)vf2_hybrid_player_cf04_execute(machine, cpu);
+    cpu->ip = UINT32_C(0x00032288);
+
+    /* block 00032288: clrbit 18 of 0x500068. */
+    status = vf2_model2a_read_u32(machine, UINT32_C(0x00500068), &r13);
+    if (status != VF2_OK) return status;
+    r13 &= ~(UINT32_C(1) << 18u);
+    status = vf2_model2a_write_u32(machine, UINT32_C(0x00500068), r13);
+    if (status != VF2_OK) return status;
+
+    /* b 0x3240c: jump to the shared tail (no extra body work). */
+
+    /* Shared tail (block_0003240c): store 0 to g13+0x47, clrbit 8
+     * of *(g13), st 0x53f to 0x500024, stib 100 to g13+0x40. */
+    work_byte = 0u;
+    status = vf2_model2a_write(
+        machine, g13_base + UINT32_C(0x47), &work_byte, sizeof(work_byte));
+    if (status != VF2_OK) return status;
+
+    status = vf2_model2a_read_u32(machine, g13_base, &work_word);
+    if (status != VF2_OK) return status;
+    work_word &= ~(UINT32_C(1) << 8u);
+    status = vf2_model2a_write_u32(machine, g13_base, work_word);
+    if (status != VF2_OK) return status;
+
+    status = vf2_model2a_write_u32(
+        machine, UINT32_C(0x00500024), UINT32_C(0x53f));
+    if (status != VF2_OK) return status;
+
+    work_byte = UINT8_C(100);
+    status = vf2_model2a_write(
+        machine, g13_base + UINT32_C(0x40), &work_byte, sizeof(work_byte));
+    if (status != VF2_OK) return status;
+
+    /* block_0003243c: ld *(g13), check bit 0. */
+    status = vf2_model2a_read_u32(machine, g13_base, &work_word);
+    if (status != VF2_OK) return status;
+    int path_a_taken = ((work_word & (UINT32_C(1) << 0u)) != 0u) ? 1 : 0;
+    if (path_a_taken) {
+        status = vf2_model2a_read(
+            machine, UINT32_C(0x00500056), &r14, sizeof(r14));
+        if (status != VF2_OK) return status;
+        work_byte = (r14 == 0u) ? UINT8_C(1) : UINT8_C(0);
+        status = vf2_model2a_write(
+            machine, UINT32_C(0x00500056), &work_byte, sizeof(work_byte));
+        if (status != VF2_OK) return status;
+
+        status = vf2_model2a_read_u32(machine, g13_base, &work_word);
+        if (status != VF2_OK) return status;
+        work_word |= (UINT32_C(1) << 1u);
+        status = vf2_model2a_write_u32(machine, g13_base, work_word);
+        if (status != VF2_OK) return status;
+
+        status = vf2_model2a_read_u32(machine, g13_base, &work_word);
+        if (status != VF2_OK) return status;
+        work_word |= (UINT32_C(1) << 3u);
+        status = vf2_model2a_write_u32(machine, g13_base, work_word);
+        if (status != VF2_OK) return status;
+
+        status = vf2_model2a_write_u32(
+            machine, g13_base + UINT32_C(0xc), UINT32_C(0x324a0));
+        if (status != VF2_OK) return status;
+    }
+
+    if (path_a_taken) {
+        cpu->ip = UINT32_C(0x000324a0);
+    } else {
+        cpu->ip = UINT32_C(0x0003244c);
+    }
+    cpu->executed_instructions += UINT64_C(17);
+    return VF2_OK;
+}
+
+vf2_status vf2_hybrid_player_32284_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_32284(machine, cpu);
+}
