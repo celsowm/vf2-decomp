@@ -521,6 +521,11 @@ if(VF2_BUILD_TESTS)
     vf2_set_project_warnings(vf2_callee_hook_counters_tests)
     add_test(NAME vf2_callee_hook_counters COMMAND vf2_callee_hook_counters_tests)
 
+    add_executable(vf2_per_step_loop_unsupported_pop_tests tests/recovered/test_per_step_loop_unsupported_pop.c)
+    target_link_libraries(vf2_per_step_loop_unsupported_pop_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_per_step_loop_unsupported_pop_tests)
+    add_test(NAME vf2_per_step_loop_unsupported_pop COMMAND vf2_per_step_loop_unsupported_pop_tests)
+
     add_executable(vf2_callee_hook_fires_native_tests tests/recovered/test_callee_hook_fires_native.c)
     target_link_libraries(vf2_callee_hook_fires_native_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_callee_hook_fires_native_tests)

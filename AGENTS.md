@@ -710,9 +710,23 @@ At the time this handoff was written, `master` already contains:
     options documented in that note: rewrite the 0x1fcc0 recovery
     to return VF2_OK; harden the per-step loop's UNSUPPORTED
     handling; or leave 0x1fcc0 unwired until one of the above is
-    done. `master` is currently at the v0760 AGENTS.md sync
-    (`d9f7ba0a`); this entry is the only record that v0761
-    ever existed.
+    done.
+    - **v0763 hardened the per-step loop's UNSUPPORTED path** —
+    the option 2 follow-up from the v0761 retraction note. The
+    UNSUPPORTED branch in `hybrid_execute_interpreted_until`
+    now calls `vf2_i960_cpu_return_procedure(cpu, machine)`,
+    sets `status = VF2_OK`, and continues. This pops the i960
+    `call`'s frame and continues from `g14 = call-site + 4`
+    (the post-call IP), making every existing and future refused
+    hook safe. The v0763 unit test
+    `vf2_per_step_loop_unsupported_pop` (ctest #58, 0.04 s)
+    exercises the path with a hand-constructed `call 0xcf04`
+    that the v0747 recovery refuses at 0xcfb8. The F4
+    differential (ctest #145, 18.08 s), the fifth/sixth
+    dispatch (ctest #121/#122, 15 s each), all 14 player
+    function unit tests, and both callee-hook tests remain
+    green. This unblocks re-wiring 0x1fcc0 into
+    `g_callee_hooks[]` as a separate v0764+ slice.
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.

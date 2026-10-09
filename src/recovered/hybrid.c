@@ -587,10 +587,27 @@ static vf2_status hybrid_execute_interpreted_until(
                      * cpu->ip is at the post-function IP. */
                     continue;
                 } else if (status == VF2_ERROR_UNSUPPORTED) {
-                    /* Function refused cleanly; cpu->ip is at
-                     * the entry IP. We've already stepped past
-                     * the call site, so the next iteration will
-                     * not re-fire. */
+                    /* v0763: the per-step loop has already stepped
+                     * the i960 `call` instruction, which pushed a
+                     * frame for the called function with g14 set to
+                     * the post-call IP (call-site + 4). The recovery
+                     * could not fully simulate the function, so we
+                     * must "undo" the i960 call: pop the frame it
+                     * pushed and continue from g14. Without this,
+                     * the next iteration's vf2_i960_step from the
+                     * recovery's cpu->ip (e.g. 0x20050 for 0x1fcc0's
+                     * inlined 0x1fffc refusal) executes a `ret` that
+                     * pops the wrong frame and the CPU state becomes
+                     * inconsistent (see v0761 retraction note). */
+                    vf2_status return_status =
+                        vf2_i960_cpu_return_procedure(cpu, machine);
+                    if (return_status != VF2_OK) {
+                        return return_status;
+                    }
+                    /* The i960 `call` has been undone; treat this
+                     * as a successful step so the per-step loop
+                     * keeps running from the post-call IP. */
+                    status = VF2_OK;
                     continue;
                 } else {
                     /* Other error: abort. */
