@@ -229,6 +229,15 @@ vf2_status vf2_hybrid_player_7ef0_execute(
     vf2_i960_cpu *cpu
 );
 
+/* Recover 0xa154: zero_loop_43_dwords (36 B, 3 blocks).
+ * IP must be 0xa154 with a pushed frame. Clears 43 dwords
+ * (172 bytes) of work RAM starting at 0x501800 using a
+ * cmpdeco-driven loop. */
+vf2_status vf2_hybrid_player_a154_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 /* Per-step hook instrumentation (v0755c).
  *
  * Read-only access to the per-hook fire counters maintained by

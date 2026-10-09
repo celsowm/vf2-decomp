@@ -35384,3 +35384,73 @@ vf2_status vf2_hybrid_player_7ef0_execute(
 {
     return hybrid_execute_player_7ef0(machine, cpu);
 }
+
+/* ====================================================================
+ * fa_player 0xa154 - zero_loop_43_dwords (v0759)
+ *
+ * Disassembly (per vf2i960 disasm, 36 B, 3 blocks):
+ *
+ *   block_0000a154:
+ *     0000a154  lda      0x00501800, r14
+ *     0000a15c  mov      0, r15
+ *     0000a160  addo     31, 12, r13          ; r13 = 43
+ *
+ *   block_0000a164 (loop):
+ *     0000a164  st       r15, (r14)
+ *     0000a168  lda      0x00000004(r14), r14
+ *     0000a16c  cmpdeco  1, r13, r13           ; if r13 >= 1 after dec -> loop
+ *     0000a170  bl       0x0000a164
+ *
+ *   block_0000a174:
+ *     0000a174  ret
+ *
+ * Shape: clears 43 dwords (172 bytes) of work RAM starting at
+ * 0x501800. cmpdeco decrements then compares; loop exits when
+ * r13 becomes negative. With r13 starting at 43, the loop body
+ * executes 43 times (last iteration decrementing r13 from 1 to 0
+ * but cmpdeco 1,0 sets the branch condition false on the next
+ * cycle... actually cmpdeco decrements FIRST then compares; so
+ * iteration k reads 43-k+1 then writes, decrements, branches.
+ * Let r3 be the loop counter:
+ *   iter 1: cmpdeco 1,43,43 -> r13=42, 42>=1 true -> loop
+ *   iter 2: r13=41 -> loop
+ *   ...
+ *   iter 42: r13=1 -> loop
+ *   iter 43: r13=0 -> NOT loop (cmpdeco 1,0,0 -> false), exit
+ * So 43 iterations of writes. After the loop end, r14 points
+ * past 0x501800 + 43*4 = 0x5018ac.
+ */
+static vf2_status hybrid_execute_player_a154(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    vf2_status status;
+    uint32_t r14 = UINT32_C(0x00501800);
+    int32_t i;
+
+    if (machine == NULL || cpu == NULL ||
+        cpu->ip != UINT32_C(0x0000a154)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    for (i = 0; i < 43; ++i) {
+        uint32_t zero = 0u;
+        status = vf2_model2a_write_u32(machine, r14, zero);
+        if (status != VF2_OK) return status;
+        r14 += 4u;
+    }
+
+    cpu->ip = UINT32_C(0x0000a174);
+    /* Body count: 1 (setup) + 43 * 4 (loop body) + 1 (ret) = 174. */
+    cpu->executed_instructions += UINT64_C(174);
+    return VF2_OK;
+}
+
+vf2_status vf2_hybrid_player_a154_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_a154(machine, cpu);
+}
