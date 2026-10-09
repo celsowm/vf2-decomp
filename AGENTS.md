@@ -690,6 +690,14 @@ At the time this handoff was written, `master` already contains:
     work RAM at `0x501400` via two `ldt`/`stt` pairs. The test
     attaches a fake `main_rom` covering the source reads. New
     ctest entry `vf2_player_7ef0` (#53, 0.01 s) PASSES.
+    - **v0759 recovered `0xa154`** — `zero_loop_43_dwords`
+    (36 B, 3 blocks). A `cmpdeco`-driven loop that clears 43
+    dwords (172 bytes) of work RAM starting at `0x501800`.
+    New ctest entry `vf2_player_a154` (#54, 0.01 s) PASSES.
+    - **v0760 recovered `0x4ad40`** — `zero_workram_helpers`
+    (52 B, 1 block). Clears 4 work-RAM fields: short zeros at
+    `0x5502a8`, `0x5502b0`, `0x5502b8` and word zero at `0x546000`.
+    New ctest entry `vf2_player_4ad40` (#55, 0.01 s) PASSES.
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.
