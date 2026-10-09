@@ -501,6 +501,11 @@ if(VF2_BUILD_TESTS)
     vf2_set_project_warnings(vf2_player_4421c_tests)
     add_test(NAME vf2_player_4421c COMMAND vf2_player_4421c_tests)
 
+    add_executable(vf2_player_7ef0_tests tests/recovered/test_player_7ef0_native.c)
+    target_link_libraries(vf2_player_7ef0_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_player_7ef0_tests)
+    add_test(NAME vf2_player_7ef0 COMMAND vf2_player_7ef0_tests)
+
     add_executable(vf2_callee_hook_counters_tests tests/recovered/test_callee_hook_counters.c)
     target_link_libraries(vf2_callee_hook_counters_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_callee_hook_counters_tests)

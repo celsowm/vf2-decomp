@@ -35325,3 +35325,62 @@ vf2_status vf2_hybrid_player_4421c_execute(
 {
     return hybrid_execute_player_4421c(machine, cpu);
 }
+
+/* ====================================================================
+ * fa_player 0x7ef0 - rom_to_wram_triple_copy (v0758)
+ *
+ * Disassembly (per vf2i960 disasm, 36 B, 1 block):
+ *
+ *   block_00007ef0:
+ *     00007ef0  lda      0x00007f64, r10       ; r10 = ROM source
+ *     00007ef8  lda      0x00501400, r11       ; r11 = WRAM dest
+ *     00007f00  ldt      (r10), r4             ; load 12 bytes
+ *     00007f04  stt      r4, (r11)             ; store 12 bytes
+ *     00007f08  ldt      0x0000000c(r10), r4   ; load next 12 bytes
+ *     00007f0c  stt      r4, 0x0000000c(r11)   ; store 12 bytes
+ *     00007f10  ret
+ *
+ * Shape: copies 24 bytes from ROM at 0x7f64 to work RAM at
+ * 0x501400. The test must attach a main_rom for the source reads.
+ */
+static vf2_status hybrid_execute_player_7ef0(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    vf2_status status;
+    uint32_t dest = UINT32_C(0x00501400);
+    uint32_t src_addr = UINT32_C(0x00007f64);
+    int chunk;
+
+    if (machine == NULL || cpu == NULL ||
+        cpu->ip != UINT32_C(0x00007ef0)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    /* Copy 24 bytes in two 12-byte (ldt/stt) chunks. */
+    for (chunk = 0; chunk < 2; ++chunk) {
+        uint32_t off;
+        for (off = 0; off < 12u; off += 4u) {
+            uint32_t word = 0u;
+            status = vf2_model2a_read_u32(
+                machine, src_addr + (uint32_t)(chunk * 12) + off, &word);
+            if (status != VF2_OK) return status;
+            status = vf2_model2a_write_u32(
+                machine, dest + (uint32_t)(chunk * 12) + off, word);
+            if (status != VF2_OK) return status;
+        }
+    }
+
+    cpu->ip = UINT32_C(0x00007f14);
+    cpu->executed_instructions += UINT64_C(6);
+    return VF2_OK;
+}
+
+vf2_status vf2_hybrid_player_7ef0_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_7ef0(machine, cpu);
+}

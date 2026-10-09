@@ -220,6 +220,15 @@ vf2_status vf2_hybrid_player_4421c_execute(
     vf2_i960_cpu *cpu
 );
 
+/* Recover 0x7ef0: rom_to_wram_triple_copy (36 B, 1 block).
+ * IP must be 0x7ef0 with a pushed frame. Copies 24 bytes from
+ * ROM at 0x7f64 to work RAM at 0x501400 via two ldt/stt pairs.
+ * The test must attach a main_rom for the source reads. */
+vf2_status vf2_hybrid_player_7ef0_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 /* Per-step hook instrumentation (v0755c).
  *
  * Read-only access to the per-hook fire counters maintained by
