@@ -10,7 +10,7 @@ The goal is to recover the original game/runtime behavior into portable, readabl
 
 ## Project status
 
-As of v0.1.3, the project contains a substantial recovered native runtime,
+As of v0.1.4, the project contains a substantial recovered native runtime,
 ROM validation/reconstruction tools, Intel i960 analysis tooling, a bounded
 Model 2A hardware model, snapshot/resume support and strict differential
 validation between recovered C and the original program.
@@ -33,9 +33,15 @@ pending the 20-step scan-6 ordering-fail child tail. The `fa_player` `0x19ef8`
 49-value mask family is audited and continuously proven, and the
 model2recomp-guided interrupt acknowledge at `0x0000d30` is recovered. These
 are accepted only for the measured combinations; neighboring or unverified
-branches still return `VF2_ERROR_UNSUPPORTED`. See
+branches still return `VF2_ERROR_UNSUPPORTED`. The TEST MENU / COIN
+ASSIGNMENT corridor (rows 1-4 in COMMON and INDIVIDUAL modes) is recovered
+natively, and the F4 INDIVIDUAL post-edit release is pinned FULL MATCH
+(4293/38, 4293/38, 4294/38) on the reference and native legs. 14 sibling
+player functions (0x29598, 0x439ac, 0x43888, 0xcf04, 0x1fcc0 with the rest
+in its call chain, 0x1fee4, 0x1ff0c, 0x1fffc, 0x4b410, 0x11704, 0x2eab8,
+0x323fc, 0x32284, 0x4421c, 0x7ef0, 0xa154, 0x4ad40) are unit-tested. See
 [`docs/UNCOVERED_BRANCHES.md`](docs/UNCOVERED_BRANCHES.md) for the current
-frontier (v0695).
+frontier (v0760).
 
 The project is still a clean-room recovery and validation effort, not a
 complete playable port. Character/arena selection, the complete match state
@@ -57,11 +63,11 @@ Model 2A hardware       ████████░░  bounded bus + TGP/SCSP/f
 scheduler / runtime     ██████████  validated native corridor
 input                    ████████░░  game-facing input path; platform adapter open
 camera                   ████████░░
-HUD / game_disp          ████████░░  menus/test-mode/game_disp corridors
-fighter / game logic     ██████░░░░  player/collision corridors; simulation bulk open
+HUD / game_disp          █████████░  TEST / COIN ASSIGNMENT / F2-F4 post-edit menu corridors
+fighter / game logic     ███████░░░  post-29414 player corridor; 14 sibling function recoveries; F4 INDIVIDUAL post-edit FULL MATCH
 geometry / rendering     ███████░░░  TGP/object paths recovered; rasterizer open
 audio                    █████░░░░░  68000/SCSP/PCM path partly recovered; FM/DSP open
-complete game flow       ████░░░░░░  boot/menu/phase corridors; match flow open
+complete game flow       █████░░░░░  boot/menu/phase corridors; F2/F3/F4 post-edit; match flow open
 fully playable match     ██░░░░░░░░  combat/physics/AI still open
 ```
 
