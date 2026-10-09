@@ -35234,3 +35234,94 @@ vf2_status vf2_hybrid_player_32284_execute(
 {
     return hybrid_execute_player_32284(machine, cpu);
 }
+
+/* ====================================================================
+ * fa_player 0x4421c - post_init_floats_helper (v0757)
+ *
+ * Disassembly (per vf2i960 disasm, 76 B, 1 block):
+ *
+ *   block_0004421c:
+ *     0004421c  call     0x0001fee4          ; init 1.0 floats (recovered)
+ *     00044220  lda      0xbe99999a, r15     ; -0.3 (IEEE 754)
+ *     00044228  st       r15, 0x0050a148
+ *     00044230  ld       0x00500814, r4
+ *     00044238  lda      0x3fb33333, r15     ; 1.4
+ *     00044240  st       r15, 0x0000020c(r4)
+ *     00044244  lda      0x3eb33333, r15     ; 0.35
+ *     0004424c  st       r15, 0x00000290(r4)
+ *     00044250  addo     31, 29, r15         ; r15 = 60
+ *     00044254  stib     r15, 0x000002d1(r4)
+ *     00044258  lda      0x3f800000, r15     ; 1.0
+ *     00044260  st       r15, 0x0000004c(r4)
+ *     00044264  ret
+ *
+ * Shape: small fixed-value initializer that runs after the 1.0-
+ * float init. Stores a handful of constants at known offsets.
+ */
+static vf2_status hybrid_execute_player_4421c(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    vf2_status status;
+    uint32_t r4 = 0u;
+    uint8_t r15_byte = 0u;
+
+    if (machine == NULL || cpu == NULL ||
+        cpu->ip != UINT32_C(0x0004421c)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    /* Push a frame for 0x1fee4 and call it. */
+    status = vf2_i960_cpu_enter_procedure(
+        cpu, UINT32_C(0x0001fee4), UINT32_C(0x00044220));
+    if (status != VF2_OK) return status;
+    status = vf2_hybrid_player_1fee4_execute(machine, cpu);
+    if (status != VF2_OK) return status;
+    cpu->ip = UINT32_C(0x00044220);
+
+    /* st 0xbe99999a -> 0x50a148. */
+    status = vf2_model2a_write_u32(
+        machine, UINT32_C(0x0050a148), UINT32_C(0xbe99999a));
+    if (status != VF2_OK) return status;
+
+    /* ld r4 = *0x500814. */
+    status = vf2_model2a_read_u32(
+        machine, UINT32_C(0x00500814), &r4);
+    if (status != VF2_OK) return status;
+
+    /* st 0x3fb33333 -> r4+0x20c. */
+    status = vf2_model2a_write_u32(
+        machine, r4 + UINT32_C(0x20c), UINT32_C(0x3fb33333));
+    if (status != VF2_OK) return status;
+
+    /* st 0x3eb33333 -> r4+0x290. */
+    status = vf2_model2a_write_u32(
+        machine, r4 + UINT32_C(0x290), UINT32_C(0x3eb33333));
+    if (status != VF2_OK) return status;
+
+    /* addo 31, 29, r15 -> r15 = 60; stib -> r4+0x2d1. */
+    r15_byte = UINT8_C(60);
+    status = vf2_model2a_write(
+        machine, r4 + UINT32_C(0x2d1), &r15_byte, sizeof(r15_byte));
+    if (status != VF2_OK) return status;
+
+    /* st 0x3f800000 -> r4+0x4c. */
+    status = vf2_model2a_write_u32(
+        machine, r4 + UINT32_C(0x4c), UINT32_C(0x3f800000));
+    if (status != VF2_OK) return status;
+
+    /* Ret: set cpu->ip to the post-ret slot 0x44268. The caller's
+     * frame popped via vf2_i960_cpu_return_procedure. */
+    cpu->ip = UINT32_C(0x00044268);
+    cpu->executed_instructions += UINT64_C(8);
+    return VF2_OK;
+}
+
+vf2_status vf2_hybrid_player_4421c_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_4421c(machine, cpu);
+}

@@ -208,6 +208,18 @@ vf2_status vf2_hybrid_player_32284_execute(
     vf2_i960_cpu *cpu
 );
 
+/* Recover 0x4421c: post_init_floats_helper (76 B, 1 block).
+ * IP must be 0x4421c with a pushed frame. Calls 0x1fee4
+ * (already recovered v0749), then writes 4 fixed float
+ * constants: 0xbe99999a to 0x50a148, 0x3fb33333 to
+ * (*0x500814 + 0x20c), 0x3eb33333 to (*0x500814 + 0x290), the
+ * byte 60 to (*0x500814 + 0x2d1), and 0x3f800000 to
+ * (*0x500814 + 0x4c). */
+vf2_status vf2_hybrid_player_4421c_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 /* Per-step hook instrumentation (v0755c).
  *
  * Read-only access to the per-hook fire counters maintained by
