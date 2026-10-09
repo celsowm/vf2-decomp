@@ -676,6 +676,20 @@ At the time this handoff was written, `master` already contains:
     0x500056 toggle, path B, path C). See
     `fa_player_323fc_recovered_v0756.md`. Sibling `0x32284` shares
     the trailing body but clrsbit `18` instead of `19`.
+    - **v0756b recovered `0x32284`** — `post_cf04_combat_state
+    _clear_v18`, the clrbit-18 sibling of `0x323fc`. Same body,
+    different bit parameter. New ctest entry `vf2_player_32284`
+    (#51, 0.01 s) PASSES.
+    - **v0757 recovered `0x4421c`** — `post_init_floats_helper`
+    (76 B, 1 block). Tiny fixed-constant initializer that runs
+    after the 1.0 float init (`0x1fee4`). Writes 5 fixed constants
+    to known offsets. New ctest entry `vf2_player_4421c` (#52,
+    0.01 s) PASSES.
+    - **v0758 recovered `0x7ef0`** — `rom_to_wram_triple_copy`
+    (36 B, 1 block). Copies 24 bytes from ROM at `0x7f64` to
+    work RAM at `0x501400` via two `ldt`/`stt` pairs. The test
+    attaches a fake `main_rom` covering the source reads. New
+    ctest entry `vf2_player_7ef0` (#53, 0.01 s) PASSES.
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.
