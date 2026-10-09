@@ -663,6 +663,19 @@ At the time this handoff was written, `master` already contains:
     exercises `0x2c38`; no such snapshot exists in the current
     corpus (the per-step hook remains DORMANT per v0755c). New
     ctest entry `vf2_subo_saturation_2d40` (#49, 0.01 s) PASSES.
+- **v0756 recovered `0x323fc` in C** — `post_cf04_combat_state_clear`
+    (164 B, 7 blocks). Calls `0xcf04` (already recovered v0747),
+    clrbit 19 of `0x500068`, then dispatches on bit 0 of `*(g13)`:
+    bit 0 set path toggles `0x500056` and setbits 1/3 of `*(g13)`
+    + stores `0x324a0` to `(g13 + 0xc)`; bit 0 clear path is a
+    no-op ret. The `0xcf04` refusal of the `0x1fcc0` sub-call is
+    discarded by the inline (cf04's body work has been applied;
+    only the trailing `clrbit 21` is deferred). g13 reads come
+    from `cpu->registers[29]` directly. New ctest entry
+    `vf2_player_323fc` (#50, 0.02 s) PASSES — 4 paths (bit-0 +
+    0x500056 toggle, path B, path C). See
+    `fa_player_323fc_recovered_v0756.md`. Sibling `0x32284` shares
+    the trailing body but clrsbit `18` instead of `19`.
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.

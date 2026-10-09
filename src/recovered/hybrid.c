@@ -34929,3 +34929,194 @@ vf2_status vf2_hybrid_player_1fcc0_execute(
 {
     return hybrid_execute_player_1fcc0(machine, cpu);
 }
+
+/* ====================================================================
+ * fa_player 0x323fc - post_cf04_combat_state_clear (v0756)
+ *
+ * Disassembly (per vf2i960 disasm, 164 B, 7 blocks):
+ *
+ *   block_000323fc:
+ *     000323fc  call     0x0000cf04      ; post-frame IRQ (recovered)
+ *     00032400  ld       0x00500068, r13
+ *     00032408  clrbit   19, r13, r13
+ *     0003240c  st       r13, 0x00500068
+ *     00032414  mov      0, r15
+ *     00032418  stib     r15, 0x00000047(g13)
+ *     0003241c  ld       (g13), r15
+ *     00032420  clrbit   8, r15, r15
+ *     00032424  st       r15, (g13)
+ *     00032428  lda      0x0000053f, r15
+ *     0003242c  st       r15, 0x00500024
+ *     00032434  shlo     2, 25, r15
+ *     00032438  stib     r15, 0x00000040(g13)
+ *     0003243c  ld       (g13), r15
+ *     00032440  bbs      0, r15, 0x00032450  ; if bit 0 set -> 0x32450
+ *
+ *   block_00032444:
+ *     00032444  ld       (g13), r15
+ *     00032448  bbc      3, r15, 0x0003244c  ; if bit 3 clear -> 0x3244c
+ *
+ *   block_0003244c:
+ *     0003244c  ret                          ; both bit-0-clear paths ret
+ *
+ *   block_00032450:
+ *     00032450  ldob     0x00500056, r14
+ *     00032458  cmpobe   0, r14, 0x0003246c
+ *
+ *   block_0003245c:
+ *     0003245c  mov      0, r15
+ *     00032460  stib     r15, 0x00500056     ; 0x500056 = 0
+ *     00032468  b        0x00032478
+ *
+ *   block_0003246c:                ; (r14 == 0 path)
+ *     0003246c  mov      1, r15
+ *     00032470  stib     r15, 0x00500056     ; 0x500056 = 1
+ *
+ *   block_00032478:
+ *     00032478  ld       (g13), r15
+ *     0003247c  setbit   1, r15, r15
+ *     00032480  st       r15, (g13)
+ *     00032484  ld       (g13), r15
+ *     00032488  setbit   3, r15, r15
+ *     0003248c  st       r15, (g13)
+ *     00032490  lda      0x000324a0, r15     ; return-address slot
+ *     00032498  st       r15, 0x0000000c(g13)
+ *     0003249c  ret
+ *
+ * Shape: a post-cf04 cleanup with 3 paths:
+ *   - path A (bit 0 of *(g13) set): clear bit 19 of 0x500068, plus
+ *     the block-0x32414..0x32438 set, plus the block-0x32450..
+ *     0x32498 store+setbits, plus ret.
+ *   - path B (bit 0 clear, bit 3 clear): just the common prefix,
+ *     then ret.
+ *   - path C (bit 0 clear, bit 3 set): same as path B (just ret).
+ *
+ * g13 is an i960 global register (cpu->registers[16+13]=29); it
+ * points to a work-RAM struct set up by the caller. The sub-call
+ * to 0xcf04 is executed by pushing a frame and calling
+ * vf2_hybrid_player_cf04_execute directly (which handles its own
+ * refusal of the 0x1fcc0 sub-call from v0747).
+ */
+static vf2_status hybrid_execute_player_323fc(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    vf2_status status;
+    uint32_t r13 = 0u;
+    uint8_t r14 = 0u;
+    uint32_t work_word = 0u;
+    uint8_t work_byte = 0u;
+    const uint32_t g13_idx = VF2_I960_G0_REGISTER + 13u;
+    uint32_t g13_base;
+
+    if (machine == NULL || cpu == NULL ||
+        cpu->ip != UINT32_C(0x000323fc)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    g13_base = cpu->registers[g13_idx];
+
+    /* Push a frame for 0xcf04 then call it. The 0xcf04 recovery
+     * (v0747) refuses the sub-call to 0x1fcc0 from within itself,
+     * returning VF2_ERROR_UNSUPPORTED. The 0xcf04 work (setbit 21
+     * of 0x500068, the path-A/path-B body writes, clrbit 15 of
+     * 0x500068) HAS been applied before the refusal. We discard
+     * the refusal and continue with our own body; the per-step
+     * loop's interpreted fallback would run the 0x1fcc0+trailing
+     * sequence if 0x323fc were wired. */
+    status = vf2_i960_cpu_enter_procedure(
+        cpu, UINT32_C(0x0000cf04), UINT32_C(0x00032400));
+    if (status != VF2_OK) return status;
+    (void)vf2_hybrid_player_cf04_execute(machine, cpu);
+    cpu->ip = UINT32_C(0x00032400);
+    /* The frame pushed for cf04 remains on the stack; the per-step
+     * loop / caller is expected to manage frame cleanup. */
+
+    /* block 000323fc continuation: clrbit 19 of 0x500068, store. */
+    status = vf2_model2a_read_u32(machine, UINT32_C(0x00500068), &r13);
+    if (status != VF2_OK) return status;
+    r13 &= ~(UINT32_C(1) << 19u);
+    status = vf2_model2a_write_u32(machine, UINT32_C(0x00500068), r13);
+    if (status != VF2_OK) return status;
+
+    /* block 00032414: store 0 to g13+0x47 (1 byte). */
+    work_byte = 0u;
+    status = vf2_model2a_write(
+        machine, g13_base + UINT32_C(0x47), &work_byte, sizeof(work_byte));
+    if (status != VF2_OK) return status;
+
+    /* block 0003241c: clrbit 8 of *(g13). */
+    status = vf2_model2a_read_u32(machine, g13_base, &work_word);
+    if (status != VF2_OK) return status;
+    work_word &= ~(UINT32_C(1) << 8u);
+    status = vf2_model2a_write_u32(machine, g13_base, work_word);
+    if (status != VF2_OK) return status;
+
+    /* block 00032428: st 0x53f -> 0x500024. */
+    status = vf2_model2a_write_u32(
+        machine, UINT32_C(0x00500024), UINT32_C(0x53f));
+    if (status != VF2_OK) return status;
+
+    /* block 00032434: stib (25<<2)=100 -> g13+0x40. */
+    work_byte = UINT8_C(100);
+    status = vf2_model2a_write(
+        machine, g13_base + UINT32_C(0x40), &work_byte, sizeof(work_byte));
+    if (status != VF2_OK) return status;
+
+    /* block 0003243c: ld *(g13), check bit 0. */
+    status = vf2_model2a_read_u32(machine, g13_base, &work_word);
+    if (status != VF2_OK) return status;
+    int path_a_taken = ((work_word & (UINT32_C(1) << 0u)) != 0u) ? 1 : 0;
+    if (path_a_taken) {
+        /* block 00032450..0x32498: bit 0 set path. */
+        status = vf2_model2a_read(
+            machine, UINT32_C(0x00500056), &r14, sizeof(r14));
+        if (status != VF2_OK) return status;
+        work_byte = (r14 == 0u) ? UINT8_C(1) : UINT8_C(0);
+        status = vf2_model2a_write(
+            machine, UINT32_C(0x00500056), &work_byte, sizeof(work_byte));
+        if (status != VF2_OK) return status;
+
+        /* block 00032478: setbit 1 of *(g13). */
+        status = vf2_model2a_read_u32(machine, g13_base, &work_word);
+        if (status != VF2_OK) return status;
+        work_word |= (UINT32_C(1) << 1u);
+        status = vf2_model2a_write_u32(machine, g13_base, work_word);
+        if (status != VF2_OK) return status;
+        /* block 00032484: setbit 3 of *(g13). */
+        status = vf2_model2a_read_u32(machine, g13_base, &work_word);
+        if (status != VF2_OK) return status;
+        work_word |= (UINT32_C(1) << 3u);
+        status = vf2_model2a_write_u32(machine, g13_base, work_word);
+        if (status != VF2_OK) return status;
+
+        /* block 00032490: store 0x324a0 to g13+0xc. */
+        status = vf2_model2a_write_u32(
+            machine, g13_base + UINT32_C(0xc), UINT32_C(0x324a0));
+        if (status != VF2_OK) return status;
+    }
+    /* else (path B or C): fall through to block 0003244c (ret). */
+
+    /* block 0003244c / 0003249c: ret. In path B/C the return IP
+     * is 0x3244c (post-ret slot). In path A the return IP is
+     * 0x324a0 (which the recovery stored to g13+0xc at block
+     * 00032490; the i960 `ret` would jump via *g13 to it). The
+     * test's frame will be popped by the caller's
+     * vf2_i960_cpu_return_procedure. */
+    if (path_a_taken) {
+        cpu->ip = UINT32_C(0x000324a0);
+    } else {
+        cpu->ip = UINT32_C(0x0003244c);
+    }
+    cpu->executed_instructions += UINT64_C(18);
+    return VF2_OK;
+}
+
+vf2_status vf2_hybrid_player_323fc_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_323fc(machine, cpu);
+}

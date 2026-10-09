@@ -486,6 +486,11 @@ if(VF2_BUILD_TESTS)
     vf2_set_project_warnings(vf2_subo_saturation_2d40_tests)
     add_test(NAME vf2_subo_saturation_2d40 COMMAND vf2_subo_saturation_2d40_tests)
 
+    add_executable(vf2_player_323fc_tests tests/recovered/test_player_323fc_native.c)
+    target_link_libraries(vf2_player_323fc_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_player_323fc_tests)
+    add_test(NAME vf2_player_323fc COMMAND vf2_player_323fc_tests)
+
     add_executable(vf2_callee_hook_counters_tests tests/recovered/test_callee_hook_counters.c)
     target_link_libraries(vf2_callee_hook_counters_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_callee_hook_counters_tests)

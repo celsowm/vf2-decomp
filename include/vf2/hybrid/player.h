@@ -180,6 +180,25 @@ vf2_status vf2_hybrid_player_1fcc0_execute(
     vf2_i960_cpu *cpu
 );
 
+/* Recover 0x323fc: post_cf04_combat_state_clear (164 B, 7
+ * blocks). IP must be 0x323fc with a pushed frame. Calls
+ * 0xcf04 first (which has its own hybrid recovery v0747),
+ * then clears bit 19 of 0x500068, stores 0 to (g13 + 0x47),
+ * clears bit 8 of *(g13), writes 0x53f to 0x500024, writes
+ * 100 to (g13 + 0x40), then dispatches on bit 0 of *(g13):
+ *   - bit 0 set: read 0x500056, invert (toggle 0<->1), set
+ *     bits 1 and 3 of *(g13), store 0x324a0 to (g13 + 0xc),
+ *     ret to 0x324a0.
+ *   - bit 0 clear (and bit 3 clear / bit 3 set): no-op, ret
+ *     to 0x3244c.
+ * g13 (cpu->registers[16+13]=29) points to a work-RAM struct
+ * set up by the caller. Stand-alone execute hook, not yet
+ * wired into the per-step hook table. */
+vf2_status vf2_hybrid_player_323fc_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 /* Per-step hook instrumentation (v0755c).
  *
  * Read-only access to the per-hook fire counters maintained by
