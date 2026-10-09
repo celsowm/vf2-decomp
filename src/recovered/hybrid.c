@@ -587,27 +587,22 @@ static vf2_status hybrid_execute_interpreted_until(
                      * cpu->ip is at the post-function IP. */
                     continue;
                 } else if (status == VF2_ERROR_UNSUPPORTED) {
-                    /* v0763: the per-step loop has already stepped
-                     * the i960 `call` instruction, which pushed a
-                     * frame for the called function with g14 set to
-                     * the post-call IP (call-site + 4). The recovery
-                     * could not fully simulate the function, so we
-                     * must "undo" the i960 call: pop the frame it
-                     * pushed and continue from g14. Without this,
-                     * the next iteration's vf2_i960_step from the
-                     * recovery's cpu->ip (e.g. 0x20050 for 0x1fcc0's
-                     * inlined 0x1fffc refusal) executes a `ret` that
-                     * pops the wrong frame and the CPU state becomes
-                     * inconsistent (see v0761 retraction note). */
-                    vf2_status return_status =
-                        vf2_i960_cpu_return_procedure(cpu, machine);
-                    if (return_status != VF2_OK) {
-                        return return_status;
-                    }
-                    /* The i960 `call` has been undone; treat this
-                     * as a successful step so the per-step loop
-                     * keeps running from the post-call IP. */
-                    status = VF2_OK;
+                    /* Function refused cleanly; cpu->ip is at
+                     * the recovery's exit IP. The next iteration
+                     * will vf2_i960_step from there. If the
+                     * recovery's exit IP is a `ret` slot of the
+                     * i960-call's target, that `ret` correctly
+                     * pops the frame the call instruction pushed
+                     * (this is the cf04 v0747 design). If the
+                     * recovery's exit IP is somewhere else, the
+                     * interpreter continues from there and the
+                     * behaviour depends on what follows. v0763
+                     * attempted to forcibly pop the call's frame
+                     * here, but that broke the cf04 design (the
+                     * cf04 recovery's refusal at 0xcfb8 IS the
+                     * ret that pops the frame; popping it early
+                     * makes the subsequent `ret` at 0xcfb8 pop
+                     * the wrong frame). v0763 retracted. */
                     continue;
                 } else {
                     /* Other error: abort. */
