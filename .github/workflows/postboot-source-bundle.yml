@@ -1,0 +1,23 @@
+name: Temporary postboot source bundle
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    if: github.event.pull_request.head.ref == 'automation/postboot-extended'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+      - run: git archive --format=zip --output=source-bundle.zip HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: postboot-source-bundle
+          path: source-bundle.zip
+          if-no-files-found: error
