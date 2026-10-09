@@ -35454,3 +35454,61 @@ vf2_status vf2_hybrid_player_a154_execute(
 {
     return hybrid_execute_player_a154(machine, cpu);
 }
+
+/* ====================================================================
+ * fa_player 0x4ad40 - zero_workram_helpers (v0760)
+ *
+ * Disassembly (per vf2i960 disasm, 52 B, 1 block):
+ *
+ *   block_0004ad40:
+ *     0004ad40  mov      0, r15
+ *     0004ad44  stis     r15, 0x005502a8   ; 0x5502a8 = 0 (short)
+ *     0004ad4c  mov      0, r15
+ *     0004ad50  stis     r15, 0x005502b0   ; 0x5502b0 = 0 (short)
+ *     0004ad58  mov      0, r15
+ *     0004ad5c  stis     r15, 0x005502b8   ; 0x5502b8 = 0 (short)
+ *     0004ad64  mov      0, r15
+ *     0004ad68  st       r15, 0x00546000   ; 0x546000 = 0 (word)
+ *     0004ad70  ret
+ *
+ * Shape: clears 4 work-RAM fields.
+ */
+static vf2_status hybrid_execute_player_4ad40(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    vf2_status status;
+    uint16_t zero_short = 0u;
+    uint32_t zero_word = 0u;
+
+    if (machine == NULL || cpu == NULL ||
+        cpu->ip != UINT32_C(0x0004ad40)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    status = vf2_model2a_write(
+        machine, UINT32_C(0x005502a8), &zero_short, sizeof(zero_short));
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_write(
+        machine, UINT32_C(0x005502b0), &zero_short, sizeof(zero_short));
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_write(
+        machine, UINT32_C(0x005502b8), &zero_short, sizeof(zero_short));
+    if (status != VF2_OK) return status;
+    status = vf2_model2a_write_u32(
+        machine, UINT32_C(0x00546000), zero_word);
+    if (status != VF2_OK) return status;
+
+    cpu->ip = UINT32_C(0x0004ad74);
+    cpu->executed_instructions += UINT64_C(8);
+    return VF2_OK;
+}
+
+vf2_status vf2_hybrid_player_4ad40_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+)
+{
+    return hybrid_execute_player_4ad40(machine, cpu);
+}

@@ -238,6 +238,15 @@ vf2_status vf2_hybrid_player_a154_execute(
     vf2_i960_cpu *cpu
 );
 
+/* Recover 0x4ad40: zero_workram_helpers (52 B, 1 block).
+ * IP must be 0x4ad40 with a pushed frame. Clears 4 work-RAM
+ * fields: short 0 to 0x5502a8, 0x5502b0, 0x5502b8 and
+ * word 0 to 0x546000. */
+vf2_status vf2_hybrid_player_4ad40_execute(
+    vf2_model2a *machine,
+    vf2_i960_cpu *cpu
+);
+
 /* Per-step hook instrumentation (v0755c).
  *
  * Read-only access to the per-hook fire counters maintained by
