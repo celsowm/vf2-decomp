@@ -698,6 +698,21 @@ At the time this handoff was written, `master` already contains:
     (52 B, 1 block). Clears 4 work-RAM fields: short zeros at
     `0x5502a8`, `0x5502b0`, `0x5502b8` and word zero at `0x546000`.
     New ctest entry `vf2_player_4ad40` (#55, 0.01 s) PASSES.
+    - **v0761 was committed then retracted.** The 0x1fcc0
+    (`display_profile_apply`) hook wiring in `g_callee_hooks[]`
+    broke F4: the F4 native path does reach 0x1fcc0, the recovery
+    refuses at 0x20050, and the per-step loop's UNSUPPORTED path
+    then steps one more instruction (the `ret`), popping the wrong
+    frame and entering an infinite loop (>600 s ctest timeout).
+    Reverted via `git reset --hard d9f7ba0a && git push
+    --force-with-lease origin master`. Diagnosis in
+    `per_step_hook_1fcc0_wiring_retracted_v0761.md`. Three next
+    options documented in that note: rewrite the 0x1fcc0 recovery
+    to return VF2_OK; harden the per-step loop's UNSUPPORTED
+    handling; or leave 0x1fcc0 unwired until one of the above is
+    done. `master` is currently at the v0760 AGENTS.md sync
+    (`d9f7ba0a`); this entry is the only record that v0761
+    ever existed.
 
 The most recent tooling layer is intentionally **above** the validated executor.
 It accelerates evidence gathering; it does not replace the oracle.
