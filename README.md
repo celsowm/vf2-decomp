@@ -269,6 +269,7 @@ Start here:
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — milestone roadmap including first playable scope.
 - [`docs/STATUS.md`](docs/STATUS.md) — component-level status table.
 - [`docs/UNCOVERED_BRANCHES.md`](docs/UNCOVERED_BRANCHES.md) — known remaining recovery boundaries.
+- [`docs/ORIGINAL_SYMBOLS.md`](docs/ORIGINAL_SYMBOLS.md) — the 301 original Sega i960 symbol names and the provisional names they replace.
 - [`CHANGELOG.md`](CHANGELOG.md) — chronological project progress.
 
 Fine-grained address-level evidence lives under `decomp/i960/notes/` and in focused recovery documents under `docs/`.
