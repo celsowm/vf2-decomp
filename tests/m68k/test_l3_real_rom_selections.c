@@ -23,6 +23,8 @@ static size_t sample_bank_size;
 static int akira_wave_prefill_experiment;
 static int akira_walk_probe;
 static int akira_original_walk_preview;
+static int verify_akira_original_walk;
+static int akira_walk_strict_failed;
 
 static uint32_t le32(const uint8_t *bytes)
 {
@@ -746,6 +748,22 @@ static void akira_probe_original_walk(const uint8_t *rom, size_t rom_size,
                    successful_passes, advancing_slots, (unsigned)all_steps,
                    (unsigned)final_a0, (unsigned)wave_changed,
                    (unsigned)walk_ram[VF2_SOUND_COMMAND_COUNT]);
+            if (verify_akira_original_walk) {
+                const int passed = successful_passes == 32u &&
+                    advancing_slots == 4u &&
+                    all_steps == 588u &&
+                    final_a0 == UINT32_C(0x2000) &&
+                    wave_changed == 2039u &&
+                    read_be32(walk_ram + 0x2002u) == UINT32_C(0x8f98d4) &&
+                    read_be32(walk_ram + 0x2006u) == UINT32_C(0x10400) &&
+                    walk_ram[VF2_SOUND_COMMAND_COUNT] == 0u;
+                printf("AKIRA_ORIGINAL_WALK_STRICT parity=%u "
+                       "passes=%u pages=%u steps=%u "
+                       "pcm_bytes_changed=%u\n",
+                       (unsigned)passed, successful_passes, advancing_slots,
+                       (unsigned)all_steps, (unsigned)wave_changed);
+                if (!passed) akira_walk_strict_failed = 1;
+            }
         }
     }
 }
@@ -1297,6 +1315,11 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
             return 0;
         }
     }
+    if (verify_akira_original_walk && akira_walk_strict_failed) {
+        fprintf(stderr,
+                "AKIRA_ORIGINAL_WALK_STRICT owner-ROM gate failed\n");
+        return 0;
+    }
     return 1;
 }
 
@@ -1424,12 +1447,14 @@ int main(int argc, char **argv)
            strcmp(argv[2], "--probe-akira-music") == 0 ||
            strcmp(argv[2], "--verify-akira-music") == 0 ||
            strcmp(argv[2], "--probe-akira-progress") == 0 ||
-           strcmp(argv[2], "--probe-akira-walk") == 0))) {
+           strcmp(argv[2], "--probe-akira-walk") == 0 ||
+           strcmp(argv[2], "--verify-akira-walk") == 0))) {
         fprintf(stderr,
                 "usage: %s <vf2-rom-directory> [--l3-packet <six-hex-digits> "
                 "| --uart-stream <even-hex-digits> | --matrix-l3 "
                 "| --probe-akira-music | --verify-akira-music "
                 "| --probe-akira-progress | --probe-akira-walk "
+                "| --verify-akira-walk "
                 "| --akira-wav-dir DIRECTORY | --akira-sequenced-wav-dir DIRECTORY "
                 "| --akira-prefill-wav-dir DIRECTORY "
                 "| --akira-original-walk-wav-dir DIRECTORY]\n",
@@ -1441,11 +1466,15 @@ int main(int argc, char **argv)
                         (strcmp(argv[2], "--probe-akira-music") == 0 ||
                          strcmp(argv[2], "--verify-akira-music") == 0 ||
                          strcmp(argv[2], "--probe-akira-progress") == 0 ||
-                         strcmp(argv[2], "--probe-akira-walk") == 0);
+                         (strcmp(argv[2], "--probe-akira-walk") == 0 ||
+                        strcmp(argv[2], "--verify-akira-walk") == 0));
     akira_music_progress = argc == 3 &&
                            strcmp(argv[2], "--probe-akira-progress") == 0;
     akira_walk_probe = argc == 3 &&
-                       strcmp(argv[2], "--probe-akira-walk") == 0;
+                       (strcmp(argv[2], "--probe-akira-walk") == 0 ||
+                        strcmp(argv[2], "--verify-akira-walk") == 0);
+    verify_akira_original_walk = argc == 3 &&
+        strcmp(argv[2], "--verify-akira-walk") == 0;
     akira_music_strict = argc == 3 &&
                          strcmp(argv[2], "--verify-akira-music") == 0;
     l3_stream = argc == 4 &&
