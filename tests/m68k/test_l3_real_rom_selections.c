@@ -22,6 +22,7 @@ static const uint8_t *sample_bank;
 static size_t sample_bank_size;
 static int akira_wave_prefill_experiment;
 static int akira_walk_probe;
+static int akira_original_walk_preview;
 
 static uint32_t le32(const uint8_t *bytes)
 {
@@ -749,6 +750,69 @@ static void akira_probe_original_walk(const uint8_t *rom, size_t rom_size,
     }
 }
 
+/* Owner-ROM stream-service preview. Execute 32 authentic 68000
+ * descriptor-walk iterations via 0x2242, using the current/live SCSP
+ * and RAM. Each iteration's first instruction is stepped separately
+ * so the recurrence PC is a real STOP, not an immediate no-op.
+ * Only the cadence (one full scan per experimental 50-frame tick)
+ * is a test hypothesis, NOT measured original arcade scheduling.
+ * This is never used by public CI or production sound-board code. */
+static int akira_execute_original_walk_frame(
+    vf2_m68k_bus *bus, unsigned tick,
+    uint32_t *total_steps, uint32_t *page_copies)
+{
+    vf2_m68k_regs r;
+    unsigned pass;
+    vf2_m68k_regs_reset(&r);
+    r.pc = UINT32_C(0x2242);
+    r.a[0] = UINT32_C(0x2000);
+    r.a[4] = UINT32_C(0x2506);
+    r.a[5] = VF2_SCSP_CPU_BASE;
+    r.a[6] = UINT32_C(0x1000);
+    r.a[7] = UINT32_C(0x5000);
+    for (pass = 0u; pass < VF2_SCSP_SLOT_COUNT; ++pass) {
+        const uint32_t rec = UINT32_C(0x2000) +
+                             (uint32_t)pass * UINT32_C(0x20);
+        const uint32_t source = read_be32(bus->ram + rec + 2u);
+        const uint32_t dest = read_be32(bus->ram + rec + 6u);
+        uint32_t one = 0u, rest = 0u;
+        vf2_status a, b;
+        bus->event_count = 0u;
+        a = vf2_m68k_run(bus, &r, 0u, 0, 1u, &one);
+        b = vf2_m68k_run(bus, &r, UINT32_C(0x2242), 0,
+                         100000u, &rest);
+        *total_steps += one + rest;
+        if (a != VF2_ERROR_UNSUPPORTED || one != 1u ||
+            b != VF2_OK || r.pc != UINT32_C(0x2242)) {
+            printf("AKIRA_ORIGINAL_WALK_FAIL tick=%u pass=%u "
+                   "single=%d walk=%d steps=%u pc=%05x\n",
+                   tick, pass, (int)a, (int)b,
+                   (unsigned)(one + rest), (unsigned)r.pc);
+            return 0;
+        }
+        if (source != read_be32(bus->ram + rec + 2u) &&
+            dest != read_be32(bus->ram + rec + 6u)) {
+            ++*page_copies;
+        }
+    }
+    if (r.a[0] != UINT32_C(0x2000)) {
+        printf("AKIRA_ORIGINAL_WALK_BAD_WRAP tick=%u a0=%08x\n",
+               tick, (unsigned)r.a[0]);
+        return 0;
+    }
+    if (tick == 0u || tick == 882u || tick == 4410u ||
+        tick == 8819u) {
+        printf("AKIRA_ORIGINAL_WALK_PROGRESS tick=%u "
+               "steps_total=%u pages_total=%u "
+               "slot0_source=%08x slot0_dest=%08x\n",
+               tick, (unsigned)*total_steps,
+               (unsigned)*page_copies,
+               (unsigned)read_be32(bus->ram + 0x2002u),
+               (unsigned)read_be32(bus->ram + 0x2006u));
+    }
+    return 1;
+}
+
 /* Owner-ROM SOUND TEST #11: original i960 command 00 AD 10 04.
  * Preserve the exact original BOOT channel descriptor table, not the
  * synthetic one-channel fixture used by the AD23/24 unit tests.
@@ -778,6 +842,8 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
     uint32_t last_source[VF2_SCSP_SLOT_COUNT];
     uint32_t last_destination[VF2_SCSP_SLOT_COUNT];
     size_t preview_pages = 0u;
+    uint32_t real_walker_steps = 0u;
+    uint32_t real_walker_pages = 0u;
     uint8_t *desc = board.sound_ram + VF2_SOUND_COMMAND_DESCRIPTOR_BASE;
     memset(last_source, 0, sizeof(last_source));
     memset(last_destination, 0, sizeof(last_destination));
@@ -995,6 +1061,13 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
                 }
                 if (first_failed != 0u) break;
             }
+            if (akira_original_walk_preview &&
+                !akira_execute_original_walk_frame(
+                    &bus, (unsigned)tick, &real_walker_steps,
+                    &real_walker_pages)) {
+                full_drain = 0;
+                break;
+            }
             if (akira_walk_probe && (tick == 0u || tick == 8u ||
                                      tick == 15u)) {
                 akira_probe_original_walk(rom, rom_size, (unsigned)tick);
@@ -1157,6 +1230,13 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
     }
     if (sequenced_dir != NULL) {
         const size_t total_frames = SEQUENCE_TICKS * FRAMES_PER_TICK;
+        if (akira_original_walk_preview) {
+            printf("AKIRA_MUSIC_ORIGINAL_WALK_PREVIEW "
+                   "pages=%u steps=%u original_copy=1 "
+                   "approximate_scheduler=1\n",
+                   (unsigned)real_walker_pages,
+                   (unsigned)real_walker_steps);
+        }
         if (akira_wave_prefill_experiment) {
             printf("AKIRA_MUSIC_PREFILL_EXPERIMENT pages=%u "
                    "original_refill_executed=0 unverified_timing=1\n",
@@ -1171,9 +1251,11 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
         if (rendered_ticks != SEQUENCE_TICKS || !full_drain ||
             first_tick_count != 32u || total_drain <= 43u) return 0;
         return write_akira_stereo_pcm(
-            sequenced_dir, akira_wave_prefill_experiment ?
-            "vf2_akira_10s_PREFILL_UNVERIFIED_scsp_model.wav" :
-            "vf2_akira_ride_the_tiger_10s_sequenced_scsp_model.wav",
+            sequenced_dir, akira_original_walk_preview ?
+            "vf2_akira_10s_ORIGINAL_WALK_APPROX_TIMER_scsp_model.wav" :
+            (akira_wave_prefill_experiment ?
+             "vf2_akira_10s_PREFILL_UNVERIFIED_scsp_model.wav" :
+             "vf2_akira_ride_the_tiger_10s_sequenced_scsp_model.wav"),
             music_left, music_right, total_frames, 1);
     }
     if (strict) {
@@ -1335,7 +1417,8 @@ int main(int argc, char **argv)
                         strcmp(argv[2], "--uart-stream") == 0 ||
                         strcmp(argv[2], "--akira-wav-dir") == 0 ||
                         strcmp(argv[2], "--akira-sequenced-wav-dir") == 0 ||
-                        strcmp(argv[2], "--akira-prefill-wav-dir") == 0)) &&
+                        strcmp(argv[2], "--akira-prefill-wav-dir") == 0 ||
+                        strcmp(argv[2], "--akira-original-walk-wav-dir") == 0)) &&
         !(argc == 3 &&
           (strcmp(argv[2], "--matrix-l3") == 0 ||
            strcmp(argv[2], "--probe-akira-music") == 0 ||
@@ -1348,7 +1431,8 @@ int main(int argc, char **argv)
                 "| --probe-akira-music | --verify-akira-music "
                 "| --probe-akira-progress | --probe-akira-walk "
                 "| --akira-wav-dir DIRECTORY | --akira-sequenced-wav-dir DIRECTORY "
-                "| --akira-prefill-wav-dir DIRECTORY]\n",
+                "| --akira-prefill-wav-dir DIRECTORY "
+                "| --akira-original-walk-wav-dir DIRECTORY]\n",
                 argv[0]);
         return 2;
     }
@@ -1379,6 +1463,13 @@ int main(int argc, char **argv)
         akira_music_probe = 1;
         akira_music_progress = 1;
         akira_wave_prefill_experiment = 1;
+        akira_sequenced_dir = argv[3];
+    }
+    if (argc == 4 &&
+        strcmp(argv[2], "--akira-original-walk-wav-dir") == 0) {
+        akira_music_probe = 1;
+        akira_music_progress = 1;
+        akira_original_walk_preview = 1;
         akira_sequenced_dir = argv[3];
     }
     if (argc == 4 && akira_wav_dir == NULL &&
