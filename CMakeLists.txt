@@ -22,6 +22,7 @@ option(VF2_VERIFY_AD21_B_ALL "Require owner-ROM AD21 parity for all twelve B9..B
 option(VF2_VERIFY_AD21_B_SEQUENTIAL "Require owner-ROM AD21 full twelve B-packet stateful drain parity" OFF)
 option(VF2_VERIFY_FRAME342_CHAIN "Require owner-ROM 9E/Cx/AD21/L2/B stateful chain and PCM parity" OFF)
 option(VF2_VERIFY_AKIRA_MUSIC "Require original-ROM Akira SOUND TEST stream to KEYON and nonzero software PCM" OFF)
+option(VF2_VERIFY_AKIRA_WALK "Require original-ROM Akira 32-descriptor PCM page-refill walker regression" OFF)
 set(VF2_ROM_DIR "" CACHE PATH "Optional supported VF2 ROM directory for integration tests")
 if(NOT VF2_ROM_DIR)
   set(VF2_ROM_DIR "${CMAKE_SOURCE_DIR}/roms/vf2")
@@ -1235,6 +1236,17 @@ if(VF2_BUILD_TESTS)
                      COMMAND vf2_m68k_l3_selection_tests
                              "${VF2_ROM_DIR}" --verify-akira-music)
             set_tests_properties(vf2_m68k_akira_music_owner_rom
+                                 PROPERTIES TIMEOUT 900)
+        endif()
+        # A one-cycle owner-ROM differential through the actual
+        # 0x2242 main-loop stream walker. Verifies 32 descriptor
+        # visits, genuine MOVEM page copies, and pointer updates;
+        # no synthetic PCM prefill or copyrighted ROM assets in CI.
+        if(VF2_VERIFY_AKIRA_WALK)
+            add_test(NAME vf2_m68k_akira_original_walker_owner_rom
+                     COMMAND vf2_m68k_l3_selection_tests
+                             "${VF2_ROM_DIR}" --verify-akira-walk)
+            set_tests_properties(vf2_m68k_akira_original_walker_owner_rom
                                  PROPERTIES TIMEOUT 900)
         endif()
         # v0898: exact fifteen original i960 vector-15 bytes from
