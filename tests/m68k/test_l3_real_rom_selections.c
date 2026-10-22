@@ -689,6 +689,63 @@ static void akira_probe_original_walk(const uint8_t *rom, size_t rom_size,
                (unsigned)original_target, (unsigned)final_target,
                (unsigned)changed, (unsigned)pcm_changed,
                (unsigned)(sample_bank != NULL));
+        if (tick == 0u && variant == 0u &&
+            result == VF2_OK && r.pc == UINT32_C(0x2242)) {
+            unsigned pass;
+            unsigned successful_passes = 1u;
+            unsigned advancing_slots = 1u; /* slot 0 above */
+            uint32_t all_steps = stepped + walked;
+            size_t wave_changed = 0u;
+            uint32_t final_a0 = r.a[0];
+            for (pass = 1u; pass < VF2_SCSP_SLOT_COUNT; ++pass) {
+                uint32_t once = 0u, again = 0u;
+                vf2_status one_status, walk_status;
+                const uint32_t rec = UINT32_C(0x2000) +
+                    (uint32_t)pass * UINT32_C(0x20);
+                const uint32_t source_before = read_be32(walk_ram + rec + 2u);
+                const uint32_t destination_before =
+                    read_be32(walk_ram + rec + 6u);
+                bus.event_count = 0u;
+                one_status = vf2_m68k_run(&bus, &r, 0u, 0, 1u, &once);
+                walk_status = vf2_m68k_run(&bus, &r, UINT32_C(0x2242),
+                                           0, 100000u, &again);
+                all_steps += once + again;
+                if (one_status != VF2_ERROR_UNSUPPORTED ||
+                    once != 1u || walk_status != VF2_OK ||
+                    r.pc != UINT32_C(0x2242)) {
+                    printf("AKIRA_WALK_FULL_STOP pass=%u "
+                           "single_status=%d status=%d pc=%05x "
+                           "steps=%u a0=%05x\n",
+                           pass, (int)one_status, (int)walk_status,
+                           (unsigned)r.pc, (unsigned)again,
+                           (unsigned)r.a[0]);
+                    break;
+                }
+                ++successful_passes;
+                final_a0 = r.a[0];
+                if (source_before != read_be32(walk_ram + rec + 2u) ||
+                    destination_before != read_be32(walk_ram + rec + 6u)) {
+                    ++advancing_slots;
+                    printf("AKIRA_WALK_FULL_SLOT slot=%u "
+                           "source=%08x->%08x dest=%08x->%08x "
+                           "steps=%u flag=%02x\n",
+                           pass, (unsigned)source_before,
+                           (unsigned)read_be32(walk_ram + rec + 2u),
+                           (unsigned)destination_before,
+                           (unsigned)read_be32(walk_ram + rec + 6u),
+                           (unsigned)(once + again), walk_ram[rec]);
+                }
+            }
+            for (i = UINT32_C(0x10000); i < UINT32_C(0x50000); ++i) {
+                if (walk_ram[i] != step_ram[i]) ++wave_changed;
+            }
+            printf("AKIRA_WALK_FULL_SCAN passes=%u "
+                   "advancing_slots=%u total_steps=%u final_a0=%08x "
+                   "wave_ram_modified=%u queue=%u\n",
+                   successful_passes, advancing_slots, (unsigned)all_steps,
+                   (unsigned)final_a0, (unsigned)wave_changed,
+                   (unsigned)walk_ram[VF2_SOUND_COMMAND_COUNT]);
+        }
     }
 }
 
