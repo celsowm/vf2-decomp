@@ -21,6 +21,7 @@ static vf2_scsp step_scsp;
 static const uint8_t *sample_bank;
 static size_t sample_bank_size;
 static int akira_wave_prefill_experiment;
+static int akira_walk_probe;
 
 static uint32_t le32(const uint8_t *bytes)
 {
@@ -610,6 +611,87 @@ static int write_akira_model_preview(const char *directory, vf2_scsp *scsp)
         left, right, FRAMES, 0);
 }
 
+/* Original-ROM candidate page-refill service: 0x2242 walker.
+ * Run one iteration on an entirely separate snapshot to avoid
+ * altering the ordinary music preview or original M68K bus.
+ * 0x2242 is the recurrent main-loop head; the first instruction
+ * is stepped separately so stop_pc=0x2242 catches the *next*
+ * recurrence, not the unexecuted entry. Two SCSP 0x0409 cases
+ * test the hardware-presented flag as a controlled hypothesis.
+ * This is strictly diagnostic, never a fictitious C-side copy. */
+static void akira_probe_original_walk(const uint8_t *rom, size_t rom_size,
+                                      unsigned tick)
+{
+    static uint8_t walk_ram[VF2_SOUND_RAM_BYTES];
+    static vf2_scsp walk_scsp;
+    vf2_m68k_bus bus;
+    vf2_m68k_regs r;
+    unsigned variant;
+    const uint32_t record = UINT32_C(0x2000);
+    const uint32_t start = UINT32_C(0x10200);
+    for (variant = 0u; variant < 2u; ++variant) {
+        uint32_t stepped = 0u, walked = 0u;
+        size_t changed = 0u, pcm_changed = 0u, i;
+        uint32_t original_source = read_be32(step_ram + record + 2u);
+        uint32_t original_target = read_be32(step_ram + record + 6u);
+        uint32_t final_source, final_target;
+        vf2_status first, result;
+        memcpy(walk_ram, step_ram, sizeof(walk_ram));
+        memcpy(&walk_scsp, &step_scsp, sizeof(walk_scsp));
+        if (vf2_scsp_attach_sample_ram(&walk_scsp, walk_ram,
+                                        sizeof(walk_ram)) != VF2_OK) {
+            printf("AKIRA_WALK_PROBE_SETUP_FAIL tick=%u\n", tick);
+            return;
+        }
+        /* The CPU reads SCSP MIDI/status 0x0409: try genuine observed
+         * baseline and independently force only bit 7 in the
+         * snapshot, to test whether this signal gates page service. */
+        if (variant == 1u) {
+            walk_scsp.registers[0x0409u] |= UINT8_C(0x80);
+        }
+        memset(&bus, 0, sizeof(bus));
+        bus.rom = rom;
+        bus.rom_size = rom_size;
+        bus.ram = walk_ram;
+        bus.ram_size = sizeof(walk_ram);
+        bus.sample_rom = sample_bank;
+        bus.sample_rom_size = sample_bank_size;
+        bus.scsp = &walk_scsp;
+        vf2_m68k_regs_reset(&r);
+        r.pc = UINT32_C(0x2242);
+        r.a[0] = UINT32_C(0x2000);
+        r.a[4] = UINT32_C(0x2506);
+        r.a[5] = VF2_SCSP_CPU_BASE;
+        r.a[6] = UINT32_C(0x1000);
+        r.a[7] = UINT32_C(0x5000);
+        first = vf2_m68k_run(&bus, &r, 0u, 0, 1u, &stepped);
+        result = vf2_m68k_run(&bus, &r, UINT32_C(0x2242), 0,
+                              100000u, &walked);
+        final_source = read_be32(walk_ram + record + 2u);
+        final_target = read_be32(walk_ram + record + 6u);
+        for (i = 0u; i < VF2_SOUND_RAM_BYTES; ++i) {
+            if (walk_ram[i] != step_ram[i]) {
+                ++changed;
+                if (i >= start && i < start + UINT32_C(0x1e00)) {
+                    ++pcm_changed;
+                }
+            }
+        }
+        printf("AKIRA_WALK_PROBE tick=%u midi7=%u first_status=%d "
+               "first_steps=%u status=%d steps=%u stop_pc=%05x "
+               "a0=%08x flags=%02x src_before=%08x src_after=%08x "
+               "dest_before=%08x dest_after=%08x ram_diff=%u "
+               "pcm_next_pages_diff=%u sample_rom_attached=%u\n",
+               tick, variant, (int)first, (unsigned)stepped,
+               (int)result, (unsigned)walked, (unsigned)r.pc,
+               (unsigned)r.a[0], walk_ram[record],
+               (unsigned)original_source, (unsigned)final_source,
+               (unsigned)original_target, (unsigned)final_target,
+               (unsigned)changed, (unsigned)pcm_changed,
+               (unsigned)(sample_bank != NULL));
+    }
+}
+
 /* Owner-ROM SOUND TEST #11: original i960 command 00 AD 10 04.
  * Preserve the exact original BOOT channel descriptor table, not the
  * synthetic one-channel fixture used by the AD23/24 unit tests.
@@ -855,6 +937,10 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
                            first_failed);
                 }
                 if (first_failed != 0u) break;
+            }
+            if (akira_walk_probe && (tick == 0u || tick == 8u ||
+                                     tick == 15u)) {
+                akira_probe_original_walk(rom, rom_size, (unsigned)tick);
             }
             /* Original-ROM mixer register snapshot: record the *actual*
              * direct send level and pan of active voices. Our current
@@ -1197,12 +1283,13 @@ int main(int argc, char **argv)
           (strcmp(argv[2], "--matrix-l3") == 0 ||
            strcmp(argv[2], "--probe-akira-music") == 0 ||
            strcmp(argv[2], "--verify-akira-music") == 0 ||
-           strcmp(argv[2], "--probe-akira-progress") == 0))) {
+           strcmp(argv[2], "--probe-akira-progress") == 0 ||
+           strcmp(argv[2], "--probe-akira-walk") == 0))) {
         fprintf(stderr,
                 "usage: %s <vf2-rom-directory> [--l3-packet <six-hex-digits> "
                 "| --uart-stream <even-hex-digits> | --matrix-l3 "
                 "| --probe-akira-music | --verify-akira-music "
-                "| --probe-akira-progress "
+                "| --probe-akira-progress | --probe-akira-walk "
                 "| --akira-wav-dir DIRECTORY | --akira-sequenced-wav-dir DIRECTORY "
                 "| --akira-prefill-wav-dir DIRECTORY]\n",
                 argv[0]);
@@ -1212,9 +1299,12 @@ int main(int argc, char **argv)
     akira_music_probe = argc == 3 &&
                         (strcmp(argv[2], "--probe-akira-music") == 0 ||
                          strcmp(argv[2], "--verify-akira-music") == 0 ||
-                         strcmp(argv[2], "--probe-akira-progress") == 0);
+                         strcmp(argv[2], "--probe-akira-progress") == 0 ||
+                         strcmp(argv[2], "--probe-akira-walk") == 0);
     akira_music_progress = argc == 3 &&
                            strcmp(argv[2], "--probe-akira-progress") == 0;
+    akira_walk_probe = argc == 3 &&
+                       strcmp(argv[2], "--probe-akira-walk") == 0;
     akira_music_strict = argc == 3 &&
                          strcmp(argv[2], "--verify-akira-music") == 0;
     l3_stream = argc == 4 &&
