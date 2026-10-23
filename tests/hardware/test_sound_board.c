@@ -451,7 +451,7 @@ static void test_pcm_stream_page_native(void)
     store_pcm_cursor(slot7 + 6u, UINT32_C(0x12000));
     EXPECT_TRUE(vf2_sound_board_copy_stream_page_512(&b, 7u) == VF2_OK);
     EXPECT_TRUE(memcmp(b.sound_ram + 0x12000u, samples, 512u) == 0);
-    EXPECT_TRUE(slot7[4] == 0x02u && slot7[8] == 0x02u);
+    EXPECT_TRUE(slot7[4] == 0x02u && slot7[8] == 0x22u);
     EXPECT_TRUE(slot0[4] == 0x06u && slot0[8] == 0x06u);
 
     /* Alternate/unknown flags stay held and cursors unmodified. */

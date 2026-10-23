@@ -694,6 +694,40 @@ static void akira_probe_original_walk(const uint8_t *rom, size_t rom_size,
                (unsigned)(sample_bank != NULL));
         if (tick == 0u && variant == 0u &&
             result == VF2_OK && r.pc == UINT32_C(0x2242)) {
+            /* Exact FIRST-PAGE native C vs original-MC68000 check.
+             * This uses the identical PRE-WALK sound-RAM snapshot and
+             * the owner's attached verified sample bank. It checks
+             * only the recovered copy+cursors, not the predicate,
+             * 32-slot traversal, IRQ timing, CPU residue or SCSP DSP.
+             * Neither step_ram nor walk_ram is mutated by the C check. */
+            static vf2_sound_board native_page;
+            const uint8_t *const original_page = walk_ram + start;
+            vf2_status c_page_status;
+            int c_page_equal;
+            memset(&native_page, 0, sizeof(native_page));
+            memcpy(native_page.sound_ram, step_ram, sizeof(step_ram));
+            native_page.sample_rom = sample_bank;
+            native_page.sample_rom_size = sample_bank_size;
+            c_page_status =
+                vf2_sound_board_copy_stream_page_512(&native_page, 0u);
+            c_page_equal = c_page_status == VF2_OK &&
+                original_source == UINT32_C(0x8f96d4) &&
+                original_target == UINT32_C(0x10200) &&
+                final_source == UINT32_C(0x8f98d4) &&
+                final_target == UINT32_C(0x10400) &&
+                memcmp(native_page.sound_ram + start,
+                       original_page, 512u) == 0 &&
+                memcmp(native_page.sound_ram + record + 2u,
+                       walk_ram + record + 2u, 8u) == 0;
+            printf("AKIRA_NATIVE_PAGE_C68000_PARITY matched=%u "
+                   "C_status=%d sample_bytes=512 source_after=%08x "
+                   "destination_after=%08x original_steps=%u\n",
+                   (unsigned)c_page_equal, (int)c_page_status,
+                   (unsigned)final_source, (unsigned)final_target,
+                   (unsigned)(stepped + walked));
+            if (verify_akira_original_walk && !c_page_equal) {
+                akira_walk_strict_failed = 1;
+            }
             unsigned pass;
             unsigned successful_passes = 1u;
             unsigned advancing_slots = 1u; /* slot 0 above */

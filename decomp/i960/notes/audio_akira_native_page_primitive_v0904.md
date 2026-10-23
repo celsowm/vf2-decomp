@@ -34,10 +34,21 @@ isolation, inactive/unknown flags, unaligned source, truncated sample
 ROM and crossing the sound-RAM limit. Failure leaves cursors and
 destination unchanged.
 
-## Remaining original-versus-native proof
+## ROM-backed owner-only differential hook
 
-Use the owner's ROM to differential-test this transfer under identical
-RAM/SCSP state, then recover the actual 0x2242 predicate and scheduler.
+The existing `--probe-akira-walk` and `--verify-akira-walk`
+now construct an independent C board from the exact original 68000
+**pre-walk** RAM and the owner's verified sample bank. After the real
+68000 executes its first 0x2242 pass, the probe compares the complete
+512-byte copied page plus both BE32 cursors against this newly
+translated native operation. The verify mode treats differences as a
+strict failure. This check was added to the opt-in owner-only harness;
+it still **needs execution against the owner's ROM** before parity
+can be claimed. It neither simulates the actual walker predicates nor
+changes the normal audio renderer.
+
+Recover the exact 0x2242 predicate and original scheduler only after
+obtaining matching differential evidence.
 The 10-second Akira WAV from v0903 still uses the **original 68000
 walker**, not this native C helper. Do not claim that this change has
 recovered the full song, DSP, hardware-correct timing or native stream
