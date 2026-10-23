@@ -1,5 +1,20 @@
 # Changelog
 
+## TGP command table (from m2-hle2)
+
+The TGP FIFO stream is a sequence of calls into the uploaded TGP program, each
+a header and a fixed number of arguments. `decomp/tgp/commands.csv` and
+`docs/TGP_COMMANDS.md` give every opcode 0x00..0x6f its `Fn_*` name and
+argument/reply counts: names and counts from Sega's PS2 port, counts measured
+for the 72 opcodes VF2 2.1 sends in 3000 attract frames on m2-hle2's emulated
+TGP, which agree with the PS2 table on all of them.
+`vf2_tgp_command_payload_words` now uses that table (adding
+`vf2_tgp_command_reply_words` and `vf2_tgp_command_name`); this corrects 0x13
+(2, not 0), 0x29/0x37/0x39 (fixed 3/2/3, not variable) and 0x3f
+(`Fn_zyx_rot`, 3 arguments, not an end marker), and records why header
+delimiting cannot frame the stream (a 0.0 argument is a valid header word).
+`test_tgp` covers the new lengths and a zero argument inside a command.
+
 ## v0764-v0782: post-0x29414 cascade and the record-rebuild chain
 
 (This entry backfills the log gap: the previous entry below is v0734g. The

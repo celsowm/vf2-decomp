@@ -354,23 +354,149 @@ int vf2_tgp_is_command_header(uint32_t word)
     return word == ((opcode << 23u) | (opcode << 8u) | opcode);
 }
 
+/* The TGP command table (docs/TGP_COMMANDS.md, decomp/tgp/commands.csv). The
+ * names are the firmware's, from the command table of Sega's PS2 port of VF2
+ * 2.1 (SLPM-62547), indexed by opcode. The word counts are measured: the FIFO
+ * words the TGP program the i960 uploads takes after each header, and the
+ * replies it pushes, over 3000 attract frames on an emulated TGP (m2-hle2,
+ * which follows MAME's mb86233 core). -1: never sent in that run, or (0x4a
+ * replies) data-dependent. Every measured count equals the PS2 table's. */
+typedef struct tgp_command_info {
+    const char *name;
+    int args;
+    int replies;
+} tgp_command_info;
+
+static const tgp_command_info tgp_commands[] = {
+    { "Fn_initialize", 0, 0 }, /* 0x00 */
+    { "Fn_push_matrix", 0, 0 }, /* 0x01 */
+    { "Fn_pop_matrix", 0, 0 }, /* 0x02 */
+    { "Fn_base_matrix", 0, 0 }, /* 0x03 */
+    { "Fn_load_matrix", -1, -1 }, /* 0x04 */
+    { "Fn_get_matrix", 0, 12 }, /* 0x05 */
+    { "Fn_trans", 3, 0 }, /* 0x06 */
+    { "Fn_scale", 3, 0 }, /* 0x07 */
+    { "Fn_x_rot", -1, -1 }, /* 0x08 */
+    { "Fn_y_rot", -1, -1 }, /* 0x09 */
+    { "Fn_z_rot", -1, -1 }, /* 0x0a */
+    { "Fn_mul_matrix", 12, 0 }, /* 0x0b */
+    { "Fn_inv_matrix", 0, 0 }, /* 0x0c */
+    { "Fn_base_point", 0, 0 }, /* 0x0d */
+    { "Fn_load_point", 3, 0 }, /* 0x0e */
+    { "Fn_get_point", 0, 3 }, /* 0x0f */
+    { "Fn_base_3x3", -1, -1 }, /* 0x10 */
+    { "Fn_load_3x3", 9, 0 }, /* 0x11 */
+    { "Fn_get_3x3", 0, 9 }, /* 0x12 */
+    { "Fn_add", 2, 1 }, /* 0x13 */
+    { "Fn_sub", 2, 1 }, /* 0x14 */
+    { "Fn_mul", 2, 1 }, /* 0x15 */
+    { "Fn_div", 2, 1 }, /* 0x16 */
+    { "Fn_cvtws", 1, 1 }, /* 0x17 */
+    { "Fn_cvtsw", 1, 1 }, /* 0x18 */
+    { "Fn_sqr_r", -1, -1 }, /* 0x19 */
+    { "Fn_sqr", 1, 1 }, /* 0x1a */
+    { "Fn_put_c", -1, -1 }, /* 0x1b */
+    { "Fn_get_c", -1, -1 }, /* 0x1c */
+    { "Fn_add_c", -1, -1 }, /* 0x1d */
+    { "Fn_sub_c", -1, -1 }, /* 0x1e */
+    { "Fn_mul_c", -1, -1 }, /* 0x1f */
+    { "Fn_div_c", -1, -1 }, /* 0x20 */
+    { "Fn_sin", 1, 1 }, /* 0x21 */
+    { "Fn_cos", 1, 1 }, /* 0x22 */
+    { "Fn_tan", -1, -1 }, /* 0x23 */
+    { "Fn_sinx", 2, 1 }, /* 0x24 */
+    { "Fn_cosx", 2, 1 }, /* 0x25 */
+    { "Fn_asin", 1, 1 }, /* 0x26 */
+    { "Fn_atan", 2, 1 }, /* 0x27 */
+    { "Fn_tri_shin", -1, -1 }, /* 0x28 */
+    { "Fn_point_trans", 3, 3 }, /* 0x29 */
+    { "Fn_get_inner", -1, -1 }, /* 0x2a */
+    { "Fn_get_2d_r", 4, 1 }, /* 0x2b */
+    { "Fn_get_3d_r", 6, 1 }, /* 0x2c */
+    { "Fn_get_2d_len", 2, 1 }, /* 0x2d */
+    { "Fn_get_3d_len", -1, -1 }, /* 0x2e */
+    { "Fn_get_2d_dir", 4, 1 }, /* 0x2f */
+    { "Fn_regular_vector", 3, 3 }, /* 0x30 */
+    { "Fn_fcurve_lin", 4, 1 }, /* 0x31 */
+    { "Fn_fcurve_spl", 6, 1 }, /* 0x32 */
+    { "Fn_coli_dist", -1, -1 }, /* 0x33 */
+    { "Fn_mov_matrix", 1, 1 }, /* 0x34 */
+    { "Fn_st_unit_mat", 2, 0 }, /* 0x35 */
+    { "Fn_ld_unit_mat", 2, 0 }, /* 0x36 */
+    { "Fn_mul_unit_mat", 2, 0 }, /* 0x37 */
+    { "Fn_coli_set_ball_adrs", 1, 0 }, /* 0x38 */
+    { "Fn_coli_point_trans", 3, 0 }, /* 0x39 */
+    { "Fn_area_table_gen", 0, 0 }, /* 0x3a */
+    { "Fn_calc_coli_flag", 5, 4 }, /* 0x3b */
+    { "Fn_coli_sink", -1, -1 }, /* 0x3c */
+    { "Fn_coli_trans_mat", 6, 0 }, /* 0x3d */
+    { "Fn_coli_trans_xz", 5, 0 }, /* 0x3e */
+    { "Fn_zyx_rot", 3, 0 }, /* 0x3f */
+    { "Fn_calc_unit", -1, -1 }, /* 0x40 */
+    { "Fn_kage_leave_x_axis", 0, 0 }, /* 0x41 */
+    { "Fn_kage_leave_z_axis", 0, 0 }, /* 0x42 */
+    { "Fn_get_matrix_inner", 1, 0 }, /* 0x43 */
+    { "Fn_load_matrix_inner", 1, 0 }, /* 0x44 */
+    { "Fn_mul_matrix_inner", 1, 0 }, /* 0x45 */
+    { "Fn_mul_matrix_inner_rev", 1, 0 }, /* 0x46 */
+    { "Fn_mul_matrix_rev", -1, -1 }, /* 0x47 */
+    { "Fn_read_ram", -1, -1 }, /* 0x48 */
+    { "Fn_write_ram", -1, -1 }, /* 0x49 */
+    { "Fn_osage", 1, -1 }, /* 0x4a */
+    { "Fn_ken2", -1, -1 }, /* 0x4b */
+    { "Fn_ken3", -1, -1 }, /* 0x4c */
+    { "Fn_ken4", -1, -1 }, /* 0x4d */
+    { "Fn_ken5", -1, -1 }, /* 0x4e */
+    { "Fn_base_zy", -1, -1 }, /* 0x4f */
+    { "Fn_base_yz", -1, -1 }, /* 0x50 */
+    { "Fn_get_glo_ang", -1, -1 }, /* 0x51 */
+    { "Fn_base_zyx_ang", -1, -1 }, /* 0x52 */
+    { "Fn_base_zyx", -1, -1 }, /* 0x53 */
+    { "Fn_get_sm_ang_f", 9, 3 }, /* 0x54 */
+    { "Fn_get_sm_ang_r", 9, 3 }, /* 0x55 */
+    { "Fn_get_x_axis", 0, 3 }, /* 0x56 */
+    { "Fn_get_y_axis", 0, 3 }, /* 0x57 */
+    { "Fn_get_z_axis", -1, -1 }, /* 0x58 */
+    { "Fn_get_inner_2d", 4, 1 }, /* 0x59 */
+    { "Fn_regular_vector_2d", 2, 2 }, /* 0x5a */
+    { "Fn_rot_2d", 3, 2 }, /* 0x5b */
+    { "Fn_add3", 6, 3 }, /* 0x5c */
+    { "Fn_sub3", -1, -1 }, /* 0x5d */
+    { "Fn_mul3", 4, 3 }, /* 0x5e */
+    { "Fn_div3", -1, -1 }, /* 0x5f */
+    { "Fn_calc_unit_2", -1, -1 }, /* 0x60 */
+    { "Fn_calc_unit_1", -1, -1 }, /* 0x61 */
+    { "Fn_calc_unit_hara", 9, 0 }, /* 0x62 */
+    { "Fn_get_loc_pos", 7, 3 }, /* 0x63 */
+    { "Fn_2d_coli_put", -1, -1 }, /* 0x64 */
+    { "Fn_2d_coli_coli", -1, -1 }, /* 0x65 */
+    { "Fn_2d_coli_get", -1, -1 }, /* 0x66 */
+    { "Fn_st_glb_mat", 1, 0 }, /* 0x67 */
+    { "Fn_ld_glb_mat", -1, -1 }, /* 0x68 */
+    { "Fn_mul_mot_yrot", 2, 0 }, /* 0x69 */
+    { "Fn_glo_to_loc", 3, 3 }, /* 0x6a */
+    { "Fn_calc_unit_2_fast", 17, 1 }, /* 0x6b */
+    { "Fn_x_rot_e", 0, 0 }, /* 0x6c */
+    { "Fn_y_rot_e", 0, 0 }, /* 0x6d */
+    { "Fn_z_rot_e", 0, 0 }, /* 0x6e */
+    { "Fn_trans_e", 0, 0 }, /* 0x6f */
+};
+
+#define TGP_COMMAND_COUNT (sizeof(tgp_commands) / sizeof(tgp_commands[0]))
+
 int vf2_tgp_command_payload_words(uint32_t opcode)
 {
-    switch (opcode) {
-    case 0x0bu:
-        return 12; /* 3x4 transform matrix (both occurrences) */
-    case 0x34u:
-        return 1;  /* 89/89 */
-    case 0x00u: /* pad (zero words, header-only) */
-    case 0x01u: /* object: model referenced via geo/prg, not inline (117/117) */
-    case 0x02u: /* direct (119/119) */
-    case 0x13u: /* header-only (54/54) */
-        return 0;
-    default:
-        /* variable, or not yet pinned, including the end marker (7-bit opcode
-         * 0x3f, i.e. 0x1f803f3f -- NOT 0x1f): fail closed. */
-        return -1;
-    }
+    return opcode < TGP_COMMAND_COUNT ? tgp_commands[opcode].args : -1;
+}
+
+int vf2_tgp_command_reply_words(uint32_t opcode)
+{
+    return opcode < TGP_COMMAND_COUNT ? tgp_commands[opcode].replies : -1;
+}
+
+const char *vf2_tgp_command_name(uint32_t opcode)
+{
+    return opcode < TGP_COMMAND_COUNT ? tgp_commands[opcode].name : NULL;
 }
 
 size_t vf2_tgp_next_command(

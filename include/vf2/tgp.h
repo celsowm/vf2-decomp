@@ -131,35 +131,34 @@ vf2_status vf2_tgp_render_triangle(
     const vf2_tgp_vertex *vertices,
     uint32_t color
 );
-/* TGP FIFO command header decode, recovered from a measured 3D frame
- * (decomp/i960/notes/mame_3d_frame_geometry_format.md). A command header word
- * is self-describing: it equals (op << 23) | (op << 8) | op for a 7-bit opcode
- * op, e.g. 0x13802727 (op 0x27), 0x1f803f3f (op 0x3f), 0x05800b0b (op 0x0b);
- * payload words (vertex/matrix floats, immediates) do not satisfy this. The
- * opcode is 7 bits (word >> 23) & 0x7f, NOT the 5 bits the older
- * geometry_count_words()/scan use -- 5 bits conflates 0x07/0x27/0x47/0x67 etc.,
- * which is why that path mis-frames a real stream. */
+/* TGP command header decode. A command header word is self-describing: it
+ * equals (op << 23) | (op << 8) | op for a 7-bit opcode op, e.g. 0x13802727
+ * (op 0x27, Fn_atan), 0x1f803f3f (op 0x3f, Fn_zyx_rot), 0x05800b0b (op 0x0b,
+ * Fn_mul_matrix). It is the word the uploaded TGP program's main loop reads
+ * and dispatches on (TGP PC 0x35 in VF2 2.1's program), so these are TGP
+ * function calls, not Model 2 geometrizer commands: op 0x01/0x02 are
+ * push/pop matrix and 0x3f is a rotation, not "object", "direct" and "end"
+ * (docs/TGP_COMMANDS.md). The opcode is 7 bits (word >> 23) & 0x7f; 5 bits
+ * conflates 0x07/0x27/0x47/0x67. A header test alone cannot frame a stream:
+ * a 0.0 argument (0x00000000) passes it as op 0x00. */
 uint32_t vf2_tgp_command_opcode(uint32_t word);
 int vf2_tgp_is_command_header(uint32_t word);
 
-/* Number of FIFO payload words that follow a command header, for the opcodes
- * whose fixed length is verified by self-consistent framing of the measured 3D
- * frame (counts given are the sample sizes behind each):
- *   op 0x0b (matrix)   -> 12  (3x4 transform; both occurrences, matches the
- *                              matrix semantics the reference model uses)
- *   op 0x34            ->  1  (89/89)
- *   op 0x01 (object)   ->  0  (117/117; the model is referenced via the geo/
- *                              prg streams, not carried inline in the FIFO)
- *   op 0x02 (direct)   ->  0  (119/119)
- *   op 0x13            ->  0  (54/54)
- *   op 0x00 (pad)      ->  0
- *   op 0x1f (end)      ->  0
- * Returns -1 for every other opcode: either a variable-length command (e.g.
- * 0x29/0x37/0x39 measure 0..3 payload words, data-dependent) or one not yet
- * seen enough to pin. Callers fail closed on -1 -- the full length table and
- * the variable-length framing need a reference triangle/vertex dump to pin
- * (decomp/i960/notes/mame_3d_frame_geometry_format.md). */
+/* Argument words that follow a command header in the FIFO, from the measured
+ * command table (docs/TGP_COMMANDS.md): every opcode VF2 2.1 sent in 3000
+ * attract frames on an emulated TGP running the game's own uploaded program,
+ * each a fixed count that equals the one in Sega's PS2 port's command table.
+ * Returns -1 for an opcode never measured (fail closed), and for 0x70..0x7f,
+ * which the program has no handler for. */
 int vf2_tgp_command_payload_words(uint32_t opcode);
+
+/* Reply words the TGP pushes for the command, from the same table; -1 when not
+ * measured or data-dependent (0x4a Fn_osage: 44..190 in the measured run). */
+int vf2_tgp_command_reply_words(uint32_t opcode);
+
+/* The command's firmware name (Fn_*) from Sega's PS2 port's table, for
+ * opcodes 0x00..0x6f; NULL otherwise. A name, not a semantics. */
+const char *vf2_tgp_command_name(uint32_t opcode);
 
 typedef struct vf2_tgp_command {
     uint32_t opcode;        /* 7-bit opcode of this command's header          */
@@ -171,16 +170,12 @@ typedef struct vf2_tgp_command {
 } vf2_tgp_command;
 
 /* Frame the command that begins at words[pos] (which must be a command header)
- * and advance. The command's payload is the pinned fixed length when the opcode
- * has one (vf2_tgp_command_payload_words != -1), otherwise every word up to the
- * next header -- the stream is header-delimited, a rule consistent with all the
- * pinned fixed lengths (decomp/i960/notes/mame_3d_frame_geometry_format.md).
- * Fills *cmd and returns the index of the next command's header (pos + 1 +
- * payload_count), or 0 on error (pos out of range, or words[pos] is not a
- * header). Caveat: a payload word that coincidentally equals a header pattern
- * can over-split a variable-length command; disambiguating that needs the
- * reference output, so a caller that requires exactness should restrict itself
- * to length_verified == 1 commands. */
+ * and advance. The payload is the measured argument count when the opcode has
+ * one (vf2_tgp_command_payload_words != -1); otherwise every word up to the
+ * next header-shaped word, which is unreliable (a 0.0 argument looks like a
+ * header), so length_verified is 0. Fills *cmd and returns the index of the
+ * next command's header (pos + 1 + payload_count), or 0 on error (pos out of
+ * range, words[pos] is not a header, or the stream is truncated). */
 size_t vf2_tgp_next_command(
     const uint32_t *words,
     size_t count,
