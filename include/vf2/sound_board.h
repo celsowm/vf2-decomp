@@ -177,6 +177,13 @@ vf2_status vf2_sound_board_copy_engine_page_512(
     uint32_t *destination
 );
 
+/* Bounded native C sample page/cursor transfer for one 0x80-active
+ * 0x2242 walker record. This is NOT the original scheduler/predicate:
+ * callers must independently establish when a transfer is due. */
+vf2_status vf2_sound_board_copy_stream_page_512(
+    vf2_sound_board *board, size_t slot_index
+);
+
 /* Original 68000 tail at 0xD72..0xD90 (seven instructions).
  * Writes the post-copy A0/A2 pointers to the channel stream,
  * sets SCSP KEYON bits (read/OR/write), and sets stream+0 = 0x80.

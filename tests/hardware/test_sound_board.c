@@ -397,6 +397,98 @@ static void test_ad21_ba2a_sample_copy(void)
     }
 }
 
+/* ROM-free pin for the native 0x2242 page/cursor effect.
+ * Does not simulate the ROM's predicate or arcade IRQ cadence. */
+static void store_pcm_cursor(uint8_t *p, uint32_t x)
+{
+    p[0] = (uint8_t)(x >> 24u);
+    p[1] = (uint8_t)(x >> 16u);
+    p[2] = (uint8_t)(x >> 8u);
+    p[3] = (uint8_t)x;
+}
+
+static void test_pcm_stream_page_native(void)
+{
+    static vf2_sound_board b;
+    static uint8_t samples[0x800u];
+    uint8_t *slot0 = b.sound_ram + 0x2000u;
+    uint8_t *slot7 = b.sound_ram + 0x2000u + 7u * 0x20u;
+    uint8_t old_record[10u];
+    size_t i;
+
+    memset(&b, 0, sizeof(b));
+    for (i = 0u; i < sizeof(samples); ++i) {
+        samples[i] = (uint8_t)(i * 13u + 7u);
+    }
+    b.sample_rom = samples;
+    b.sample_rom_size = sizeof(samples);
+    EXPECT_TRUE(vf2_sound_board_copy_stream_page_512(NULL, 0u) ==
+                VF2_ERROR_INVALID_ARGUMENT);
+    EXPECT_TRUE(vf2_sound_board_copy_stream_page_512(&b, 32u) ==
+                VF2_ERROR_INVALID_ARGUMENT);
+    EXPECT_TRUE(vf2_sound_board_copy_stream_page_512(&b, 0u) ==
+                VF2_ERROR_UNSUPPORTED);
+
+    slot0[0] = 0x80u;
+    store_pcm_cursor(slot0 + 2u, UINT32_C(0x800200));
+    store_pcm_cursor(slot0 + 6u, UINT32_C(0x10200));
+    memset(b.sound_ram + 0x10200u, 0xa5, 1024u);
+    EXPECT_TRUE(vf2_sound_board_copy_stream_page_512(&b, 0u) == VF2_OK);
+    EXPECT_TRUE(memcmp(b.sound_ram + 0x10200u,
+                       samples + 0x200u, 512u) == 0);
+    EXPECT_TRUE(slot0[0] == 0x80u && slot0[4] == 0x04u &&
+                slot0[8] == 0x04u);
+    EXPECT_TRUE(b.sound_ram[0x10400u] == 0xa5u);
+    EXPECT_TRUE(vf2_sound_board_copy_stream_page_512(&b, 0u) == VF2_OK);
+    EXPECT_TRUE(memcmp(b.sound_ram + 0x10400u,
+                       samples + 0x400u, 512u) == 0);
+    EXPECT_TRUE(slot0[4] == 0x06u && slot0[8] == 0x06u);
+
+    /* The observed first full original walker also touched slot 7.
+     * Its independent record must not alias the slot-0 cursors. */
+    slot7[0] = 0x80u;
+    store_pcm_cursor(slot7 + 2u, UINT32_C(0x800000));
+    store_pcm_cursor(slot7 + 6u, UINT32_C(0x12000));
+    EXPECT_TRUE(vf2_sound_board_copy_stream_page_512(&b, 7u) == VF2_OK);
+    EXPECT_TRUE(memcmp(b.sound_ram + 0x12000u, samples, 512u) == 0);
+    EXPECT_TRUE(slot7[4] == 0x02u && slot7[8] == 0x02u);
+    EXPECT_TRUE(slot0[4] == 0x06u && slot0[8] == 0x06u);
+
+    /* Alternate/unknown flags stay held and cursors unmodified. */
+    slot7[0] = 0x81u;
+    memcpy(old_record, slot7, sizeof(old_record));
+    EXPECT_TRUE(vf2_sound_board_copy_stream_page_512(&b, 7u) ==
+                VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(memcmp(old_record, slot7, sizeof(old_record)) == 0);
+    slot7[0] = 0x80u;
+    memset(b.sound_ram + 0x12200u, 0x5a, 512u);
+
+    /* Invalid alignment, past-ROM and past-RAM must not partially copy
+     * and must preserve both 32-bit cursor words exactly. */
+    store_pcm_cursor(slot7 + 2u, UINT32_C(0x800001));
+    store_pcm_cursor(slot7 + 6u, UINT32_C(0x12200));
+    memcpy(old_record, slot7, sizeof(old_record));
+    EXPECT_TRUE(vf2_sound_board_copy_stream_page_512(&b, 7u) ==
+                VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(memcmp(old_record, slot7, sizeof(old_record)) == 0);
+    EXPECT_TRUE(b.sound_ram[0x12200u] == 0x5au);
+
+    store_pcm_cursor(slot7 + 2u, UINT32_C(0x800700));
+    memcpy(old_record, slot7, sizeof(old_record));
+    EXPECT_TRUE(vf2_sound_board_copy_stream_page_512(&b, 7u) ==
+                VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(memcmp(old_record, slot7, sizeof(old_record)) == 0);
+    EXPECT_TRUE(b.sound_ram[0x12200u] == 0x5au);
+
+    store_pcm_cursor(slot7 + 2u, UINT32_C(0x800000));
+    store_pcm_cursor(slot7 + 6u, UINT32_C(0x7ff00));
+    memcpy(old_record, slot7, sizeof(old_record));
+    EXPECT_TRUE(vf2_sound_board_copy_stream_page_512(&b, 7u) ==
+                VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(memcmp(old_record, slot7, sizeof(old_record)) == 0);
+    EXPECT_TRUE(b.sound_ram[0x7ff00u] == 0u);
+}
+
 int main(void)
 {
     static uint8_t audio_rom[0x10010u];
@@ -1848,6 +1940,7 @@ int main(void)
            landed before the 5th record tripped the guard. */
         EXPECT_TRUE(board.sound_ram[0x50000u] == 0xdeu);
     }
+    test_pcm_stream_page_native();
     test_render_first_tone();
     test_ad21_b_class_drain();
     test_ad21_ba_does_not_stage();

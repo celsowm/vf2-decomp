@@ -526,6 +526,40 @@ vf2_status vf2_sound_board_copy_engine_page_512(
     return VF2_OK;
 }
 
+/* The original 0x2242 walker maintains 32 stream records at sound
+ * RAM 0x2000 + slot*0x20. In the measured 0x80-active Akira case,
+ * +2 and +6 contain the BE32 source/destination page cursors.
+ * Only the independently recovered 512-byte page-and-cursor effect
+ * is translated here; actual walker selection/timing stays original
+ * 68000-only until its predicate is differentially verified. */
+vf2_status vf2_sound_board_copy_stream_page_512(
+    vf2_sound_board *board, size_t slot_index
+)
+{
+    uint8_t *stream;
+    uint32_t source;
+    uint32_t destination;
+    vf2_status result;
+    if (board == NULL || slot_index >= VF2_SOUND_VOICE_COUNT) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    stream = board->sound_ram + UINT32_C(0x2000) +
+             slot_index * UINT32_C(0x20);
+    if (stream[0] != UINT8_C(0x80)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    source = read_be32(stream + 2u);
+    destination = read_be32(stream + 6u);
+    result = vf2_sound_board_copy_engine_page_512(
+        board, &source, &destination);
+    if (result != VF2_OK) {
+        return result;
+    }
+    write_be32(stream + 2u, source);
+    write_be32(stream + 6u, destination);
+    return VF2_OK;
+}
+
 /* ROM 0xD72..0xD90: 7 instructions, stop BEFORE RTS at 0xD90.
  *   move.w (a1),d4; move.l a0,2(a3,d4.w)
  *   move.l a2,6(a3,d4.w); move.b (a5,d4.w),d5
