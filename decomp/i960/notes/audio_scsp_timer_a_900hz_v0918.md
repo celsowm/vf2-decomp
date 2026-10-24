@@ -1,6 +1,6 @@
 # v0918 — VF2.1 SCSP Timer-A cadence: 49 frames, not 50
 
-Date: 2026-10-24. Original owner sound chip: \`epr-17574.30\`,
+Date: 2026-10-24. Original owner sound chip: `epr-17574.30`,
 reconstructed as LOAD16_WORD_SWAP from the user's private VF2.1 ROM.
 No game ROM, PCM, instruction trace dump or WAV is committed.
 
@@ -12,29 +12,29 @@ SCSP register window at 0x100000.
 | PC / vector | Original instruction / data | Meaning |
 | --- | --- | --- |
 | vector 26 (0x68) | 0x601f16 | ISR entry at audio ROM offset 0x1f16 |
-| 0x02f4 | \`MOVE.W #0x00ce,0x0418(A5)\` | Timer-A boot load |
-| 0x1f1a | \`MOVE.W #0x00ce,0x0418(A5)\` | Timer-A ISR reload |
-| 0x1f20 | \`MOVE.W #0x0040,0x0422(A5)\` | Timer-A interrupt enabled |
+| 0x02f4 | `MOVE.W #0x00ce,0x0418(A5)` | Timer-A boot load |
+| 0x1f1a | `MOVE.W #0x00ce,0x0418(A5)` | Timer-A ISR reload |
+| 0x1f20 | `MOVE.W #0x0040,0x0422(A5)` | Timer-A interrupt enabled |
 
 The opcode verifier rejects unexpected vector targets, instructions,
 destination offsets, reload mismatches and disabled interrupt bits.
 It accepts both private VF2 ZIP sets and a directory containing
-\`epr-17574.30\` and emits **derived JSON only**, never ROM bytes.
+`epr-17574.30` and emits **derived JSON only**, never ROM bytes.
 
-\`\`\`sh
+```sh
 python3 tools/python/audio_scsp_tima_rom.py /private/vf2-rom.zip
 python3 tools/python/test_audio_scsp_tima_rom.py
-\`\`\`
+```
 
 The SCSP User's Manual §4.2.11 says the three timer counters
 increment at 44,100Hz / 2^prescaler and expire at 0xFF.
 The low byte of 0x00CE is decimal 206, and prescaler is zero:
 
-\`\`\`text
+```text
 (0xFF - 0xCE) * (1 << 0) = 49 sample frames
 44,100 / 49 = 900 possible Timer-A expiries per second
 441,000 / 49 = 9,000 possible ticks during ten seconds
-\`\`\`
+```
 
 **This corrects the former arbitrary experiment of 50 frames /
 882 ticks per second** (50 frames vs the ROM-programmed 49).
@@ -56,23 +56,23 @@ rather than verbatim code to copy:
 The existing 10-second owner-ROM test now has **separate opt-in modes**
 that keep the old 882Hz path intact:
 
-\`\`\`sh
+```sh
 vf2_m68k_l3_selection_tests /private/vf2-rom --verify-akira-tima-10s
 vf2_m68k_l3_selection_tests /private/vf2-rom \
     --akira-tima-native-wav-dir /private/out-c
 vf2_m68k_l3_selection_tests /private/vf2-rom \
     --akira-tima-original-wav-dir /private/out-68000
-\`\`\`
+```
 
 Before enabling the 49-frame interval it compares the ROM opcode
 locations and boot/live SCSP Timer-A register value with the
 model's timer formula. Then it executes the unchanged original
 L2 ISR and command-drain interpreter, feeding either the
-**native C** or original-MC68000 \`0x2242\` PCM walker. SCSP
+**native C** or original-MC68000 `0x2242` PCM walker. SCSP
 renders 49 frames after each tick (no forced time stretching).
 
 Measured locally against the owner's ROM and CI Linux binary for
-commit \`032ea7a\` on 2026-10-24:
+commit `032ea7a` on 2026-10-24:
 
 | Metric | Old 50-frame experiment | Timer-derived 49-frame mode |
 | --- | ---: | ---: |
@@ -85,16 +85,16 @@ commit \`032ea7a\` on 2026-10-24:
 | Full C vs original RAM/SCSP mismatches | 0 | **0** |
 
 The strict 49-frame test exited **0**:
-\`AKIRA_COMPOSITE_10S_STRICT parity=1 ticks=9000 passes=288000
+`AKIRA_COMPOSITE_10S_STRICT parity=1 ticks=9000 passes=288000
 original_pages=2205 original_steps=5078020 modeled_cadence=900Hz
-realtime_verified=0\`.
+realtime_verified=0`.
 
 Both 900Hz WAV previews exited 0 and are **bitwise identical**
 (1,764,044 bytes each, stereo 44,100Hz). SHA-256 of *both*:
 
-\`\`\`text
+```text
 463d20c14383c408fd5b55dd78c36675ed3ca3c3bc06a76a92dd0e5f36de5b3e
-\`\`\`
+```
 
 The 900Hz audio is **not byte-identical** to the 882Hz preview:
 419,726 of 441,000 stereo frames differ, as expected from
