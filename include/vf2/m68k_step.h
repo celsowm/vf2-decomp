@@ -137,8 +137,8 @@ vf2_status vf2_m68k_irq_autovector_enter_timed(
  * cycle_budget. Unknown opcode timings refuse BEFORE execution, with
  * VF2_ERROR_UNSUPPORTED and all completed prior work preserved.
  * Only the explicitly verified timing subset is admitted: MOVEQ,
- * NOP, BRA/Bcc/DBcc, MOVEM.L -(An)/(An)+, RTS and RTE.
- * BSR is NOT admitted until the stepper models its stack push.
+ * NOP, BRA/BSR/Bcc/DBcc, selected JSR/JMP/LEA addressing,
+ * MOVEM.L -(An)/(An)+, RTS and RTE.
  * All values are baseline Motorola 68000 clock cycles, excluding
  * optional external wait states and interrupt-entry overhead.
  *

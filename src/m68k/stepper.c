@@ -1567,7 +1567,22 @@ static vf2_status step_bcc(
     /* The displacement is relative to the address of the extension
      * word, i.e. opcode address + 2, for both forms. */
     base = pc + (uint32_t)*off;
-    if (bcc_holds(regs, cond)) {
+    if (cond == 1u) {
+        /* BSR.B/W is unconditional but unlike BRA MUST push the
+         * address following the displacement. The earlier oracle
+         * mistakenly fell through because bcc_holds(cond=1)=0.
+         * Refuse an unmapped SP without changing A7 on failure. */
+        uint32_t new_sp;
+        if ((regs->a[7] & UINT32_C(1)) != 0u ||
+            regs->a[7] < UINT32_C(4)) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        new_sp = regs->a[7] - UINT32_C(4);
+        status = bus_write(bus, new_sp, 2u, base);
+        if (status != VF2_OK) return status;
+        regs->a[7] = new_sp;
+        *new_pc = pc + 2u + (uint32_t)disp;
+    } else if (bcc_holds(regs, cond)) {
         *new_pc = pc + 2u + (uint32_t)disp;
     } else {
         *new_pc = base;
@@ -2288,6 +2303,38 @@ static vf2_status vf2_m68k_cycle_cost(
         *cost = 16u;
         return VF2_OK;
     }
+    /* Table 8-10: 68000 PC-relative JSR and 16-bit displaced
+     * LEA are 18 and 8 clocks respectively (zero wait states).
+     * The VF2 Timer-A ISR calls helper routines using 4EBA.
+     * Admit only address forms already executed by the stepper. */
+    if (op == UINT16_C(0x4eba) ||
+        (op & UINT16_C(0xfff8)) == UINT16_C(0x4e90)) {
+        *cost = op == UINT16_C(0x4eba) ? 18u : 16u;
+        return VF2_OK;
+    }
+    if (op == UINT16_C(0x4eb9)) {
+        *cost = 20u;
+        return VF2_OK;
+    }
+    if (op == UINT16_C(0x4efa) ||
+        (op & UINT16_C(0xfff8)) == UINT16_C(0x4ed0)) {
+        *cost = op == UINT16_C(0x4efa) ? 10u : 8u;
+        return VF2_OK;
+    }
+    if (op == UINT16_C(0x4ef9)) {
+        *cost = 12u;
+        return VF2_OK;
+    }
+    if ((op & UINT16_C(0xf1f8)) == UINT16_C(0x41e8)) {
+        /* LEA (d16,An),Ax; v1 ISR loads A2 from A6.
+         * Also support the direct register (An) form. */
+        *cost = 8u;
+        return VF2_OK;
+    }
+    if ((op & UINT16_C(0xf1f8)) == UINT16_C(0x41d0)) {
+        *cost = 4u;
+        return VF2_OK;
+    }
     if (op == UINT16_C(0x4e73) && regs->irq_active != 0u) {
         *cost = 20u;
         return VF2_OK;
@@ -2328,10 +2375,8 @@ static vf2_status vf2_m68k_cycle_cost(
         if (condition == 0u) {
             *cost = 10u; /* BRA, byte or word */
         } else if (condition == 1u) {
-            /* Existing step_bcc does NOT model BSR's saved return
-             * PC on the 68000 stack. Never admit a timing whose
-             * instruction semantics cannot be trusted. */
-            return VF2_ERROR_UNSUPPORTED;
+            /* BSR.B/W pushes a return PC in step_bcc. */
+            *cost = 18u;
         } else {
             *cost = bcc_holds(regs, condition) ? 10u :
                 (short_disp == 0u ? 12u : 8u);

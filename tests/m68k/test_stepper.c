@@ -618,5 +618,85 @@ int main(void)
             NULL, 1u, &expiries) == VF2_ERROR_INVALID_ARGUMENT);
     }
 
+    /* BSR.B/W is NOT an ordinary conditional branch: it must
+     * push the next-PC, branch and return via RTS. Cost =18.
+     * VF2 also uses JSR (d16,PC) inside the actual 0x1F16 ISR. */
+    {
+        static const uint8_t bsr_byte[] = {
+            0x61u, 0x04u, /* 0x00 BSR.B to 0x06, return 0x02 */
+            0x4eu, 0x71u, /* 0x02 NOP */
+            0x60u, 0x06u, /* 0x04 BRA to 0x0c (not visited) */
+            0x70u, 0x09u, /* 0x06 MOVEQ #9,D0 */
+            0x4eu, 0x75u, /* 0x08 RTS */
+            0x4eu, 0x71u  /* 0x0a NOP */
+        };
+        static const uint8_t bsr_word[] = {
+            0x61u, 0x00u, 0x00u, 0x06u, /* BSR.W target 0x08 */
+            0x4eu, 0x71u,             /* 0x04 return NOP */
+            0x4eu, 0x71u,             /* 0x06 NOP */
+            0x72u, 0x07u,             /* 0x08 MOVEQ #7,D1 */
+            0x4eu, 0x75u              /* 0x0a RTS */
+        };
+        static const uint8_t jsr_pc[] = {
+            0x4eu, 0xbau, 0x00u, 0x06u, /* 0x00 JSR (6,PC) ->8 */
+            0x4eu, 0x71u,             /* 0x04 NOP return */
+            0x4eu, 0x71u,             /* 0x06 NOP */
+            0x72u, 0x03u,             /* 0x08 MOVEQ #3,D1 */
+            0x4eu, 0x75u              /* 0x0a RTS */
+        };
+        const uint8_t *roms[] = { bsr_byte, bsr_word, jsr_pc };
+        const size_t lens[] = {
+            sizeof(bsr_byte), sizeof(bsr_word), sizeof(jsr_pc)
+        };
+        const uint32_t costs[] = { 18u, 18u, 18u };
+        const uint32_t targets[] = { 6u, 8u, 8u };
+        const uint32_t returns[] = { 2u, 4u, 4u };
+        size_t k;
+        for (k = 0u; k < 3u; ++k) {
+            uint32_t cycles = 0u, steps = 0u;
+            int paused = 0;
+            const uint32_t top = UINT32_C(0x7000);
+            make_bus(&bus, &scsp, ram, roms[k], lens[k]);
+            vf2_m68k_regs_reset(&regs);
+            regs.a[7] = top;
+            status = vf2_m68k_run_cycle_slice(
+                &bus, &regs, targets[k], costs[k] - 1u,
+                &cycles, &steps, &paused);
+            EXPECT_TRUE(status == VF2_OK && paused &&
+                        cycles == 0u && steps == 0u &&
+                        regs.pc == 0u && regs.a[7] == top);
+            status = vf2_m68k_run_cycle_slice(
+                &bus, &regs, targets[k], costs[k],
+                &cycles, &steps, &paused);
+            EXPECT_TRUE(status == VF2_OK && !paused &&
+                        cycles == costs[k] && steps == 1u &&
+                        regs.pc == targets[k] &&
+                        regs.a[7] == top - 4u);
+            EXPECT_TRUE(ram[top - 4u] == 0u &&
+                        ram[top - 3u] == 0u &&
+                        ram[top - 2u] == 0u &&
+                        ram[top - 1u] == returns[k]);
+            status = vf2_m68k_run_cycle_slice(
+                &bus, &regs, returns[k], 20u,
+                &cycles, &steps, &paused);
+            EXPECT_TRUE(status == VF2_OK && !paused &&
+                        cycles == 20u && steps == 2u &&
+                        regs.pc == returns[k] &&
+                        regs.a[7] == top);
+        }
+        /* Out-of-range SP must not partially change registers. */
+        make_bus(&bus, &scsp, ram, bsr_byte, sizeof(bsr_byte));
+        vf2_m68k_regs_reset(&regs);
+        regs.a[7] = UINT32_C(2);
+        {
+            uint32_t cycles = 0u, steps = 0u;
+            int paused = 0;
+            status = vf2_m68k_run_cycle_slice(
+                &bus, &regs, 6u, 18u, &cycles, &steps, &paused);
+        }
+        EXPECT_TRUE(status == VF2_ERROR_UNSUPPORTED &&
+                    regs.a[7] == 2u && regs.pc == 0u);
+    }
+
     return failures == 0 ? 0 : 1;
 }
