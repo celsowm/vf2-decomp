@@ -2445,7 +2445,9 @@ int main(int argc, char **argv)
                         strcmp(argv[2], "--akira-sequenced-wav-dir") == 0 ||
                         strcmp(argv[2], "--akira-prefill-wav-dir") == 0 ||
                         strcmp(argv[2], "--akira-original-walk-wav-dir") == 0 ||
-                        strcmp(argv[2], "--akira-native-walk-wav-dir") == 0)) &&
+                        strcmp(argv[2], "--akira-native-walk-wav-dir") == 0 ||
+                        strcmp(argv[2], "--akira-tima-native-wav-dir") == 0 ||
+                        strcmp(argv[2], "--akira-tima-original-wav-dir") == 0)) &&
         !(argc == 3 &&
           (strcmp(argv[2], "--matrix-l3") == 0 ||
            strcmp(argv[2], "--probe-akira-music") == 0 ||
@@ -2453,17 +2455,21 @@ int main(int argc, char **argv)
            strcmp(argv[2], "--probe-akira-progress") == 0 ||
            strcmp(argv[2], "--probe-akira-walk") == 0 ||
            strcmp(argv[2], "--verify-akira-walk") == 0 ||
-           strcmp(argv[2], "--verify-akira-composite-10s") == 0))) {
+           strcmp(argv[2], "--verify-akira-composite-10s") == 0 ||
+           strcmp(argv[2], "--verify-akira-tima-10s") == 0))) {
         fprintf(stderr,
                 "usage: %s <vf2-rom-directory> [--l3-packet <six-hex-digits> "
                 "| --uart-stream <even-hex-digits> | --matrix-l3 "
                 "| --probe-akira-music | --verify-akira-music "
                 "| --probe-akira-progress | --probe-akira-walk "
                 "| --verify-akira-walk | --verify-akira-composite-10s "
+                "| --verify-akira-tima-10s "
                 "| --akira-wav-dir DIRECTORY | --akira-sequenced-wav-dir DIRECTORY "
                 "| --akira-prefill-wav-dir DIRECTORY "
                 "| --akira-original-walk-wav-dir DIRECTORY "
-                "| --akira-native-walk-wav-dir DIRECTORY]\n",
+                "| --akira-native-walk-wav-dir DIRECTORY "
+                "| --akira-tima-native-wav-dir DIRECTORY "
+                "| --akira-tima-original-wav-dir DIRECTORY]\n",
                 argv[0]);
         return 2;
     }
@@ -2474,7 +2480,8 @@ int main(int argc, char **argv)
                          strcmp(argv[2], "--probe-akira-progress") == 0 ||
                          (strcmp(argv[2], "--probe-akira-walk") == 0 ||
                         strcmp(argv[2], "--verify-akira-walk") == 0 ||
-                         strcmp(argv[2], "--verify-akira-composite-10s") == 0));
+                         strcmp(argv[2], "--verify-akira-composite-10s") == 0 ||
+                         strcmp(argv[2], "--verify-akira-tima-10s") == 0));
     akira_music_progress = argc == 3 &&
                            strcmp(argv[2], "--probe-akira-progress") == 0;
     akira_walk_probe = argc == 3 &&
@@ -2485,10 +2492,14 @@ int main(int argc, char **argv)
     akira_music_strict = argc == 3 &&
                          strcmp(argv[2], "--verify-akira-music") == 0;
     akira_verify_composite_ticks = argc == 3 &&
-        strcmp(argv[2], "--verify-akira-composite-10s") == 0;
+        (strcmp(argv[2], "--verify-akira-composite-10s") == 0 ||
+         strcmp(argv[2], "--verify-akira-tima-10s") == 0);
     if (akira_verify_composite_ticks) {
         akira_original_walk_preview = 1;
         akira_music_progress = 1;
+        if (strcmp(argv[2], "--verify-akira-tima-10s") == 0) {
+            akira_tima_49_preview = 1;
+        }
     }
     l3_stream = argc == 4 &&
         strcmp(argv[2], "--uart-stream") == 0;
@@ -2519,6 +2530,17 @@ int main(int argc, char **argv)
         akira_music_probe = 1;
         akira_music_progress = 1;
         akira_native_walk_preview = 1;
+        akira_sequenced_dir = argv[3];
+    }
+    if (argc == 4 &&
+        (strcmp(argv[2], "--akira-tima-native-wav-dir") == 0 ||
+         strcmp(argv[2], "--akira-tima-original-wav-dir") == 0)) {
+        akira_music_probe = 1;
+        akira_music_progress = 1;
+        akira_tima_49_preview = 1;
+        akira_native_walk_preview =
+            strcmp(argv[2], "--akira-tima-native-wav-dir") == 0;
+        akira_original_walk_preview = !akira_native_walk_preview;
         akira_sequenced_dir = argv[3];
     }
     if (argc == 4 && akira_wav_dir == NULL &&
