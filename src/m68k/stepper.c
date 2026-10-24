@@ -2286,7 +2286,10 @@ static vf2_status vf2_m68k_cycle_cost(
         if (condition == 0u) {
             *cost = 10u; /* BRA, byte or word */
         } else if (condition == 1u) {
-            *cost = 18u; /* BSR, byte or word */
+            /* Existing step_bcc does NOT model BSR's saved return
+             * PC on the 68000 stack. Never admit a timing whose
+             * instruction semantics cannot be trusted. */
+            return VF2_ERROR_UNSUPPORTED;
         } else {
             *cost = bcc_holds(regs, condition) ? 10u :
                 (short_disp == 0u ? 12u : 8u);

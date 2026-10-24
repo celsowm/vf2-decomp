@@ -464,5 +464,83 @@ int main(void)
         EXPECT_TRUE(regs.pc == 2u && regs.d[0] == 1u);
     }
 
+    /* Branch-dependent exact 68000 timing. All branches are
+     * executed by the *existing* stepper, not a second CPU
+     * implementation. DBcc taken/expired costs 10/14,
+     * conditional .W miss=12, .B miss=8, hit=10. */
+    {
+        static const uint8_t dbf_rom[] = {
+            0x51u, 0xc8u, 0xffu, 0xfeu, /* DBF D0,-2 */
+            0x4eu, 0x71u
+        };
+        uint32_t cycles = 0u, steps = 0u;
+        int paused = 0;
+        make_bus(&bus, &scsp, ram, dbf_rom, sizeof(dbf_rom));
+        vf2_m68k_regs_reset(&regs);
+        regs.d[0] = 1u;
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 4u, 10u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && paused &&
+                    cycles == 10u && steps == 1u);
+        EXPECT_TRUE(regs.pc == 0u && regs.d[0] == 0u);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 4u, 13u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && paused &&
+                    cycles == 0u && steps == 0u && regs.pc == 0u);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 4u, 14u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && !paused &&
+                    cycles == 14u && steps == 1u);
+        EXPECT_TRUE(regs.pc == 4u &&
+                    (regs.d[0] & UINT32_C(0xffff)) ==
+                        UINT32_C(0xffff));
+    }
+    {
+        static const uint8_t branch_w[] = {
+            0x67u, 0x00u, 0x00u, 0x02u, /* BEQ.W +2 */
+            0x4eu, 0x71u
+        };
+        static const uint8_t branch_b[] = {
+            0x67u, 0x02u, /* BEQ.B +2 */
+            0x4eu, 0x71u
+        };
+        static const uint8_t bsr_unsupported[] = {
+            0x61u, 0x02u, 0x4eu, 0x71u
+        };
+        uint32_t cycles = 0u, steps = 0u;
+        int paused = 0;
+        make_bus(&bus, &scsp, ram, branch_w, sizeof(branch_w));
+        vf2_m68k_regs_reset(&regs);
+        regs.z = 0u;
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 4u, 12u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && !paused &&
+                    cycles == 12u && steps == 1u &&
+                    regs.pc == 4u);
+        make_bus(&bus, &scsp, ram, branch_b, sizeof(branch_b));
+        vf2_m68k_regs_reset(&regs);
+        regs.z = 0u;
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 2u, 8u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && !paused &&
+                    cycles == 8u && steps == 1u && regs.pc == 2u);
+        regs.pc = 0u;
+        regs.z = 1u;
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 4u, 10u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && !paused &&
+                    cycles == 10u && steps == 1u && regs.pc == 4u);
+        make_bus(&bus, &scsp, ram, bsr_unsupported,
+                 sizeof(bsr_unsupported));
+        vf2_m68k_regs_reset(&regs);
+        regs.a[7] = UINT32_C(0x7000);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 4u, 100u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_ERROR_UNSUPPORTED &&
+                    cycles == 0u && steps == 0u &&
+                    !paused && regs.a[7] == UINT32_C(0x7000) &&
+                    regs.pc == 0u);
+    }
+
     return failures == 0 ? 0 : 1;
 }
