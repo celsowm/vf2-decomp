@@ -807,10 +807,13 @@ static void test_pcm_walker_short_terminal(void)
     store_pcm_cursor(r + 6u, UINT32_C(0x12200));
     store_pcm_cursor(r + 0x0eu, UINT32_C(0x12400));
     b.scsp.registers[0x409u] = 0u;
+    b.scsp.registers[0x408u] = 0x11u;
     memcpy(saved, r, sizeof(saved));
     EXPECT_TRUE(vf2_sound_board_step_stream_short_terminal(&b, 5u) ==
-                VF2_ERROR_UNSUPPORTED);
+                VF2_OK);
     EXPECT_TRUE(memcmp(saved, r, sizeof(saved)) == 0);
+    EXPECT_TRUE(b.sound_ram[0x12400u] == 0u);
+    EXPECT_TRUE(b.scsp.registers[0x408u] == 0x6bu);
     b.scsp.registers[0x409u] = 0x80u;
     EXPECT_TRUE(vf2_sound_board_step_stream_short_terminal(&b, 5u) ==
                 VF2_OK);
@@ -826,10 +829,13 @@ static void test_pcm_walker_short_terminal(void)
     store_pcm_cursor(r + 2u, UINT32_C(0x800800));
     store_pcm_cursor(r + 6u, UINT32_C(0x12600));
     b.scsp.registers[0x409u] = 0x80u;
+    b.scsp.registers[0x408u] = 0x11u;
     memcpy(saved, r, sizeof(saved));
     EXPECT_TRUE(vf2_sound_board_step_stream_short_terminal(&b, 5u) ==
-                VF2_ERROR_UNSUPPORTED);
+                VF2_OK);
     EXPECT_TRUE(memcmp(saved, r, sizeof(saved)) == 0);
+    EXPECT_TRUE(b.sound_ram[0x12600u] == 0u);
+    EXPECT_TRUE(b.scsp.registers[0x408u] == 0x6bu);
     b.scsp.registers[0x409u] = 0u;
     EXPECT_TRUE(vf2_sound_board_step_stream_short_terminal(&b, 5u) ==
                 VF2_OK);

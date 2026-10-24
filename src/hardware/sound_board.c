@@ -870,7 +870,11 @@ vf2_status vf2_sound_board_step_stream_short_terminal(
     if ((mode == 0u && (midi_status & UINT8_C(0x80)) == 0u) ||
         (mode == UINT8_C(0x80) &&
          (midi_status & UINT8_C(0x80)) != 0u)) {
-        return VF2_ERROR_UNSUPPORTED;
+        /* 0x2282 BEQ/0x22B0 BNE: both branch to shared
+         * 0x265C. There is no PCM copy or descriptor change,
+         * but the SCSP master-byte write must still occur. */
+        return vf2_scsp_write_u8(
+            &board->scsp, UINT32_C(0x0408), record[0x16u]);
     }
     source = read_be32(record + 2u);
     start_destination = read_be32(record + (mode == 0u ? 0x0eu : 6u));

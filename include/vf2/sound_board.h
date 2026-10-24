@@ -225,7 +225,9 @@ vf2_status vf2_sound_board_step_stream_short_release(
  * If mode bit7 is set, follow the 0x260C release tail instead:
  * update SCSP slot+1/+6, release stream, update voice status/countdown.
  * Both terminate via the observed 0x265C SCSP master byte write.
- * Requires explicit call: scheduler/IRQ cadence remains unrecovered. */
+ * Mode 0x00 with MIDI7 clear or mode 0x80 with MIDI7 set branches
+ * directly to 0x265C without copying or changing the descriptor,
+ * but still writes SCSP 0x0408. Requires explicit call: scheduler/IRQ cadence remains unrecovered. */
 vf2_status vf2_sound_board_step_stream_short_terminal(
     vf2_sound_board *board, size_t slot_index
 );

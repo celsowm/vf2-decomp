@@ -209,3 +209,16 @@ clear and immediately releases). Every variant starts at 0x2242
 in the actual original 68000 stepper and is compared byte-for-byte
 to the bounded C helper. This isolates exceptional hardware-flag
 behavior from soundtrack cadence assumptions.
+
+## v0911 — hardware-gated no-copy exits (0x2282 / 0x22B0)
+
+The 68000's MIDI7 gates for special mode 0x00 (MIDI7 clear)
+and mode 0x80 (MIDI7 set) branch straight to the shared
+0x265C exit. They do not copy a page or mutate the stream,
+but they **do write descriptor +0x16 to SCSP 0x0408**.
+The bounded terminal native function now reproduces that side
+effect rather than refusing with no changes. Two additional
+owner-ROM fixture variants (six total) assert all descriptor,
+sample-RAM, SCSP and voice-register comparisons. The ROM-free
+test checks the absence of sample edits in both no-copy variants.
+No scheduling claim is made.
