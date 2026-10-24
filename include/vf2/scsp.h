@@ -46,6 +46,17 @@ typedef struct vf2_scsp {
     uint8_t slot_backward[VF2_SCSP_SLOT_COUNT];
 } vf2_scsp;
 
+/* Timer A is an 8-bit UP counter. Its low-byte reload
+ * reaches FF in (0xFF - reload) increments, at one increment
+ * every 2^TACTL SCSP 44.1kHz sample frames.
+ *
+ * This PURE formula does not assert/clear IRQ or advance an M68K.
+ * Use a real register image + IRQ source/cadence verification before
+ * scheduling the driver. FF has no finite countdown. */
+vf2_status vf2_scsp_timer_a_interval_frames(
+    uint16_t tima_word, uint32_t *interval_frames
+);
+
 void vf2_scsp_initialize(vf2_scsp *scsp);
 void vf2_scsp_reset(vf2_scsp *scsp);
 

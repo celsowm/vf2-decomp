@@ -66,6 +66,38 @@ int main(void)
     EXPECT_TRUE(vf2_scsp_read_sample(&scsp, 4u, sample_copy, sizeof(sample_copy)) == VF2_OK);
     EXPECT_TRUE(memcmp(sample_copy, "VF2!", sizeof(sample_copy)) == 0);
 
+    /* SCSP official timer formula (FF - TIMA)*2^TACTL.
+     * Original VF2 sound ROM writes #0x00CE to SCSP 0x0418
+     * and #0x0040 to SCSP 0x0422 on L2 interrupt entry. */
+    {
+        uint32_t frames = UINT32_C(0xcafe);
+        EXPECT_TRUE(vf2_scsp_timer_a_interval_frames(
+            UINT16_C(0x00ce), &frames) == VF2_OK);
+        EXPECT_TRUE(frames == 49u);
+        EXPECT_TRUE(UINT32_C(44100) / frames == 900u);
+        EXPECT_TRUE(vf2_scsp_timer_a_interval_frames(
+            UINT16_C(0x00fe), &frames) == VF2_OK);
+        EXPECT_TRUE(frames == 1u);
+        EXPECT_TRUE(vf2_scsp_timer_a_interval_frames(
+            UINT16_C(0x0000), &frames) == VF2_OK);
+        EXPECT_TRUE(frames == 255u);
+        EXPECT_TRUE(vf2_scsp_timer_a_interval_frames(
+            UINT16_C(0x03ce), &frames) == VF2_OK);
+        EXPECT_TRUE(frames == 392u);
+        EXPECT_TRUE(vf2_scsp_timer_a_interval_frames(
+            UINT16_C(0x07fe), &frames) == VF2_OK);
+        EXPECT_TRUE(frames == 128u);
+        frames = UINT32_C(0xcafe);
+        EXPECT_TRUE(vf2_scsp_timer_a_interval_frames(
+            UINT16_C(0x00ff), &frames) == VF2_ERROR_UNSUPPORTED);
+        EXPECT_TRUE(frames == UINT32_C(0xcafe));
+        EXPECT_TRUE(vf2_scsp_timer_a_interval_frames(
+            UINT16_C(0x08ce), &frames) == VF2_ERROR_UNSUPPORTED);
+        EXPECT_TRUE(frames == UINT32_C(0xcafe));
+        EXPECT_TRUE(vf2_scsp_timer_a_interval_frames(
+            UINT16_C(0x00ce), NULL) == VF2_ERROR_INVALID_ARGUMENT);
+    }
+
     samples[0] = 0x40u;
     samples[1] = 0x60u;
     samples[2] = 0x20u;

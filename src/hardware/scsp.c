@@ -271,6 +271,30 @@ static void update_midi_pending(vf2_scsp *scsp)
     write_be16(scsp->registers + 0x0420u, pending);
 }
 
+/* SCSP User's Manual §4.2.11: for 44.1kHz sampled time,
+ * TACTL=0..7 increments every 1,2,4,..128 PCM frames.
+ * A timer loaded with FE expires after ONE increment:
+ * FF (0xFF) - FE (0xFE), NOT 256 - FE.
+ * This does not synthesize pending IRQs or CPU instruction cycles. */
+vf2_status vf2_scsp_timer_a_interval_frames(
+    uint16_t tima_word, uint32_t *interval_frames
+)
+{
+    uint32_t increment_count;
+    uint32_t prescale;
+    if (interval_frames == NULL) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    if ((tima_word & UINT16_C(0xf800)) != 0u ||
+        (tima_word & UINT16_C(0x00ff)) == UINT16_C(0x00ff)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    increment_count = UINT32_C(255) - (tima_word & UINT16_C(255));
+    prescale = UINT32_C(1) << ((tima_word >> 8u) & UINT16_C(7));
+    *interval_frames = increment_count * prescale;
+    return VF2_OK;
+}
+
 void vf2_scsp_initialize(vf2_scsp *scsp)
 {
     if (scsp != NULL) {
