@@ -639,6 +639,7 @@ static unsigned akira_native_full_page_vs_original(
     const int original_copied = actual_source != prior_source &&
                                 actual_dest != prior_dest;
     vf2_status native_status;
+    int short_branch = 0;
     int parity = 0;
     memcpy(candidate.sound_ram, pre, VF2_SOUND_RAM_BYTES);
     memcpy(&candidate.scsp, pre_scsp, sizeof(candidate.scsp));
@@ -646,6 +647,11 @@ static unsigned akira_native_full_page_vs_original(
     candidate.sample_rom_size = sample_bank_size;
     native_status =
         vf2_sound_board_step_stream_full_page(&candidate, slot);
+    if (native_status == VF2_ERROR_UNSUPPORTED) {
+        native_status = vf2_sound_board_step_stream_short_loop_page(
+            &candidate, slot);
+        short_branch = native_status == VF2_OK;
+    }
     if (native_status == VF2_OK) {
         parity = original_copied &&
             copy_dest <= VF2_SOUND_RAM_BYTES - 512u &&
@@ -654,12 +660,13 @@ static unsigned akira_native_full_page_vs_original(
                    post + copy_dest, 512u) == 0 &&
             candidate.scsp.registers[0x408u] ==
                 post_scsp->registers[0x408u];
-        printf("AKIRA_NATIVE_FULL_PAGE slot=%u status=%d "
+        printf("AKIRA_NATIVE_PAGE slot=%u short_loop=%u status=%d "
                "original_copy=%u record_pcm_parity=%u "
                "source_before=%08x source_after=%08x "
                "destination_before=%08x destination_after=%08x\n",
-               slot, (int)native_status, (unsigned)original_copied,
-               (unsigned)parity, (unsigned)prior_source,
+               slot, (unsigned)short_branch, (int)native_status,
+               (unsigned)original_copied, (unsigned)parity,
+               (unsigned)prior_source,
                (unsigned)actual_source, (unsigned)prior_dest,
                (unsigned)actual_dest);
         if (strict && !parity) {
@@ -668,7 +675,7 @@ static unsigned akira_native_full_page_vs_original(
         return 1u;
     }
     if (original_copied) {
-        printf("AKIRA_NATIVE_FULL_PAGE_UNCOVERED slot=%u "
+        printf("AKIRA_NATIVE_PAGE_UNCOVERED slot=%u "
                "original_copy=1 C_status=%d mode=%02x "
                "remaining=%08x\n",
                slot, (int)native_status, (unsigned)mode,
@@ -854,7 +861,7 @@ static void akira_probe_original_walk(const uint8_t *rom, size_t rom_size,
             for (i = UINT32_C(0x10000); i < UINT32_C(0x50000); ++i) {
                 if (walk_ram[i] != step_ram[i]) ++wave_changed;
             }
-            printf("AKIRA_NATIVE_FULL_PAGE_SUMMARY admitted=%u "
+            printf("AKIRA_NATIVE_PAGE_SUMMARY admitted=%u "
                    "original_copy_slots=%u strict_errors=%u\n",
                    admitted_pages, advancing_slots,
                    (unsigned)akira_walk_strict_failed);

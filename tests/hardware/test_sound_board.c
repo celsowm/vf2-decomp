@@ -586,6 +586,91 @@ static void test_pcm_walker_full_page(void)
                 VF2_ERROR_UNSUPPORTED);
 }
 
+/* Exact 0x23B0 looping/short-page shape: page copy uses the
+ * old source; the NEXT source/remaining come from 24-bit loop fields.
+ * ROM-independent guards must not fabricate the 0x24BC branch. */
+static void test_pcm_walker_short_loop_page(void)
+{
+    static vf2_sound_board b;
+    static uint8_t samples[0x800u];
+    uint8_t *r = b.sound_ram + 0x2000u + 4u * 0x20u;
+    uint8_t before[0x20u];
+    size_t i;
+    memset(&b, 0, sizeof(b));
+    for (i = 0u; i < sizeof(samples); ++i) {
+        samples[i] = (uint8_t)(i * 11u + 3u);
+    }
+    b.sample_rom = samples;
+    b.sample_rom_size = sizeof(samples);
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_loop_page(NULL, 4u) ==
+                VF2_ERROR_INVALID_ARGUMENT);
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_loop_page(&b, 32u) ==
+                VF2_ERROR_INVALID_ARGUMENT);
+    r[0] = 0x81u;
+    r[1] = 0x10u;
+    store_pcm_cursor(r + 2u, UINT32_C(0x800000));
+    store_pcm_cursor(r + 6u, UINT32_C(0x18200));
+    store_pcm_cursor(r + 0x0au, UINT32_C(0x180));
+    store_pcm_cursor(r + 0x12u, UINT32_C(0x8f2000));
+    store_pcm_cursor(r + 0x16u, UINT32_C(0x12400));
+    r[0x1au] = 0u;
+    r[0x1bu] = 2u;
+    r[0x1cu] = 0u;
+    r[0x1du] = 5u;
+    memset(b.sound_ram + 0x18200u, 0x55, 512u);
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_loop_page(&b, 4u) ==
+                VF2_OK);
+    EXPECT_TRUE(memcmp(b.sound_ram + 0x18200u, samples, 512u) == 0);
+    EXPECT_TRUE(r[1] == 0x20u);
+    EXPECT_TRUE(r[2] == 0u && r[3] == 0x0fu &&
+                r[4] == 0x20u && r[5] == 0x80u);
+    EXPECT_TRUE(r[6] == 0u && r[7] == 0x01u &&
+                r[8] == 0x84u && r[9] == 0u);
+    EXPECT_TRUE(r[0x0au] == 0u && r[0x0bu] == 0x01u &&
+                r[0x0cu] == 0x23u && r[0x0du] == 0x80u);
+    EXPECT_TRUE(r[0x1cu] == 0u && r[0x1du] == 7u);
+    EXPECT_TRUE(b.scsp.registers[0x408u] == 0x01u);
+
+    /* At exactly 512 bytes, padding=0, source becomes masked loop
+     * pointer; a 0x80-only flag must NOT use this branch. */
+    r[0] = 0x80u;
+    store_pcm_cursor(r + 0x0au, UINT32_C(512));
+    memcpy(before, r, sizeof(before));
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_loop_page(&b, 4u) ==
+                VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(memcmp(before, r, sizeof(before)) == 0);
+    r[0] = 0x81u;
+    r[1] = 0u;
+    b.scsp.registers[0x409u] = 0u;
+    memcpy(before, r, sizeof(before));
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_loop_page(&b, 4u) ==
+                VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(memcmp(before, r, sizeof(before)) == 0);
+    b.scsp.registers[0x409u] = 0x80u;
+    store_pcm_cursor(r + 2u, UINT32_C(0x800200));
+    store_pcm_cursor(r + 0x0eu, UINT32_C(0x1a200));
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_loop_page(&b, 4u) ==
+                VF2_OK);
+    EXPECT_TRUE(memcmp(b.sound_ram + 0x1a200u,
+                       samples + 0x200u, 512u) == 0);
+    EXPECT_TRUE(r[1] == 0x10u && r[8] == 0xa4u);
+    EXPECT_TRUE(r[0x0eu] == 0u && r[0x0fu] == 0x01u);
+
+    /* Unsupported count and out-of-sample-range refuse atomically. */
+    r[1] = 0x10u;
+    store_pcm_cursor(r + 0x0au, UINT32_C(513));
+    memcpy(before, r, sizeof(before));
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_loop_page(&b, 4u) ==
+                VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(memcmp(before, r, sizeof(before)) == 0);
+    store_pcm_cursor(r + 0x0au, UINT32_C(128));
+    store_pcm_cursor(r + 2u, UINT32_C(0x800700));
+    memcpy(before, r, sizeof(before));
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_loop_page(&b, 4u) ==
+                VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(memcmp(before, r, sizeof(before)) == 0);
+}
+
 int main(void)
 {
     static uint8_t audio_rom[0x10010u];
@@ -2038,6 +2123,7 @@ int main(void)
         EXPECT_TRUE(board.sound_ram[0x50000u] == 0xdeu);
     }
     test_pcm_walker_full_page();
+    test_pcm_walker_short_loop_page();
     test_pcm_stream_page_native();
     test_render_first_tone();
     test_ad21_b_class_drain();

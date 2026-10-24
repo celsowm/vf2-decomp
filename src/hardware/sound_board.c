@@ -638,6 +638,88 @@ vf2_status vf2_sound_board_step_stream_full_page(
                              record[0x16u]);
 }
 
+/* ROM 0x23B0..0x24B8: terminal/looping 512-byte page, +0x01
+ * descriptor flag only. Decode directly from owner ROM:
+ *   23B0 BTST #0,(A0); BEQ 24BC (unsupported here)
+ *   23BA NOT.W D5; 23BC ADDI.W #0x201,D5;
+ *   23C0 ANDI.L #0xFFFF,D5        => 512 - remaining
+ *   23C6 MOVE.L +0x12(A0),D4; ANDI.L #0x00FFFFFF,D4;
+ *   23D0 ADD.L D5,D4               => next source
+ *   23D2 MOVE.L +0x16(A0),D3; ANDI.L #0x00FFFFFF,D3;
+ *   23DC SUB.L D5,D3               => next remaining
+ *   23DE ADDI.B #0x10,D2; 23E2 ANDI.W #0x7FFF,D0
+ *   23E6..23F2 write timer,+2,+1,+0xA;
+ *   23F6..24B2 16x MOVEM.L 32 bytes from OLD source (A1)
+ *   24B4 MOVE.L A2,+6; 24B8 BRA 0x265C shared SCSP exit.
+ * The full 512-byte transfer is intentional even if the remaining
+ * counter is shorter: it uses the current source A1, not computed D4.
+ * Only guarded memory is accessed and writes commit after success.
+ * Overflow/underflow in D4/D3 are modulo-32-bit as on 68000. */
+vf2_status vf2_sound_board_step_stream_short_loop_page(
+    vf2_sound_board *board, size_t slot_index
+)
+{
+    uint8_t *record;
+    uint16_t timer;
+    uint8_t mode;
+    uint8_t midi_status;
+    uint32_t source;
+    uint32_t destination;
+    uint32_t remaining;
+    uint32_t padding;
+    uint32_t loop_source;
+    uint32_t loop_remaining;
+    vf2_status result;
+    if (board == NULL || slot_index >= VF2_SOUND_VOICE_COUNT) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    record = board->sound_ram + UINT32_C(0x2000) +
+             slot_index * UINT32_C(0x20);
+    if ((record[0] & UINT8_C(0x81)) != UINT8_C(0x81)) {
+        /* 0x80-only active records branch to the 0x24BC tail. */
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    timer = (uint16_t)(read_be16(record + 0x1cu) +
+                       read_be16(record + 0x1au));
+    if ((timer & UINT16_C(0x8000)) != 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    mode = record[1u];
+    result = vf2_scsp_read_u8(
+        &board->scsp, UINT32_C(0x0409), &midi_status);
+    if (result != VF2_OK) {
+        return result;
+    }
+    if ((mode == 0u && (midi_status & UINT8_C(0x80)) == 0u) ||
+        (mode == UINT8_C(0x80) &&
+         (midi_status & UINT8_C(0x80)) != 0u)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    remaining = read_be32(record + 0x0au);
+    if (remaining > UINT32_C(512)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    padding = UINT32_C(512) - remaining;
+    loop_source = (read_be32(record + 0x12u) &
+                   UINT32_C(0x00ffffff)) + padding;
+    loop_remaining = (read_be32(record + 0x16u) &
+                      UINT32_C(0x00ffffff)) - padding;
+    source = read_be32(record + 2u);
+    destination = read_be32(record + (mode == 0u ? 0x0eu : 6u));
+    result = vf2_sound_board_copy_engine_page_512(
+        board, &source, &destination);
+    if (result != VF2_OK) {
+        return result;
+    }
+    record[1u] = (uint8_t)(mode + UINT8_C(0x10));
+    write_be16(record + 0x1cu, (uint16_t)(timer & UINT16_C(0x7fff)));
+    write_be32(record + 2u, loop_source);
+    write_be32(record + 0x0au, loop_remaining);
+    write_be32(record + 6u, destination);
+    return vf2_scsp_write_u8(&board->scsp, UINT32_C(0x0408),
+                             record[0x16u]);
+}
+
 /* ROM 0xD72..0xD90: 7 instructions, stop BEFORE RTS at 0xD90.
  *   move.w (a1),d4; move.l a0,2(a3,d4.w)
  *   move.l a2,6(a3,d4.w); move.b (a5,d4.w),d5

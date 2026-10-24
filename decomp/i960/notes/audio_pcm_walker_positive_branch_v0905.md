@@ -67,3 +67,34 @@ SCSP write at PC 0x265C. The ROM-free test pins that write on three
 admitted mode branches and verifies it is absent on refusals. The
 owner-ROM per-descriptor differential additionally compares SCSP
 register byte 0x0408, alongside descriptor metadata and PCM bytes.
+
+## v0906 — 0x23B0 terminal/looping page
+
+The owner sound ROM's 0x23B0–0x24B8 bytes reveal a distinct
+**512-byte page copy with loop-cursor reset**, selected only when
+remaining length is <= 0x200 and descriptor flag bit 0 is set.
+The already decoded prefix at 0x2242 supplies active flag, signed
+16-bit timer and SCSP 0x0409 mode gates. Original 68000 instructions:
+
+- `23B0 BTST #0,(A0)` / `23B4 BEQ 24BC` — flag-clear branch
+  stays unsupported.
+- `23BA NOT.W D5; 23BC ADDI.W #0x0201,D5; 23C0 ANDI.L #0xFFFF,D5`
+  computes `padding = 512 - remaining` for original remaining 0..512.
+- `23C6 MOVE.L +0x12(A0),D4; 23CA ANDI.L #0x00FFFFFF,D4;
+  23D0 ADD.L D5,D4` sets the next source to masked loop-start
+  plus padding.
+- `23D2 MOVE.L +0x16(A0),D3; 23D6 ANDI.L #0x00FFFFFF,D3;
+  23DC SUB.L D5,D3` sets next remaining bytes to masked loop
+  length minus padding (32-bit arithmetic).
+- `23DE–23F2` updates mode (+0x10), 16-bit timer, new source,
+  remaining; `23F6–24B2` still copies a **full 512 bytes from the
+  original source A1**; `24B4` stores the destination end, and the
+  common 0x265C SCSP write follows.
+
+Added separate opt-in C helper
+`vf2_sound_board_step_stream_short_loop_page()` plus ROM-free
+regression checks and inclusion in the owner-ROM per-descriptor
+validation. This function is intentionally not called by the normal
+sound scheduler. The 0x24BC/0x24D2/0x260C activation/release
+branches remain held, as do real-time scheduling and hardware-perfect
+mixing. A successful copy does not prove those other semantics.

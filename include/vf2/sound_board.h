@@ -195,6 +195,18 @@ vf2_status vf2_sound_board_step_stream_full_page(
     vf2_sound_board *board, size_t slot_index
 );
 
+/* Original 68000 0x23B0 short/looping PCM page arm:
+ * Only selected if stream[0] bit 0 is SET and remaining <= 512.
+ * After copying 512 bytes from current source to current destination,
+ * records next source (+2) from the masked loop start (+0x12)
+ * plus (512 - remaining) and next remaining (+0x0A) from masked
+ * loop length (+0x16) minus that offset. 16-bit timer, mode, MIDI
+ * gating and SCSP 0x0408 write match the positive 0x2242 entry.
+ * Unrecovered 0x24BC flag-clear arm is NOT guessed or scheduled. */
+vf2_status vf2_sound_board_step_stream_short_loop_page(
+    vf2_sound_board *board, size_t slot_index
+);
+
 /* Original 68000 tail at 0xD72..0xD90 (seven instructions).
  * Writes the post-copy A0/A2 pointers to the channel stream,
  * sets SCSP KEYON bits (read/OR/write), and sets stream+0 = 0x80.
