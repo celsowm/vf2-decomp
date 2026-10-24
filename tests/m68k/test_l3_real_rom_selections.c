@@ -1178,6 +1178,105 @@ static int akira_verify_empty_dispatch_cycle(
     return all_match;
 }
 
+/* Full first-tick Akira native-vs-68000 32-descriptor scan.
+ * Independent snapshots, checked after EVERY original 0x2242
+ * recurrence. No invented SCSP interrupt cadence. */
+static int akira_verify_composite_native_walk(
+    const uint8_t *rom, size_t rom_size
+)
+{
+    static uint8_t original_ram[VF2_SOUND_RAM_BYTES];
+    static vf2_scsp original_scsp;
+    static vf2_sound_board native;
+    vf2_m68k_bus bus;
+    vf2_m68k_regs regs;
+    uint32_t native_a0 = UINT32_C(0x2000);
+    unsigned pass;
+    int parity = 1;
+    memcpy(original_ram, step_ram, sizeof(original_ram));
+    memcpy(&original_scsp, &step_scsp, sizeof(original_scsp));
+    memset(&native, 0, sizeof(native));
+    memcpy(native.sound_ram, step_ram, sizeof(step_ram));
+    memcpy(&native.scsp, &step_scsp, sizeof(native.scsp));
+    native.sample_rom = sample_bank;
+    native.sample_rom_size = sample_bank_size;
+    if (vf2_scsp_attach_sample_ram(
+            &original_scsp, original_ram,
+            sizeof(original_ram)) != VF2_OK ||
+        vf2_scsp_attach_sample_ram(
+            &native.scsp, native.sound_ram,
+            sizeof(native.sound_ram)) != VF2_OK) {
+        return 0;
+    }
+    memset(&bus, 0, sizeof(bus));
+    bus.ram = original_ram;
+    bus.ram_size = sizeof(original_ram);
+    bus.rom = rom;
+    bus.rom_size = rom_size;
+    bus.sample_rom = sample_bank;
+    bus.sample_rom_size = sample_bank_size;
+    bus.scsp = &original_scsp;
+    vf2_m68k_regs_reset(&regs);
+    regs.pc = UINT32_C(0x2242);
+    regs.a[0] = UINT32_C(0x2000);
+    regs.a[4] = UINT32_C(0x2506);
+    regs.a[5] = VF2_SCSP_CPU_BASE;
+    regs.a[6] = UINT32_C(0x1000);
+    regs.a[7] = UINT32_C(0x5000);
+    for (pass = 0u; pass < VF2_SCSP_SLOT_COUNT; ++pass) {
+        uint32_t first_steps = 0u, extra_steps = 0u;
+        vf2_status c_status, first, original;
+        unsigned slot;
+        int matched;
+        if (native_a0 < UINT32_C(0x2000) ||
+            native_a0 >= UINT32_C(0x2400) ||
+            ((native_a0 - UINT32_C(0x2000)) &
+             UINT32_C(0x1f)) != 0u) {
+            parity = 0;
+            break;
+        }
+        slot = (unsigned)((native_a0 - UINT32_C(0x2000)) /
+                          VF2_SOUND_STREAM_DESCRIPTOR_BYTES);
+        c_status = vf2_sound_board_step_stream_walk_one(
+            &native, slot, &native_a0);
+        first = vf2_m68k_run(&bus, &regs, 0u, 0, 1u, &first_steps);
+        original = vf2_m68k_run(
+            &bus, &regs, UINT32_C(0x2242), 0,
+            100000u, &extra_steps);
+        matched = c_status == VF2_OK &&
+            first == VF2_ERROR_UNSUPPORTED &&
+            first_steps == 1u && original == VF2_OK &&
+            regs.pc == UINT32_C(0x2242) &&
+            native_a0 == regs.a[0] &&
+            memcmp(native.sound_ram, original_ram,
+                   VF2_SOUND_RAM_BYTES) == 0 &&
+            memcmp(native.scsp.registers,
+                   original_scsp.registers,
+                   VF2_SCSP_REGISTER_BYTES) == 0;
+        if (!matched) {
+            printf("AKIRA_COMPOSITE_WALK_MISMATCH pass=%u slot=%u "
+                   "native_status=%d original_status=%d "
+                   "orig_a0=%05x native_a0=%05x "
+                   "steps=%u flag=%02x mode=%02x\n",
+                   pass, slot, (int)c_status, (int)original,
+                   (unsigned)regs.a[0], (unsigned)native_a0,
+                   (unsigned)(first_steps + extra_steps),
+                   original_ram[0x2000u + slot * 0x20u],
+                   original_ram[0x2001u + slot * 0x20u]);
+            parity = 0;
+            break;
+        }
+    }
+    printf("AKIRA_COMPOSITE_WALK_32 parity=%u passes=%u "
+           "next_a0=%05x queue=%u\n",
+           (unsigned)(parity && pass == VF2_SCSP_SLOT_COUNT &&
+                       native_a0 == UINT32_C(0x2000)),
+           pass, (unsigned)native_a0,
+           original_ram[VF2_SOUND_COMMAND_COUNT]);
+    return parity && pass == VF2_SCSP_SLOT_COUNT &&
+           native_a0 == UINT32_C(0x2000);
+}
+
 /* Original-ROM candidate page-refill service: 0x2242 walker.
  * Run one iteration on an entirely separate snapshot to avoid
  * altering the ordinary music preview or original M68K bus.
@@ -1214,6 +1313,10 @@ static void akira_probe_original_walk(const uint8_t *rom, size_t rom_size,
             akira_walk_strict_failed = 1;
         }
         if (!akira_verify_empty_dispatch_cycle(rom, rom_size) &&
+            verify_akira_original_walk) {
+            akira_walk_strict_failed = 1;
+        }
+        if (!akira_verify_composite_native_walk(rom, rom_size) &&
             verify_akira_original_walk) {
             akira_walk_strict_failed = 1;
         }
