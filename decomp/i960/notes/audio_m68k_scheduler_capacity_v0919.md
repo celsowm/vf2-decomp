@@ -173,3 +173,48 @@ implementation step is a cycle-counted `run_slice` plus
 accurate 68000 exception entry/RTE, preserving execution
 across intervening SCSP Timer-A pending events. Do not treat
 the 100 quanta as 100 real hardware interrupts.
+
+## v0921 erratum — MOVEM predecrement mask changes the FIFO bounds
+
+The **original v0919 first-tick dispatch counters are superseded**.
+The MC68000 `MOVEM.L D0-D7/A0-A4,-(A7)` at `0x1F16` uses a
+**reversed mask** `0xFFF8`. The recovered emulator previously
+misread that mask as ordinary register order, causing its
+`MOVEM.L (A7)+,D0-D7/A0-A4` epilogue at `0x1F76` to
+restore the original supervisor stack pointer **into A4**,
+instead of the original sound command FIFO pointer.
+
+Commit `22381b2a1437a97212070044e4182a707193ed1a`
+fixes the predecrement mask, adds a synthetic architectural
+13-register save/restore regression, and restores the original
+ISR's A4 at the true expected value.
+
+The owner-ROM strict IRQ body and RTE comparison, including
+all D/A registers and internal SCSP voice state, now passes.
+The 32-record walker test also passes; sound-driver dispatch
+counts change because the dispatcher receives the proper A4.
+
+Corrected 900Hz first tick under the SAME artificial
+whole-FIFO-drain schedule:
+
+| Measurement | Superseded v0919 | Corrected v0921 |
+| --- | ---: | ---: |
+| L2 ISR, instructions | 1,073 | 1,073 |
+| Entire 32-command drain, instructions | 12,176 | **14,665** |
+| 32-voice walker, instructions | 588 | 588 |
+| Tick-0 total instructions | 13,837 | **16,326** |
+| Optimistic minimum cycles | 55,348 | **65,304** |
+| Cycle budget per 49-frame interval | 12,544 | 12,544 |
+| First three FIFO instruction counts | 336 / 629 / 1,941 | **533 / 1,119 / 3,743** |
+| Maximum FIFO commands completing in the first interval | 2 | **1** |
+| Minimum queued commands deferred | 30 | **31** |
+
+At four cycles per instruction, the complete forced drain
+exceeds one Timer-A period by **5.21×**. The earliest FIFO
+command fits the already optimistic 3,136-instruction budget
+after accounting for L2 and the walker; the second does not.
+
+These estimates remain lower-bound impossibility proofs,
+not actual cycle counts or proof of real IRQ/service cadence.
+Do not rely on earlier v0919 command-count numbers.
+

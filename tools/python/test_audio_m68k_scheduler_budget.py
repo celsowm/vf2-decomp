@@ -33,13 +33,14 @@ class BudgetTests(unittest.TestCase):
         self.assertEqual(lower_bound_cycles(0, 0, 588), 2352)
 
     def test_first_tick_ordered_fifo_ceiling(self):
-        # From the original-ROM tick-0 trace: 32 queue entries,
-        # L2 1073 instructions, 588 instructions to scan 32
-        # descriptors, and the first 3 commands = 336/629/1941.
+        # Corrected MC68000 MOVEM mask yields the true
+        # sound-driver A4 on ISR return; tick-0 first FIFO
+        # entries now take 533/1119/3743 instructions, so
+        # only one can finish in the optimistic budget.
         self.assertEqual(
             fifo_prefix_completion_ceiling(
-                1073, 588, [336, 629, 1941] + [310] * 29),
-            2)
+                1073, 588, [533, 1119, 3743] + [310] * 29),
+            1)
         self.assertEqual(fifo_prefix_completion_ceiling(
             3136, 0, [5]), 0)
         self.assertEqual(fifo_prefix_completion_ceiling(

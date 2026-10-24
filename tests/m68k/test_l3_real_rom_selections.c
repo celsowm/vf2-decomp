@@ -2664,7 +2664,7 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
             budget_overloaded_ticks == 0u ||
             budget_first_total <= 3136u ||
             first_fifo_count != 32u ||
-            first_fifo_ceiling != 2u) {
+            first_fifo_ceiling != 1u) {
             fprintf(stderr,
                     "AKIRA_TIMA_CPU_BUDGET expected overrun not measured\n");
             return 0;
