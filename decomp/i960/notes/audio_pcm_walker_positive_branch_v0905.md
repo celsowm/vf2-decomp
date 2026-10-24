@@ -222,3 +222,37 @@ owner-ROM fixture variants (six total) assert all descriptor,
 sample-RAM, SCSP and voice-register comparisons. The ROM-free
 test checks the absence of sample edits in both no-copy variants.
 No scheduling claim is made.
+
+## v0912 — owner-ROM measured terminal coverage
+
+On 2026-10-24 the Linux `vf2_m68k_l3_selection_tests` binary from
+the `81761ac` CI artifact was executed locally using the owner's
+saved VF2 ROM (never committed, redistributed or embedded in CI):
+
+```sh
+vf2_m68k_l3_selection_tests /private/vf2-rom --verify-akira-walk
+```
+
+**Exit status: 0.** Exact original-stepper vs recovered-C comparisons
+for six synthetic 0x2242 terminal variants:
+
+| Variant | Mode / MIDI7 | 68000 instructions | Descriptor/PCM/SCSP/voice parity |
+| --- | --- | ---: | --- |
+| 0 | 0x10 / 0 | 81 | matched |
+| 1 | 0x90 / 0 | 92 | matched |
+| 2 | 0x00 / 1 | 92 | matched |
+| 3 | 0x80 / 0 | 104 | matched |
+| 4 | 0x00 / 0 (no-copy) | 23 | matched |
+| 5 | 0x80 / 1 (no-copy) | 25 | matched |
+
+The two original earlier synthetic fixtures still passed
+(0x23B0 loop copy: 85 instructions; 0x24D2 no-copy release:
+39 instructions). The original Akira first-tick 32-slot scan
+also passed: `admitted=4`, `original_copy_slots=4`,
+`strict_errors=0`, `steps=588`, `pcm_bytes_changed=2039`.
+
+This proves only these branches on the supplied original ROM and
+explicitly initialized test states. The real L2/SCSP IRQ scheduling
+cadence, live 0x2242 preemption state, full song, DSP and effect
+timing are not yet emulated cycle-accurately. No runtime scheduling
+integration has been performed in this checkpoint.
