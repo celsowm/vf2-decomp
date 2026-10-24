@@ -286,7 +286,9 @@ int main(void)
         EXPECT_TRUE(regs.irq_active == 0u);
         EXPECT_TRUE(regs.sr_high == UINT16_C(0x2100));
         EXPECT_TRUE(regs.a[7] == stack_top && regs.ssp == stack_top);
-        EXPECT_TRUE(regs.x == 1u && regs.z == 1u);
+        /* MOVEQ #5 cleared Z before IRQ entry; RTE restores the
+         * interrupted CCR, not the earlier setup value. */
+        EXPECT_TRUE(regs.x == 1u && regs.z == 0u);
         status = vf2_m68k_run_slice(
             &bus, &regs, UINT32_C(0x104), 0,
             1u, &steps, &suspended);
