@@ -1428,7 +1428,14 @@ static int akira_verify_l2_autovector_frame(
     vf2_m68k_bus legacy_bus, vector_bus;
     vf2_m68k_regs legacy_regs, vector_regs;
     uint32_t legacy_steps = 0u, vector_steps = 0u, rte_steps = 0u;
+    uint32_t timed_cycles = 0u, timed_steps = 0u, middle_steps = 0u;
+    int timed_suspended = 0;
     vf2_status legacy_status, begin_status, body_status, rte_status;
+    vf2_status preflight_status = VF2_ERROR_UNSUPPORTED;
+    vf2_status prologue_status = VF2_ERROR_UNSUPPORTED;
+    vf2_status mid_status = VF2_ERROR_UNSUPPORTED;
+    vf2_status epilogue_preflight = VF2_ERROR_UNSUPPORTED;
+    vf2_status epilogue_status = VF2_ERROR_UNSUPPORTED;
     int match;
     if (rom_size < UINT32_C(0x1f7c)) return 0;
     memcpy(legacy_ram, step_ram, sizeof(legacy_ram));
@@ -1473,9 +1480,51 @@ static int akira_verify_l2_autovector_frame(
     body_status = VF2_ERROR_UNSUPPORTED;
     rte_status = VF2_ERROR_UNSUPPORTED;
     if (begin_status == VF2_OK) {
-        body_status = vf2_m68k_run(
-            &vector_bus, &vector_regs, UINT32_C(0x1f7a),
-            0, 100000u, &vector_steps);
+        /* Real VF2 ISR 0x1F16 MOVEM.L 0xFFF8,-(A7).
+         * The official 68000 cost is 8+8*13=112 cycles.
+         * A 111-cycle slice must not mutate even a byte. */
+        preflight_status = vf2_m68k_run_cycle_slice(
+            &vector_bus, &vector_regs, UINT32_C(0x1f1a),
+            111u, &timed_cycles, &timed_steps, &timed_suspended);
+        if (preflight_status == VF2_OK && timed_suspended &&
+            timed_steps == 0u && timed_cycles == 0u &&
+            vector_regs.pc == UINT32_C(0x1f16)) {
+            prologue_status = vf2_m68k_run_cycle_slice(
+                &vector_bus, &vector_regs, UINT32_C(0x1f1a),
+                112u, &timed_cycles, &timed_steps,
+                &timed_suspended);
+        }
+        if (prologue_status == VF2_OK && !timed_suspended &&
+            timed_steps == 1u && timed_cycles == 112u &&
+            vector_regs.pc == UINT32_C(0x1f1a)) {
+            vector_steps = 1u;
+            /* Original driver body; other opcode cycle timings
+             * are not yet implemented, so no timing claim here. */
+            mid_status = vf2_m68k_run(
+                &vector_bus, &vector_regs, UINT32_C(0x1f76),
+                0, 100000u, &middle_steps);
+        }
+        if (mid_status == VF2_OK) {
+            vector_steps += middle_steps;
+            /* MOVEM.L (A7)+,0x1FFF costs 12+8*13=116. */
+            epilogue_preflight = vf2_m68k_run_cycle_slice(
+                &vector_bus, &vector_regs, UINT32_C(0x1f7a),
+                115u, &timed_cycles, &timed_steps, &timed_suspended);
+            if (epilogue_preflight == VF2_OK && timed_suspended &&
+                timed_steps == 0u && timed_cycles == 0u &&
+                vector_regs.pc == UINT32_C(0x1f76)) {
+                epilogue_status = vf2_m68k_run_cycle_slice(
+                    &vector_bus, &vector_regs, UINT32_C(0x1f7a),
+                    116u, &timed_cycles, &timed_steps,
+                    &timed_suspended);
+            }
+        }
+        if (epilogue_status == VF2_OK && !timed_suspended &&
+            timed_steps == 1u && timed_cycles == 116u &&
+            vector_regs.pc == UINT32_C(0x1f7a)) {
+            ++vector_steps;
+            body_status = VF2_OK;
+        }
     }
     if (body_status == VF2_OK) {
         rte_status = vf2_m68k_run(
@@ -1483,6 +1532,10 @@ static int akira_verify_l2_autovector_frame(
             0, 2u, &rte_steps);
     }
     match = begin_status == VF2_OK &&
+        preflight_status == VF2_OK &&
+        prologue_status == VF2_OK &&
+        epilogue_preflight == VF2_OK &&
+        epilogue_status == VF2_OK &&
         legacy_status == VF2_OK &&
         body_status == VF2_OK &&
         rte_status == VF2_OK &&
@@ -1583,7 +1636,8 @@ static int akira_verify_l2_autovector_frame(
            "enter=%d direct=%d body=%d rte=%d "
            "body_steps=%u legacy_steps=%u rte_steps=%u "
            "restored_pc=%05x stack=%05x irq_active=%u "
-           "cpu_cycles_not_modeled=1\n",
+           "prologue_cycles=112 epilogue_cycles=116 "
+           "full_isr_cycle_total_not_modeled=1\n",
            (unsigned)match, (int)begin_status,
            (int)legacy_status, (int)body_status, (int)rte_status,
            (unsigned)vector_steps, (unsigned)legacy_steps,
