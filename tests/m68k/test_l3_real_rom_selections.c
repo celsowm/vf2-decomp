@@ -1772,6 +1772,15 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
     uint32_t real_walker_steps = 0u;
     uint32_t real_walker_pages = 0u;
     size_t composite_verified_ticks = 0u;
+    size_t budget_checked_ticks = 0u;
+    size_t budget_overloaded_ticks = 0u;
+    uint64_t budget_instruction_sum = 0u;
+    uint32_t budget_first_l2 = 0u;
+    uint32_t budget_first_dispatch = 0u;
+    uint32_t budget_first_walker = 0u;
+    uint32_t budget_first_total = 0u;
+    uint32_t budget_peak_total = 0u;
+    size_t budget_peak_tick = 0u;
     uint8_t *desc = board.sound_ram + VF2_SOUND_COMMAND_DESCRIPTOR_BASE;
     memset(last_source, 0, sizeof(last_source));
     memset(last_destination, 0, sizeof(last_destination));
@@ -1925,6 +1934,8 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
              tick < ((sequenced_dir != NULL || akira_verify_composite_ticks) ?
                      sequence_ticks : (progress ? 1024u : 16u)); ++tick) {
             uint32_t original_steps = 0u;
+            uint32_t drain_tick_steps = 0u;
+            uint32_t walker_steps_before = real_walker_steps;
             vf2_status status;
             unsigned keyed = 0u;
             size_t voice;
@@ -1995,6 +2006,7 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
                     dispatch_status = vf2_m68k_run(
                         &bus, &regs, UINT32_C(0x265c),
                         0, 100000u, &dispatch_steps);
+                    drain_tick_steps += dispatch_steps;
                     for (v = 0u; v < VF2_SCSP_SLOT_COUNT; ++v) {
                         now_active += (unsigned)
                             (step_scsp.slot_active[v] != 0u);
@@ -2050,6 +2062,54 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
                     &bus, (unsigned)tick, &real_walker_pages)) {
                 full_drain = 0;
                 break;
+            }
+            if (akira_tima_49_preview &&
+                akira_verify_composite_ticks) {
+                /* Real MAME Model 2A sound-clock configuration:
+                 * 45.1584MHz / 4 = 11.2896MHz M68000.
+                 * At 44.1kHz / 49 = 900 Timer-A expiries/sec,
+                 * the ideal unpreempted capacity is 12544 CPU
+                 * clocks per interval. Every base MC68000 opcode
+                 * costs >=4 cycles. Thus instruction_count*4 is
+                 * a CONSERVATIVE lower bound, not cycle timing.
+                 *
+                 * The current harness drains ALL queued commands
+                 * synchronously once per modeled tick. Detect
+                 * intervals where this can't fit even at the
+                 * physically impossible 4-cycles-per-opcode rate.
+                 * Never silently treat those as accurate playback. */
+                enum { M68K_CYCLES_PER_TIMER_A = 12544u };
+                const uint32_t walker_tick_steps =
+                    real_walker_steps - walker_steps_before;
+                const uint32_t total_tick_steps = original_steps +
+                    drain_tick_steps + walker_tick_steps;
+                if (tick == 0u) {
+                    budget_first_l2 = original_steps;
+                    budget_first_dispatch = drain_tick_steps;
+                    budget_first_walker = walker_tick_steps;
+                    budget_first_total = total_tick_steps;
+                }
+                budget_instruction_sum += total_tick_steps;
+                ++budget_checked_ticks;
+                if (total_tick_steps > budget_peak_total) {
+                    budget_peak_total = total_tick_steps;
+                    budget_peak_tick = tick;
+                }
+                if ((uint64_t)total_tick_steps * UINT64_C(4) >
+                    (uint64_t)M68K_CYCLES_PER_TIMER_A) {
+                    ++budget_overloaded_ticks;
+                    if (budget_overloaded_ticks <= 4u) {
+                        printf("AKIRA_TIMA_CPU_OVERRUN tick=%u "
+                               "L2_steps=%u drain_steps=%u "
+                               "walker_steps=%u minimum_cycles=%u "
+                               "budget_cycles=%u\n",
+                               (unsigned)tick, (unsigned)original_steps,
+                               (unsigned)drain_tick_steps,
+                               (unsigned)walker_tick_steps,
+                               (unsigned)(total_tick_steps * 4u),
+                               (unsigned)M68K_CYCLES_PER_TIMER_A);
+                    }
+                }
             }
             if (akira_verify_composite_ticks) {
                 int16_t left[LEGACY_FRAMES_PER_TICK];
@@ -2214,6 +2274,37 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
                 }
                 ++rendered_ticks;
             }
+        }
+    }
+    if (akira_tima_49_preview &&
+        akira_verify_composite_ticks) {
+        /* The first 900Hz tick must be reported accurately:
+         * this synthetic full-drain schedule has a demonstrable
+         * CPU-cycle lower-bound overrun. Do not claim that all
+         * commands physically executed before one IRQ. */
+        printf("AKIRA_TIMA_CPU_BUDGET checked=%u overloaded=%u "
+               "first_l2=%u first_drain=%u first_walker=%u "
+               "first_total=%u first_minimum_cycles=%u "
+               "budget_cycles=12544 peak_tick=%u peak_steps=%u "
+               "average_steps=%u lower_bound_only=1 "
+               "one_scan_per_irq_proven=0\n",
+               (unsigned)budget_checked_ticks,
+               (unsigned)budget_overloaded_ticks,
+               (unsigned)budget_first_l2,
+               (unsigned)budget_first_dispatch,
+               (unsigned)budget_first_walker,
+               (unsigned)budget_first_total,
+               (unsigned)(budget_first_total * 4u),
+               (unsigned)budget_peak_tick,
+               (unsigned)budget_peak_total,
+               (unsigned)(budget_checked_ticks == 0u ? 0u :
+                   budget_instruction_sum / budget_checked_ticks));
+        if (budget_checked_ticks != sequence_ticks ||
+            budget_overloaded_ticks == 0u ||
+            budget_first_total <= 3136u) {
+            fprintf(stderr,
+                    "AKIRA_TIMA_CPU_BUDGET expected overrun not measured\n");
+            return 0;
         }
     }
     if (akira_verify_composite_ticks) {
