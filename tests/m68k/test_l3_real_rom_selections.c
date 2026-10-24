@@ -1497,7 +1497,34 @@ static int akira_verify_l2_autovector_frame(
                vector_ram + UINT32_C(0x5100),
                VF2_SOUND_RAM_BYTES - UINT32_C(0x5100)) == 0 &&
         memcmp(legacy_scsp.registers, vector_scsp.registers,
-               VF2_SCSP_REGISTER_BYTES) == 0;
+               VF2_SCSP_REGISTER_BYTES) == 0 &&
+        memcmp(legacy_scsp.slot_active, vector_scsp.slot_active,
+               sizeof(legacy_scsp.slot_active)) == 0 &&
+        memcmp(legacy_scsp.slot_address, vector_scsp.slot_address,
+               sizeof(legacy_scsp.slot_address)) == 0 &&
+        memcmp(legacy_scsp.slot_step, vector_scsp.slot_step,
+               sizeof(legacy_scsp.slot_step)) == 0 &&
+        memcmp(legacy_scsp.slot_envelope, vector_scsp.slot_envelope,
+               sizeof(legacy_scsp.slot_envelope)) == 0 &&
+        memcmp(legacy_scsp.slot_envelope_state,
+               vector_scsp.slot_envelope_state,
+               sizeof(legacy_scsp.slot_envelope_state)) == 0 &&
+        memcmp(legacy_scsp.slot_backward, vector_scsp.slot_backward,
+               sizeof(legacy_scsp.slot_backward)) == 0 &&
+        memcmp(legacy_scsp.midi_input, vector_scsp.midi_input,
+               sizeof(legacy_scsp.midi_input)) == 0 &&
+        legacy_scsp.midi_read_index == vector_scsp.midi_read_index &&
+        legacy_scsp.midi_write_index == vector_scsp.midi_write_index;
+    {
+        unsigned index;
+        for (index = 0u; index < 8u; ++index) {
+            if (legacy_regs.d[index] != vector_regs.d[index] ||
+                (index != 7u &&
+                 legacy_regs.a[index] != vector_regs.a[index])) {
+                match = 0;
+            }
+        }
+    }
     printf("AKIRA_L2_AUTOVECTOR_FRAME matched=%u "
            "enter=%d direct=%d body=%d rte=%d "
            "body_steps=%u legacy_steps=%u rte_steps=%u "
