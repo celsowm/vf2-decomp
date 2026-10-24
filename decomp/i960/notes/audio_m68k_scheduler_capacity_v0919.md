@@ -138,3 +138,38 @@ WAVs remain bitwise equal **under the same imposed batch
 schedule**, but those equal hashes do not rescue physically
 impossible per-tick CPU workloads. Do not silently promote
 the 900Hz opt-in preview into production playback.
+
+## v0919-b — resumable sound-MC68000 instruction quantum
+
+An explicitly separate `vf2_m68k_run_slice()` now runs a
+fixed **instruction-count** quantum and returns two distinct
+outcomes: `VF2_OK/suspended=1` on an exhausted quantum and
+`VF2_ERROR_UNSUPPORTED/suspended=0` on a genuinely
+unrecognized opcode. It retains original registers/PC, RAM,
+SCSP and bus event state, and never resets the CPU between
+slices. Normal `vf2_m68k_run()` behavior is unchanged.
+
+ROM-free tests check pause/resume over loops, branches, a
+subroutine call/return and sound-RAM writes; the result must
+match an uninterrupted execution, including flags and memory.
+Additional owner-ROM strict differential compares the genuine
+first Akira note's 32-voice stream-walker circuit, run either
+uninterrupted or in quanta of up to **seven instructions**:
+
+```text
+AKIRA_M68K_SLICES_ORIGINAL_DIFF parity=1 descriptors=32 steps_full=588 steps_sliced=588 quanta=100 quantum_max=7 next_a0=02000 irq_and_cpu_cycles_not_modeled=1
+```
+
+Executed against the owner's original VF2.1 ROM on 2026-10-24,
+using the CI Linux binary for commit `44e73478039d455b7e5f2d9621476cfebfbff576`:
+**exit code 0**. The original Akira strict 32-record branch
+fixture also passed (`parity=1`, `pages=4`, `steps=588`).
+
+**Important limit:** an instruction-count quantum is *not* an
+MC68000-cycle budget. The register struct still lacks supervisor
+SR/interrupt mask and complete interrupt exceptions; we have
+**not** delivered a timer IRQ to this resuming CPU. The next
+implementation step is a cycle-counted `run_slice` plus
+accurate 68000 exception entry/RTE, preserving execution
+across intervening SCSP Timer-A pending events. Do not treat
+the 100 quanta as 100 real hardware interrupts.
