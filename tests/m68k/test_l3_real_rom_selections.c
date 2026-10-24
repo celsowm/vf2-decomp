@@ -24,6 +24,7 @@ static int akira_wave_prefill_experiment;
 static int akira_walk_probe;
 static int akira_original_walk_preview;
 static int akira_native_walk_preview;
+static int akira_tima_49_preview;
 static int akira_verify_composite_ticks;
 static int verify_akira_original_walk;
 static int akira_walk_strict_failed;
@@ -1759,9 +1760,12 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
     unsigned peak_voices = 0u;
     int full_drain = 1;
     size_t rendered_ticks = 0u;
-    enum { SEQUENCE_TICKS = 8820u, FRAMES_PER_TICK = 50u };
-    static int16_t music_left[SEQUENCE_TICKS * FRAMES_PER_TICK];
-    static int16_t music_right[SEQUENCE_TICKS * FRAMES_PER_TICK];
+    enum { SAMPLE_FRAMES = 441000u, LEGACY_FRAMES_PER_TICK = 50u,
+           SEQUENCE_TICKS = SAMPLE_FRAMES / LEGACY_FRAMES_PER_TICK };
+    size_t frames_per_tick = LEGACY_FRAMES_PER_TICK;
+    size_t sequence_ticks = SEQUENCE_TICKS;
+    static int16_t music_left[SAMPLE_FRAMES];
+    static int16_t music_right[SAMPLE_FRAMES];
     uint32_t last_source[VF2_SCSP_SLOT_COUNT];
     uint32_t last_destination[VF2_SCSP_SLOT_COUNT];
     size_t preview_pages = 0u;
@@ -1777,6 +1781,51 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
     if (rom_size < 0x9c60u) {
         fprintf(stderr, "AKIRA_ROM invalid truncated program\n");
         return 0;
+    }
+    if (akira_tima_49_preview) {
+        /* Owner-ROM opt-in only: validate boot and L2 Timer-A
+         * opcodes/targets before using the manual's FF - TIMA.
+         * This proves the programmed timer, not actual IRQ
+         * preemption, instruction cycles or board-level pacing. */
+        const uint16_t boot_opcode = (uint16_t)(
+            ((uint16_t)rom[0x2f4u] << 8u) | rom[0x2f5u]);
+        const uint16_t irq_opcode = (uint16_t)(
+            ((uint16_t)rom[0x1f1au] << 8u) | rom[0x1f1bu]);
+        const uint16_t isr_tima = (uint16_t)(
+            ((uint16_t)rom[0x1f1cu] << 8u) | rom[0x1f1du]);
+        const uint16_t timer_register = (uint16_t)(
+            ((uint16_t)rom[0x1f1eu] << 8u) | rom[0x1f1fu]);
+        const uint16_t irq_enable = (uint16_t)(
+            ((uint16_t)rom[0x1f22u] << 8u) | rom[0x1f23u]);
+        const uint16_t irq_register = (uint16_t)(
+            ((uint16_t)rom[0x1f24u] << 8u) | rom[0x1f25u]);
+        uint16_t boot_tima = 0u;
+        uint32_t interval = 0u;
+        if (boot_opcode != UINT16_C(0x3b7c) ||
+            irq_opcode != UINT16_C(0x3b7c) ||
+            timer_register != UINT16_C(0x0418) ||
+            irq_enable != UINT16_C(0x0040) ||
+            irq_register != UINT16_C(0x0422) ||
+            vf2_scsp_timer_a_interval_frames(
+                isr_tima, &interval) != VF2_OK ||
+            interval == 0u || SAMPLE_FRAMES % interval != 0u ||
+            vf2_scsp_read_u16(
+                &step_scsp, UINT32_C(0x0418), &boot_tima) != VF2_OK ||
+            boot_tima != isr_tima) {
+            printf("AKIRA_TIMA_ROM_REJECT boot=%04x irq=%04x "
+                   "reload=%04x live=%04x enable=%04x/%04x\n",
+                   boot_opcode, irq_opcode, isr_tima,
+                   boot_tima, irq_enable, irq_register);
+            return 0;
+        }
+        frames_per_tick = interval;
+        sequence_ticks = SAMPLE_FRAMES / interval;
+        printf("AKIRA_TIMA_ROM_PERIOD reload=%04x samples_per_tick=%u "
+               "ten_second_ticks=%u theoretical_hz=%u "
+               "actual_irq_delivery_verified=0\n",
+               isr_tima, (unsigned)frames_per_tick,
+               (unsigned)sequence_ticks,
+               (unsigned)(44100u / frames_per_tick));
     }
     row = read_be32(rom + 0x8e12u + 0x10u * 4u);
     record = read_be32(rom + (size_t)(row - VF2_SOUND_AUDIO_ROM_BASE) +
@@ -1874,7 +1923,7 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
          * scheduling or synthesize the recovered-C sequence. */
         for (tick = 0u;
              tick < ((sequenced_dir != NULL || akira_verify_composite_ticks) ?
-                     SEQUENCE_TICKS : (progress ? 1024u : 16u)); ++tick) {
+                     sequence_ticks : (progress ? 1024u : 16u)); ++tick) {
             uint32_t original_steps = 0u;
             vf2_status status;
             unsigned keyed = 0u;
@@ -2003,11 +2052,12 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
                 break;
             }
             if (akira_verify_composite_ticks) {
-                int16_t left[FRAMES_PER_TICK], right[FRAMES_PER_TICK];
+                int16_t left[LEGACY_FRAMES_PER_TICK];
+                int16_t right[LEGACY_FRAMES_PER_TICK];
                 vf2_status rendered;
                 ++composite_verified_ticks;
                 rendered = vf2_scsp_render(
-                    &step_scsp, left, right, FRAMES_PER_TICK);
+                    &step_scsp, left, right, frames_per_tick);
                 if (rendered != VF2_OK) {
                     printf("AKIRA_COMPOSITE_10S_RENDER_FAIL tick=%u status=%d\n",
                            (unsigned)tick, (int)rendered);
@@ -2148,7 +2198,7 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
                        pan_center, pan_left, pan_right);
             }
             if (sequenced_dir != NULL) {
-                const size_t pos = tick * FRAMES_PER_TICK;
+                const size_t pos = tick * frames_per_tick;
                 if (akira_wave_prefill_experiment) {
                     preview_pages += akira_prefill_wave_pages(
                         step_ram, sample_bank, sample_bank_size,
@@ -2156,7 +2206,7 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
                 }
                 vf2_status render = vf2_scsp_render(
                     &step_scsp, music_left + pos, music_right + pos,
-                    FRAMES_PER_TICK);
+                    frames_per_tick);
                 if (render != VF2_OK) {
                     printf("AKIRA_MUSIC_SEQUENCE_FAIL tick=%u render=%d\n",
                            (unsigned)tick, (int)render);
@@ -2171,14 +2221,14 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
                "passes=%u original_pages=%u original_steps=%u "
                "assumed_cadence=882Hz realtime_verified=0\n",
                (unsigned)(full_drain &&
-                          composite_verified_ticks == SEQUENCE_TICKS),
+                          composite_verified_ticks == sequence_ticks),
                (unsigned)composite_verified_ticks,
                (unsigned)(composite_verified_ticks *
                           VF2_SCSP_SLOT_COUNT),
                (unsigned)real_walker_pages,
                (unsigned)real_walker_steps);
         if (!full_drain ||
-            composite_verified_ticks != SEQUENCE_TICKS) return 0;
+            composite_verified_ticks != sequence_ticks) return 0;
     }
     if (progress) {
         printf("AKIRA_MUSIC_PROGRESS ticks=%u total_drained=%u "
@@ -2186,13 +2236,13 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
                "final_queue=%u original_only=1 real_time_pacing=0\n",
                (unsigned)(sequenced_dir != NULL ||
                           akira_verify_composite_ticks ?
-                          SEQUENCE_TICKS : 1024u),
+                          sequence_ticks : 1024u),
                (unsigned)total_drain, (unsigned)active_ticks,
                (unsigned)last_tick_with_packets, peak_voices,
                (unsigned)step_ram[VF2_SOUND_COMMAND_COUNT]);
     }
     if (sequenced_dir != NULL) {
-        const size_t total_frames = SEQUENCE_TICKS * FRAMES_PER_TICK;
+        const size_t total_frames = SAMPLE_FRAMES;
         if (akira_native_walk_preview) {
             printf("AKIRA_MUSIC_NATIVE_WALK_PREVIEW "
                    "pages=%u C_native=1 original_L2_and_drain=1 "
@@ -2217,7 +2267,7 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
                "original_driver=1 realtime_verified=0\n",
                (unsigned)rendered_ticks, (unsigned)total_drain,
                (unsigned)last_tick_with_packets, peak_voices);
-        if (rendered_ticks != SEQUENCE_TICKS || !full_drain ||
+        if (rendered_ticks != sequence_ticks || !full_drain ||
             first_tick_count != 32u || total_drain <= 43u) return 0;
         return write_akira_stereo_pcm(
             sequenced_dir, akira_native_walk_preview ?
