@@ -1429,6 +1429,7 @@ static int akira_verify_l2_autovector_frame(
     vf2_m68k_regs legacy_regs, vector_regs;
     uint32_t legacy_steps = 0u, vector_steps = 0u, rte_steps = 0u;
     uint32_t timed_cycles = 0u, timed_steps = 0u, middle_steps = 0u;
+    uint32_t irq_entry_cycles = 0u;
     int timed_suspended = 0;
     vf2_status legacy_status, begin_status, body_status, rte_status;
     vf2_status preflight_status = VF2_ERROR_UNSUPPORTED;
@@ -1472,8 +1473,8 @@ static int akira_verify_l2_autovector_frame(
     legacy_regs.a[7] = UINT32_C(0x5000);
     vector_regs = legacy_regs;
     vector_regs.pc = UINT32_C(0x2242);
-    begin_status = vf2_m68k_irq_autovector_enter(
-        &vector_bus, &vector_regs, 2u);
+    begin_status = vf2_m68k_irq_autovector_enter_timed(
+        &vector_bus, &vector_regs, 2u, &irq_entry_cycles);
     legacy_status = vf2_m68k_run(
         &legacy_bus, &legacy_regs, UINT32_C(0x1f7a),
         0, 100000u, &legacy_steps);
@@ -1532,6 +1533,7 @@ static int akira_verify_l2_autovector_frame(
             0, 2u, &rte_steps);
     }
     match = begin_status == VF2_OK &&
+        irq_entry_cycles == 44u &&
         preflight_status == VF2_OK &&
         prologue_status == VF2_OK &&
         epilogue_preflight == VF2_OK &&
@@ -1636,6 +1638,7 @@ static int akira_verify_l2_autovector_frame(
            "enter=%d direct=%d body=%d rte=%d "
            "body_steps=%u legacy_steps=%u rte_steps=%u "
            "restored_pc=%05x stack=%05x irq_active=%u "
+           "irq_entry_cycles=%u "
            "prologue_cycles=112 epilogue_cycles=116 "
            "full_isr_cycle_total_not_modeled=1\n",
            (unsigned)match, (int)begin_status,
@@ -1643,7 +1646,8 @@ static int akira_verify_l2_autovector_frame(
            (unsigned)vector_steps, (unsigned)legacy_steps,
            (unsigned)rte_steps, (unsigned)vector_regs.pc,
            (unsigned)vector_regs.a[7],
-           (unsigned)vector_regs.irq_active);
+           (unsigned)vector_regs.irq_active,
+           (unsigned)irq_entry_cycles);
     return match;
 }
 

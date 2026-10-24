@@ -257,8 +257,13 @@ int main(void)
             &steps, &suspended);
         EXPECT_TRUE(status == VF2_OK && suspended && steps == 1u);
         EXPECT_TRUE(regs.pc == UINT32_C(0x102));
-        status = vf2_m68k_irq_autovector_enter(&bus, &regs, 2u);
-        EXPECT_TRUE(status == VF2_OK);
+        {
+            uint32_t entry_cycles = 0u;
+            status = vf2_m68k_irq_autovector_enter_timed(
+                &bus, &regs, 2u, &entry_cycles);
+            EXPECT_TRUE(status == VF2_OK &&
+                        entry_cycles == 44u);
+        }
         EXPECT_TRUE(regs.irq_active == 1u);
         EXPECT_TRUE(regs.pc == UINT32_C(0x20));
         EXPECT_TRUE(regs.a[7] == stack_top - 6u);
@@ -271,8 +276,13 @@ int main(void)
                     ram[stack_top - 1u] == 0x02u);
         EXPECT_TRUE(vf2_m68k_irq_autovector_enter(
             &bus, &regs, 3u) == VF2_ERROR_UNSUPPORTED);
-        EXPECT_TRUE(vf2_m68k_irq_autovector_enter(
-            &bus, &regs, 2u) == VF2_ERROR_UNSUPPORTED);
+        {
+            uint32_t refused_cycles = 99u;
+            EXPECT_TRUE(vf2_m68k_irq_autovector_enter_timed(
+                &bus, &regs, 2u, &refused_cycles) ==
+                VF2_ERROR_UNSUPPORTED);
+            EXPECT_TRUE(refused_cycles == 0u);
+        }
         status = vf2_m68k_run_slice(
             &bus, &regs, UINT32_C(0x102), 0,
             1u, &steps, &suspended);

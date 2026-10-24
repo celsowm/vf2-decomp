@@ -1725,6 +1725,23 @@ vf2_status vf2_m68k_irq_autovector_enter(
     return VF2_OK;
 }
 
+vf2_status vf2_m68k_irq_autovector_enter_timed(
+    vf2_m68k_bus *bus, vf2_m68k_regs *regs,
+    unsigned level, uint32_t *entry_cycles
+)
+{
+    vf2_status status;
+    if (entry_cycles == NULL) return VF2_ERROR_INVALID_ARGUMENT;
+    *entry_cycles = 0u;
+    status = vf2_m68k_irq_autovector_enter(bus, regs, level);
+    if (status != VF2_OK) return status;
+    /* Official MC68000 exception-processing table: 44 clocks
+     * for an autovector interrupt (uncontended zero-wait bus).
+     * Preserve all state transitions from the proven helper. */
+    *entry_cycles = UINT32_C(44);
+    return VF2_OK;
+}
+
 vf2_status vf2_m68k_run(
     vf2_m68k_bus *bus,
     vf2_m68k_regs *regs,

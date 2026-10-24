@@ -107,6 +107,16 @@ vf2_status vf2_m68k_irq_autovector_enter(
     vf2_m68k_bus *bus, vf2_m68k_regs *regs, unsigned level
 );
 
+/* Measured MC68000 autovector-entry exception overhead: 44 clock
+ * cycles for the baseline instruction-free transition. Excludes
+ * external bus wait states. No cycle is charged on refused entry.
+ * This complements (does not replace) run_cycle_slice: IRQ
+ * delivery timing and pending SCSP IRQ arbitration are not wired. */
+vf2_status vf2_m68k_irq_autovector_enter_timed(
+    vf2_m68k_bus *bus, vf2_m68k_regs *regs,
+    unsigned level, uint32_t *entry_cycles
+);
+
 /* Execute as many fully timed MC68000 instructions as fit within
  * cycle_budget. Unknown opcode timings refuse BEFORE execution, with
  * VF2_ERROR_UNSUPPORTED and all completed prior work preserved.
