@@ -1409,6 +1409,109 @@ static int akira_verify_walker_instruction_slices(
            regs_full.a[0] == UINT32_C(0x2000);
 }
 
+/* Sound CPU's actual ROM vector 26 / 0x601F16 ISR, now entered
+ * through the architectural stack frame instead of synthetic direct
+ * PC injection. Compare authentic ROM code on matching independent
+ * memories until the RTE opcode at 0x1F7A; the architectural run
+ * then performs RTE to the interrupted main-loop PC.
+ *
+ * This compares body semantics but NOT a timed IRQ clock, and
+ * excludes stack scratch space from RAM parity because the legacy
+ * direct-entry path had no interrupt frame. */
+static int akira_verify_l2_autovector_frame(
+    const uint8_t *rom, size_t rom_size
+)
+{
+    static uint8_t legacy_ram[VF2_SOUND_RAM_BYTES];
+    static uint8_t vector_ram[VF2_SOUND_RAM_BYTES];
+    static vf2_scsp legacy_scsp, vector_scsp;
+    vf2_m68k_bus legacy_bus, vector_bus;
+    vf2_m68k_regs legacy_regs, vector_regs;
+    uint32_t legacy_steps = 0u, vector_steps = 0u, rte_steps = 0u;
+    vf2_status legacy_status, begin_status, body_status, rte_status;
+    int match;
+    if (rom_size < UINT32_C(0x1f7c)) return 0;
+    memcpy(legacy_ram, step_ram, sizeof(legacy_ram));
+    memcpy(vector_ram, step_ram, sizeof(vector_ram));
+    memcpy(&legacy_scsp, &step_scsp, sizeof(legacy_scsp));
+    memcpy(&vector_scsp, &step_scsp, sizeof(vector_scsp));
+    if (vf2_scsp_attach_sample_ram(
+            &legacy_scsp, legacy_ram, sizeof(legacy_ram)) != VF2_OK ||
+        vf2_scsp_attach_sample_ram(
+            &vector_scsp, vector_ram, sizeof(vector_ram)) != VF2_OK) {
+        return 0;
+    }
+    memset(&legacy_bus, 0, sizeof(legacy_bus));
+    memset(&vector_bus, 0, sizeof(vector_bus));
+    legacy_bus.ram = legacy_ram;
+    legacy_bus.ram_size = sizeof(legacy_ram);
+    legacy_bus.rom = rom;
+    legacy_bus.rom_size = rom_size;
+    legacy_bus.sample_rom = sample_bank;
+    legacy_bus.sample_rom_size = sample_bank_size;
+    legacy_bus.scsp = &legacy_scsp;
+    vector_bus.ram = vector_ram;
+    vector_bus.ram_size = sizeof(vector_ram);
+    vector_bus.rom = rom;
+    vector_bus.rom_size = rom_size;
+    vector_bus.sample_rom = sample_bank;
+    vector_bus.sample_rom_size = sample_bank_size;
+    vector_bus.scsp = &vector_scsp;
+    vf2_m68k_regs_reset(&legacy_regs);
+    legacy_regs.pc = UINT32_C(0x1f16);
+    legacy_regs.a[4] = UINT32_C(0x2506);
+    legacy_regs.a[5] = VF2_SCSP_CPU_BASE;
+    legacy_regs.a[6] = UINT32_C(0x1000);
+    legacy_regs.a[7] = UINT32_C(0x5000);
+    vector_regs = legacy_regs;
+    vector_regs.pc = UINT32_C(0x2242);
+    begin_status = vf2_m68k_irq_autovector_enter(
+        &vector_bus, &vector_regs, 2u);
+    legacy_status = vf2_m68k_run(
+        &legacy_bus, &legacy_regs, UINT32_C(0x1f7a),
+        0, 100000u, &legacy_steps);
+    body_status = VF2_ERROR_UNSUPPORTED;
+    rte_status = VF2_ERROR_UNSUPPORTED;
+    if (begin_status == VF2_OK) {
+        body_status = vf2_m68k_run(
+            &vector_bus, &vector_regs, UINT32_C(0x1f7a),
+            0, 100000u, &vector_steps);
+    }
+    if (body_status == VF2_OK) {
+        rte_status = vf2_m68k_run(
+            &vector_bus, &vector_regs, UINT32_C(0x2242),
+            0, 2u, &rte_steps);
+    }
+    match = begin_status == VF2_OK &&
+        legacy_status == VF2_OK &&
+        body_status == VF2_OK &&
+        rte_status == VF2_OK &&
+        legacy_steps == vector_steps &&
+        rte_steps == 1u &&
+        vector_regs.pc == UINT32_C(0x2242) &&
+        vector_regs.irq_active == 0u &&
+        vector_regs.sr_high == UINT16_C(0x2000) &&
+        vector_regs.a[7] == UINT32_C(0x5000) &&
+        memcmp(legacy_ram, vector_ram, UINT32_C(0x4f00)) == 0 &&
+        memcmp(legacy_ram + UINT32_C(0x5100),
+               vector_ram + UINT32_C(0x5100),
+               VF2_SOUND_RAM_BYTES - UINT32_C(0x5100)) == 0 &&
+        memcmp(legacy_scsp.registers, vector_scsp.registers,
+               VF2_SCSP_REGISTER_BYTES) == 0;
+    printf("AKIRA_L2_AUTOVECTOR_FRAME matched=%u "
+           "enter=%d direct=%d body=%d rte=%d "
+           "body_steps=%u legacy_steps=%u rte_steps=%u "
+           "restored_pc=%05x stack=%05x irq_active=%u "
+           "cpu_cycles_not_modeled=1\n",
+           (unsigned)match, (int)begin_status,
+           (int)legacy_status, (int)body_status, (int)rte_status,
+           (unsigned)vector_steps, (unsigned)legacy_steps,
+           (unsigned)rte_steps, (unsigned)vector_regs.pc,
+           (unsigned)vector_regs.a[7],
+           (unsigned)vector_regs.irq_active);
+    return match;
+}
+
 /* Original-ROM candidate page-refill service: 0x2242 walker.
  * Run one iteration on an entirely separate snapshot to avoid
  * altering the ordinary music preview or original M68K bus.
@@ -1453,6 +1556,10 @@ static void akira_probe_original_walk(const uint8_t *rom, size_t rom_size,
             akira_walk_strict_failed = 1;
         }
         if (!akira_verify_walker_instruction_slices(rom, rom_size) &&
+            verify_akira_original_walk) {
+            akira_walk_strict_failed = 1;
+        }
+        if (!akira_verify_l2_autovector_frame(rom, rom_size) &&
             verify_akira_original_walk) {
             akira_walk_strict_failed = 1;
         }
