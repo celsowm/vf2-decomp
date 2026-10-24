@@ -521,7 +521,7 @@ static void test_pcm_walker_full_page(void)
     EXPECT_TRUE(vf2_sound_board_step_stream_full_page(&b, 3u) == VF2_OK);
     EXPECT_TRUE(memcmp(b.sound_ram + 0x10200u, samples, 512u) == 0);
     EXPECT_TRUE(record[1] == 0x20u);
-    EXPECT_TRUE(record[5] == 0x02u && record[9] == 0x04u);
+    EXPECT_TRUE(record[4] == 0x02u && record[8] == 0x04u);
     EXPECT_TRUE(record[0x0du] == 0x00u && record[0x0cu] == 0x07u);
     EXPECT_TRUE(record[0x1cu] == 0x00u && record[0x1du] == 0x07u);
     EXPECT_TRUE(b.sound_ram[0x10400u] == 0x55u);
