@@ -42,8 +42,8 @@ def _word(rom: bytes, pc: int) -> int:
 
 
 def _assert_move_immediate(rom: bytes, pc: int, address: int) -> int:
-    if (_word(rom, pc) != M68K_MOVE_IMM_WORD_DISP_A5 or \
-            _word(rom, pc + 4) != address:
+    if (_word(rom, pc) != M68K_MOVE_IMM_WORD_DISP_A5 or
+            _word(rom, pc + 4) != address):
         raise ValueError(f"unexpected M68000 timer instruction at 0x{pc:04X}")
     return _word(rom, pc + 2)
 
