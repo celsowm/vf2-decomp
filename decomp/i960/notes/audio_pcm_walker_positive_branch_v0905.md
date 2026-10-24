@@ -169,3 +169,31 @@ Remaining unsupported: the bit3-clear short-page 0x2524 branch,
 odd/out-of-domain activation indices, some 0x260C paths and
 actual SCSP/IRQ scheduler pacing. No automatic production
 integration of the walker has been performed.
+
+## v0909 — recovered 0x2522 / 0x260C real target (2026-10-24)
+
+The original owner's ROM bytes make the 0x2522–0x260C arm
+reachable when a short page (<=512 bytes) has both stream
+flag bits 0 and 3 clear. Prior historical notes described 0x260C
+as an unmapped entry: **incorrect**. The 0x25F6 BNE.W +0x14
+explicitly targets 0x260C if the original mode byte bit7 is set.
+
+The recovered routine is `vf2_sound_board_step_stream_short_terminal`:
+
+- 0x2522–0x252C computes a BE16 terminal length as the low
+  word of (destination - descriptor +0x0E + remaining), with
+  ADD.W semantics (not a full 32-bit addition).
+- 0x252E–0x25EE performs 16x 32-byte MOVEM sample copies from
+  OLD source to OLD destination (512 bytes). It does **not**
+  change the descriptor's source +2, destination +6 or remaining +A.
+- When mode bit7 is clear, 0x25FA sets descriptor bit3,
+  0x2600 adds 0x10 to mode and 0x2608 jumps to 0x265C.
+- When mode bit7 is set, 0x25F6 branches to **0x260C**, which
+  runs the SCSP slot-clear, slot +6 length write, descriptor
+  release and voice status/countdown updates before 0x265C.
+
+Added ROM-free tests and **two owner-ROM original-68000 differential
+fixtures** for no-release (mode 0x10) and immediate release
+(mode 0x90). The owner-ROM strict gate will refuse parity failure.
+Normal scheduling remains unchanged. The synthetic fixtures prove
+field effects, not arcade timing.

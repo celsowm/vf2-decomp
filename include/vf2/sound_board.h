@@ -217,6 +217,19 @@ vf2_status vf2_sound_board_step_stream_short_release(
     vf2_sound_board *board, size_t slot_index
 );
 
+/* ROM 0x24BE -> 0x2522..0x260A: terminal non-loop PCM page.
+ * A +0x00=0x80 stream and remaining<=512 copies the final 512-byte
+ * page WITHOUT advancing +2/+6 or decreasing remaining; +0x1E
+ * receives (destination - +0x0E + remaining) low 16 bits.
+ * If mode bit7 is clear, mark bit3 active and increment mode by 0x10.
+ * If mode bit7 is set, follow the 0x260C release tail instead:
+ * update SCSP slot+1/+6, release stream, update voice status/countdown.
+ * Both terminate via the observed 0x265C SCSP master byte write.
+ * Requires explicit call: scheduler/IRQ cadence remains unrecovered. */
+vf2_status vf2_sound_board_step_stream_short_terminal(
+    vf2_sound_board *board, size_t slot_index
+);
+
 /* Original 68000 tail at 0xD72..0xD90 (seven instructions).
  * Writes the post-copy A0/A2 pointers to the channel stream,
  * sets SCSP KEYON bits (read/OR/write), and sets stream+0 = 0x80.

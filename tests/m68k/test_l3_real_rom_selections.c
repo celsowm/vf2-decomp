@@ -879,6 +879,115 @@ static int akira_verify_short_release_fixture(
     return pass;
 }
 
+/* Original-ROM stepper parity for the two 0x2522 terminal paths.
+ * The fixture drives 68000 from 0x2242, through the original
+ * bit0-clear/bit3-clear controls, once without immediate release
+ * (mode 0x10) and once through its 0x25F6 -> 0x260C branch
+ * (mode 0x90). Never exports proprietary sample bytes. */
+static int akira_verify_short_terminal_fixture(
+    const uint8_t *rom, size_t rom_size
+)
+{
+    static uint8_t original_ram[VF2_SOUND_RAM_BYTES];
+    static vf2_scsp original_scsp;
+    static vf2_sound_board native;
+    vf2_m68k_bus bus;
+    vf2_m68k_regs r;
+    unsigned variant;
+    int all_match = 1;
+    for (variant = 0u; variant < 2u; ++variant) {
+        uint8_t *desc;
+        uint8_t *voice;
+        uint32_t one = 0u, rest = 0u;
+        vf2_status first, original_status, native_status;
+        const uint32_t dest = UINT32_C(0x10200);
+        const uint32_t sample_source = UINT32_C(0x800200);
+        const uint32_t voice_offset = VF2_SOUND_VOICE_TABLE_BASE + 0x30u;
+        int parity;
+        memset(original_ram, 0, sizeof(original_ram));
+        memset(&original_scsp, 0, sizeof(original_scsp));
+        memset(&native, 0, sizeof(native));
+        desc = original_ram + UINT32_C(0x2000);
+        voice = original_ram + voice_offset;
+        desc[0u] = UINT8_C(0x80);
+        desc[1u] = variant == 0u ? UINT8_C(0x10) : UINT8_C(0x90);
+        desc[2u] = 0x00u; desc[3u] = 0x80u;
+        desc[4u] = 0x02u; desc[5u] = 0x00u;
+        desc[6u] = 0x00u; desc[7u] = 0x01u;
+        desc[8u] = 0x02u; desc[9u] = 0x00u;
+        desc[0x0au] = 0u; desc[0x0bu] = 0u;
+        desc[0x0cu] = 0x01u; desc[0x0du] = 0x80u;
+        desc[0x0eu] = 0x00u; desc[0x0fu] = 0x01u;
+        desc[0x10u] = 0x01u; desc[0x11u] = 0x00u;
+        desc[0x12u] = 6u;
+        desc[0x16u] = 0x42u;
+        desc[0x1au] = 0u; desc[0x1bu] = 2u;
+        desc[0x1cu] = 0u; desc[0x1du] = 5u;
+        voice[2u] = 0x08u; voice[0x0bu] = 4u;
+        original_scsp.registers[0x61u] = 0x7fu;
+        memcpy(native.sound_ram, original_ram, sizeof(original_ram));
+        native.sample_rom = sample_bank;
+        native.sample_rom_size = sample_bank_size;
+        memcpy(native.scsp.registers, original_scsp.registers,
+               sizeof(native.scsp.registers));
+        if (vf2_scsp_attach_sample_ram(
+                &original_scsp, original_ram,
+                sizeof(original_ram)) != VF2_OK) {
+            return 0;
+        }
+        memset(&bus, 0, sizeof(bus));
+        bus.ram = original_ram;
+        bus.ram_size = sizeof(original_ram);
+        bus.rom = rom;
+        bus.rom_size = rom_size;
+        bus.sample_rom = sample_bank;
+        bus.sample_rom_size = sample_bank_size;
+        bus.scsp = &original_scsp;
+        vf2_m68k_regs_reset(&r);
+        r.pc = UINT32_C(0x2242);
+        r.a[0] = UINT32_C(0x2000);
+        r.a[4] = UINT32_C(0x2506);
+        r.a[5] = VF2_SCSP_CPU_BASE;
+        r.a[6] = UINT32_C(0x1000);
+        r.a[7] = UINT32_C(0x5000);
+        native_status = vf2_sound_board_step_stream_short_terminal(
+            &native, 0u);
+        first = vf2_m68k_run(&bus, &r, 0u, 0, 1u, &one);
+        original_status = vf2_m68k_run(
+            &bus, &r, UINT32_C(0x2242), 0, 100000u, &rest);
+        parity = native_status == VF2_OK &&
+            first == VF2_ERROR_UNSUPPORTED && one == 1u &&
+            original_status == VF2_OK &&
+            r.pc == UINT32_C(0x2242) &&
+            r.a[0] == UINT32_C(0x2020) &&
+            read_be32(original_ram + 0x2002u) == sample_source &&
+            read_be32(original_ram + 0x2006u) == dest &&
+            memcmp(native.sound_ram + 0x2000u,
+                   original_ram + 0x2000u, 0x20u) == 0 &&
+            memcmp(native.sound_ram + dest,
+                   original_ram + dest, 512u) == 0 &&
+            memcmp(native.sound_ram + voice_offset,
+                   original_ram + voice_offset, 0x10u) == 0 &&
+            memcmp(native.scsp.registers, original_scsp.registers,
+                   VF2_SCSP_REGISTER_BYTES) == 0;
+        printf("AKIRA_SHORT_TERMINAL_ORIGINAL_DIFF variant=%u "
+               "matched=%u native_status=%d m68k_status=%d "
+               "steps=%u flag=%02x mode=%02x delta=%04x "
+               "key=%02x voice_status=%02x\n",
+               variant, (unsigned)parity, (int)native_status,
+               (int)original_status, (unsigned)(one + rest),
+               (unsigned)original_ram[0x2000u],
+               (unsigned)original_ram[0x2001u],
+               (unsigned)(
+                   ((unsigned)original_ram[0x201eu] << 8u) |
+                   original_ram[0x201fu]),
+               (unsigned)original_scsp.registers[0x61u],
+               (unsigned)original_ram[voice_offset + 2u]);
+        if (!parity) all_match = 0;
+    }
+    return all_match;
+}
+
 /* Original-ROM candidate page-refill service: 0x2242 walker.
  * Run one iteration on an entirely separate snapshot to avoid
  * altering the ordinary music preview or original M68K bus.
@@ -903,6 +1012,10 @@ static void akira_probe_original_walk(const uint8_t *rom, size_t rom_size,
             akira_walk_strict_failed = 1;
         }
         if (!akira_verify_short_release_fixture(rom, rom_size) &&
+            verify_akira_original_walk) {
+            akira_walk_strict_failed = 1;
+        }
+        if (!akira_verify_short_terminal_fixture(rom, rom_size) &&
             verify_akira_original_walk) {
             akira_walk_strict_failed = 1;
         }

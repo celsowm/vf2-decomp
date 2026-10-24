@@ -735,6 +735,95 @@ static void test_pcm_walker_short_release(void)
                 VF2_ERROR_UNSUPPORTED);
 }
 
+/* 0x2522 terminal 512B MOVEM: unlike normal refills, +2 and +6
+ * stay frozen, and 0x1E is the low-word delta plus remaining. */
+static void test_pcm_walker_short_terminal(void)
+{
+    static vf2_sound_board b;
+    static uint8_t samples[0x1000u];
+    uint8_t *r = b.sound_ram + 0x2000u + 5u * 0x20u;
+    uint8_t *voice = b.sound_ram + VF2_SOUND_VOICE_TABLE_BASE + 0x30u;
+    uint8_t saved[0x20u];
+    size_t i;
+    memset(&b, 0, sizeof(b));
+    for (i = 0u; i < sizeof(samples); ++i) {
+        samples[i] = (uint8_t)(i * 17u + 1u);
+    }
+    b.sample_rom = samples;
+    b.sample_rom_size = sizeof(samples);
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_terminal(NULL, 5u) ==
+                VF2_ERROR_INVALID_ARGUMENT);
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_terminal(&b, 32u) ==
+                VF2_ERROR_INVALID_ARGUMENT);
+    r[0u] = 0x80u;
+    r[1u] = 0x10u;
+    store_pcm_cursor(r + 2u, UINT32_C(0x800200));
+    store_pcm_cursor(r + 6u, UINT32_C(0x10200));
+    store_pcm_cursor(r + 0x0au, UINT32_C(0x180));
+    store_pcm_cursor(r + 0x0eu, UINT32_C(0x10100));
+    r[0x12u] = 6u;
+    r[0x16u] = 0x42u;
+    r[0x1au] = 0u; r[0x1bu] = 2u;
+    r[0x1cu] = 0u; r[0x1du] = 5u;
+    memset(b.sound_ram + 0x10200u, 0x55, 512u);
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_terminal(&b, 5u) ==
+                VF2_OK);
+    EXPECT_TRUE(memcmp(b.sound_ram + 0x10200u,
+                       samples + 0x200u, 512u) == 0);
+    EXPECT_TRUE(r[0u] == 0x88u && r[1u] == 0x20u);
+    EXPECT_TRUE(r[0x1eu] == 0x02u && r[0x1fu] == 0x80u);
+    EXPECT_TRUE(r[4u] == 0x02u && r[8u] == 0x02u);
+    EXPECT_TRUE(r[0x0cu] == 0x01u && r[0x0du] == 0x80u);
+    EXPECT_TRUE(b.scsp.registers[0x408u] == 0x42u);
+
+    /* 0x25F6 mode bit7 -> 0x260C live release tail, even if the
+     * bit3 of the incoming descriptor was CLEAR. */
+    r[0u] = 0x80u;
+    r[1u] = 0x90u;
+    store_pcm_cursor(r + 2u, UINT32_C(0x800400));
+    store_pcm_cursor(r + 6u, UINT32_C(0x10400));
+    r[0x16u] = 0x6bu;
+    b.scsp.registers[0x61u] = 0x7fu;
+    voice[2u] = 0x08u;
+    voice[0x0bu] = 4u;
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_terminal(&b, 5u) ==
+                VF2_OK);
+    EXPECT_TRUE(memcmp(b.sound_ram + 0x10400u,
+                       samples + 0x400u, 512u) == 0);
+    EXPECT_TRUE(r[0u] == 0u && r[1u] == 0x90u);
+    EXPECT_TRUE(r[0x1eu] == 0x04u && r[0x1fu] == 0x80u);
+    EXPECT_TRUE(b.scsp.registers[0x61u] == 0x1fu);
+    EXPECT_TRUE(b.scsp.registers[0x66u] == 0x04u &&
+                b.scsp.registers[0x67u] == 0x80u);
+    EXPECT_TRUE(voice[2u] == 9u && voice[0x0bu] == 0x54u);
+    EXPECT_TRUE(b.scsp.registers[0x408u] == 0x6bu);
+    EXPECT_TRUE(r[4u] == 0x04u && r[8u] == 0x04u);
+
+    /* Fail-closed for looping/busy entries, invalid sample page,
+     * unsupported odd channel and unsigned countdown >512. */
+    r[0u] = 0x81u;
+    memcpy(saved, r, sizeof(saved));
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_terminal(&b, 5u) ==
+                VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(memcmp(saved, r, sizeof(saved)) == 0);
+    r[0u] = 0x80u;
+    r[0x12u] = 7u;
+    memcpy(saved, r, sizeof(saved));
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_terminal(&b, 5u) ==
+                VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(memcmp(saved, r, sizeof(saved)) == 0);
+    r[0x12u] = 6u;
+    store_pcm_cursor(r + 0x0au, UINT32_C(513));
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_terminal(&b, 5u) ==
+                VF2_ERROR_UNSUPPORTED);
+    store_pcm_cursor(r + 0x0au, UINT32_C(0x180));
+    store_pcm_cursor(r + 2u, UINT32_C(0x800f00));
+    memcpy(saved, r, sizeof(saved));
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_terminal(&b, 5u) ==
+                VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(memcmp(saved, r, sizeof(saved)) == 0);
+}
+
 int main(void)
 {
     static uint8_t audio_rom[0x10010u];
@@ -2189,6 +2278,7 @@ int main(void)
     test_pcm_walker_full_page();
     test_pcm_walker_short_loop_page();
     test_pcm_walker_short_release();
+    test_pcm_walker_short_terminal();
     test_pcm_stream_page_native();
     test_render_first_tone();
     test_ad21_b_class_drain();

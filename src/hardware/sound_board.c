@@ -805,6 +805,123 @@ vf2_status vf2_sound_board_step_stream_short_release(
         &board->scsp, UINT32_C(0x0408), record[0x16u]);
 }
 
+/* ROM entry 0x2242, short-page branch 0x23B0 (bit0 clear),
+ * 0x24BE (bit3 clear), then 0x2522..0x260A or 0x260C..0x265C.
+ *
+ * The branch at 0x24C4 BEQ.W +0x5C lands on 0x2522:
+ *   2522 MOVE.L A2,D7
+ *   2524 SUB.L 0x0E(A0),D7
+ *   2528 ADD.W D5,D7       (only low word altered)
+ *   252A MOVE.W D7,0x1E(A0)
+ *   252E..25EC MOVEM.L 16 * 32-byte pages A1 -> A2.
+ *   25EE MOVE.B 1(A0),D2
+ *   25F2 BTST #7,D2
+ *   25F6 BNE.W 260C       (terminal immediate release)
+ *   25FA BSET #3,(A0)     (otherwise arm later release)
+ *   2600 ADDI.B #0x10,D2
+ *   2604 MOVE.B D2,1(A0)
+ *   2608 BRA.W 265C
+ *
+ * 260C is a REAL branch target from 25F6, not unreachable dead
+ * code. It has the same SCSP/key, +1E slot+6, status and countdown
+ * tail as 24D2. Mode/flag gates and destination bounds are checked
+ * before the irreversible copy. No unverified scheduler calls. */
+vf2_status vf2_sound_board_step_stream_short_terminal(
+    vf2_sound_board *board, size_t slot_index
+)
+{
+    uint8_t *record;
+    uint8_t *voice = NULL;
+    uint16_t timer;
+    uint16_t ending;
+    uint8_t mode;
+    uint8_t midi_status;
+    uint8_t slot_number = 0u;
+    uint8_t key = 0u;
+    uint32_t scsp_offset = 0u;
+    uint32_t source;
+    uint32_t destination;
+    uint32_t start_destination;
+    uint32_t remaining;
+    vf2_status result;
+    if (board == NULL || slot_index >= VF2_SOUND_VOICE_COUNT) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    record = board->sound_ram + UINT32_C(0x2000) +
+             slot_index * UINT32_C(0x20);
+    if (record[0u] != UINT8_C(0x80)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    remaining = read_be32(record + 0x0au);
+    if (remaining > UINT32_C(512)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    timer = (uint16_t)(read_be16(record + 0x1cu) +
+                       read_be16(record + 0x1au));
+    if ((timer & UINT16_C(0x8000)) != 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    mode = record[1u];
+    result = vf2_scsp_read_u8(
+        &board->scsp, UINT32_C(0x0409), &midi_status);
+    if (result != VF2_OK) {
+        return result;
+    }
+    if ((mode == 0u && (midi_status & UINT8_C(0x80)) == 0u) ||
+        (mode == UINT8_C(0x80) &&
+         (midi_status & UINT8_C(0x80)) != 0u)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    source = read_be32(record + 2u);
+    start_destination = read_be32(record + (mode == 0u ? 0x0eu : 6u));
+    destination = start_destination;
+    ending = (uint16_t)((uint16_t)(destination -
+                                  read_be32(record + 0x0eu)) +
+                        (uint16_t)remaining);
+    /* Only the reachable 0x260C branch (mode bit7 set) can alter
+     * the SCSP slot and voice record; validate its indexed writes. */
+    if ((mode & UINT8_C(0x80)) != 0u) {
+        slot_number = record[0x12u];
+        if ((slot_number & 1u) != 0u ||
+            slot_number >= VF2_SOUND_VOICE_COUNT * 2u) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        scsp_offset = (uint32_t)slot_number * UINT32_C(16);
+        voice = board->sound_ram + VF2_SOUND_VOICE_TABLE_BASE +
+                (uint32_t)slot_number * UINT32_C(8);
+        result = vf2_scsp_read_u8(
+            &board->scsp, scsp_offset + 1u, &key);
+        if (result != VF2_OK) {
+            return result;
+        }
+    }
+    result = vf2_sound_board_copy_engine_page_512(
+        board, &source, &destination);
+    if (result != VF2_OK) {
+        return result;
+    }
+    write_be16(record + 0x1eu, ending);
+    if ((mode & UINT8_C(0x80)) == 0u) {
+        record[0u] = (uint8_t)(record[0u] | UINT8_C(8));
+        record[1u] = (uint8_t)(mode + UINT8_C(0x10));
+    } else {
+        /* 0x260C..0x2658, reached after the page copy, releases
+         * immediately. Original code does not set bit3 or mode. */
+        (void)vf2_scsp_write_u8(
+            &board->scsp, scsp_offset + 1u,
+            (uint8_t)(key & UINT8_C(0x9f)));
+        (void)vf2_scsp_write_u16(
+            &board->scsp, scsp_offset + 6u, ending);
+        record[0u] = 0u;
+        voice[0x0bu] = (uint8_t)(voice[0x0bu] +
+            ((voice[2u] & UINT8_C(8)) != 0u ?
+             UINT8_C(0x50) : UINT8_C(3)));
+        voice[2u] = (uint8_t)(voice[2u] | UINT8_C(1));
+    }
+    return vf2_scsp_write_u8(
+        &board->scsp, UINT32_C(0x0408), record[0x16u]);
+}
+
 /* ROM 0xD72..0xD90: 7 instructions, stop BEFORE RTS at 0xD90.
  *   move.w (a1),d4; move.l a0,2(a3,d4.w)
  *   move.l a2,6(a3,d4.w); move.b (a5,d4.w),d5
