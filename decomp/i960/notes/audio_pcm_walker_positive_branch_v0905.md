@@ -422,3 +422,54 @@ then replay an observed original IRQ/cycle schedule and
 compare mixed samples against an independent trusted chip
 reference. Do not infer timing from the equality of two
 runs with the SAME chosen pacing.
+
+## v0917 — C-native Akira WAV, byte-for-byte identity with 68000
+
+A new **opt-in only** user-owned ROM test mode drives the existing
+original 68000 L2 ISR and command drainer as before, but replaces
+**only the 0x2242 streaming page walker** with the composed native
+C `vf2_sound_board_step_stream_walk_one()`. At each of the 8,820
+experimentally timed 50-frame intervals, this C walker advances
+32 stream descriptors and copies its complete SCSP/sound-RAM
+state back to the original-ROM test harness.
+
+Reproduce locally, without committing copyrighted assets:
+
+```sh
+mkdir -p /private/output-native /private/output-original
+vf2_m68k_l3_selection_tests /private/verified-vf2-rom \
+  --akira-native-walk-wav-dir /private/output-native
+vf2_m68k_l3_selection_tests /private/verified-vf2-rom \
+  --akira-original-walk-wav-dir /private/output-original
+sha256sum /private/output-{native,original}/*.wav
+```
+
+On 2026-10-24 both invocations of the `20e9547` CI Linux
+binary completed with **exit status 0** on the owner's supplied
+VF2.1 ZIP ROM. The native path counted exactly 2,160 512-byte
+pages, while the original MC68000 walker also counted 2,160
+pages over 4,984,294 instructions. Both paths drained 456
+original command packets and rendered 8,820 ticks / 441,000
+stereo sample frames.
+
+Most importantly, the two PCM WAV files had the **same exact
+size** (1,764,044 bytes each) and **identical SHA-256**:
+
+```text
+edf60ea14ece3359dfbb8ff2266bc8b04045921816a78ae848a2355296b09717
+```
+
+This establishes **bitwise equal generated audio** between
+the C-native 0x2242 streaming service and the original 68000
+interpreter under the SAME experimental 882 Hz driver pacing,
+SCSP renderer, source ROM and L2/command control flow.
+The owner ROM, source sample banks and WAV outputs were kept
+outside the public GitHub repository.
+
+It **does not establish** authentic MC68000 scheduling
+through hardware IRQ preemption, exact SCSP DSP/envelopes,
+independent chip-emulator parity, or correct 10-second
+arcade audio; those remain the next unproven boundaries.
+The C walker is still an explicit opt-in to the standalone
+owner-ROM preview, not silently enabled in the production
+session pump.
