@@ -307,8 +307,32 @@ int main(void)
         EXPECT_TRUE(regs.usp == user_sp);
         EXPECT_TRUE(regs.a[7] == stack_top - 6u);
         EXPECT_TRUE(ram[stack_top - 6u] == 0u);
-        status = vf2_m68k_run(&bus, &regs, 0x100u, 0, 5u, &steps);
-        EXPECT_TRUE(status == VF2_OK && steps == 2u);
+        {
+            uint32_t cycles = 0u;
+            uint32_t timed_steps = 0u;
+            int paused = 0;
+            /* The ISR's MOVEQ is exactly four MC68000 clocks. */
+            status = vf2_m68k_run_cycle_slice(
+                &bus, &regs, 0x22u, 4u,
+                &cycles, &timed_steps, &paused);
+            EXPECT_TRUE(status == VF2_OK && !paused &&
+                        cycles == 4u && timed_steps == 1u &&
+                        regs.pc == 0x22u);
+            /* RTE takes twenty clocks, must not partially pop SR
+             * or the 6-byte autovector frame on a 19-clock slice. */
+            status = vf2_m68k_run_cycle_slice(
+                &bus, &regs, 0x100u, 19u,
+                &cycles, &timed_steps, &paused);
+            EXPECT_TRUE(status == VF2_OK && paused &&
+                        cycles == 0u && timed_steps == 0u &&
+                        regs.pc == 0x22u &&
+                        regs.a[7] == stack_top - 6u);
+            status = vf2_m68k_run_cycle_slice(
+                &bus, &regs, 0x100u, 20u,
+                &cycles, &timed_steps, &paused);
+            EXPECT_TRUE(status == VF2_OK && !paused &&
+                        cycles == 20u && timed_steps == 1u);
+        }
         EXPECT_TRUE(regs.pc == 0x100u);
         EXPECT_TRUE(regs.irq_active == 0u);
         EXPECT_TRUE(regs.a[7] == user_sp);
