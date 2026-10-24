@@ -330,5 +330,59 @@ int main(void)
         EXPECT_TRUE(regs.pc == 0x100u && regs.a[7] == 5u);
     }
 
+    /* Actual VF2.1 ISR pair: 0x48E7 FFF8 predecrement
+     * mask reversal and 0x4CDF 1FFF postincrement normal mask. */
+    {
+        static const uint8_t movem_isr[] = {
+            0x48u, 0xe7u, 0xffu, 0xf8u,
+            0x4cu, 0xdfu, 0x1fu, 0xffu,
+            0x4eu, 0x71u
+        };
+        uint32_t expected_d[8];
+        uint32_t expected_a[5];
+        const uint32_t stack_top = UINT32_C(0x7000);
+        size_t index;
+        int sliced = 0;
+        make_bus(&bus, &scsp, ram, movem_isr, sizeof(movem_isr));
+        vf2_m68k_regs_reset(&regs);
+        regs.a[7] = stack_top;
+        for (index = 0u; index < 8u; ++index) {
+            expected_d[index] = UINT32_C(0x10000000) +
+                (uint32_t)index * UINT32_C(0x01010101);
+            regs.d[index] = expected_d[index];
+        }
+        for (index = 0u; index < 5u; ++index) {
+            expected_a[index] = UINT32_C(0x20000000) +
+                (uint32_t)index * UINT32_C(0x01010101);
+            regs.a[index] = expected_a[index];
+        }
+        status = vf2_m68k_run_slice(
+            &bus, &regs, 8u, 0, 1u, &done, &sliced);
+        EXPECT_TRUE(status == VF2_OK && sliced && done == 1u);
+        EXPECT_TRUE(regs.a[7] == stack_top - 52u);
+        for (index = 0u; index < 13u; ++index) {
+            const uint32_t expected = index < 8u ?
+                expected_d[index] : expected_a[index - 8u];
+            const uint32_t addr = stack_top - 52u +
+                (uint32_t)index * 4u;
+            EXPECT_TRUE(ram[addr] == (uint8_t)(expected >> 24u));
+            EXPECT_TRUE(ram[addr+1u] == (uint8_t)(expected >> 16u));
+            EXPECT_TRUE(ram[addr+2u] == (uint8_t)(expected >> 8u));
+            EXPECT_TRUE(ram[addr+3u] == (uint8_t)expected);
+        }
+        for (index = 0u; index < 8u; ++index) regs.d[index] = 0u;
+        for (index = 0u; index < 5u; ++index) regs.a[index] = 0u;
+        status = vf2_m68k_run_slice(
+            &bus, &regs, 8u, 0, 1u, &done, &sliced);
+        EXPECT_TRUE(status == VF2_OK && !sliced && done == 1u);
+        EXPECT_TRUE(regs.a[7] == stack_top);
+        for (index = 0u; index < 8u; ++index) {
+            EXPECT_TRUE(regs.d[index] == expected_d[index]);
+        }
+        for (index = 0u; index < 5u; ++index) {
+            EXPECT_TRUE(regs.a[index] == expected_a[index]);
+        }
+    }
+
     return failures == 0 ? 0 : 1;
 }

@@ -1484,13 +1484,19 @@ static vf2_status step_movem(
         return VF2_ERROR_UNSUPPORTED;
     }
     if (mode == 4u) {
+        /* MC68000 MOVEM reg -> -(An) has a REVERSED register
+         * mask: bit0=A7, ..., bit7=A0, bit8=D7, ..., bit15=D0.
+         * Transfers follow descending address order. The
+         * original VF2.1 L2 ISR has mask 0xFFF8 and matching
+         * MOVEM.L (A7)+ normal mask 0x1FFF. */
         address = regs->a[reg];
-        for (bit = 15; bit >= 0; --bit) {
+        for (bit = 0; bit < 16; ++bit) {
             if ((mask & (uint16_t)((uint16_t)1u << (unsigned)bit)) == 0u) {
                 continue;
             }
             address -= 4u;
-            value = bit < 8 ? regs->d[bit] : regs->a[bit - 8];
+            value = bit < 8 ?
+                regs->a[7 - bit] : regs->d[15 - bit];
             status = bus_write(bus, address, 2u, value);
             if (status != VF2_OK) {
                 return status;
