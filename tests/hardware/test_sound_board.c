@@ -612,7 +612,7 @@ static void test_pcm_walker_short_loop_page(void)
     store_pcm_cursor(r + 6u, UINT32_C(0x18200));
     store_pcm_cursor(r + 0x0au, UINT32_C(0x180));
     store_pcm_cursor(r + 0x12u, UINT32_C(0x8f2000));
-    store_pcm_cursor(r + 0x16u, UINT32_C(0x12400));
+    store_pcm_cursor(r + 0x16u, UINT32_C(0xa5012400));
     r[0x1au] = 0u;
     r[0x1bu] = 2u;
     r[0x1cu] = 0u;
@@ -629,7 +629,7 @@ static void test_pcm_walker_short_loop_page(void)
     EXPECT_TRUE(r[0x0au] == 0u && r[0x0bu] == 0x01u &&
                 r[0x0cu] == 0x23u && r[0x0du] == 0x80u);
     EXPECT_TRUE(r[0x1cu] == 0u && r[0x1du] == 7u);
-    EXPECT_TRUE(b.scsp.registers[0x408u] == 0x01u);
+    EXPECT_TRUE(b.scsp.registers[0x408u] == 0xa5u);
 
     /* At exactly 512 bytes, padding=0, source becomes masked loop
      * pointer; a 0x80-only flag must NOT use this branch. */
