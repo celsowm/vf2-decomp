@@ -1013,6 +1013,79 @@ vf2_status vf2_sound_board_step_stream_empty_dispatch(
     return VF2_OK;
 }
 
+/* Complete one 68000 descriptor service, provided 0x2506
+ * command queue is empty. All operations are earlier ROM-backed
+ * bounded functions; this adds only verified control-flow routing.
+ * No automatic production scheduling or fabricated timing. */
+vf2_status vf2_sound_board_step_stream_walk_one(
+    vf2_sound_board *board, size_t slot_index,
+    uint32_t *next_descriptor_address
+)
+{
+    const uint32_t base = UINT32_C(0x2000);
+    uint8_t *record;
+    uint8_t flags, mode, midi_status;
+    uint16_t timer;
+    uint32_t remaining;
+    vf2_status result;
+    if (board == NULL || next_descriptor_address == NULL ||
+        slot_index >= VF2_SOUND_VOICE_COUNT) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    if (board->sound_ram[VF2_SOUND_COMMAND_COUNT] != 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    record = board->sound_ram + base +
+             slot_index * VF2_SOUND_STREAM_DESCRIPTOR_BYTES;
+    flags = record[0u];
+    timer = (uint16_t)(read_be16(record + 0x1cu) +
+                       read_be16(record + 0x1au));
+    if ((flags & UINT8_C(0x80)) == 0u ||
+        (timer & UINT16_C(0x8000)) != 0u) {
+        return vf2_sound_board_step_stream_empty_dispatch(
+            board, slot_index, next_descriptor_address);
+    }
+    mode = record[1u];
+    result = vf2_scsp_read_u8(
+        &board->scsp, UINT32_C(0x0409), &midi_status);
+    if (result != VF2_OK) {
+        return result;
+    }
+    /* 0x2282/0x22B0: SCSP MIDI7 branch directly to 0x265C
+     * even when the stream length is greater than 512. */
+    if ((mode == 0u && (midi_status & UINT8_C(0x80)) == 0u) ||
+        (mode == UINT8_C(0x80) &&
+         (midi_status & UINT8_C(0x80)) != 0u)) {
+        result = vf2_scsp_write_u8(
+            &board->scsp, UINT32_C(0x0408), record[0x16u]);
+    } else {
+        remaining = read_be32(record + 0x0au);
+        if (remaining > UINT32_C(512)) {
+            result = vf2_sound_board_step_stream_full_page(
+                board, slot_index);
+        } else if ((flags & UINT8_C(1)) != 0u) {
+            result = vf2_sound_board_step_stream_short_loop_page(
+                board, slot_index);
+        } else if ((flags & UINT8_C(8)) != 0u) {
+            result = vf2_sound_board_step_stream_short_release(
+                board, slot_index);
+        } else {
+            result = vf2_sound_board_step_stream_short_terminal(
+                board, slot_index);
+        }
+    }
+    if (result != VF2_OK) {
+        return result;
+    }
+    /* 0x265C MOVE.B +16(A0),0x408(A5) determines Z. The
+     * 0x2662 BEQ is *not* a generic modulo-32 ring wrap. */
+    *next_descriptor_address = record[0x16u] == 0u ?
+        base :
+        base + (uint32_t)(slot_index + 1u) *
+            VF2_SOUND_STREAM_DESCRIPTOR_BYTES;
+    return VF2_OK;
+}
+
 /* ROM 0xD72..0xD90: 7 instructions, stop BEFORE RTS at 0xD90.
  *   move.w (a1),d4; move.l a0,2(a3,d4.w)
  *   move.l a2,6(a3,d4.w); move.b (a5,d4.w),d5

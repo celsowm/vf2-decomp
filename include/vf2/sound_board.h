@@ -258,6 +258,17 @@ vf2_status vf2_sound_board_step_stream_short_terminal(
     vf2_sound_board *board, size_t slot_index
 );
 
+/* Explicitly execute one recovered original 0x2242 -> 0x2242
+ * descriptor iteration with empty command ring 0x2506.
+ * Chooses timer/idle handoff, MIDI7 skip, full page, short-loop,
+ * terminal page or voice release according to the original 68000
+ * branch conditions. Returns the exact next A0; does NOT infer
+ * the original CPU/SCSP interrupt rate or schedule anything. */
+vf2_status vf2_sound_board_step_stream_walk_one(
+    vf2_sound_board *board, size_t slot_index,
+    uint32_t *next_descriptor_address
+);
+
 /* Original 68000 tail at 0xD72..0xD90 (seven instructions).
  * Writes the post-copy A0/A2 pointers to the channel stream,
  * sets SCSP KEYON bits (read/OR/write), and sets stream+0 = 0x80.
