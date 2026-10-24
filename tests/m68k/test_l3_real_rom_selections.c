@@ -1651,6 +1651,119 @@ static int akira_verify_l2_autovector_frame(
     return match;
 }
 
+/* Genuine ROM 0x1F32 LEA 0x2000(A6),A2 followed by
+ * 0x1F36 JSR (d16,PC) to the note service. Check exact
+ * MOTOROLA cycles 8+18, stack PC and full semantic equivalence
+ * against an uninterrupted original-ROM execution through RTS.
+ * This is only two timed opcodes, NOT total ISR timing. */
+static int akira_verify_l2_jsr_cycle_prefix(
+    const uint8_t *rom, size_t rom_size
+)
+{
+    static uint8_t full_ram[VF2_SOUND_RAM_BYTES];
+    static uint8_t timed_ram[VF2_SOUND_RAM_BYTES];
+    static vf2_scsp full_scsp, timed_scsp;
+    vf2_m68k_bus full_bus, timed_bus;
+    vf2_m68k_regs full_regs, timed_regs;
+    uint32_t full_steps = 0u, timed_body = 0u;
+    uint32_t cycles = 0u, steps = 0u;
+    vf2_status full_status, status;
+    int suspended = 0, parity;
+    unsigned reg;
+    if (rom_size < UINT32_C(0x2200)) return 0;
+    memcpy(full_ram, step_ram, sizeof(full_ram));
+    memcpy(timed_ram, step_ram, sizeof(timed_ram));
+    memcpy(&full_scsp, &step_scsp, sizeof(full_scsp));
+    memcpy(&timed_scsp, &step_scsp, sizeof(timed_scsp));
+    if (vf2_scsp_attach_sample_ram(
+            &full_scsp, full_ram, sizeof(full_ram)) != VF2_OK ||
+        vf2_scsp_attach_sample_ram(
+            &timed_scsp, timed_ram, sizeof(timed_ram)) != VF2_OK)
+        return 0;
+    memset(&full_bus, 0, sizeof(full_bus));
+    memset(&timed_bus, 0, sizeof(timed_bus));
+    full_bus.ram = full_ram;
+    full_bus.ram_size = sizeof(full_ram);
+    full_bus.rom = rom;
+    full_bus.rom_size = rom_size;
+    full_bus.sample_rom = sample_bank;
+    full_bus.sample_rom_size = sample_bank_size;
+    full_bus.scsp = &full_scsp;
+    timed_bus.ram = timed_ram;
+    timed_bus.ram_size = sizeof(timed_ram);
+    timed_bus.rom = rom;
+    timed_bus.rom_size = rom_size;
+    timed_bus.sample_rom = sample_bank;
+    timed_bus.sample_rom_size = sample_bank_size;
+    timed_bus.scsp = &timed_scsp;
+    vf2_m68k_regs_reset(&full_regs);
+    full_regs.pc = UINT32_C(0x1f32);
+    full_regs.a[4] = UINT32_C(0x2506);
+    full_regs.a[5] = VF2_SCSP_CPU_BASE;
+    full_regs.a[6] = UINT32_C(0x1000);
+    full_regs.a[7] = UINT32_C(0x5000);
+    timed_regs = full_regs;
+    full_status = vf2_m68k_run(
+        &full_bus, &full_regs, UINT32_C(0x1f3a),
+        0, 100000u, &full_steps);
+    status = vf2_m68k_run_cycle_slice(
+        &timed_bus, &timed_regs, UINT32_C(0x1f36),
+        7u, &cycles, &steps, &suspended);
+    if (status != VF2_OK || !suspended || cycles != 0u ||
+        steps != 0u || timed_regs.pc != UINT32_C(0x1f32))
+        return 0;
+    status = vf2_m68k_run_cycle_slice(
+        &timed_bus, &timed_regs, UINT32_C(0x1f36),
+        8u, &cycles, &steps, &suspended);
+    if (status != VF2_OK || suspended || cycles != 8u ||
+        steps != 1u || timed_regs.pc != UINT32_C(0x1f36) ||
+        timed_regs.a[2] != UINT32_C(0x3000)) return 0;
+    status = vf2_m68k_run_cycle_slice(
+        &timed_bus, &timed_regs, UINT32_C(0x21ba),
+        17u, &cycles, &steps, &suspended);
+    if (status != VF2_OK || !suspended || cycles != 0u ||
+        steps != 0u || timed_regs.pc != UINT32_C(0x1f36))
+        return 0;
+    status = vf2_m68k_run_cycle_slice(
+        &timed_bus, &timed_regs, UINT32_C(0x21ba),
+        18u, &cycles, &steps, &suspended);
+    if (status != VF2_OK || suspended || cycles != 18u ||
+        steps != 1u || timed_regs.pc != UINT32_C(0x21ba) ||
+        timed_regs.a[7] != UINT32_C(0x4ffc) ||
+        timed_ram[0x4ffcu] != 0u ||
+        timed_ram[0x4ffdu] != 0u ||
+        timed_ram[0x4ffeu] != 0x1fu ||
+        timed_ram[0x4fffu] != 0x3au) return 0;
+    status = vf2_m68k_run(
+        &timed_bus, &timed_regs, UINT32_C(0x1f3a),
+        0, 100000u, &timed_body);
+    parity = full_status == VF2_OK && status == VF2_OK &&
+        full_steps == timed_body + 2u &&
+        timed_regs.pc == UINT32_C(0x1f3a) &&
+        timed_regs.a[7] == UINT32_C(0x5000) &&
+        memcmp(full_ram, timed_ram, sizeof(full_ram)) == 0 &&
+        memcmp(full_scsp.registers, timed_scsp.registers,
+               VF2_SCSP_REGISTER_BYTES) == 0;
+    for (reg = 0u; reg < 8u; ++reg) {
+        if (timed_regs.d[reg] != full_regs.d[reg] ||
+            timed_regs.a[reg] != full_regs.a[reg]) parity = 0;
+    }
+    if (timed_regs.x != full_regs.x ||
+        timed_regs.n != full_regs.n ||
+        timed_regs.z != full_regs.z ||
+        timed_regs.v != full_regs.v ||
+        timed_regs.c != full_regs.c) parity = 0;
+    printf("AKIRA_L2_JSR_CYCLES matched=%u "
+           "lea_pc=01f32 lea_cycles=8 "
+           "jsr_pc=01f36 jsr_cycles=18 "
+           "callee_pc=021ba return_pc=01f3a "
+           "full_steps=%u split_steps=%u "
+           "full_isr_timing_not_covered=1\n",
+           (unsigned)parity,
+           (unsigned)full_steps, (unsigned)(timed_body + 2u));
+    return parity;
+}
+
 /* Original-ROM candidate page-refill service: 0x2242 walker.
  * Run one iteration on an entirely separate snapshot to avoid
  * altering the ordinary music preview or original M68K bus.
@@ -1699,6 +1812,10 @@ static void akira_probe_original_walk(const uint8_t *rom, size_t rom_size,
             akira_walk_strict_failed = 1;
         }
         if (!akira_verify_l2_autovector_frame(rom, rom_size) &&
+            verify_akira_original_walk) {
+            akira_walk_strict_failed = 1;
+        }
+        if (!akira_verify_l2_jsr_cycle_prefix(rom, rom_size) &&
             verify_akira_original_walk) {
             akira_walk_strict_failed = 1;
         }
