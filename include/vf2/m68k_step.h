@@ -107,6 +107,26 @@ vf2_status vf2_m68k_irq_autovector_enter(
     vf2_m68k_bus *bus, vf2_m68k_regs *regs, unsigned level
 );
 
+/* Execute as many fully timed MC68000 instructions as fit within
+ * cycle_budget. Unknown opcode timings refuse BEFORE execution, with
+ * VF2_ERROR_UNSUPPORTED and all completed prior work preserved.
+ * Only the explicitly verified timing subset is admitted: MOVEQ,
+ * NOP, BRA/BSR/Bcc/DBcc, MOVEM.L -(An)/(An)+, RTS and RTE.
+ * All values are baseline Motorola 68000 clock cycles, excluding
+ * optional external wait states and interrupt-entry overhead.
+ *
+ * Returns VF2_OK + suspended=1 when the NEXT instruction cannot
+ * fit this budget, leaving PC at the instruction boundary.
+ * The caller must model IRQ arrival separately. Zero cycles or
+ * pointers are invalid. Does not silently use 4 cycles for an
+ * unknown opcode. */
+vf2_status vf2_m68k_run_cycle_slice(
+    vf2_m68k_bus *bus, vf2_m68k_regs *regs,
+    uint32_t stop_pc, uint32_t cycle_budget,
+    uint32_t *cycles_done, uint32_t *steps_done,
+    int *suspended
+);
+
 /* Run a cooperative, fixed-INSTRUCTION quantum. Unlike vf2_m68k_run,
  * reaching max_steps is NOT conflated with an unknown opcode:
  * returns VF2_OK and sets *suspended=1 if execution may resume.

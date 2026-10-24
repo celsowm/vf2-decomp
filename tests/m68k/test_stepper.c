@@ -384,5 +384,85 @@ int main(void)
         }
     }
 
+    /* Exact-timing SUBSET regression. Uses original MC68000
+     * cycle counts rather than the 4-cycle impossibility floor.
+     * Verify branch outcomes, 13-register MOVEM, and cooperative
+     * budgets that cannot split a single opcode in half. */
+    {
+        static const uint8_t clocked_rom[] = {
+            0x70u, 0x01u,             /* 0x00 MOVEQ #1,D0 =4 */
+            0x66u, 0x02u,             /* 0x02 BNE taken =10 */
+            0x4eu, 0x71u,             /* 0x04 NOP (skipped) */
+            0x4eu, 0x71u,             /* 0x06 NOP =4 */
+            0x4eu, 0x71u              /* 0x08 NOP (stop) */
+        };
+        uint32_t cycles = 0u, steps = 0u;
+        int paused = 0;
+        make_bus(&bus, &scsp, ram, clocked_rom, sizeof(clocked_rom));
+        vf2_m68k_regs_reset(&regs);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 8u, 3u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && paused &&
+                    cycles == 0u && steps == 0u && regs.pc == 0u);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 8u, 14u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && paused &&
+                    cycles == 14u && steps == 2u && regs.pc == 6u);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 8u, 4u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && !paused &&
+                    cycles == 4u && steps == 1u && regs.pc == 8u);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 8u, 4u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && !paused &&
+                    cycles == 0u && steps == 0u);
+        EXPECT_TRUE(vf2_m68k_run_cycle_slice(
+            &bus, &regs, 8u, 0u, &cycles, &steps, &paused) ==
+            VF2_ERROR_INVALID_ARGUMENT);
+    }
+    {
+        static const uint8_t movem_clock[] = {
+            0x48u, 0xe7u, 0xffu, 0xf8u, /* MOVEM.L 13 regs =112 */
+            0x4cu, 0xdfu, 0x1fu, 0xffu, /* MOVEM.L 13 regs =116 */
+            0x4eu, 0x71u                /* NOP */
+        };
+        uint32_t cycles = 0u, steps = 0u;
+        int paused = 0;
+        make_bus(&bus, &scsp, ram, movem_clock, sizeof(movem_clock));
+        vf2_m68k_regs_reset(&regs);
+        regs.a[7] = UINT32_C(0x7000);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 8u, 111u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && paused &&
+                    cycles == 0u && steps == 0u);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 8u, 112u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && paused &&
+                    cycles == 112u && steps == 1u && regs.pc == 4u);
+        EXPECT_TRUE(regs.a[7] == UINT32_C(0x7000) - 52u);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 8u, 116u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && !paused &&
+                    cycles == 116u && steps == 1u && regs.pc == 8u);
+        EXPECT_TRUE(regs.a[7] == UINT32_C(0x7000));
+    }
+    {
+        static const uint8_t unknown_clock[] = {
+            0x70u, 0x01u, /* MOVEQ =4 */
+            0x56u, 0x00u, /* ADDQ.B supported by oracle,
+                           * unsupported in cycle-budget subset */
+            0x4eu, 0x71u
+        };
+        uint32_t cycles = 0u, steps = 0u;
+        int paused = 0;
+        make_bus(&bus, &scsp, ram, unknown_clock, sizeof(unknown_clock));
+        vf2_m68k_regs_reset(&regs);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 6u, 100u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_ERROR_UNSUPPORTED &&
+                    !paused && cycles == 4u && steps == 1u);
+        EXPECT_TRUE(regs.pc == 2u && regs.d[0] == 1u);
+    }
+
     return failures == 0 ? 0 : 1;
 }

@@ -2216,6 +2216,123 @@ vf2_status vf2_m68k_run(
     return VF2_ERROR_UNSUPPORTED;
 }
 
+/* MC68000 original integer timing reference:
+ * NXP MC68000UM Tables 8-8,8-9,8-10 and 8-11.
+ * This is a closed timing subset, not a generalized cycle
+ * emulator. Return UNSUPPORTED for every absent timing rather
+ * than treating a four-cycle instruction-count floor as actual
+ * execution time. Branch timings depend on current CCR and
+ * DBcc low-word count, NOT only on the opcode.
+ */
+static vf2_status vf2_m68k_cycle_cost(
+    const vf2_m68k_bus *bus, const vf2_m68k_regs *regs,
+    uint32_t *cost
+)
+{
+    uint16_t op = 0u;
+    vf2_status status;
+    uint32_t pc;
+    if (bus == NULL || regs == NULL || cost == NULL)
+        return VF2_ERROR_INVALID_ARGUMENT;
+    pc = regs->pc;
+    status = rom_u16(bus, pc, &op);
+    if (status != VF2_OK) return status;
+    if (op == UINT16_C(0x4e71) ||
+        ((op & UINT16_C(0xf100)) == UINT16_C(0x7000))) {
+        *cost = 4u;
+        return VF2_OK;
+    }
+    if (op == UINT16_C(0x4e75)) {
+        *cost = 16u;
+        return VF2_OK;
+    }
+    if (op == UINT16_C(0x4e73) && regs->irq_active != 0u) {
+        *cost = 20u;
+        return VF2_OK;
+    }
+    if (op == UINT16_C(0x48e7) ||
+        op == UINT16_C(0x4cdf)) {
+        uint16_t mask = 0u;
+        unsigned n = 0u;
+        status = rom_u16(bus, pc + 2u, &mask);
+        if (status != VF2_OK) return status;
+        while (mask != 0u) {
+            n += (unsigned)(mask & UINT16_C(1));
+            mask >>= 1u;
+        }
+        /* MOVEM.L R->M -(An) 8+8*n; M->R (An)+ 12+8*n.
+         * These are the actual original VF2 L2 ISR opcodes. */
+        *cost = (op == UINT16_C(0x48e7) ? 8u : 12u) + 8u * n;
+        return VF2_OK;
+    }
+    if ((op & UINT16_C(0xf0f8)) == UINT16_C(0x50c8)) {
+        const unsigned condition = (unsigned)((op >> 8u) & 15u);
+        const unsigned reg = (unsigned)(op & 7u);
+        if (bcc_holds(regs, condition)) {
+            *cost = 12u;
+        } else if ((regs->d[reg] & UINT32_C(0xffff)) == 0u) {
+            *cost = 14u;
+        } else {
+            *cost = 10u;
+        }
+        return VF2_OK;
+    }
+    if ((op & UINT16_C(0xf000)) == UINT16_C(0x6000)) {
+        const unsigned condition = (unsigned)((op >> 8u) & 15u);
+        const unsigned short_disp = (unsigned)(op & UINT16_C(0xff));
+        if (short_disp == 0xffu) {
+            return VF2_ERROR_UNSUPPORTED; /* Bcc.L is not 68000 */
+        }
+        if (condition == 0u) {
+            *cost = 10u; /* BRA, byte or word */
+        } else if (condition == 1u) {
+            *cost = 18u; /* BSR, byte or word */
+        } else {
+            *cost = bcc_holds(regs, condition) ? 10u :
+                (short_disp == 0u ? 12u : 8u);
+        }
+        return VF2_OK;
+    }
+    return VF2_ERROR_UNSUPPORTED;
+}
+
+vf2_status vf2_m68k_run_cycle_slice(
+    vf2_m68k_bus *bus, vf2_m68k_regs *regs,
+    uint32_t stop_pc, uint32_t cycle_budget,
+    uint32_t *cycles_done, uint32_t *steps_done,
+    int *suspended
+)
+{
+    if (bus == NULL || regs == NULL || cycles_done == NULL ||
+        steps_done == NULL || suspended == NULL || cycle_budget == 0u)
+        return VF2_ERROR_INVALID_ARGUMENT;
+    *cycles_done = 0u;
+    *steps_done = 0u;
+    *suspended = 0;
+    while (regs->pc != stop_pc) {
+        uint32_t cost = 0u;
+        uint32_t steps = 0u;
+        int partial = 0;
+        vf2_status result = vf2_m68k_cycle_cost(bus, regs, &cost);
+        if (result != VF2_OK) return result;
+        if (cost > cycle_budget - *cycles_done) {
+            *suspended = 1;
+            return VF2_OK;
+        }
+        result = vf2_m68k_run_slice(
+            bus, regs, stop_pc, 0, 1u, &steps, &partial);
+        if (result != VF2_OK) return result;
+        if (steps != 1u) return VF2_ERROR_UNSUPPORTED;
+        *cycles_done += cost;
+        ++*steps_done;
+        if (*cycles_done == cycle_budget && regs->pc != stop_pc) {
+            *suspended = 1;
+            return VF2_OK;
+        }
+    }
+    return VF2_OK;
+}
+
 /* Reentrant instruction-quanta shim around the legacy stepper.
  * max_steps reaching VF2_ERROR_UNSUPPORTED was ambiguous with
  * an opcode refusal. The legacy run contract guarantees the
