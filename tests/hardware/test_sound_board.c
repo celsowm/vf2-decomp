@@ -513,6 +513,7 @@ static void test_pcm_walker_full_page(void)
     store_pcm_cursor(record + 2u, UINT32_C(0x800000));
     store_pcm_cursor(record + 6u, UINT32_C(0x10200));
     store_pcm_cursor(record + 0x0au, UINT32_C(0x900));
+    record[0x16u] = 0x5au;
     record[0x1au] = 0x00u;
     record[0x1bu] = 0x03u;
     record[0x1cu] = 0x00u;
@@ -524,11 +525,13 @@ static void test_pcm_walker_full_page(void)
     EXPECT_TRUE(record[4] == 0x02u && record[8] == 0x04u);
     EXPECT_TRUE(record[0x0du] == 0x00u && record[0x0cu] == 0x07u);
     EXPECT_TRUE(record[0x1cu] == 0x00u && record[0x1du] == 0x07u);
+    EXPECT_TRUE(b.scsp.registers[0x408u] == 0x5au);
     EXPECT_TRUE(b.sound_ram[0x10400u] == 0x55u);
 
     /* Mode zero selects the original alternate destination at +0E.
      * Unlike +06, this address is read only, never updated. */
     record[1] = 0u;
+    record[0x16u] = 0x33u;
     store_pcm_cursor(record + 2u, UINT32_C(0x800200));
     store_pcm_cursor(record + 6u, UINT32_C(0x12200));
     store_pcm_cursor(record + 0x0eu, UINT32_C(0x14200));
@@ -538,15 +541,18 @@ static void test_pcm_walker_full_page(void)
     EXPECT_TRUE(vf2_sound_board_step_stream_full_page(&b, 3u) ==
                 VF2_ERROR_UNSUPPORTED);
     EXPECT_TRUE(memcmp(before, record, sizeof(before)) == 0);
+    EXPECT_TRUE(b.scsp.registers[0x408u] == 0x5au);
     b.scsp.registers[0x409u] = 0x80u;
     EXPECT_TRUE(vf2_sound_board_step_stream_full_page(&b, 3u) == VF2_OK);
     EXPECT_TRUE(memcmp(b.sound_ram + 0x14200u, samples + 512u, 512u) == 0);
     EXPECT_TRUE(record[1] == 0x10u);
     EXPECT_TRUE(record[8] == 0x44u && record[9] == 0u);
     EXPECT_TRUE(record[0x0eu] == 0x00u && record[0x0fu] == 0x01u);
+    EXPECT_TRUE(b.scsp.registers[0x408u] == 0x33u);
 
     /* Mode 0x80 uses +06, with the inverse MIDI7 gate. */
     record[1] = 0x80u;
+    record[0x16u] = 0x77u;
     store_pcm_cursor(record + 2u, UINT32_C(0x800400));
     store_pcm_cursor(record + 6u, UINT32_C(0x16200));
     store_pcm_cursor(record + 0x0au, UINT32_C(0x600));
@@ -558,6 +564,7 @@ static void test_pcm_walker_full_page(void)
     EXPECT_TRUE(vf2_sound_board_step_stream_full_page(&b, 3u) == VF2_OK);
     EXPECT_TRUE(memcmp(b.sound_ram + 0x16200u, samples + 1024u, 512u) == 0);
     EXPECT_TRUE(record[1] == 0x90u && record[8] == 0x64u);
+    EXPECT_TRUE(b.scsp.registers[0x408u] == 0x77u);
 
     /* Remaining <=512 goes to the 0x23B0 alternative, NOT MOVEM
      * full-page path. Timer sign underflow also refuses atomically. */

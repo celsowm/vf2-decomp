@@ -573,6 +573,7 @@ vf2_status vf2_sound_board_copy_stream_page_512(
  * 22D4 andi.w #0x7FFF,d0 -> +1C; 22E0 d5 -> +0A
  * 22E4..23A0 16x MOVEM.L (a1)+,d0-d7 / (a2) / adda #32
  * 23A4 a1 -> +2; 23A8 a2 -> +6.
+ * 265C move.b +16(a0),0x0408(a5) on the shared exit.
  * Full-page branch only. The unused original path at 23B0 and
  * the 24BE/260C activation tails remain unsupported.
  * Side effects are transactional on this C entry. */
@@ -631,7 +632,10 @@ vf2_status vf2_sound_board_step_stream_full_page(
     write_be32(record + 0x0au, remaining - UINT32_C(512));
     write_be32(record + 2u, source);
     write_be32(record + 6u, destination);
-    return VF2_OK;
+    /* ROM 0x23AC branches to 0x265C, where the original CPU
+     * writes descriptor +0x16 to SCSP master byte 0x0408. */
+    return vf2_scsp_write_u8(&board->scsp, UINT32_C(0x0408),
+                             record[0x16u]);
 }
 
 /* ROM 0xD72..0xD90: 7 instructions, stop BEFORE RTS at 0xD90.

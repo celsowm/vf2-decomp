@@ -16,6 +16,7 @@ bytes/samples/WAV committed.
 | 0x22b8–0x22c8 | source +2; remaining long +0a; <=0x200 -> 0x23b0 | short path held |
 | 0x22ca–0x22e2 | remaining -= 0x200; mode += 0x10; timer &= 0x7fff | count and state |
 | 0x22e4–0x23a8 | 16 x MOVEM 32 bytes; publish source +2, destination +6 | exact 512-byte page |
+| 0x265c | write descriptor byte +0x16 to SCSP 0x0408 | shared exit-side write |
 
 This proves the **shape** of the positive full-page arm, but neither
 full main-loop invocation timing nor other 0x23B0/0x24BE/0x260C
@@ -60,3 +61,9 @@ Unimplemented real-copy branches are explicitly reported as
 `AKIRA_NATIVE_FULL_PAGE_UNCOVERED`, not counted as matches.
 The hook is committed but **its outcome has not been measured locally
 against the owner ROM**; the public CI does not ship those ROM bytes.
+
+The recovered full-page arm now includes the original shared-exit
+SCSP write at PC 0x265C. The ROM-free test pins that write on three
+admitted mode branches and verifies it is absent on refusals. The
+owner-ROM per-descriptor differential additionally compares SCSP
+register byte 0x0408, alongside descriptor metadata and PCM bytes.

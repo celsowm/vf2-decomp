@@ -189,6 +189,7 @@ vf2_status vf2_sound_board_copy_stream_page_512(
  * timer, page-mode, SCSP 0x0409 gating, sample copy and descriptors.
  * Inactive, countdown-underflow, MIDI-gated, and <=512-byte
  * remaining-length arms deliberately refuse without side effects.
+ * Successful copies also write desc +0x16 to SCSP 0x0408 (0x265C).
  * Not called by normal scheduling; no claim of cycle-exact timing. */
 vf2_status vf2_sound_board_step_stream_full_page(
     vf2_sound_board *board, size_t slot_index

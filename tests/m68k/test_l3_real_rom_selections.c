@@ -622,7 +622,8 @@ static int write_akira_model_preview(const char *directory, vf2_scsp *scsp)
  * No ROM data or generated PCM is written outside this local test. */
 static unsigned akira_native_full_page_vs_original(
     const uint8_t *pre, const vf2_scsp *pre_scsp,
-    const uint8_t *post, unsigned slot, int strict
+    const uint8_t *post, const vf2_scsp *post_scsp,
+    unsigned slot, int strict
 )
 {
     static vf2_sound_board candidate;
@@ -650,7 +651,9 @@ static unsigned akira_native_full_page_vs_original(
             copy_dest <= VF2_SOUND_RAM_BYTES - 512u &&
             memcmp(candidate.sound_ram + rec, post + rec, 0x20u) == 0 &&
             memcmp(candidate.sound_ram + copy_dest,
-                   post + copy_dest, 512u) == 0;
+                   post + copy_dest, 512u) == 0 &&
+            candidate.scsp.registers[0x408u] ==
+                post_scsp->registers[0x408u];
         printf("AKIRA_NATIVE_FULL_PAGE slot=%u status=%d "
                "original_copy=%u record_pcm_parity=%u "
                "source_before=%08x source_after=%08x "
@@ -790,7 +793,7 @@ static void akira_probe_original_walk(const uint8_t *rom, size_t rom_size,
             }
             unsigned pass;
             unsigned admitted_pages = akira_native_full_page_vs_original(
-                step_ram, &step_scsp, walk_ram, 0u,
+                step_ram, &step_scsp, walk_ram, &walk_scsp, 0u,
                 verify_akira_original_walk);
             unsigned successful_passes = 1u;
             unsigned advancing_slots = 1u; /* slot 0 above */
@@ -832,7 +835,8 @@ static void akira_probe_original_walk(const uint8_t *rom, size_t rom_size,
                 ++successful_passes;
                 admitted_pages += akira_native_full_page_vs_original(
                     native_before_ram, &native_before_scsp,
-                    walk_ram, pass, verify_akira_original_walk);
+                    walk_ram, &walk_scsp, pass,
+                    verify_akira_original_walk);
                 final_a0 = r.a[0];
                 if (source_before != read_be32(walk_ram + rec + 2u) ||
                     destination_before != read_be32(walk_ram + rec + 6u)) {
