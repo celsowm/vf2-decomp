@@ -689,6 +689,112 @@ static unsigned akira_native_full_page_vs_original(
     return 0u;
 }
 
+/* Owner-ROM differential for the 0x23B0 *short/loop* arm.
+ * The real Akira first-tick snapshot copied four ordinary full pages,
+ * so it never exercised this path. Here the verified owner's same
+ * 68000 ROM and sample ROM run on an independent synthetic stream
+ * record, and the resulting 0x20-byte descriptor, 512-byte copied
+ * window and SCSP 0x0408 register are compared with the C helper.
+ * The independent fixture intentionally starts from 0x2242, not
+ * from an injected 0x23B0 PC: all prefix gates must be traversed. */
+static int akira_verify_short_loop_fixture(
+    const uint8_t *rom, size_t rom_size
+)
+{
+    static uint8_t original_ram[VF2_SOUND_RAM_BYTES];
+    static vf2_scsp original_scsp;
+    static vf2_sound_board native;
+    vf2_m68k_bus bus;
+    vf2_m68k_regs r;
+    uint8_t *desc;
+    uint32_t one = 0u, rest = 0u;
+    vf2_status first, original_status, native_status;
+    const uint32_t dest = UINT32_C(0x10200);
+    int pass;
+    if (rom == NULL || sample_bank == NULL ||
+        sample_bank_size < UINT32_C(0x600)) {
+        printf("AKIRA_SHORT_LOOP_SETUP sample_or_rom_missing=1\\n");
+        return 0;
+    }
+    memset(original_ram, 0, sizeof(original_ram));
+    memset(&original_scsp, 0, sizeof(original_scsp));
+    memset(&native, 0, sizeof(native));
+    desc = original_ram + UINT32_C(0x2000);
+    desc[0u] = UINT8_C(0x81);  /* active, loop enabled */
+    desc[1u] = UINT8_C(0x10); /* bypass SCSP 0x0409 MIDI gate */
+    /* 0x800200 old source, 0x10200 old target, 0x180 remaining.
+     * Next src = (0x800400 & 0xffffff) + (512-384) = 0x800480.
+     * Next len = (0xa5001000 & 0xffffff) - 128 = 0x0f80.
+     * High byte A5 of loop length is also mirrored into SCSP 0408. */
+    desc[2u] = 0x00u; desc[3u] = 0x80u;
+    desc[4u] = 0x02u; desc[5u] = 0x00u;
+    desc[6u] = 0x00u; desc[7u] = 0x01u;
+    desc[8u] = 0x02u; desc[9u] = 0x00u;
+    desc[0x0au] = 0x00u; desc[0x0bu] = 0x00u;
+    desc[0x0cu] = 0x01u; desc[0x0du] = 0x80u;
+    desc[0x12u] = 0x00u; desc[0x13u] = 0x80u;
+    desc[0x14u] = 0x04u; desc[0x15u] = 0x00u;
+    desc[0x16u] = 0xa5u; desc[0x17u] = 0x00u;
+    desc[0x18u] = 0x10u; desc[0x19u] = 0x00u;
+    desc[0x1au] = 0x00u; desc[0x1bu] = 0x02u;
+    desc[0x1cu] = 0x00u; desc[0x1du] = 0x05u;
+    memcpy(native.sound_ram, original_ram, sizeof(original_ram));
+    native.sample_rom = sample_bank;
+    native.sample_rom_size = sample_bank_size;
+    if (vf2_scsp_attach_sample_ram(
+            &original_scsp, original_ram, sizeof(original_ram)) != VF2_OK) {
+        return 0;
+    }
+    memset(&bus, 0, sizeof(bus));
+    bus.ram = original_ram;
+    bus.ram_size = sizeof(original_ram);
+    bus.rom = rom;
+    bus.rom_size = rom_size;
+    bus.sample_rom = sample_bank;
+    bus.sample_rom_size = sample_bank_size;
+    bus.scsp = &original_scsp;
+    vf2_m68k_regs_reset(&r);
+    r.pc = UINT32_C(0x2242);
+    r.a[0] = UINT32_C(0x2000);
+    r.a[4] = UINT32_C(0x2506);
+    r.a[5] = VF2_SCSP_CPU_BASE;
+    r.a[6] = UINT32_C(0x1000);
+    r.a[7] = UINT32_C(0x5000);
+    native_status = vf2_sound_board_step_stream_short_loop_page(
+        &native, 0u);
+    first = vf2_m68k_run(&bus, &r, 0u, 0, 1u, &one);
+    original_status = vf2_m68k_run(
+        &bus, &r, UINT32_C(0x2242), 0, 100000u, &rest);
+    pass = native_status == VF2_OK &&
+        first == VF2_ERROR_UNSUPPORTED && one == 1u &&
+        original_status == VF2_OK &&
+        r.pc == UINT32_C(0x2242) &&
+        r.a[0] == UINT32_C(0x2020) &&
+        memcmp(native.sound_ram + 0x2000u,
+               original_ram + 0x2000u, 0x20u) == 0 &&
+        memcmp(native.sound_ram + dest,
+               original_ram + dest, 512u) == 0 &&
+        native.scsp.registers[0x408u] ==
+            original_scsp.registers[0x408u] &&
+        original_ram[0x2002u] == 0x00u &&
+        original_ram[0x2003u] == 0x80u &&
+        original_ram[0x2004u] == 0x04u &&
+        original_ram[0x2005u] == 0x80u &&
+        original_ram[0x200cu] == 0x0fu &&
+        original_ram[0x200du] == 0x80u &&
+        original_scsp.registers[0x408u] == 0xa5u;
+    printf("AKIRA_SHORT_LOOP_ORIGINAL_DIFF matched=%u "
+           "original_status=%d native_status=%d "
+           "steps=%u original_next_src=%08x "
+           "original_next_remaining=%08x scsp0408=%02x\\n",
+           (unsigned)pass, (int)original_status, (int)native_status,
+           (unsigned)(one + rest),
+           (unsigned)read_be32(original_ram + 0x2002u),
+           (unsigned)read_be32(original_ram + 0x200au),
+           (unsigned)original_scsp.registers[0x408u]);
+    return pass;
+}
+
 /* Original-ROM candidate page-refill service: 0x2242 walker.
  * Run one iteration on an entirely separate snapshot to avoid
  * altering the ordinary music preview or original M68K bus.
