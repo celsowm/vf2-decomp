@@ -228,5 +228,105 @@ int main(void)
             VF2_ERROR_INVALID_ARGUMENT);
     }
 
+    /* Real six-byte 68000 autovector frame + RTE restoration,
+     * without assuming accurate instruction timing or IRQ phase. */
+    {
+        static uint8_t irq_rom[512u];
+        const uint32_t stack_top = UINT32_C(0x7000);
+        const uint32_t user_sp = UINT32_C(0x6000);
+        uint32_t steps = 0u;
+        int suspended = 0;
+        memset(irq_rom, 0, sizeof(irq_rom));
+        /* Vector 26, level-2 autovector -> ROM offset 0x20. */
+        irq_rom[0x68u] = 0u; irq_rom[0x69u] = 0u;
+        irq_rom[0x6au] = 0u; irq_rom[0x6bu] = 0x20u;
+        irq_rom[0x20u] = 0x72u; irq_rom[0x21u] = 0x11u;
+        irq_rom[0x22u] = 0x4eu; irq_rom[0x23u] = 0x73u;
+        irq_rom[0x100u] = 0x70u; irq_rom[0x101u] = 0x05u;
+        irq_rom[0x102u] = 0x56u; irq_rom[0x103u] = 0x00u;
+        irq_rom[0x104u] = 0x4eu; irq_rom[0x105u] = 0x71u;
+
+        make_bus(&bus, &scsp, ram, irq_rom, sizeof(irq_rom));
+        vf2_m68k_regs_reset(&regs);
+        regs.pc = UINT32_C(0x100);
+        regs.a[7] = stack_top;
+        regs.sr_high = UINT16_C(0x2100); /* supervisor mask 1 */
+        regs.x = 1u; regs.z = 1u;
+        status = vf2_m68k_run_slice(
+            &bus, &regs, 0x104u, 0, 1u,
+            &steps, &suspended);
+        EXPECT_TRUE(status == VF2_OK && suspended && steps == 1u);
+        EXPECT_TRUE(regs.pc == UINT32_C(0x102));
+        status = vf2_m68k_irq_autovector_enter(&bus, &regs, 2u);
+        EXPECT_TRUE(status == VF2_OK);
+        EXPECT_TRUE(regs.irq_active == 1u);
+        EXPECT_TRUE(regs.pc == UINT32_C(0x20));
+        EXPECT_TRUE(regs.a[7] == stack_top - 6u);
+        EXPECT_TRUE(regs.sr_high == UINT16_C(0x2200));
+        EXPECT_TRUE(ram[stack_top - 6u] == 0x21u);
+        EXPECT_TRUE(ram[stack_top - 5u] == 0x10u);
+        EXPECT_TRUE(ram[stack_top - 4u] == 0u &&
+                    ram[stack_top - 3u] == 0u);
+        EXPECT_TRUE(ram[stack_top - 2u] == 0x01u &&
+                    ram[stack_top - 1u] == 0x02u);
+        EXPECT_TRUE(vf2_m68k_irq_autovector_enter(
+            &bus, &regs, 3u) == VF2_ERROR_UNSUPPORTED);
+        EXPECT_TRUE(vf2_m68k_irq_autovector_enter(
+            &bus, &regs, 2u) == VF2_ERROR_UNSUPPORTED);
+        status = vf2_m68k_run_slice(
+            &bus, &regs, UINT32_C(0x102), 0,
+            1u, &steps, &suspended);
+        EXPECT_TRUE(status == VF2_OK && suspended && steps == 1u);
+        EXPECT_TRUE(regs.d[1] == 0x11u && regs.pc == 0x22u);
+        status = vf2_m68k_run_slice(
+            &bus, &regs, UINT32_C(0x102), 0,
+            1u, &steps, &suspended);
+        EXPECT_TRUE(status == VF2_OK && !suspended && steps == 1u);
+        EXPECT_TRUE(regs.pc == UINT32_C(0x102));
+        EXPECT_TRUE(regs.irq_active == 0u);
+        EXPECT_TRUE(regs.sr_high == UINT16_C(0x2100));
+        EXPECT_TRUE(regs.a[7] == stack_top && regs.ssp == stack_top);
+        EXPECT_TRUE(regs.x == 1u && regs.z == 1u);
+        status = vf2_m68k_run_slice(
+            &bus, &regs, UINT32_C(0x104), 0,
+            1u, &steps, &suspended);
+        EXPECT_TRUE(status == VF2_OK && !suspended && steps == 1u);
+        EXPECT_TRUE(regs.d[0] == 8u);
+
+        /* User-mode entry switches USP to SSP, RTE restores it. */
+        make_bus(&bus, &scsp, ram, irq_rom, sizeof(irq_rom));
+        vf2_m68k_regs_reset(&regs);
+        regs.pc = UINT32_C(0x100);
+        regs.sr_high = 0u;
+        regs.a[7] = user_sp;
+        regs.ssp = stack_top;
+        status = vf2_m68k_irq_autovector_enter(&bus, &regs, 2u);
+        EXPECT_TRUE(status == VF2_OK);
+        EXPECT_TRUE(regs.usp == user_sp);
+        EXPECT_TRUE(regs.a[7] == stack_top - 6u);
+        EXPECT_TRUE(ram[stack_top - 6u] == 0u);
+        status = vf2_m68k_run(&bus, &regs, 0x100u, 0, 5u, &steps);
+        EXPECT_TRUE(status == VF2_OK && steps == 2u);
+        EXPECT_TRUE(regs.pc == 0x100u);
+        EXPECT_TRUE(regs.irq_active == 0u);
+        EXPECT_TRUE(regs.a[7] == user_sp);
+        EXPECT_TRUE(regs.ssp == stack_top);
+        EXPECT_TRUE((regs.sr_high & UINT16_C(0x2000)) == 0u);
+
+        /* Masked and unaligned stacks must refuse BEFORE mutation. */
+        vf2_m68k_regs_reset(&regs);
+        regs.pc = UINT32_C(0x100);
+        regs.a[7] = stack_top;
+        regs.sr_high = UINT16_C(0x2300);
+        status = vf2_m68k_irq_autovector_enter(&bus, &regs, 2u);
+        EXPECT_TRUE(status == VF2_ERROR_UNSUPPORTED);
+        EXPECT_TRUE(regs.pc == 0x100u && regs.a[7] == stack_top);
+        regs.sr_high = UINT16_C(0x2000);
+        regs.a[7] = UINT32_C(5);
+        status = vf2_m68k_irq_autovector_enter(&bus, &regs, 2u);
+        EXPECT_TRUE(status == VF2_ERROR_UNSUPPORTED);
+        EXPECT_TRUE(regs.pc == 0x100u && regs.a[7] == 5u);
+    }
+
     return failures == 0 ? 0 : 1;
 }

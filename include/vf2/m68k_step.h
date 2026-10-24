@@ -42,6 +42,14 @@ typedef struct vf2_m68k_regs {
     uint8_t z;
     uint8_t v;
     uint8_t c;
+    /* Optional interrupt context for sound-MC68000 oracle:
+     * sr_high contains upper SR bits including S/I2:I0;
+     * irq_active tracks ONE stacked autovector exception.
+     * Legacy RTE without a frame still terminates old fixtures. */
+    uint16_t sr_high;
+    uint32_t usp;
+    uint32_t ssp;
+    uint8_t irq_active;
 } vf2_m68k_regs;
 
 typedef struct vf2_m68k_bus_event {
@@ -85,6 +93,19 @@ typedef struct vf2_m68k_snapshot {
     size_t event_count;
     vf2_m68k_bus_event events[VF2_M68K_STEP_MAX_EVENTS];
 } vf2_m68k_snapshot;
+
+/* Enter one 68000 level 1..7 autovector exception at a legal
+ * instruction boundary. Reads vector 24+level from ROM, pushes the
+ * architectural 6-byte SR/PC frame to supervisor RAM stack,
+ * raises the SR interrupt mask, and preserves the interrupted PC.
+ * ROM offsets are normalized from the sound CPU's 0x600000 map.
+ * Requires adequate aligned supervisor RAM; rejects nested IRQs
+ * and masked levels without changing CPU/RAM.
+ *
+ * This is NOT Timer A delivery or real-cycle scheduling. */
+vf2_status vf2_m68k_irq_autovector_enter(
+    vf2_m68k_bus *bus, vf2_m68k_regs *regs, unsigned level
+);
 
 /* Run a cooperative, fixed-INSTRUCTION quantum. Unlike vf2_m68k_run,
  * reaching max_steps is NOT conflated with an unknown opcode:

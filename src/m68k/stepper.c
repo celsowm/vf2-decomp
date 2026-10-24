@@ -25,6 +25,10 @@ void vf2_m68k_regs_reset(vf2_m68k_regs *regs)
     regs->z = 0u;
     regs->v = 0u;
     regs->c = 0u;
+    regs->sr_high = UINT16_C(0x2000); /* supervisor, IPL 0 */
+    regs->usp = 0u;
+    regs->ssp = 0u;
+    regs->irq_active = 0u;
 }
 
 /* Sign-extend a 16-bit extension word to 32 bits using unsigned arithmetic only
@@ -1644,6 +1648,77 @@ static vf2_status step_jsr_jmp(
     return VF2_OK;
 }
 
+/* Build a real MC68000 short-format exception frame:
+ *     new SSP +0..1: interrupted SR
+ *     new SSP +2..5: interrupted PC (big endian)
+ * The vector is read from ROM vector 24+level (autovector).
+ * The executable sound-ROM offsets are normalized to the
+ * existing stepper's zero-based program memory.
+ * Only one active IRQ is supported until RTE: refusing nested
+ * levels makes the current limited semantics explicit. */
+vf2_status vf2_m68k_irq_autovector_enter(
+    vf2_m68k_bus *bus, vf2_m68k_regs *regs, unsigned level
+)
+{
+    uint32_t vector_pc = 0u;
+    uint32_t supervisor_stack;
+    uint32_t new_stack;
+    uint16_t old_sr;
+    vf2_status status;
+    if (bus == NULL || regs == NULL || bus->rom == NULL ||
+        bus->ram == NULL || level < 1u || level > 7u) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    if (regs->irq_active != 0u ||
+        level <= (unsigned)((regs->sr_high >> 8u) & UINT16_C(7))) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    status = rom_u32(bus, (uint32_t)(24u + level) * UINT32_C(4),
+                     &vector_pc);
+    if (status != VF2_OK) return status;
+    if (vector_pc >= VF2_STEP_ROM_MIRROR_BASE) {
+        vector_pc -= VF2_STEP_ROM_MIRROR_BASE;
+    }
+    /* The native stepper always fetches through zero-based ROM.
+     * Disallow unmapped or odd vector entries before stack writes. */
+    if ((vector_pc & UINT32_C(1)) != 0u ||
+        (uint64_t)vector_pc + 2u > bus->rom_size) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    supervisor_stack =
+        (regs->sr_high & UINT16_C(0x2000)) != 0u ?
+        regs->a[7] : regs->ssp;
+    if ((supervisor_stack & UINT32_C(1)) != 0u ||
+        supervisor_stack < UINT32_C(6) ||
+        supervisor_stack > bus->ram_size) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    new_stack = supervisor_stack - UINT32_C(6);
+    old_sr = (uint16_t)(
+        (regs->sr_high & UINT16_C(0xffe0)) |
+        ((uint16_t)(regs->x & 1u) << 4u) |
+        ((uint16_t)(regs->n & 1u) << 3u) |
+        ((uint16_t)(regs->z & 1u) << 2u) |
+        ((uint16_t)(regs->v & 1u) << 1u) |
+        (uint16_t)(regs->c & 1u));
+    status = bus_write(bus, new_stack + 2u, 2u, regs->pc);
+    if (status != VF2_OK) return status;
+    status = bus_write(bus, new_stack, 1u, (uint32_t)old_sr);
+    if (status != VF2_OK) return status;
+    if ((regs->sr_high & UINT16_C(0x2000)) == 0u) {
+        regs->usp = regs->a[7];
+    }
+    regs->ssp = new_stack;
+    regs->a[7] = new_stack;
+    regs->sr_high = (uint16_t)(
+        (old_sr & UINT16_C(0xf8e0)) |
+        UINT16_C(0x2000) |
+        (uint16_t)(level << 8u));
+    regs->pc = vector_pc;
+    regs->irq_active = 1u;
+    return VF2_OK;
+}
+
 vf2_status vf2_m68k_run(
     vf2_m68k_bus *bus,
     vf2_m68k_regs *regs,
@@ -1918,16 +1993,63 @@ vf2_status vf2_m68k_run(
                 }
             }
         } else if (opcode == UINT16_C(0x4e73)) {
-            /* rte halts: interrupt-frame restore is out of scope;
-               fixtures start past entry. Documented simplification. */
-            *steps_done = done + 1u;
-            return VF2_OK;
+            /* Legacy isolated original-ROM fixtures start at ISR
+             * entry with no stacked frame; keep their old stop
+             * behavior. For the opt-in IRQ API, restore actual
+             * 68000 SR + PC from a six-byte supervisor stack
+             * frame and resume the interrupted instruction. */
+            if (regs->irq_active == 0u) {
+                *steps_done = done + 1u;
+                return VF2_OK;
+            }
+            {
+                uint32_t stacked_sr = 0u, stacked_pc = 0u;
+                const uint32_t old_sp = regs->a[7];
+                if ((regs->sr_high & UINT16_C(0x2000)) == 0u) {
+                    *steps_done = done;
+                    return VF2_ERROR_UNSUPPORTED;
+                }
+                status = bus_read(bus, old_sp, 1u, &stacked_sr);
+                if (status == VF2_OK) {
+                    status = bus_read(bus, old_sp + 2u, 2u,
+                                      &stacked_pc);
+                }
+                if (status != VF2_OK) {
+                    *steps_done = done;
+                    return status;
+                }
+                if ((stacked_pc & UINT32_C(1)) != 0u ||
+                    stacked_pc >= bus->rom_size) {
+                    *steps_done = done;
+                    return VF2_ERROR_UNSUPPORTED;
+                }
+                regs->ssp = old_sp + 6u;
+                regs->sr_high = (uint16_t)(stacked_sr &
+                                           UINT32_C(0xffe0));
+                regs->x = (uint8_t)((stacked_sr >> 4u) & 1u);
+                regs->n = (uint8_t)((stacked_sr >> 3u) & 1u);
+                regs->z = (uint8_t)((stacked_sr >> 2u) & 1u);
+                regs->v = (uint8_t)((stacked_sr >> 1u) & 1u);
+                regs->c = (uint8_t)(stacked_sr & 1u);
+                if ((regs->sr_high & UINT16_C(0x2000)) == 0u) {
+                    regs->a[7] = regs->usp;
+                } else {
+                    regs->a[7] = regs->ssp;
+                }
+                regs->irq_active = 0u;
+                new_pc = stacked_pc;
+                if (stop_on_return != 0) {
+                    regs->pc = new_pc;
+                    *steps_done = done + 1u;
+                    return VF2_OK;
+                }
+            }
         } else if (opcode == UINT16_C(0x4e71)) {
             status = VF2_OK;
         } else if (opcode == UINT16_C(0x46fc)) {
-            /* move.w #imm,sr: the CCR takes the low 5 bits; the
-               supervisor upper has no stepper model. Logged so the
-               poke is visible (uploader prologue/epilogue). */
+            /* MOVE #imm,SR: keep historic event logging, now also
+               preserve upper SR bits needed by the opt-in IRQ mask
+               and RTE frame tests. No privilege fault emulation. */
             uint32_t imm = 0u;
             status = fetch_imm(bus, pc, &off, 1u, &imm);
             if (status == VF2_OK) {
@@ -1936,6 +2058,8 @@ vf2_status vf2_m68k_run(
                 regs->z = (uint8_t)((imm >> 2u) & 1u);
                 regs->v = (uint8_t)((imm >> 1u) & 1u);
                 regs->c = (uint8_t)(imm & 1u);
+                regs->sr_high = (uint16_t)(
+                    imm & UINT32_C(0xffe0));
                 status = log_event(bus, pc, imm, 1u, 1u);
             }
         } else if ((opcode & UINT16_C(0xf000)) == UINT16_C(0x7000) &&
@@ -2234,7 +2358,9 @@ static int regs_equal(const vf2_m68k_regs *a, const vf2_m68k_regs *b)
         }
     }
     return a->pc == b->pc && a->x == b->x && a->n == b->n &&
-        a->z == b->z && a->v == b->v && a->c == b->c;
+        a->z == b->z && a->v == b->v && a->c == b->c &&
+        a->sr_high == b->sr_high && a->usp == b->usp &&
+        a->ssp == b->ssp && a->irq_active == b->irq_active;
 }
 
 static int events_equal(const vf2_m68k_snapshot *a, const vf2_m68k_snapshot *b)
