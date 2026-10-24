@@ -309,3 +309,45 @@ and next 68000 A0** against native C, not only the displayed
 fields. An authenticated original 68000 loop transition is
 now proven for the empty queue; real IRQ/CPU cycle cadence,
 nonempty command ring, and preempted A0 remain open.
+
+## v0915 — locally executed 68000 recurrence evidence (2026-10-24)
+
+Downloaded GitHub Actions' public C differential-test executable
+from commit `78d4e308cad8b973a3af72f61f40324ebc684094`, and ran
+it locally with the owner's checksum-verified, uncommitted
+`vf2(20261018-203049).zip` ROM chip files:
+
+```sh
+vf2_m68k_l3_selection_tests /path/to/private/vf2-rom --verify-akira-walk
+```
+
+**Exit status: 0.** The four independent synthetic original-ROM
+`0x2242 -> 0x07A6 -> 0x265C -> 0x2242` entry-to-entry
+cases all matched native C over the entire sound-RAM image,
+all SCSP registers, and A0:
+
+| Active | +0x16 control | MC68000 steps | 68000/C next A0 | Parity |
+| --- | --- | ---: | --- | --- |
+| no | 0x65 | 10 | 0x2020 | matched |
+| no | 0x00 | 10 | 0x2000 | matched |
+| yes, signed-negative timer | 0x65 | 14 | 0x2020 | matched |
+| yes, signed-negative timer | 0x00 | 14 | 0x2000 | matched |
+
+The independent pre-dispatch `0x2242 -> 0x07A6`
+negative-timer checks also passed (three 7-instruction
+branches with outputs 0x8000/0xFFFF/0xFFFF). The original
+Akira first-tick 32-descriptor scan stayed strict-green
+(`pages=4`, `native_admitted=4`, `steps=588`,
+`pcm_bytes_changed=2039`).
+
+This **does demonstrate an original CPU control-flow cycle
+and per-descriptor A0 transition** with an empty command
+queue. It does **not establish the hardware rate** at
+which the 68000 executes that cycle, its interrupted entry
+register state, or whether this code path is synchronized
+to each SCSP Timer-A tick. The nonempty 0x07A6 dispatcher
+is already recovered elsewhere but was intentionally
+not invoked by this minimal boundary method; production
+main-loop scheduling was not changed. Historical v0802
+remarks that the entire 0x2242 path was dead are
+superseded by this directly executed owner-ROM evidence.
