@@ -1725,6 +1725,31 @@ vf2_status vf2_m68k_irq_autovector_enter(
     return VF2_OK;
 }
 
+/* Model 2A sound oscillator 45.1584 MHz / 4, with SCSP
+ * reload CE (49 samples) at 44.1kHz: 11,289,600/900 = 12,544.
+ * 64-bit intermediate prevents overflow for large cycle chunks.
+ * Count all expiries even across large, uneven executor slices.
+ * This only reports *opportunities* for pending IRQ delivery. */
+vf2_status vf2_m68k_timer_a_advance(
+    vf2_m68k_timer_a_phase *clock, uint32_t executed_cpu_cycles,
+    uint32_t *new_expiries
+)
+{
+    uint64_t sum;
+    uint64_t periods;
+    if (clock == NULL || new_expiries == NULL ||
+        clock->cpu_cycle_phase >= UINT32_C(12544)) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    sum = (uint64_t)clock->cpu_cycle_phase +
+          (uint64_t)executed_cpu_cycles;
+    periods = sum / UINT64_C(12544);
+    *new_expiries = (uint32_t)periods;
+    clock->cpu_cycle_phase = (uint32_t)(sum % UINT64_C(12544));
+    clock->total_expiries += periods;
+    return VF2_OK;
+}
+
 vf2_status vf2_m68k_irq_autovector_enter_timed(
     vf2_m68k_bus *bus, vf2_m68k_regs *regs,
     unsigned level, uint32_t *entry_cycles

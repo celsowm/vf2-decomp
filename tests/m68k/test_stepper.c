@@ -576,5 +576,47 @@ int main(void)
                     regs.pc == 0u);
     }
 
+    /* A model-clock phase accumulator preserves fractional
+     * progress through variable-length instruction slices.
+     * This reports timer opportunities, NOT actual IRQ dispatch. */
+    {
+        vf2_m68k_timer_a_phase clock = {0u, 0u};
+        uint32_t expiries = 99u;
+        EXPECT_TRUE(vf2_m68k_timer_a_advance(
+            &clock, 44u, &expiries) == VF2_OK);
+        EXPECT_TRUE(expiries == 0u &&
+                    clock.cpu_cycle_phase == 44u);
+        EXPECT_TRUE(vf2_m68k_timer_a_advance(
+            &clock, 112u + 116u + 20u, &expiries) == VF2_OK);
+        EXPECT_TRUE(expiries == 0u &&
+                    clock.cpu_cycle_phase == 292u);
+        EXPECT_TRUE(vf2_m68k_timer_a_advance(
+            &clock, 12544u - 292u, &expiries) == VF2_OK);
+        EXPECT_TRUE(expiries == 1u &&
+                    clock.cpu_cycle_phase == 0u &&
+                    clock.total_expiries == 1u);
+        EXPECT_TRUE(vf2_m68k_timer_a_advance(
+            &clock, 2u * 12544u + 7u, &expiries) == VF2_OK);
+        EXPECT_TRUE(expiries == 2u &&
+                    clock.cpu_cycle_phase == 7u &&
+                    clock.total_expiries == 3u);
+        EXPECT_TRUE(vf2_m68k_timer_a_advance(
+            &clock, 12544u - 7u - 1u, &expiries) == VF2_OK);
+        EXPECT_TRUE(expiries == 0u &&
+                    clock.cpu_cycle_phase == 12543u);
+        EXPECT_TRUE(vf2_m68k_timer_a_advance(
+            &clock, 1u, &expiries) == VF2_OK);
+        EXPECT_TRUE(expiries == 1u &&
+                    clock.cpu_cycle_phase == 0u &&
+                    clock.total_expiries == 4u);
+        clock.cpu_cycle_phase = 12544u;
+        expiries = 89u;
+        EXPECT_TRUE(vf2_m68k_timer_a_advance(
+            &clock, 1u, &expiries) == VF2_ERROR_INVALID_ARGUMENT);
+        EXPECT_TRUE(expiries == 89u);
+        EXPECT_TRUE(vf2_m68k_timer_a_advance(
+            NULL, 1u, &expiries) == VF2_ERROR_INVALID_ARGUMENT);
+    }
+
     return failures == 0 ? 0 : 1;
 }

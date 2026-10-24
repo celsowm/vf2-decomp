@@ -107,6 +107,22 @@ vf2_status vf2_m68k_irq_autovector_enter(
     vf2_m68k_bus *bus, vf2_m68k_regs *regs, unsigned level
 );
 
+/* ROM-programmed Timer A: 49 SCSP sample frames at 44.1 kHz.
+ * Model 2A sound CPU: 11,289,600 cycles/s. Therefore one ideal
+ * Timer-A interval spans EXACTLY 12,544 MC68000 clocks.
+ * This is a pure CPU-phase accumulator; event count is diagnostic.
+ * It does not deliver, prioritize or acknowledge actual SCSP IRQs
+ * and does not emulate contention or wait states. */
+typedef struct vf2_m68k_timer_a_phase {
+    uint32_t cpu_cycle_phase;
+    uint64_t total_expiries;
+} vf2_m68k_timer_a_phase;
+
+vf2_status vf2_m68k_timer_a_advance(
+    vf2_m68k_timer_a_phase *clock, uint32_t executed_cpu_cycles,
+    uint32_t *new_expiries
+);
+
 /* Measured MC68000 autovector-entry exception overhead: 44 clock
  * cycles for the baseline instruction-free transition. Excludes
  * external bus wait states. No cycle is charged on refused entry.
