@@ -926,6 +926,34 @@ vf2_status vf2_sound_board_step_stream_short_terminal(
         &board->scsp, UINT32_C(0x0408), record[0x16u]);
 }
 
+/* 68000 0x2242/0x2244 BIT7 gate; 0x224C MOVE.W +1C,D0;
+ * 0x2250 ADD.W +1A,D0; 0x2254 BPL +0A; on negative:
+ * 0x2258 MOVE.W D0,+1C; 0x225C JMP 0x07A6.
+ * The subsequent dispatcher performs unrelated command operations;
+ * no SCSP 0x0408 write occurs in this pre-dispatch segment. */
+vf2_status vf2_sound_board_step_stream_timer_handoff(
+    vf2_sound_board *board, size_t slot_index
+)
+{
+    uint8_t *record;
+    uint16_t timer;
+    if (board == NULL || slot_index >= VF2_SOUND_VOICE_COUNT) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    record = board->sound_ram + UINT32_C(0x2000) +
+             slot_index * UINT32_C(0x20);
+    if ((record[0u] & UINT8_C(0x80)) == 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    timer = (uint16_t)(read_be16(record + 0x1cu) +
+                       read_be16(record + 0x1au));
+    if ((timer & UINT16_C(0x8000)) == 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    write_be16(record + 0x1cu, timer);
+    return VF2_OK;
+}
+
 /* ROM 0xD72..0xD90: 7 instructions, stop BEFORE RTS at 0xD90.
  *   move.w (a1),d4; move.l a0,2(a3,d4.w)
  *   move.l a2,6(a3,d4.w); move.b (a5,d4.w),d5

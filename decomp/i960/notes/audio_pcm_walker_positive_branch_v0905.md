@@ -256,3 +256,27 @@ explicitly initialized test states. The real L2/SCSP IRQ scheduling
 cadence, live 0x2242 preemption state, full song, DSP and effect
 timing are not yet emulated cycle-accurately. No runtime scheduling
 integration has been performed in this checkpoint.
+
+## v0913 — 0x2258 negative timer, measured dispatcher handoff
+
+The original 68000's 0x2242 entry begins with stream active-bit
+test and a **16-bit** timer update at 0x224C–0x2254. A negative
+signed sum writes the updated word at descriptor +0x1C
+(0x2258) and takes the **0x225C jump to 0x07A6**, without
+reaching the common 0x265C SCSP-master write.
+
+`vf2_sound_board_step_stream_timer_handoff(board, slot)` now
+models **only this bounded pre-dispatch handoff**. It refuses
+inactive and positive-timer cases without mutation. The
+dispatcher from 0x07A6, its IRQ interrupt state and realtime
+timing remain separate. ROM-free regressions cover signed
+16-bit wrap, unchanged SCSP byte, normal-timer refusal and
+inactive descriptor refusal.
+
+An additional strict owner-ROM fixture executes the original
+MC68000 from 0x2242 **to the stop PC 0x07A6 (before fetch)**,
+for three timer inputs. It compares the full 512KiB sound RAM,
+SCSP registers, program counter and test status against the
+native C operation. No sample-ROM bytes are committed.
+This is a strict branch-level parity test, **not evidence
+that the real scheduler calls the handoff at a given rate**.

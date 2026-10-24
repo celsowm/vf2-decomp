@@ -184,6 +184,18 @@ vf2_status vf2_sound_board_copy_stream_page_512(
     vf2_sound_board *board, size_t slot_index
 );
 
+/* Original 68000 0x2242..0x225E active stream negative-timer
+ * handoff. The CPU performs a 16-bit wrapping sum of descriptor
+ * +0x1C and +0x1A. Only if the signed result is negative does
+ * it store the updated word at +0x1C before jumping to the
+ * 0x07A6 command dispatcher. This bounded helper reproduces
+ * exactly the pre-dispatch store, not the downstream dispatcher,
+ * its scheduling cadence, or any SCSP write. Positive/idle cases
+ * are refused without mutation (handled by other walker arms). */
+vf2_status vf2_sound_board_step_stream_timer_handoff(
+    vf2_sound_board *board, size_t slot_index
+);
+
 /* Original 68000 0x2242 -> 0x22B8 -> 0x22CA full-page arm.
  * Recovers only the *positive, full 512-byte* branch, including the
  * timer, page-mode, SCSP 0x0409 gating, sample copy and descriptors.

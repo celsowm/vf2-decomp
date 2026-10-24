@@ -868,6 +868,53 @@ static void test_pcm_walker_short_terminal(void)
     EXPECT_TRUE(memcmp(saved, r, sizeof(saved)) == 0);
 }
 
+/* 68000 negative timer hands off at 0x07A6; unlike a PCM
+ * page exit it changes +1C only and does NOT write SCSP 0x408. */
+static void test_pcm_walker_negative_timer_handoff(void)
+{
+    static vf2_sound_board b;
+    uint8_t *r = b.sound_ram + 0x2000u + 2u * 0x20u;
+    uint8_t saved[0x20u];
+    memset(&b, 0, sizeof(b));
+    r[0u] = 0x80u;
+    r[1u] = 0x10u;
+    r[0x16u] = 0x65u;
+    b.scsp.registers[0x408u] = 0xaau;
+    b.sound_ram[0x10200u] = 0x5au;
+    EXPECT_TRUE(vf2_sound_board_step_stream_timer_handoff(NULL, 2u) ==
+                VF2_ERROR_INVALID_ARGUMENT);
+    EXPECT_TRUE(vf2_sound_board_step_stream_timer_handoff(&b, 32u) ==
+                VF2_ERROR_INVALID_ARGUMENT);
+    /* Signed 16-bit wrap: +0x7FFF + 1 = -0x8000. */
+    r[0x1au] = 0u; r[0x1bu] = 1u;
+    r[0x1cu] = 0x7fu; r[0x1du] = 0xffu;
+    EXPECT_TRUE(vf2_sound_board_step_stream_timer_handoff(&b, 2u) ==
+                VF2_OK);
+    EXPECT_TRUE(r[0x1cu] == 0x80u && r[0x1du] == 0x00u);
+    EXPECT_TRUE(b.scsp.registers[0x408u] == 0xaau);
+    EXPECT_TRUE(b.sound_ram[0x10200u] == 0x5au);
+    /* Already negative, zero addend: same stored timer. */
+    r[0x1au] = 0u; r[0x1bu] = 0u;
+    r[0x1cu] = 0xffu; r[0x1du] = 0xffu;
+    EXPECT_TRUE(vf2_sound_board_step_stream_timer_handoff(&b, 2u) ==
+                VF2_OK);
+    EXPECT_TRUE(r[0x1cu] == 0xffu && r[0x1du] == 0xffu);
+    /* Positive sum belongs to page service, not this handoff. */
+    r[0x1au] = 0u; r[0x1bu] = 1u;
+    r[0x1cu] = 0x7fu; r[0x1du] = 0xfeu;
+    memcpy(saved, r, sizeof(saved));
+    EXPECT_TRUE(vf2_sound_board_step_stream_timer_handoff(&b, 2u) ==
+                VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(memcmp(saved, r, sizeof(saved)) == 0);
+    /* Inactive records take 0x2248 -> 0x07A6, no timer store. */
+    r[0u] = 0u;
+    r[0x1cu] = 0x80u; r[0x1du] = 0x01u;
+    memcpy(saved, r, sizeof(saved));
+    EXPECT_TRUE(vf2_sound_board_step_stream_timer_handoff(&b, 2u) ==
+                VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(memcmp(saved, r, sizeof(saved)) == 0);
+}
+
 int main(void)
 {
     static uint8_t audio_rom[0x10010u];
@@ -2323,6 +2370,7 @@ int main(void)
     test_pcm_walker_short_loop_page();
     test_pcm_walker_short_release();
     test_pcm_walker_short_terminal();
+    test_pcm_walker_negative_timer_handoff();
     test_pcm_stream_page_native();
     test_render_first_tone();
     test_ad21_b_class_drain();
