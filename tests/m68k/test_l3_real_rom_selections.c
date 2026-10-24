@@ -713,7 +713,7 @@ static int akira_verify_short_loop_fixture(
     int pass;
     if (rom == NULL || sample_bank == NULL ||
         sample_bank_size < UINT32_C(0x600)) {
-        printf("AKIRA_SHORT_LOOP_SETUP sample_or_rom_missing=1\\n");
+        printf("AKIRA_SHORT_LOOP_SETUP sample_or_rom_missing=1\n");
         return 0;
     }
     memset(original_ram, 0, sizeof(original_ram));
@@ -786,7 +786,7 @@ static int akira_verify_short_loop_fixture(
     printf("AKIRA_SHORT_LOOP_ORIGINAL_DIFF matched=%u "
            "original_status=%d native_status=%d "
            "steps=%u original_next_src=%08x "
-           "original_next_remaining=%08x scsp0408=%02x\\n",
+           "original_next_remaining=%08x scsp0408=%02x\n",
            (unsigned)pass, (int)original_status, (int)native_status,
            (unsigned)(one + rest),
            (unsigned)read_be32(original_ram + 0x2002u),
@@ -813,6 +813,11 @@ static void akira_probe_original_walk(const uint8_t *rom, size_t rom_size,
     unsigned variant;
     const uint32_t record = UINT32_C(0x2000);
     const uint32_t start = UINT32_C(0x10200);
+    if (tick == 0u &&
+        !akira_verify_short_loop_fixture(rom, rom_size) &&
+        verify_akira_original_walk) {
+        akira_walk_strict_failed = 1;
+    }
     for (variant = 0u; variant < 2u; ++variant) {
         uint32_t stepped = 0u, walked = 0u;
         size_t changed = 0u, pcm_changed = 0u, i;
