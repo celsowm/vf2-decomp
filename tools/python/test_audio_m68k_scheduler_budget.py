@@ -16,7 +16,7 @@ from audio_m68k_scheduler_budget import (
 class BudgetTests(unittest.TestCase):
     def test_model2a_clock_and_timer_a(self):
         self.assertEqual(budget_cycles(), Fraction(12544))
-        self.assertEqual(budget_cycles(frames_per_timer=50), Fraction(640000, 49) * Fraction(49, 50) if False else Fraction(1254400, 9*10))  # replaced below
+        self.assertEqual(budget_cycles(frames_per_timer=50), Fraction(12800))
 
     def test_owner_first_tick_is_physically_impossible(self):
         result = audit_tick(1073, 12176, 588)
