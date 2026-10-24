@@ -538,7 +538,7 @@ int main(void)
             0x67u, 0x02u, /* BEQ.B +2 */
             0x4eu, 0x71u
         };
-        static const uint8_t bsr_unsupported[] = {
+        static const uint8_t bsr_now_implemented[] = {
             0x61u, 0x02u, 0x4eu, 0x71u
         };
         uint32_t cycles = 0u, steps = 0u;
@@ -570,10 +570,14 @@ int main(void)
         regs.a[7] = UINT32_C(0x7000);
         status = vf2_m68k_run_cycle_slice(
             &bus, &regs, 4u, 100u, &cycles, &steps, &paused);
-        EXPECT_TRUE(status == VF2_ERROR_UNSUPPORTED &&
-                    cycles == 0u && steps == 0u &&
-                    !paused && regs.a[7] == UINT32_C(0x7000) &&
-                    regs.pc == 0u);
+        EXPECT_TRUE(status == VF2_OK &&
+                    cycles == 18u && steps == 1u &&
+                    !paused && regs.a[7] == UINT32_C(0x6ffc) &&
+                    regs.pc == 4u);
+        EXPECT_TRUE(ram[0x6ffcu] == 0u &&
+                    ram[0x6ffdu] == 0u &&
+                    ram[0x6ffeu] == 0u &&
+                    ram[0x6fffu] == 2u);
     }
 
     /* A model-clock phase accumulator preserves fractional
