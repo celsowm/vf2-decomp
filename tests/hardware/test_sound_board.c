@@ -980,6 +980,84 @@ static void test_pcm_walker_empty_dispatch_cycle(void)
     EXPECT_TRUE(next == UINT32_C(0xdeadbeef));
 }
 
+/* Explicit native stream walker: entry-to-entry branch selection only.
+ * No interrupt cadence, DMA timer or production scheduling inferred. */
+static void test_pcm_walker_one_descriptor(void)
+{
+    static vf2_sound_board b;
+    static uint8_t samples[0x1000u];
+    uint8_t *r = b.sound_ram + 0x2000u;
+    uint8_t saved[0x20u];
+    uint32_t next = UINT32_C(0xdeadbeef);
+    size_t i;
+    memset(&b, 0, sizeof(b));
+    for (i = 0u; i < sizeof(samples); ++i) {
+        samples[i] = (uint8_t)(i * 5u + 1u);
+    }
+    b.sample_rom = samples;
+    b.sample_rom_size = sizeof(samples);
+    EXPECT_TRUE(vf2_sound_board_step_stream_walk_one(
+        NULL, 0u, &next) == VF2_ERROR_INVALID_ARGUMENT);
+    EXPECT_TRUE(vf2_sound_board_step_stream_walk_one(
+        &b, 32u, &next) == VF2_ERROR_INVALID_ARGUMENT);
+    EXPECT_TRUE(vf2_sound_board_step_stream_walk_one(
+        &b, 0u, NULL) == VF2_ERROR_INVALID_ARGUMENT);
+    /* Inactive descriptor with nonzero then zero continuation. */
+    r[0x16u] = 0x63u;
+    b.scsp.registers[0x408u] = 0x11u;
+    EXPECT_TRUE(vf2_sound_board_step_stream_walk_one(
+        &b, 0u, &next) == VF2_OK);
+    EXPECT_TRUE(next == UINT32_C(0x2020));
+    EXPECT_TRUE(b.scsp.registers[0x408u] == 0x63u);
+    r[0x16u] = 0u;
+    EXPECT_TRUE(vf2_sound_board_step_stream_walk_one(
+        &b, 0u, &next) == VF2_OK);
+    EXPECT_TRUE(next == UINT32_C(0x2000));
+    /* Negative timer: no copy and exact 16-bit wrap. */
+    r[0u] = 0x80u;
+    r[1u] = 0x10u;
+    r[0x16u] = 0x63u;
+    r[0x1au] = 0u; r[0x1bu] = 1u;
+    r[0x1cu] = 0x7fu; r[0x1du] = 0xffu;
+    EXPECT_TRUE(vf2_sound_board_step_stream_walk_one(
+        &b, 0u, &next) == VF2_OK);
+    EXPECT_TRUE(r[0x1cu] == 0x80u && r[0x1du] == 0u);
+    EXPECT_TRUE(next == UINT32_C(0x2020));
+    /* Positive full-page refill. */
+    r[0x1cu] = 0u; r[0x1du] = 4u;
+    r[0x1au] = 0u; r[0x1bu] = 2u;
+    store_pcm_cursor(r + 2u, UINT32_C(0x800200));
+    store_pcm_cursor(r + 6u, UINT32_C(0x10200));
+    store_pcm_cursor(r + 0x0au, UINT32_C(0x900));
+    EXPECT_TRUE(vf2_sound_board_step_stream_walk_one(
+        &b, 0u, &next) == VF2_OK);
+    EXPECT_TRUE(memcmp(b.sound_ram + 0x10200u,
+                       samples + 0x200u, 512u) == 0);
+    EXPECT_TRUE(r[1u] == 0x20u);
+    EXPECT_TRUE(next == UINT32_C(0x2020));
+    /* Hardware-gated skip on positive FULL page must write
+     * SCSP 0x408 yet preserve the record and PCM. */
+    r[1u] = 0u;
+    r[0x16u] = 0x64u;
+    b.scsp.registers[0x409u] = 0u;
+    b.scsp.registers[0x408u] = 0xaau;
+    memcpy(saved, r, sizeof(saved));
+    EXPECT_TRUE(vf2_sound_board_step_stream_walk_one(
+        &b, 0u, &next) == VF2_OK);
+    EXPECT_TRUE(memcmp(saved, r, sizeof(saved)) == 0);
+    EXPECT_TRUE(b.scsp.registers[0x408u] == 0x64u);
+    EXPECT_TRUE(next == UINT32_C(0x2020));
+    /* Nonempty dispatcher fails closed rather than pretending
+     * a 0x07A6 command-ring drain has taken place. */
+    b.sound_ram[VF2_SOUND_COMMAND_COUNT] = 1u;
+    memcpy(saved, r, sizeof(saved));
+    next = UINT32_C(0xdeadbeef);
+    EXPECT_TRUE(vf2_sound_board_step_stream_walk_one(
+        &b, 0u, &next) == VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(next == UINT32_C(0xdeadbeef));
+    EXPECT_TRUE(memcmp(saved, r, sizeof(saved)) == 0);
+}
+
 int main(void)
 {
     static uint8_t audio_rom[0x10010u];
@@ -2437,6 +2515,7 @@ int main(void)
     test_pcm_walker_short_terminal();
     test_pcm_walker_negative_timer_handoff();
     test_pcm_walker_empty_dispatch_cycle();
+    test_pcm_walker_one_descriptor();
     test_pcm_stream_page_native();
     test_render_first_tone();
     test_ad21_b_class_drain();
