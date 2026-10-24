@@ -1633,7 +1633,20 @@ static int akira_compare_composite_long_tick(
         memcmp(native.scsp.slot_active, bus->scsp->slot_active,
                sizeof(native.scsp.slot_active)) != 0 ||
         memcmp(native.scsp.slot_address, bus->scsp->slot_address,
-               sizeof(native.scsp.slot_address)) != 0) {
+               sizeof(native.scsp.slot_address)) != 0 ||
+        memcmp(native.scsp.slot_step, bus->scsp->slot_step,
+               sizeof(native.scsp.slot_step)) != 0 ||
+        memcmp(native.scsp.slot_envelope, bus->scsp->slot_envelope,
+               sizeof(native.scsp.slot_envelope)) != 0 ||
+        memcmp(native.scsp.slot_envelope_state,
+               bus->scsp->slot_envelope_state,
+               sizeof(native.scsp.slot_envelope_state)) != 0 ||
+        memcmp(native.scsp.slot_backward, bus->scsp->slot_backward,
+               sizeof(native.scsp.slot_backward)) != 0 ||
+        memcmp(native.scsp.midi_input, bus->scsp->midi_input,
+               sizeof(native.scsp.midi_input)) != 0 ||
+        native.scsp.midi_read_index != bus->scsp->midi_read_index ||
+        native.scsp.midi_write_index != bus->scsp->midi_write_index) {
         size_t i;
         for (i = 0u; i < VF2_SOUND_RAM_BYTES; ++i) {
             if (native.sound_ram[i] != bus->ram[i]) break;
@@ -2096,7 +2109,9 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
         printf("AKIRA_MUSIC_PROGRESS ticks=%u total_drained=%u "
                "active_ticks=%u last_packet_tick=%u peak_voices=%u "
                "final_queue=%u original_only=1 real_time_pacing=0\n",
-               (unsigned)(sequenced_dir != NULL ? SEQUENCE_TICKS : 1024u),
+               (unsigned)(sequenced_dir != NULL ||
+                          akira_verify_composite_ticks ?
+                          SEQUENCE_TICKS : 1024u),
                (unsigned)total_drain, (unsigned)active_ticks,
                (unsigned)last_tick_with_packets, peak_voices,
                (unsigned)step_ram[VF2_SOUND_COMMAND_COUNT]);
