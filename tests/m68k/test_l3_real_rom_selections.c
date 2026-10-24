@@ -1779,6 +1779,9 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
     uint32_t budget_first_dispatch = 0u;
     uint32_t budget_first_walker = 0u;
     uint32_t budget_first_total = 0u;
+    uint32_t first_fifo_steps[64u] = {0u};
+    size_t first_fifo_count = 0u;
+    size_t first_fifo_ceiling = 0u;
     uint32_t budget_peak_total = 0u;
     size_t budget_peak_tick = 0u;
     uint8_t *desc = board.sound_ram + VF2_SOUND_COMMAND_DESCRIPTOR_BASE;
@@ -2007,6 +2010,13 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
                         &bus, &regs, UINT32_C(0x265c),
                         0, 100000u, &dispatch_steps);
                     drain_tick_steps += dispatch_steps;
+                    if (tick == 0u &&
+                        first_fifo_count <
+                            sizeof(first_fifo_steps) /
+                            sizeof(first_fifo_steps[0])) {
+                        first_fifo_steps[first_fifo_count++] =
+                            dispatch_steps;
+                    }
                     for (v = 0u; v < VF2_SCSP_SLOT_COUNT; ++v) {
                         now_active += (unsigned)
                             (step_scsp.slot_active[v] != 0u);
@@ -2088,6 +2098,30 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
                     budget_first_dispatch = drain_tick_steps;
                     budget_first_walker = walker_tick_steps;
                     budget_first_total = total_tick_steps;
+                    /* An upper bound on the number of FIFO
+                     * commands that could complete inside this
+                     * IRQ, given an unrealistically optimistic
+                     * 4 CPU cycles for every instruction.
+                     * Preserve original FIFO order and reserve
+                     * one full L2 + stream walk. This is an
+                     * exploratory bound, NOT a scheduler. */
+                    const uint32_t optimistic_instr_capacity =
+                        M68K_CYCLES_PER_TIMER_A / 4u;
+                    uint32_t remaining_instr =
+                        optimistic_instr_capacity >
+                            original_steps + walker_tick_steps ?
+                        optimistic_instr_capacity -
+                            original_steps - walker_tick_steps : 0u;
+                    size_t entry;
+                    for (entry = 0u; entry < first_fifo_count;
+                         ++entry) {
+                        if (first_fifo_steps[entry] >
+                            remaining_instr) {
+                            break;
+                        }
+                        remaining_instr -= first_fifo_steps[entry];
+                        ++first_fifo_ceiling;
+                    }
                 }
                 budget_instruction_sum += total_tick_steps;
                 ++budget_checked_ticks;
@@ -2286,6 +2320,9 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
                "first_l2=%u first_drain=%u first_walker=%u "
                "first_total=%u first_minimum_cycles=%u "
                "budget_cycles=12544 peak_tick=%u peak_steps=%u "
+               "first_fifo_commands=%u "
+               "first_fifo_optimistic_completed_ceiling=%u "
+               "first_fifo_backlog_floor=%u "
                "average_steps=%u lower_bound_only=1 "
                "one_scan_per_irq_proven=0\n",
                (unsigned)budget_checked_ticks,
@@ -2297,11 +2334,16 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
                (unsigned)(budget_first_total * 4u),
                (unsigned)budget_peak_tick,
                (unsigned)budget_peak_total,
+               (unsigned)first_fifo_count,
+               (unsigned)first_fifo_ceiling,
+               (unsigned)(first_fifo_count - first_fifo_ceiling),
                (unsigned)(budget_checked_ticks == 0u ? 0u :
                    budget_instruction_sum / budget_checked_ticks));
         if (budget_checked_ticks != sequence_ticks ||
             budget_overloaded_ticks == 0u ||
-            budget_first_total <= 3136u) {
+            budget_first_total <= 3136u ||
+            first_fifo_count != 32u ||
+            first_fifo_ceiling != 2u) {
             fprintf(stderr,
                     "AKIRA_TIMA_CPU_BUDGET expected overrun not measured\n");
             return 0;
