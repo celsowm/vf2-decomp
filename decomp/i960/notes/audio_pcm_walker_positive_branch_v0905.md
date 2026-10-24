@@ -46,3 +46,17 @@ Synthetic ROM-free behavior is covered by `vf2_sound_board` CI.
 **Owner-ROM C-vs-68000 full-record differential and original
 scheduler cadence remain separate pending gates**. No sound track
 is claimed complete or hardware-accurate.
+
+## Owner-ROM per-descriptor differential instrument
+
+The existing `--probe-akira-walk` / `--verify-akira-walk` harness
+now compares all **32 individual original 68000 iterations** to the
+new bounded C full-page operation, each with its own pre-step sound-RAM
+and SCSP snapshot. An admitted C positive branch must reproduce the
+entire 0x20-byte descriptor plus its selected 512-byte destination
+page and must not claim a copy when the original skipped it. Any
+positive mismatch marks the opt-in owner-ROM strict gate failed.
+Unimplemented real-copy branches are explicitly reported as
+`AKIRA_NATIVE_FULL_PAGE_UNCOVERED`, not counted as matches.
+The hook is committed but **its outcome has not been measured locally
+against the owner ROM**; the public CI does not ship those ROM bytes.

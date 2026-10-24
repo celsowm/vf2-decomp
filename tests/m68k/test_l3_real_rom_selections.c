@@ -614,6 +614,66 @@ static int write_akira_model_preview(const char *directory, vf2_scsp *scsp)
         left, right, FRAMES, 0);
 }
 
+/* Compare one ORIGINAL 0x2242 iteration with the bounded native
+ * full-page arm from the identical pre-step state. Every descriptor is
+ * inspected, including skips: admitting a copy when the original did
+ * NOT copy is a strict failure. A real copy whose branch is still
+ * unsupported by C is logged as uncovered (not fabricated as parity).
+ * No ROM data or generated PCM is written outside this local test. */
+static unsigned akira_native_full_page_vs_original(
+    const uint8_t *pre, const vf2_scsp *pre_scsp,
+    const uint8_t *post, unsigned slot, int strict
+)
+{
+    static vf2_sound_board candidate;
+    const uint32_t rec = UINT32_C(0x2000) +
+                         (uint32_t)slot * UINT32_C(0x20);
+    const uint32_t prior_source = read_be32(pre + rec + 2u);
+    const uint32_t prior_dest = read_be32(pre + rec + 6u);
+    const uint32_t actual_source = read_be32(post + rec + 2u);
+    const uint32_t actual_dest = read_be32(post + rec + 6u);
+    const uint8_t mode = pre[rec + 1u];
+    const uint32_t copy_dest = read_be32(
+        pre + rec + (mode == 0u ? 0x0eu : 6u));
+    const int original_copied = actual_source != prior_source &&
+                                actual_dest != prior_dest;
+    vf2_status native_status;
+    int parity = 0;
+    memcpy(candidate.sound_ram, pre, VF2_SOUND_RAM_BYTES);
+    memcpy(&candidate.scsp, pre_scsp, sizeof(candidate.scsp));
+    candidate.sample_rom = sample_bank;
+    candidate.sample_rom_size = sample_bank_size;
+    native_status =
+        vf2_sound_board_step_stream_full_page(&candidate, slot);
+    if (native_status == VF2_OK) {
+        parity = original_copied &&
+            copy_dest <= VF2_SOUND_RAM_BYTES - 512u &&
+            memcmp(candidate.sound_ram + rec, post + rec, 0x20u) == 0 &&
+            memcmp(candidate.sound_ram + copy_dest,
+                   post + copy_dest, 512u) == 0;
+        printf("AKIRA_NATIVE_FULL_PAGE slot=%u status=%d "
+               "original_copy=%u record_pcm_parity=%u "
+               "source_before=%08x source_after=%08x "
+               "destination_before=%08x destination_after=%08x\n",
+               slot, (int)native_status, (unsigned)original_copied,
+               (unsigned)parity, (unsigned)prior_source,
+               (unsigned)actual_source, (unsigned)prior_dest,
+               (unsigned)actual_dest);
+        if (strict && !parity) {
+            akira_walk_strict_failed = 1;
+        }
+        return 1u;
+    }
+    if (original_copied) {
+        printf("AKIRA_NATIVE_FULL_PAGE_UNCOVERED slot=%u "
+               "original_copy=1 C_status=%d mode=%02x "
+               "remaining=%08x\n",
+               slot, (int)native_status, (unsigned)mode,
+               (unsigned)read_be32(pre + rec + 0x0au));
+    }
+    return 0u;
+}
+
 /* Original-ROM candidate page-refill service: 0x2242 walker.
  * Run one iteration on an entirely separate snapshot to avoid
  * altering the ordinary music preview or original M68K bus.
@@ -729,6 +789,9 @@ static void akira_probe_original_walk(const uint8_t *rom, size_t rom_size,
                 akira_walk_strict_failed = 1;
             }
             unsigned pass;
+            unsigned admitted_pages = akira_native_full_page_vs_original(
+                step_ram, &step_scsp, walk_ram, 0u,
+                verify_akira_original_walk);
             unsigned successful_passes = 1u;
             unsigned advancing_slots = 1u; /* slot 0 above */
             uint32_t all_steps = stepped + walked;
@@ -742,6 +805,14 @@ static void akira_probe_original_walk(const uint8_t *rom, size_t rom_size,
                 const uint32_t source_before = read_be32(walk_ram + rec + 2u);
                 const uint32_t destination_before =
                     read_be32(walk_ram + rec + 6u);
+                /* Preserve the original PRE-pass RAM/SCSP before
+                 * allowing the 68000 to mutate its stream record.
+                 * Static storage avoids 512KiB of stack. */
+                static uint8_t native_before_ram[VF2_SOUND_RAM_BYTES];
+                vf2_scsp native_before_scsp;
+                memcpy(native_before_ram, walk_ram, sizeof(native_before_ram));
+                memcpy(&native_before_scsp, &walk_scsp,
+                       sizeof(native_before_scsp));
                 bus.event_count = 0u;
                 one_status = vf2_m68k_run(&bus, &r, 0u, 0, 1u, &once);
                 walk_status = vf2_m68k_run(&bus, &r, UINT32_C(0x2242),
@@ -759,6 +830,9 @@ static void akira_probe_original_walk(const uint8_t *rom, size_t rom_size,
                     break;
                 }
                 ++successful_passes;
+                admitted_pages += akira_native_full_page_vs_original(
+                    native_before_ram, &native_before_scsp,
+                    walk_ram, pass, verify_akira_original_walk);
                 final_a0 = r.a[0];
                 if (source_before != read_be32(walk_ram + rec + 2u) ||
                     destination_before != read_be32(walk_ram + rec + 6u)) {
@@ -776,6 +850,10 @@ static void akira_probe_original_walk(const uint8_t *rom, size_t rom_size,
             for (i = UINT32_C(0x10000); i < UINT32_C(0x50000); ++i) {
                 if (walk_ram[i] != step_ram[i]) ++wave_changed;
             }
+            printf("AKIRA_NATIVE_FULL_PAGE_SUMMARY admitted=%u "
+                   "original_copy_slots=%u strict_errors=%u\n",
+                   admitted_pages, advancing_slots,
+                   (unsigned)akira_walk_strict_failed);
             printf("AKIRA_WALK_FULL_SCAN passes=%u "
                    "advancing_slots=%u total_steps=%u final_a0=%08x "
                    "wave_ram_modified=%u queue=%u\n",
