@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 static int failures;
 
@@ -136,6 +137,96 @@ int main(void)
     status = vf2_m68k_run(&bus, &regs, 0x30u, 1, 2u, &done);
     EXPECT_TRUE(status == VF2_ERROR_UNSUPPORTED);
     EXPECT_TRUE(done == 2u);
+
+    /* The CPU state and effects must survive instruction-quanta.
+     * This is NOT an IRQ or cycle-budget test, only a correct
+     * non-resetting execution primitive for future scheduling. */
+    {
+        static const uint8_t resumable_program[] = {
+            0x70, 0x0a,             /* moveq #10,d0 */
+            0x56, 0x00,             /* addq.b #3,d0 */
+            0x0c, 0x00, 0x00, 0x0d, /* cmpi.b #0x0d,d0 */
+            0x66, 0x04,             /* bne (not taken) */
+            0x72, 0x01,             /* moveq #1,d1 */
+            0x60, 0x02,             /* bra to 0x10 */
+            0x72, 0x02,             /* skipped */
+            0x74, 0x03,             /* moveq #3,d2 */
+            0x53, 0x02,             /* subq.b #1,d2 */
+            0x51, 0xca, 0xff, 0xfc, /* dbf d2,-4 */
+            0x41, 0xf8, 0x20, 0x00, /* lea 0x2000,a0 */
+            0x28, 0x3c, 0x12, 0x34, 0x56, 0x78, /* move.l */
+            0x20, 0x84,             /* move.l d4,(a0) */
+            0x4e, 0xba, 0x00, 0x04, /* jsr to 0x2a */
+            0x60, 0x06,             /* bra to 0x30 */
+            0x76, 0x07,             /* moveq #7,d3 */
+            0x4e, 0x75              /* rts */
+        };
+        static uint8_t reference_ram[32768u];
+        vf2_m68k_regs reference_regs;
+        uint32_t reference_steps = 0u;
+        uint32_t sliced_steps = 0u;
+        size_t iteration;
+        int suspended = 0;
+        make_bus(&bus, &scsp, ram,
+                 resumable_program, sizeof(resumable_program));
+        vf2_m68k_regs_reset(&regs);
+        regs.a[7] = 32512u;
+        status = vf2_m68k_run(
+            &bus, &regs, 0x30u, 0, 100u, &reference_steps);
+        EXPECT_TRUE(status == VF2_OK);
+        memcpy(reference_ram, ram, sizeof(reference_ram));
+        reference_regs = regs;
+
+        make_bus(&bus, &scsp, ram,
+                 resumable_program, sizeof(resumable_program));
+        vf2_m68k_regs_reset(&regs);
+        regs.a[7] = 32512u;
+        for (iteration = 0u; iteration < 100u; ++iteration) {
+            uint32_t executed = 0u;
+            status = vf2_m68k_run_slice(
+                &bus, &regs, 0x30u, 0, 3u,
+                &executed, &suspended);
+            EXPECT_TRUE(status == VF2_OK);
+            EXPECT_TRUE(executed <= 3u);
+            sliced_steps += executed;
+            if (status != VF2_OK || !suspended) break;
+        }
+        EXPECT_TRUE(iteration > 1u && iteration < 100u);
+        EXPECT_TRUE(!suspended);
+        EXPECT_TRUE(sliced_steps == reference_steps);
+        EXPECT_TRUE(regs.pc == reference_regs.pc);
+        for (iteration = 0u; iteration < 8u; ++iteration) {
+            EXPECT_TRUE(regs.d[iteration] ==
+                        reference_regs.d[iteration]);
+            EXPECT_TRUE(regs.a[iteration] ==
+                        reference_regs.a[iteration]);
+        }
+        EXPECT_TRUE(regs.x == reference_regs.x &&
+                    regs.n == reference_regs.n &&
+                    regs.z == reference_regs.z &&
+                    regs.v == reference_regs.v &&
+                    regs.c == reference_regs.c);
+        EXPECT_TRUE(memcmp(ram, reference_ram,
+                           sizeof(reference_ram)) == 0);
+        status = vf2_m68k_run_slice(
+            &bus, &regs, 0x30u, 0, 3u, &done, &suspended);
+        EXPECT_TRUE(status == VF2_OK && !suspended && done == 0u);
+
+        make_bus(&bus, &scsp, ram, bad_program,
+                 sizeof(bad_program));
+        vf2_m68k_regs_reset(&regs);
+        suspended = 1;
+        status = vf2_m68k_run_slice(
+            &bus, &regs, 0x10u, 0, 3u, &done, &suspended);
+        EXPECT_TRUE(status == VF2_ERROR_UNSUPPORTED);
+        EXPECT_TRUE(done == 0u && !suspended);
+        EXPECT_TRUE(vf2_m68k_run_slice(
+            &bus, &regs, 0x10u, 0, 0u, &done, &suspended) ==
+            VF2_ERROR_INVALID_ARGUMENT);
+        EXPECT_TRUE(vf2_m68k_run_slice(
+            &bus, &regs, 0x10u, 0, 3u, &done, NULL) ==
+            VF2_ERROR_INVALID_ARGUMENT);
+    }
 
     return failures == 0 ? 0 : 1;
 }

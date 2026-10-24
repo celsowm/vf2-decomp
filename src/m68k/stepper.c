@@ -2086,6 +2086,39 @@ vf2_status vf2_m68k_run(
     return VF2_ERROR_UNSUPPORTED;
 }
 
+/* Reentrant instruction-quanta shim around the legacy stepper.
+ * max_steps reaching VF2_ERROR_UNSUPPORTED was ambiguous with
+ * an opcode refusal. The legacy run contract guarantees the
+ * former executes exactly max_steps; the latter executes fewer.
+ * Never report a genuine error as a completed/suspendable step.
+ * PC and RAM remain unmodified by this shim itself. */
+vf2_status vf2_m68k_run_slice(
+    vf2_m68k_bus *bus, vf2_m68k_regs *regs,
+    uint32_t stop_pc, int stop_on_return,
+    uint32_t max_instructions, uint32_t *steps_done,
+    int *suspended
+)
+{
+    vf2_status status;
+    if (bus == NULL || regs == NULL || steps_done == NULL ||
+        suspended == NULL || max_instructions == 0u) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    *suspended = 0;
+    status = vf2_m68k_run(
+        bus, regs, stop_pc, stop_on_return,
+        max_instructions, steps_done);
+    if (status == VF2_ERROR_UNSUPPORTED &&
+        *steps_done == max_instructions) {
+        /* The last legal instruction may have landed exactly
+         * on stop_pc: caller shouldn't have to run an extra
+         * zero-step quantum to learn it is at the boundary. */
+        *suspended = regs->pc != stop_pc;
+        return VF2_OK;
+    }
+    return status;
+}
+
 void vf2_m68k_snapshot_init(vf2_m68k_snapshot *snap)
 {
     if (snap != NULL) {

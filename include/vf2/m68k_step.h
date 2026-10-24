@@ -86,6 +86,23 @@ typedef struct vf2_m68k_snapshot {
     vf2_m68k_bus_event events[VF2_M68K_STEP_MAX_EVENTS];
 } vf2_m68k_snapshot;
 
+/* Run a cooperative, fixed-INSTRUCTION quantum. Unlike vf2_m68k_run,
+ * reaching max_steps is NOT conflated with an unknown opcode:
+ * returns VF2_OK and sets *suspended=1 if execution may resume.
+ * A genuine unsupported instruction still returns ERROR_UNSUPPORTED
+ * with suspended=0. On PC==stop_pc, completes (suspended=0).
+ *
+ * This preserves PC/D/A/flags/RAM/SCSP as in ordinary run.
+ * Does NOT count MC68000 cycles, accept/stack hardware IRQs,
+ * or simulate bus wait states. It is an executor building block
+ * for a future timed preemption model, NOT a timing scheduler. */
+vf2_status vf2_m68k_run_slice(
+    vf2_m68k_bus *bus, vf2_m68k_regs *regs,
+    uint32_t stop_pc, int stop_on_return,
+    uint32_t max_instructions, uint32_t *steps_done,
+    int *suspended
+);
+
 void vf2_m68k_snapshot_init(vf2_m68k_snapshot *snap);
 
 vf2_status vf2_m68k_snapshot_capture(
