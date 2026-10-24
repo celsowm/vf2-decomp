@@ -1077,8 +1077,11 @@ static void akira_probe_original_walk(const uint8_t *rom, size_t rom_size,
                    (unsigned)final_a0, (unsigned)wave_changed,
                    (unsigned)walk_ram[VF2_SOUND_COMMAND_COUNT]);
             if (verify_akira_original_walk) {
+                /* A skipped C branch must not silently pass simply
+                 * because the original 68000 completed its scan. */
                 const int passed = successful_passes == 32u &&
                     advancing_slots == 4u &&
+                    admitted_pages == advancing_slots &&
                     all_steps == 588u &&
                     final_a0 == UINT32_C(0x2000) &&
                     wave_changed == 2039u &&
@@ -1086,10 +1089,11 @@ static void akira_probe_original_walk(const uint8_t *rom, size_t rom_size,
                     read_be32(walk_ram + 0x2006u) == UINT32_C(0x10400) &&
                     walk_ram[VF2_SOUND_COMMAND_COUNT] == 0u;
                 printf("AKIRA_ORIGINAL_WALK_STRICT parity=%u "
-                       "passes=%u pages=%u steps=%u "
-                       "pcm_bytes_changed=%u\n",
+                       "passes=%u pages=%u native_admitted=%u "
+                       "steps=%u pcm_bytes_changed=%u\n",
                        (unsigned)passed, successful_passes, advancing_slots,
-                       (unsigned)all_steps, (unsigned)wave_changed);
+                       admitted_pages, (unsigned)all_steps,
+                       (unsigned)wave_changed);
                 if (!passed) akira_walk_strict_failed = 1;
             }
         }

@@ -135,3 +135,37 @@ on a synthetic release descriptor and compares the resulting
 voice, descriptor and SCSP effects byte-by-byte with native C.
 Its result is a strict gate in `--verify-akira-walk` but is not
 part of public CI because no private ROM is shipped.
+
+## v0908 — owner-ROM executed differential evidence (2026-10-24)
+
+The original owner ROM was recovered from the user's saved archive
+`vf2(20261018-203049).zip`, rebuilt in a private local ROM folder,
+and run against the release Linux binary produced by CI for commit
+`537180d771964b865d49472906b02ec9e63ea41c`. Command:
+
+```sh
+vf2_m68k_l3_selection_tests /path/to/private/vf2-rom --verify-akira-walk
+```
+
+**The program exited 0 and printed**:
+
+```text
+AKIRA_SHORT_LOOP_ORIGINAL_DIFF matched=1 original_status=0 native_status=0 steps=85 original_next_src=00800480 original_next_remaining=00000f80 scsp0408=a5
+AKIRA_SHORT_RELEASE_ORIGINAL_DIFF matched=1 original_status=0 native_status=0 steps=39 stop_pc=02242 voice_status=09 voice_count=54 scsp_key=1f scsp0408=42
+AKIRA_NATIVE_PAGE_SUMMARY admitted=4 original_copy_slots=4 strict_errors=0
+AKIRA_ORIGINAL_WALK_STRICT parity=1 passes=32 pages=4 steps=588 pcm_bytes_changed=2039
+```
+
+This is **actual C-vs-MC68000 differential execution** for the
+ordinary four first-tick copies and two independent synthetic
+entry-to-exit 68000 descriptors (short loop and release). It is
+not an arcade timing claim. No proprietary ROM contents or
+sample wave bytes were uploaded to GitHub. The owner-only strict
+gate now also requires the number of *C-admitted original pages*
+to equal the four 68000-observed pages; previously a regression
+that refused all positive C paths could falsely pass this gate.
+
+Remaining unsupported: the bit3-clear short-page 0x2524 branch,
+odd/out-of-domain activation indices, some 0x260C paths and
+actual SCSP/IRQ scheduler pacing. No automatic production
+integration of the walker has been performed.
