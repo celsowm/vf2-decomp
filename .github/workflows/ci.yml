@@ -26,6 +26,8 @@ jobs:
         run: python3 tools/python/test_frontier.py
       - name: Verify SCSP Timer-A opcode and interval (ROM-free)
         run: python3 tools/python/test_audio_scsp_tima_rom.py
+      - name: Verify conservative M68000 IRQ cycle budget (ROM-free)
+        run: python3 tools/python/test_audio_m68k_scheduler_budget.py
 
   build:
     name: ${{ matrix.compiler }} release
