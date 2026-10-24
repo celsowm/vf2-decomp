@@ -70,13 +70,13 @@ register byte 0x0408, alongside descriptor metadata and PCM bytes.
 
 ## v0906 — 0x23B0 terminal/looping page
 
-The owner sound ROM's 0x23B0–0x24B8 bytes reveal a distinct
+The owner sound ROM's 0x23B0–0x24BC bytes reveal a distinct
 **512-byte page copy with loop-cursor reset**, selected only when
 remaining length is <= 0x200 and descriptor flag bit 0 is set.
 The already decoded prefix at 0x2242 supplies active flag, signed
 16-bit timer and SCSP 0x0409 mode gates. Original 68000 instructions:
 
-- `23B0 BTST #0,(A0)` / `23B4 BEQ 24BC` — flag-clear branch
+- `23B0 BTST #0,(A0)` / `23B6 BEQ 24BE` — flag-clear branch
   stays unsupported.
 - `23BA NOT.W D5; 23BC ADDI.W #0x0201,D5; 23C0 ANDI.L #0xFFFF,D5`
   computes `padding = 512 - remaining` for original remaining 0..512.
@@ -88,14 +88,14 @@ The already decoded prefix at 0x2242 supplies active flag, signed
   length minus padding (32-bit arithmetic).
 - `23DE–23F2` updates mode (+0x10), 16-bit timer, new source,
   remaining; `23F6–24B2` still copies a **full 512 bytes from the
-  original source A1**; `24B4` stores the destination end, and the
+  original source A1**; `24B6` stores the destination end, and the
   common 0x265C SCSP write follows.
 
 Added separate opt-in C helper
 `vf2_sound_board_step_stream_short_loop_page()` plus ROM-free
 regression checks and inclusion in the owner-ROM per-descriptor
 validation. This function is intentionally not called by the normal
-sound scheduler. The 0x24BC/0x24D2/0x260C activation/release
+sound scheduler. The 0x24BE/0x24D2/0x260C activation/release
 branches remain held, as do real-time scheduling and hardware-perfect
 mixing. A successful copy does not prove those other semantics.
 
@@ -104,3 +104,12 @@ Owner-ROM copy detection deliberately uses the destination cursor
 not a change in the source cursor (+2). The 0x23B0 loop arm can
 reset +2 back to an earlier source, possibly to the exact previous
 value; requiring source inequality would silently miss real copies.
+
+Address correction from direct owner-ROM word offsets: the
+`BTST #0,0(A0)` occupies 0x23B0..0x23B4, and the word-displacement
+`BEQ 0x24BE` starts at 0x23B6. The final 16th MOVEM ends
+at 0x24B6, `MOVE.L A2,+6(A0)` starts at 0x24B6,
+`BRA 0x265C` starts at 0x24BA. 0x24BC holds that BRA's
+extension word; `BTST #3,(A0)` starts at 0x24BE.
+This is a PC-label documentation correction only; C branch
+conditions were unchanged.

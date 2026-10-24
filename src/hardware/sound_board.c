@@ -638,9 +638,9 @@ vf2_status vf2_sound_board_step_stream_full_page(
                              record[0x16u]);
 }
 
-/* ROM 0x23B0..0x24B8: terminal/looping 512-byte page, +0x01
+/* ROM 0x23B0..0x24BC: terminal/looping 512-byte page, +0x01
  * descriptor flag only. Decode directly from owner ROM:
- *   23B0 BTST #0,(A0); BEQ 24BC (unsupported here)
+ *   23B0 BTST #0,(A0); BEQ 24BE (unsupported here)
  *   23BA NOT.W D5; 23BC ADDI.W #0x201,D5;
  *   23C0 ANDI.L #0xFFFF,D5        => 512 - remaining
  *   23C6 MOVE.L +0x12(A0),D4; ANDI.L #0x00FFFFFF,D4;
@@ -650,7 +650,7 @@ vf2_status vf2_sound_board_step_stream_full_page(
  *   23DE ADDI.B #0x10,D2; 23E2 ANDI.W #0x7FFF,D0
  *   23E6..23F2 write timer,+2,+1,+0xA;
  *   23F6..24B2 16x MOVEM.L 32 bytes from OLD source (A1)
- *   24B4 MOVE.L A2,+6; 24B8 BRA 0x265C shared SCSP exit.
+ *   24B6 MOVE.L A2,+6; 24BA BRA 0x265C shared SCSP exit.
  * The full 512-byte transfer is intentional even if the remaining
  * counter is shorter: it uses the current source A1, not computed D4.
  * Only guarded memory is accessed and writes commit after success.
@@ -676,7 +676,7 @@ vf2_status vf2_sound_board_step_stream_short_loop_page(
     record = board->sound_ram + UINT32_C(0x2000) +
              slot_index * UINT32_C(0x20);
     if ((record[0] & UINT8_C(0x81)) != UINT8_C(0x81)) {
-        /* 0x80-only active records branch to the 0x24BC tail. */
+        /* 0x80-only active records branch to the 0x24BE tail. */
         return VF2_ERROR_UNSUPPORTED;
     }
     timer = (uint16_t)(read_be16(record + 0x1cu) +

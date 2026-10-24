@@ -202,7 +202,7 @@ vf2_status vf2_sound_board_step_stream_full_page(
  * plus (512 - remaining) and next remaining (+0x0A) from masked
  * loop length (+0x16) minus that offset. 16-bit timer, mode, MIDI
  * gating and SCSP 0x0408 write match the positive 0x2242 entry.
- * Unrecovered 0x24BC flag-clear arm is NOT guessed or scheduled. */
+ * Unrecovered 0x24BE flag-clear arm is NOT guessed or scheduled. */
 vf2_status vf2_sound_board_step_stream_short_loop_page(
     vf2_sound_board *board, size_t slot_index
 );

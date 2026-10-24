@@ -588,7 +588,7 @@ static void test_pcm_walker_full_page(void)
 
 /* Exact 0x23B0 looping/short-page shape: page copy uses the
  * old source; the NEXT source/remaining come from 24-bit loop fields.
- * ROM-independent guards must not fabricate the 0x24BC branch. */
+ * ROM-independent guards must not fabricate the 0x24BE branch. */
 static void test_pcm_walker_short_loop_page(void)
 {
     static vf2_sound_board b;
