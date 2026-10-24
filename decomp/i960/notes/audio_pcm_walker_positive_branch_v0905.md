@@ -113,3 +113,25 @@ at 0x24B6, `MOVE.L A2,+6(A0)` starts at 0x24B6,
 extension word; `BTST #3,(A0)` starts at 0x24BE.
 This is a PC-label documentation correction only; C branch
 conditions were unchanged.
+
+## v0907 — 0x24BE terminal release and voice-table update
+
+A separate bounded C function now models the branch reached
+from 0x23B0 when the stream bit0 is CLEAR, bit3 is SET,
+remaining <=512 and MIDI7 is CLEAR. 0x24D2 uses the descriptor
+byte +0x12 * 16 as its SCSP index; the recovered code masks
+SCSP[index+1] by 0x9F and writes +0x1E to SCSP[index+6].
+It consumes descriptor flag +0, halves the register index,
+then updates sound-RAM 0x2800+index/2 voice status byte +2
+(bit0 SET) and counter byte +0x0B (+0x50 when status bit3 set,
+else +3), and finally writes +0x16 to SCSP 0x0408.
+
+Only even byte indices corresponding to physical 32-voice
+SCSP slots are admitted by the bounded helper. Other branches
+such as 0x2524, bit7 gating, odd/out-of-domain indices and
+unresolved scheduling are explicitly excluded. The owner-ROM
+opt-in fixture now executes original 68000 from entry 0x2242
+on a synthetic release descriptor and compares the resulting
+voice, descriptor and SCSP effects byte-by-byte with native C.
+Its result is a strict gate in `--verify-akira-walk` but is not
+part of public CI because no private ROM is shipped.

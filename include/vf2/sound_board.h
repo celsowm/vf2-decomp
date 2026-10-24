@@ -207,6 +207,16 @@ vf2_status vf2_sound_board_step_stream_short_loop_page(
     vf2_sound_board *board, size_t slot_index
 );
 
+/* Verified 68000 0x23B0 -> 0x24BE -> 0x24D2/0x251E release arm.
+ * A terminal (remaining <=512) active 0x88 voice with descriptor
+ * bit3 SET, bit0 CLEAR, and SCSP MIDI bit7 clear, releases its
+ * active flag, updates the selected SCSP slot and voice-table
+ * countdown, then writes desc+0x16 to SCSP 0x0408.
+ * No page is copied. Normal audio scheduling is not changed. */
+vf2_status vf2_sound_board_step_stream_short_release(
+    vf2_sound_board *board, size_t slot_index
+);
+
 /* Original 68000 tail at 0xD72..0xD90 (seven instructions).
  * Writes the post-copy A0/A2 pointers to the channel stream,
  * sets SCSP KEYON bits (read/OR/write), and sets stream+0 = 0x80.

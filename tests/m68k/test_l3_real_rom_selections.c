@@ -795,6 +795,90 @@ static int akira_verify_short_loop_fixture(
     return pass;
 }
 
+/* Owner-ROM differential for the held-until-now 0x24BE/0x24D2
+ * terminal release, seeded at 0x2242 to exercise all ROM gates. */
+static int akira_verify_short_release_fixture(
+    const uint8_t *rom, size_t rom_size
+)
+{
+    static uint8_t original_ram[VF2_SOUND_RAM_BYTES];
+    static vf2_scsp original_scsp;
+    static vf2_sound_board native;
+    vf2_m68k_bus bus;
+    vf2_m68k_regs regs;
+    uint8_t *desc;
+    uint8_t *voice;
+    uint32_t one = 0u, rest = 0u;
+    vf2_status first, original_status, native_status;
+    int pass;
+    memset(original_ram, 0, sizeof(original_ram));
+    memset(&original_scsp, 0, sizeof(original_scsp));
+    memset(&native, 0, sizeof(native));
+    desc = original_ram + UINT32_C(0x2000);
+    voice = original_ram + VF2_SOUND_VOICE_TABLE_BASE + UINT32_C(0x30);
+    desc[0] = 0x88u;  /* active, release bit3, no loop bit0 */
+    desc[1] = 0x10u;  /* bypass mode0/MIDI7 gate */
+    desc[0x0cu] = 0x00u; desc[0x0du] = 0x80u;
+    desc[0x12u] = 6u; /* hardware SCSP offset 0x60 */
+    desc[0x16u] = 0x42u;
+    desc[0x1eu] = 0x12u; desc[0x1fu] = 0x34u;
+    voice[2u] = 0x08u;
+    voice[0x0bu] = 4u;
+    original_scsp.registers[0x61u] = 0x7fu;
+    memcpy(native.sound_ram, original_ram, sizeof(original_ram));
+    memcpy(native.scsp.registers, original_scsp.registers,
+           sizeof(native.scsp.registers));
+    if (vf2_scsp_attach_sample_ram(
+            &original_scsp, original_ram, sizeof(original_ram)) != VF2_OK) {
+        return 0;
+    }
+    memset(&bus, 0, sizeof(bus));
+    bus.ram = original_ram;
+    bus.ram_size = sizeof(original_ram);
+    bus.rom = rom;
+    bus.rom_size = rom_size;
+    bus.sample_rom = sample_bank;
+    bus.sample_rom_size = sample_bank_size;
+    bus.scsp = &original_scsp;
+    vf2_m68k_regs_reset(&regs);
+    regs.pc = UINT32_C(0x2242);
+    regs.a[0] = UINT32_C(0x2000);
+    regs.a[4] = UINT32_C(0x2506);
+    regs.a[5] = VF2_SCSP_CPU_BASE;
+    regs.a[6] = UINT32_C(0x1000);
+    regs.a[7] = UINT32_C(0x5000);
+    native_status = vf2_sound_board_step_stream_short_release(
+        &native, 0u);
+    first = vf2_m68k_run(&bus, &regs, 0u, 0, 1u, &one);
+    original_status = vf2_m68k_run(
+        &bus, &regs, UINT32_C(0x2242), 0, 100000u, &rest);
+    pass = native_status == VF2_OK &&
+        first == VF2_ERROR_UNSUPPORTED && one == 1u &&
+        original_status == VF2_OK && regs.pc == UINT32_C(0x2242) &&
+        regs.a[0] == UINT32_C(0x2020) &&
+        memcmp(native.sound_ram + 0x2000u,
+               original_ram + 0x2000u, 0x20u) == 0 &&
+        memcmp(native.sound_ram + VF2_SOUND_VOICE_TABLE_BASE + 0x30u,
+               original_ram + VF2_SOUND_VOICE_TABLE_BASE + 0x30u,
+               0x10u) == 0 &&
+        native.scsp.registers[0x61u] == original_scsp.registers[0x61u] &&
+        native.scsp.registers[0x66u] == original_scsp.registers[0x66u] &&
+        native.scsp.registers[0x67u] == original_scsp.registers[0x67u] &&
+        native.scsp.registers[0x408u] == original_scsp.registers[0x408u] &&
+        original_ram[0x2000u] == 0u;
+    printf("AKIRA_SHORT_RELEASE_ORIGINAL_DIFF matched=%u "
+           "original_status=%d native_status=%d steps=%u "
+           "stop_pc=%05x voice_status=%02x voice_count=%02x "
+           "scsp_key=%02x scsp0408=%02x\n",
+           (unsigned)pass, (int)original_status, (int)native_status,
+           (unsigned)(one + rest), (unsigned)regs.pc,
+           original_ram[VF2_SOUND_VOICE_TABLE_BASE + 0x32u],
+           original_ram[VF2_SOUND_VOICE_TABLE_BASE + 0x3bu],
+           original_scsp.registers[0x61u],
+           original_scsp.registers[0x408u]);
+    return pass;
+}
+
 /* Original-ROM candidate page-refill service: 0x2242 walker.
  * Run one iteration on an entirely separate snapshot to avoid
  * altering the ordinary music preview or original M68K bus.
@@ -813,10 +897,15 @@ static void akira_probe_original_walk(const uint8_t *rom, size_t rom_size,
     unsigned variant;
     const uint32_t record = UINT32_C(0x2000);
     const uint32_t start = UINT32_C(0x10200);
-    if (tick == 0u &&
-        !akira_verify_short_loop_fixture(rom, rom_size) &&
-        verify_akira_original_walk) {
-        akira_walk_strict_failed = 1;
+    if (tick == 0u) {
+        if (!akira_verify_short_loop_fixture(rom, rom_size) &&
+            verify_akira_original_walk) {
+            akira_walk_strict_failed = 1;
+        }
+        if (!akira_verify_short_release_fixture(rom, rom_size) &&
+            verify_akira_original_walk) {
+            akira_walk_strict_failed = 1;
+        }
     }
     for (variant = 0u; variant < 2u; ++variant) {
         uint32_t stepped = 0u, walked = 0u;

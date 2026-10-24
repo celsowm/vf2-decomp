@@ -720,6 +720,91 @@ vf2_status vf2_sound_board_step_stream_short_loop_page(
                              record[0x16u]);
 }
 
+/* ROM 0x24BE active release from short/terminal 0x23B0 arm:
+ *   BTST #3,(A0); BEQ 2524 (other branch, unsupported)
+ *   BTST #7,0409(A5); BNE 265C (hardware gate)
+ *   24D2 move.b +12(a0),d1; andi.w #0xff,d1;
+ *   24DA lsl.w #4,d1 => SCSP register index n*16
+ *   24DC read byte 1(a5,d1.w), ANDI.B #0x9f, write back
+ *   24E8 move.w +1e(a0), 6(a5,d1.w)
+ *   24EE move.b #0,(a0) (clear active flag)
+ *   24F4 lsr.w #1,d1; LEA 0x1800(a6),a1 (A6=0x1000)
+ *   24FA BTST #3,2(a1,d1.w):
+ *       set: addi.b #0x50, 0x0b(a1,d1.w)
+ *       clear: addq.b #3,   0x0b(a1,d1.w)
+ *       both: BSET #0, 2(a1,d1.w)
+ *   BRA 265C => move.b +16(a0),0x408(a5).
+ * Only even n in the measured 32-slot channel domain is admitted.
+ * The alternate 0x2524 path and SCSP-gated branch are held. */
+vf2_status vf2_sound_board_step_stream_short_release(
+    vf2_sound_board *board, size_t slot_index
+)
+{
+    uint8_t *record;
+    uint8_t *voice;
+    uint16_t timer;
+    uint8_t mode;
+    uint8_t midi_status;
+    uint8_t n;
+    uint32_t scsp_index;
+    uint32_t voice_addr;
+    uint8_t slot_key;
+    vf2_status result;
+    if (board == NULL || slot_index >= VF2_SOUND_VOICE_COUNT) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    record = board->sound_ram + UINT32_C(0x2000) +
+             slot_index * UINT32_C(0x20);
+    if ((record[0] & UINT8_C(0x89)) != UINT8_C(0x88) ||
+        read_be32(record + 0x0au) > UINT32_C(512)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    timer = (uint16_t)(read_be16(record + 0x1cu) +
+                       read_be16(record + 0x1au));
+    if ((timer & UINT16_C(0x8000)) != 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    mode = record[1u];
+    result = vf2_scsp_read_u8(
+        &board->scsp, UINT32_C(0x0409), &midi_status);
+    if (result != VF2_OK) {
+        return result;
+    }
+    if ((midi_status & UINT8_C(0x80)) != 0u ||
+        mode == 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    n = record[0x12u];
+    if ((n & 1u) != 0u || n >= 64u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    scsp_index = (uint32_t)n * UINT32_C(16);
+    voice_addr = VF2_SOUND_VOICE_TABLE_BASE +
+                 (uint32_t)n * UINT32_C(8);
+    voice = board->sound_ram + voice_addr;
+    result = vf2_scsp_read_u8(
+        &board->scsp, scsp_index + 1u, &slot_key);
+    if (result != VF2_OK) {
+        return result;
+    }
+    /* All address/ROM guards have passed before mutating state. */
+    if (vf2_scsp_write_u8(
+            &board->scsp, scsp_index + 1u,
+            (uint8_t)(slot_key & UINT8_C(0x9f))) != VF2_OK ||
+        vf2_scsp_write_u16(
+            &board->scsp, scsp_index + 6u,
+            read_be16(record + 0x1eu)) != VF2_OK) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    record[0] = 0u;
+    voice[0x0bu] = (uint8_t)(
+        voice[0x0bu] + ((voice[2u] & UINT8_C(8)) != 0u ?
+                       UINT8_C(0x50) : UINT8_C(3)));
+    voice[2u] = (uint8_t)(voice[2u] | UINT8_C(1));
+    return vf2_scsp_write_u8(
+        &board->scsp, UINT32_C(0x0408), record[0x16u]);
+}
+
 /* ROM 0xD72..0xD90: 7 instructions, stop BEFORE RTS at 0xD90.
  *   move.w (a1),d4; move.l a0,2(a3,d4.w)
  *   move.l a2,6(a3,d4.w); move.b (a5,d4.w),d5

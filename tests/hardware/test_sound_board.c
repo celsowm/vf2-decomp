@@ -671,6 +671,70 @@ static void test_pcm_walker_short_loop_page(void)
     EXPECT_TRUE(memcmp(before, r, sizeof(before)) == 0);
 }
 
+/* Terminal no-copy voice-release arm (ROM 0x24BE -> 0x24D2).
+ * It must not perform any synthetic 512-byte PCM upload. */
+static void test_pcm_walker_short_release(void)
+{
+    static vf2_sound_board b;
+    uint8_t *r = b.sound_ram + 0x2000u + 2u * 0x20u;
+    uint8_t *voice = b.sound_ram + VF2_SOUND_VOICE_TABLE_BASE + 3u * 0x10u;
+    uint8_t snapshot[0x20u];
+    memset(&b, 0, sizeof(b));
+    r[0] = 0x88u;
+    r[1] = 0x10u;
+    r[0x12u] = 6u; /* SCSP byte offset=0x60, voice entry index 3 */
+    r[0x16u] = 0x42u;
+    r[0x1eu] = 0x12u;
+    r[0x1fu] = 0x34u;
+    store_pcm_cursor(r + 0x0au, 128u);
+    voice[2u] = 8u; /* fast +0x50 countdown arm */
+    voice[0x0bu] = 4u;
+    b.scsp.registers[0x61u] = 0xffu;
+    b.scsp.registers[0x62u] = 0xabu;
+    b.sound_ram[0x10200u] = 0x5au;
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_release(NULL, 2u) ==
+                VF2_ERROR_INVALID_ARGUMENT);
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_release(&b, 32u) ==
+                VF2_ERROR_INVALID_ARGUMENT);
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_release(&b, 2u) ==
+                VF2_OK);
+    EXPECT_TRUE(r[0u] == 0u && r[1u] == 0x10u);
+    EXPECT_TRUE(voice[2u] == 9u && voice[0x0bu] == 0x54u);
+    EXPECT_TRUE(b.scsp.registers[0x61u] == 0x9fu);
+    EXPECT_TRUE(b.scsp.registers[0x66u] == 0x12u &&
+                b.scsp.registers[0x67u] == 0x34u);
+    EXPECT_TRUE(b.scsp.registers[0x408u] == 0x42u);
+    EXPECT_TRUE(b.sound_ram[0x10200u] == 0x5au);
+    /* Slow +3 arm, byte overflow, and strict gate refusals. */
+    r[0] = 0x88u;
+    voice[2u] = 0u;
+    voice[0x0bu] = 0xffu;
+    b.scsp.registers[0x61u] = 0x7fu;
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_release(&b, 2u) ==
+                VF2_OK);
+    EXPECT_TRUE(voice[2u] == 1u && voice[0x0bu] == 2u);
+    EXPECT_TRUE(b.scsp.registers[0x61u] == 0x1fu);
+    r[0] = 0x88u;
+    r[1] = 0x10u;
+    memcpy(snapshot, r, sizeof(snapshot));
+    b.scsp.registers[0x409u] = 0x80u;
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_release(&b, 2u) ==
+                VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(memcmp(snapshot, r, sizeof(snapshot)) == 0);
+    b.scsp.registers[0x409u] = 0u;
+    r[0x12u] = 7u; /* unaligned channel index refused */
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_release(&b, 2u) ==
+                VF2_ERROR_UNSUPPORTED);
+    r[0x12u] = 6u;
+    r[0] = 0x89u; /* looping sample must use different arm */
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_release(&b, 2u) ==
+                VF2_ERROR_UNSUPPORTED);
+    r[0] = 0x88u;
+    store_pcm_cursor(r + 0x0au, 513u);
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_release(&b, 2u) ==
+                VF2_ERROR_UNSUPPORTED);
+}
+
 int main(void)
 {
     static uint8_t audio_rom[0x10010u];
@@ -2124,6 +2188,7 @@ int main(void)
     }
     test_pcm_walker_full_page();
     test_pcm_walker_short_loop_page();
+    test_pcm_walker_short_release();
     test_pcm_stream_page_native();
     test_render_first_tone();
     test_ad21_b_class_drain();
