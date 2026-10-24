@@ -636,8 +636,13 @@ static unsigned akira_native_full_page_vs_original(
     const uint8_t mode = pre[rec + 1u];
     const uint32_t copy_dest = read_be32(
         pre + rec + (mode == 0u ? 0x0eu : 6u));
-    const int original_copied = actual_source != prior_source &&
-                                actual_dest != prior_dest;
+    /* A 0x23B0 short-loop page may reset source +2 to its loop
+     * start, possibly back to exactly the previous source value.
+     * A MOVEM transfer is instead witnessed by A2 advancing
+     * 512 bytes to +6 from the mode-selected PRE-pass destination. */
+    const int original_copied =
+        actual_dest != prior_dest &&
+        actual_dest == (uint32_t)(copy_dest + UINT32_C(512));
     vf2_status native_status;
     int short_branch = 0;
     int parity = 0;

@@ -98,3 +98,9 @@ validation. This function is intentionally not called by the normal
 sound scheduler. The 0x24BC/0x24D2/0x260C activation/release
 branches remain held, as do real-time scheduling and hardware-perfect
 mixing. A successful copy does not prove those other semantics.
+
+Owner-ROM copy detection deliberately uses the destination cursor
+(+6) equaling the mode-selected pre-step destination plus 512,
+not a change in the source cursor (+2). The 0x23B0 loop arm can
+reset +2 back to an earlier source, possibly to the exact previous
+value; requiring source inequality would silently miss real copies.
