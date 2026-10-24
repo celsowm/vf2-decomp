@@ -104,3 +104,45 @@ and an authentic original ISR-body replay, not timing.
   against an accurate external SCSP-chip reference.
 - Do not enable this partial IRQ helper implicitly
   in production host/session audio.
+
+## v0921 correction — 68000 MOVEM reversed register mask
+
+A **stronger** test after the initial v0920 run compared every
+sound CPU D/A register plus the SCSP's internal voice/envelope
+and MIDI state. It caught an emulator error: when
+`MOVEM.L D0-D7/A0-A4,-(A7)` executed at `0x1F16`,
+the prior implementation interpreted its predecrement
+`0xFFF8` mask as if it were in normal register order.
+The subsequent `MOVEM.L (A7)+,D0-D7/A0-A4` therefore
+reloaded the old SSP **into A4** (0x5000 with direct entry,
+0x4FFA with a stacked IRQ), even though the original A4
+is the sound FIFO command count pointer (0x2506).
+
+Commit `22381b2a1437a97212070044e4182a707193ed1a`
+corrected the MC68000 predecrement register mapping.
+The standalone ROM-free test now asserts all 13 saved
+and restored registers and every stack-frame longword.
+
+After the correction, the **strong owner-ROM parity passed**:
+
+```text
+AKIRA_L2_AUTOVECTOR_FRAME matched=1 enter=0 direct=0 body=0 rte=0 body_steps=53 legacy_steps=53 rte_steps=1 restored_pc=02242 stack=05000 irq_active=0 cpu_cycles_not_modeled=1
+AKIRA_ORIGINAL_WALK_STRICT parity=1 passes=32 pages=4 native_admitted=4 steps=588 pcm_bytes_changed=2039
+```
+
+`--verify-akira-tima-10s` also now passes again, with
+**9,000 ticks**, **288,000 native/original matching
+PCM descriptor services**, and **2,205 PCM pages**.
+The C walker and original ROM interpreter regenerated
+**byte-for-byte identical 10-second WAV files** after
+this opcode fix (SHA-256 in both paths:
+`463d20c14383c408fd5b55dd78c36675ed3ca3c3bc06a76a92dd0e5f36de5b3e`).
+The recordings are still sound-chip **model** outputs,
+not independently captured arcade hardware.
+
+Fixing A4 also corrected how the actual ROM driver counts
+commands: the first FIFO drain rose from 12,176 to
+14,665 executed instructions. Refer to the **v0921
+erratum** in `audio_m68k_scheduler_capacity_v0919.md`
+for the new lower bound and corrected optimistic
+first-period limit of *one command*, not two.
