@@ -9,7 +9,8 @@ from fractions import Fraction
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from audio_m68k_scheduler_budget import (
-    audit_tick, budget_cycles, lower_bound_cycles
+    audit_tick, budget_cycles, lower_bound_cycles,
+    fifo_prefix_completion_ceiling
 )
 
 
@@ -30,6 +31,21 @@ class BudgetTests(unittest.TestCase):
         self.assertFalse(audit_tick(0, 0, 3136)["overload_certain"])
         self.assertTrue(audit_tick(0, 0, 3137)["overload_certain"])
         self.assertEqual(lower_bound_cycles(0, 0, 588), 2352)
+
+    def test_first_tick_ordered_fifo_ceiling(self):
+        # From the original-ROM tick-0 trace: 32 queue entries,
+        # L2 1073 instructions, 588 instructions to scan 32
+        # descriptors, and the first 3 commands = 336/629/1941.
+        self.assertEqual(
+            fifo_prefix_completion_ceiling(
+                1073, 588, [336, 629, 1941] + [310] * 29),
+            2)
+        self.assertEqual(fifo_prefix_completion_ceiling(
+            3136, 0, [5]), 0)
+        self.assertEqual(fifo_prefix_completion_ceiling(
+            0, 0, [1] * 64), 64)
+        with self.assertRaises(ValueError):
+            fifo_prefix_completion_ceiling(0, 0, [0])
 
     def test_invalid_inputs_refused(self):
         for kw in [{"cpu_hz": 0}, {"sample_rate": 0},

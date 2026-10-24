@@ -63,6 +63,36 @@ def audit_tick(
     }
 
 
+def fifo_prefix_completion_ceiling(
+    l2_instructions: int, walker_instructions: int,
+    command_instructions: list[int],
+    *, cpu_hz: int = MODEL2A_M68K_HZ,
+    sample_rate: int = SCSP_SAMPLE_HZ,
+    frames_per_timer: int = VF2_TIMER_A_FRAMES
+) -> int:
+    """Optimistic FIFO completions in one timer interval in original order.
+
+    Assumes an entire L2 ISR and walker also execute inside the interval.
+    Does NOT count partial progress into the next FIFO command;
+    that would require preserving and preempting MC68000 registers.
+    """
+    cap = budget_cycles(cpu_hz=cpu_hz, sample_rate=sample_rate,
+                        frames_per_timer=frames_per_timer)
+    lower_bound_cycles(l2_instructions, walker_instructions,
+                       *command_instructions)
+    if any(n < 1 for n in command_instructions):
+        raise ValueError("FIFO command needs at least one instruction")
+    remaining = (cap.numerator // cap.denominator) // 4
+    remaining -= l2_instructions + walker_instructions
+    completed = 0
+    for steps in command_instructions:
+        if steps > remaining:
+            break
+        remaining -= steps
+        completed += 1
+    return completed
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--l2-instructions", required=True, type=int)
