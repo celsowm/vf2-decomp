@@ -192,8 +192,20 @@ The recovered routine is `vf2_sound_board_step_stream_short_terminal`:
   runs the SCSP slot-clear, slot +6 length write, descriptor
   release and voice status/countdown updates before 0x265C.
 
-Added ROM-free tests and **two owner-ROM original-68000 differential
+Added ROM-free tests and **owner-ROM original-68000 differential
 fixtures** for no-release (mode 0x10) and immediate release
 (mode 0x90). The owner-ROM strict gate will refuse parity failure.
 Normal scheduling remains unchanged. The synthetic fixtures prove
 field effects, not arcade timing.
+
+## v0910 — terminal mode-gate differential extension
+
+The owner-ROM short-terminal fixture now covers all four relevant
+original mode-entry shapes: 0x10 (ordinary, defer release),
+0x90 (bit7 set, immediate 0x260C release), 0x00
+(requires SCSP 0x0409 bit7 set, and uses descriptor +0x0E
+as the destination) and 0x80 (requires SCSP 0x0409 bit7
+clear and immediately releases). Every variant starts at 0x2242
+in the actual original 68000 stepper and is compared byte-for-byte
+to the bounded C helper. This isolates exceptional hardware-flag
+behavior from soundtrack cadence assumptions.

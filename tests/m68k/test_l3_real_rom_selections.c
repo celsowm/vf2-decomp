@@ -895,7 +895,7 @@ static int akira_verify_short_terminal_fixture(
     vf2_m68k_regs r;
     unsigned variant;
     int all_match = 1;
-    for (variant = 0u; variant < 2u; ++variant) {
+    for (variant = 0u; variant < 4u; ++variant) {
         uint8_t *desc;
         uint8_t *voice;
         uint32_t one = 0u, rest = 0u;
@@ -910,7 +910,11 @@ static int akira_verify_short_terminal_fixture(
         desc = original_ram + UINT32_C(0x2000);
         voice = original_ram + voice_offset;
         desc[0u] = UINT8_C(0x80);
-        desc[1u] = variant == 0u ? UINT8_C(0x10) : UINT8_C(0x90);
+        /* Cover normal/bit7 modes and SCSP-MIDI7-gated
+         * exceptional modes 0x00 (MIDI7 set), 0x80 (MIDI7 clear). */
+        desc[1u] = (variant == 0u ? UINT8_C(0x10) :
+                    variant == 1u ? UINT8_C(0x90) :
+                    variant == 2u ? UINT8_C(0x00) : UINT8_C(0x80));
         desc[2u] = 0x00u; desc[3u] = 0x80u;
         desc[4u] = 0x02u; desc[5u] = 0x00u;
         desc[6u] = 0x00u; desc[7u] = 0x01u;
@@ -918,13 +922,16 @@ static int akira_verify_short_terminal_fixture(
         desc[0x0au] = 0u; desc[0x0bu] = 0u;
         desc[0x0cu] = 0x01u; desc[0x0du] = 0x80u;
         desc[0x0eu] = 0x00u; desc[0x0fu] = 0x01u;
-        desc[0x10u] = 0x01u; desc[0x11u] = 0x00u;
+        desc[0x10u] = variant == 2u ? 0x02u : 0x01u;
+        desc[0x11u] = 0x00u;
         desc[0x12u] = 6u;
         desc[0x16u] = 0x42u;
         desc[0x1au] = 0u; desc[0x1bu] = 2u;
         desc[0x1cu] = 0u; desc[0x1du] = 5u;
         voice[2u] = 0x08u; voice[0x0bu] = 4u;
         original_scsp.registers[0x61u] = 0x7fu;
+        original_scsp.registers[0x409u] =
+            variant == 2u ? 0x80u : 0x00u;
         memcpy(native.sound_ram, original_ram, sizeof(original_ram));
         native.sample_rom = sample_bank;
         native.sample_rom_size = sample_bank_size;

@@ -799,6 +799,44 @@ static void test_pcm_walker_short_terminal(void)
     EXPECT_TRUE(b.scsp.registers[0x408u] == 0x6bu);
     EXPECT_TRUE(r[4u] == 0x04u && r[8u] == 0x04u);
 
+    /* Mode 0x00 uses +0x0E instead of +6 and requires MIDI7.
+     * Its destination cursor +6 is deliberately NOT published. */
+    r[0u] = 0x80u;
+    r[1u] = 0u;
+    store_pcm_cursor(r + 2u, UINT32_C(0x800600));
+    store_pcm_cursor(r + 6u, UINT32_C(0x12200));
+    store_pcm_cursor(r + 0x0eu, UINT32_C(0x12400));
+    b.scsp.registers[0x409u] = 0u;
+    memcpy(saved, r, sizeof(saved));
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_terminal(&b, 5u) ==
+                VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(memcmp(saved, r, sizeof(saved)) == 0);
+    b.scsp.registers[0x409u] = 0x80u;
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_terminal(&b, 5u) ==
+                VF2_OK);
+    EXPECT_TRUE(memcmp(b.sound_ram + 0x12400u,
+                       samples + 0x600u, 512u) == 0);
+    EXPECT_TRUE(r[0u] == 0x88u && r[1u] == 0x10u);
+    EXPECT_TRUE(r[8u] == 0x22u && r[9u] == 0u);
+
+    /* Mode 0x80 has the inverse MIDI7 hardware gate, then enters
+     * immediate release at 0x260C after the 512-byte copy. */
+    r[0u] = 0x80u;
+    r[1u] = 0x80u;
+    store_pcm_cursor(r + 2u, UINT32_C(0x800800));
+    store_pcm_cursor(r + 6u, UINT32_C(0x12600));
+    b.scsp.registers[0x409u] = 0x80u;
+    memcpy(saved, r, sizeof(saved));
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_terminal(&b, 5u) ==
+                VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(memcmp(saved, r, sizeof(saved)) == 0);
+    b.scsp.registers[0x409u] = 0u;
+    EXPECT_TRUE(vf2_sound_board_step_stream_short_terminal(&b, 5u) ==
+                VF2_OK);
+    EXPECT_TRUE(memcmp(b.sound_ram + 0x12600u,
+                       samples + 0x800u, 512u) == 0);
+    EXPECT_TRUE(r[0u] == 0u && r[1u] == 0x80u);
+
     /* Fail-closed for looping/busy entries, invalid sample page,
      * unsupported odd channel and unsigned countdown >512. */
     r[0u] = 0x81u;
