@@ -622,7 +622,7 @@ static void test_pcm_walker_short_loop_page(void)
                 VF2_OK);
     EXPECT_TRUE(memcmp(b.sound_ram + 0x18200u, samples, 512u) == 0);
     EXPECT_TRUE(r[1] == 0x20u);
-    EXPECT_TRUE(r[2] == 0u && r[3] == 0x0fu &&
+    EXPECT_TRUE(r[2] == 0u && r[3] == 0x8fu &&
                 r[4] == 0x20u && r[5] == 0x80u);
     EXPECT_TRUE(r[6] == 0u && r[7] == 0x01u &&
                 r[8] == 0x84u && r[9] == 0u);
