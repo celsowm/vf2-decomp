@@ -24,6 +24,8 @@ jobs:
           tools/python/*.py
       - name: Test frontier analysis
         run: python3 tools/python/test_frontier.py
+      - name: Verify SCSP Timer-A opcode and interval (ROM-free)
+        run: python3 tools/python/test_audio_scsp_tima_rom.py
 
   build:
     name: ${{ matrix.compiler }} release
