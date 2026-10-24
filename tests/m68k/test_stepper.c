@@ -702,5 +702,44 @@ int main(void)
                     regs.a[7] == 2u && regs.pc == 0u);
     }
 
+    /* Original VF2 first ISR callee starts TST.B d16(A2)
+     * followed by BEQ.W to RTS. Exact clocks 12+10+16=38,
+     * refusing an eleven-clock budget without state edits. */
+    {
+        static const uint8_t short_callee[] = {
+            0x4au, 0x2au, 0x00u, 0x0cu, /* TST.B 0xC(A2) */
+            0x67u, 0x00u, 0x00u, 0x02u, /* BEQ.W +2 -> 0x0a */
+            0x4eu, 0x71u,             /* NOP skipped */
+            0x4eu, 0x75u              /* RTS */
+        };
+        uint32_t cycles = 0u, steps = 0u;
+        int paused = 0;
+        make_bus(&bus, &scsp, ram, short_callee,
+                 sizeof(short_callee));
+        vf2_m68k_regs_reset(&regs);
+        regs.a[2] = UINT32_C(0x2000);
+        regs.a[7] = UINT32_C(0x7000);
+        ram[0x6ffcu] = 0u; ram[0x6ffdu] = 0u;
+        ram[0x6ffeu] = 0u; ram[0x6fffu] = 0x20u;
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 0x20u, 11u,
+            &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && paused &&
+                    cycles == 0u && steps == 0u &&
+                    regs.pc == 0u);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 0x20u, 37u,
+            &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && paused &&
+                    cycles == 22u && steps == 2u &&
+                    regs.pc == 0x0au && regs.z == 1u);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 0x20u, 16u,
+            &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && !paused &&
+                    cycles == 16u && steps == 1u &&
+                    regs.pc == 0x20u);
+    }
+
     return failures == 0 ? 0 : 1;
 }

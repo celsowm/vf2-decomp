@@ -1734,9 +1734,25 @@ static int akira_verify_l2_jsr_cycle_prefix(
         timed_ram[0x4ffdu] != 0u ||
         timed_ram[0x4ffeu] != 0x1fu ||
         timed_ram[0x4fffu] != 0x3au) return 0;
-    status = vf2_m68k_run(
+    /* Callee's actual 3-opcode fast exit:
+     * 0x21BA TST.B 0x000C(A2) 12 cycles,
+     * 0x21BE BEQ.W target 0x2240 10 cycles,
+     * 0x2240 RTS 16 cycles. One cycle short of the
+     * 38-cycle full callee budget must stop before RTS. */
+    status = vf2_m68k_run_cycle_slice(
         &timed_bus, &timed_regs, UINT32_C(0x1f3a),
-        0, 100000u, &timed_body);
+        37u, &cycles, &steps, &suspended);
+    if (status != VF2_OK || !suspended ||
+        cycles != 22u || steps != 2u ||
+        timed_regs.pc != UINT32_C(0x2240)) return 0;
+    timed_body += steps;
+    status = vf2_m68k_run_cycle_slice(
+        &timed_bus, &timed_regs, UINT32_C(0x1f3a),
+        16u, &cycles, &steps, &suspended);
+    if (status != VF2_OK || suspended ||
+        cycles != 16u || steps != 1u ||
+        timed_regs.pc != UINT32_C(0x1f3a)) return 0;
+    timed_body += steps;
     parity = full_status == VF2_OK && status == VF2_OK &&
         full_steps == timed_body + 2u &&
         timed_regs.pc == UINT32_C(0x1f3a) &&
@@ -1756,7 +1772,8 @@ static int akira_verify_l2_jsr_cycle_prefix(
     printf("AKIRA_L2_JSR_CYCLES matched=%u "
            "lea_pc=01f32 lea_cycles=8 "
            "jsr_pc=01f36 jsr_cycles=18 "
-           "callee_pc=021ba return_pc=01f3a "
+           "callee_pc=021ba callee_cycles=38 "
+           "full_five_opcode_cycles=64 return_pc=01f3a "
            "full_steps=%u split_steps=%u "
            "full_isr_timing_not_covered=1\n",
            (unsigned)parity,

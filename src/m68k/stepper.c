@@ -2303,6 +2303,13 @@ static vf2_status vf2_m68k_cycle_cost(
         *cost = 16u;
         return VF2_OK;
     }
+    if ((op & UINT16_C(0xfff8)) == UINT16_C(0x4a28)) {
+        /* MC68000 TST.B (d16,An): 4 + 8 cycles for operand EA.
+         * VF2.1 first ISR JSR callee enters via 0x21BA,
+         * which starts with TST.B 0x000C(A2). */
+        *cost = 12u;
+        return VF2_OK;
+    }
     /* Table 8-10: 68000 PC-relative JSR and 16-bit displaced
      * LEA are 18 and 8 clocks respectively (zero wait states).
      * The VF2 Timer-A ISR calls helper routines using 4EBA.
