@@ -2303,6 +2303,14 @@ static vf2_status vf2_m68k_cycle_cost(
         *cost = 16u;
         return VF2_OK;
     }
+    if ((op & UINT16_C(0xff00)) == UINT16_C(0x4a00) &&
+        ((op >> 6u) & UINT16_C(3)) < UINT16_C(3) &&
+        ((op >> 3u) & UINT16_C(7)) == 0u) {
+        /* TST.B/W/L Dn are all 4 clocks. Restricted to the
+         * stepper's admitted register-direct EA; X unchanged. */
+        *cost = 4u;
+        return VF2_OK;
+    }
     if ((op & UINT16_C(0xfff8)) == UINT16_C(0x4a28)) {
         /* MC68000 TST.B (d16,An): 4 + 8 cycles for operand EA.
          * VF2.1 first ISR JSR callee enters via 0x21BA,

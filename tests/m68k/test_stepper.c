@@ -741,5 +741,33 @@ int main(void)
                     regs.pc == 0x20u);
     }
 
+    /* All three register-direct TST sizes cost 4 clocks.
+     * The flags must be those of the actual executed operand,
+     * and a 3-cycle quantum must not change any of them. */
+    {
+        static const uint8_t tst_sizes[] = {
+            0x4au, 0x00u, /* TST.B D0 */
+            0x4au, 0x40u, /* TST.W D0 */
+            0x4au, 0x80u, /* TST.L D0 */
+            0x4eu, 0x71u
+        };
+        uint32_t cycles = 0u, steps = 0u;
+        int paused = 0;
+        make_bus(&bus, &scsp, ram, tst_sizes, sizeof(tst_sizes));
+        vf2_m68k_regs_reset(&regs);
+        regs.d[0] = UINT32_C(0x00010000);
+        regs.x = 1u;
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 6u, 3u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && paused &&
+                    cycles == 0u && steps == 0u && regs.pc == 0u);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 6u, 12u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && !paused &&
+                    cycles == 12u && steps == 3u &&
+                    regs.pc == 6u && regs.x == 1u &&
+                    regs.z == 0u && regs.n == 0u);
+    }
+
     return failures == 0 ? 0 : 1;
 }
