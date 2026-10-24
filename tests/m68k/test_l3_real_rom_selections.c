@@ -1280,6 +1280,135 @@ static int akira_verify_composite_native_walk(
            native_a0 == UINT32_C(0x2000);
 }
 
+/* Independent ROM-backed resume test: run the authentic first Akira
+ * 32-record walk either uninterrupted or as 7-instruction quantums.
+ * A real IRQ does NOT occur here, so this tests only CPU-state
+ * preservation and correct unsupported-opcode vs budget signaling.
+ * The first instruction must be stepped separately: 0x2242 is both
+ * the start and STOP PC of every descriptor iteration. */
+static int akira_verify_walker_instruction_slices(
+    const uint8_t *rom, size_t rom_size
+)
+{
+    static uint8_t full_ram[VF2_SOUND_RAM_BYTES];
+    static uint8_t sliced_ram[VF2_SOUND_RAM_BYTES];
+    static vf2_scsp full_scsp, sliced_scsp;
+    vf2_m68k_bus bus_full, bus_sliced;
+    vf2_m68k_regs regs_full, regs_sliced;
+    unsigned pass, reg;
+    uint32_t full_total = 0u, sliced_total = 0u, quantum_count = 0u;
+    memcpy(full_ram, step_ram, sizeof(full_ram));
+    memcpy(sliced_ram, step_ram, sizeof(sliced_ram));
+    memcpy(&full_scsp, &step_scsp, sizeof(full_scsp));
+    memcpy(&sliced_scsp, &step_scsp, sizeof(sliced_scsp));
+    if (vf2_scsp_attach_sample_ram(
+            &full_scsp, full_ram, sizeof(full_ram)) != VF2_OK ||
+        vf2_scsp_attach_sample_ram(
+            &sliced_scsp, sliced_ram, sizeof(sliced_ram)) != VF2_OK) {
+        return 0;
+    }
+    memset(&bus_full, 0, sizeof(bus_full));
+    memset(&bus_sliced, 0, sizeof(bus_sliced));
+    bus_full.ram = full_ram;
+    bus_full.ram_size = sizeof(full_ram);
+    bus_full.rom = rom;
+    bus_full.rom_size = rom_size;
+    bus_full.sample_rom = sample_bank;
+    bus_full.sample_rom_size = sample_bank_size;
+    bus_full.scsp = &full_scsp;
+    bus_sliced.ram = sliced_ram;
+    bus_sliced.ram_size = sizeof(sliced_ram);
+    bus_sliced.rom = rom;
+    bus_sliced.rom_size = rom_size;
+    bus_sliced.sample_rom = sample_bank;
+    bus_sliced.sample_rom_size = sample_bank_size;
+    bus_sliced.scsp = &sliced_scsp;
+    vf2_m68k_regs_reset(&regs_full);
+    regs_full.pc = UINT32_C(0x2242);
+    regs_full.a[0] = UINT32_C(0x2000);
+    regs_full.a[4] = UINT32_C(0x2506);
+    regs_full.a[5] = VF2_SCSP_CPU_BASE;
+    regs_full.a[6] = UINT32_C(0x1000);
+    regs_full.a[7] = UINT32_C(0x5000);
+    regs_sliced = regs_full;
+
+    for (pass = 0u; pass < VF2_SCSP_SLOT_COUNT; ++pass) {
+        uint32_t steps_full_first = 0u, steps_full_rest = 0u;
+        uint32_t steps_sliced_first = 0u;
+        vf2_status a, b, c;
+        int suspended = 0;
+        unsigned quantum;
+        a = vf2_m68k_run(
+            &bus_full, &regs_full, 0u, 0,
+            1u, &steps_full_first);
+        b = vf2_m68k_run(
+            &bus_full, &regs_full, UINT32_C(0x2242),
+            0, 100000u, &steps_full_rest);
+        full_total += steps_full_first + steps_full_rest;
+        c = vf2_m68k_run_slice(
+            &bus_sliced, &regs_sliced, 0u, 0,
+            1u, &steps_sliced_first, &suspended);
+        if (a != VF2_ERROR_UNSUPPORTED ||
+            steps_full_first != 1u || b != VF2_OK ||
+            c != VF2_OK || !suspended ||
+            steps_sliced_first != 1u) {
+            printf("AKIRA_M68K_SLICES_PREP_FAIL pass=%u a=%d b=%d c=%d\n",
+                   pass, (int)a, (int)b, (int)c);
+            return 0;
+        }
+        sliced_total += steps_sliced_first;
+        for (quantum = 0u; quantum < 10000u; ++quantum) {
+            uint32_t done = 0u;
+            c = vf2_m68k_run_slice(
+                &bus_sliced, &regs_sliced,
+                UINT32_C(0x2242), 0, 7u,
+                &done, &suspended);
+            ++quantum_count;
+            sliced_total += done;
+            if (c != VF2_OK) {
+                printf("AKIRA_M68K_SLICES_FAIL pass=%u "
+                       "quantum=%u pc=%05x status=%d\n",
+                       pass, quantum,
+                       (unsigned)regs_sliced.pc, (int)c);
+                return 0;
+            }
+            if (!suspended) break;
+        }
+        if (quantum == 10000u ||
+            full_total != sliced_total ||
+            regs_full.pc != regs_sliced.pc ||
+            memcmp(full_ram, sliced_ram, sizeof(full_ram)) != 0 ||
+            memcmp(full_scsp.registers, sliced_scsp.registers,
+                   VF2_SCSP_REGISTER_BYTES) != 0) {
+            printf("AKIRA_M68K_SLICES_STATE_FAIL pass=%u "
+                   "full=%u sliced=%u a0_full=%05x a0_sliced=%05x\n",
+                   pass, (unsigned)full_total,
+                   (unsigned)sliced_total,
+                   (unsigned)regs_full.a[0],
+                   (unsigned)regs_sliced.a[0]);
+            return 0;
+        }
+        for (reg = 0u; reg < 8u; ++reg) {
+            if (regs_full.d[reg] != regs_sliced.d[reg] ||
+                regs_full.a[reg] != regs_sliced.a[reg]) return 0;
+        }
+        if (regs_full.x != regs_sliced.x ||
+            regs_full.n != regs_sliced.n ||
+            regs_full.z != regs_sliced.z ||
+            regs_full.v != regs_sliced.v ||
+            regs_full.c != regs_sliced.c) return 0;
+    }
+    printf("AKIRA_M68K_SLICES_ORIGINAL_DIFF parity=1 "
+           "descriptors=%u steps_full=%u steps_sliced=%u "
+           "quanta=%u quantum_max=7 next_a0=%05x "
+           "irq_and_cpu_cycles_not_modeled=1\n",
+           (unsigned)VF2_SCSP_SLOT_COUNT,
+           (unsigned)full_total, (unsigned)sliced_total,
+           quantum_count, (unsigned)regs_sliced.a[0]);
+    return full_total == sliced_total &&
+           regs_full.a[0] == UINT32_C(0x2000);
+}
+
 /* Original-ROM candidate page-refill service: 0x2242 walker.
  * Run one iteration on an entirely separate snapshot to avoid
  * altering the ordinary music preview or original M68K bus.
@@ -1320,6 +1449,10 @@ static void akira_probe_original_walk(const uint8_t *rom, size_t rom_size,
             akira_walk_strict_failed = 1;
         }
         if (!akira_verify_composite_native_walk(rom, rom_size) &&
+            verify_akira_original_walk) {
+            akira_walk_strict_failed = 1;
+        }
+        if (!akira_verify_walker_instruction_slices(rom, rom_size) &&
             verify_akira_original_walk) {
             akira_walk_strict_failed = 1;
         }
