@@ -564,8 +564,8 @@ int main(void)
             &bus, &regs, 4u, 10u, &cycles, &steps, &paused);
         EXPECT_TRUE(status == VF2_OK && !paused &&
                     cycles == 10u && steps == 1u && regs.pc == 4u);
-        make_bus(&bus, &scsp, ram, bsr_unsupported,
-                 sizeof(bsr_unsupported));
+        make_bus(&bus, &scsp, ram, bsr_now_implemented,
+                 sizeof(bsr_now_implemented));
         vf2_m68k_regs_reset(&regs);
         regs.a[7] = UINT32_C(0x7000);
         status = vf2_m68k_run_cycle_slice(
