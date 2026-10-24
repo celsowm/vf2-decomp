@@ -560,6 +560,80 @@ vf2_status vf2_sound_board_copy_stream_page_512(
     return VF2_OK;
 }
 
+/* ROM-anchored positive 0x2242 walker branch (v0905).
+ * 2242 move.b (a0),d0 / BMI 224C; otherwise JMP 07A6
+ * 224C move.w +1C,d0 / add.w +1A,d0 / BPL 2260
+ *      negative stores the timer and JMP 07A6 (not modeled).
+ * 2260 move.b +1,d2: 0 -> SCSP 0409 bit7 must be SET,
+ *      use +0E as A2; 0x80 -> bit7 must be CLEAR, use +06;
+ *      all other bytes -> +06 without this MIDI status test.
+ * 22B8 movea.l +2,a1; 22BC move.l +0A,d5
+ * 22C0 cmpi.l #512,d5 / BLS 23B0 (short-page arm held).
+ * 22CA sub.l #512,d5; 22D0 addi.b #0x10,d2
+ * 22D4 andi.w #0x7FFF,d0 -> +1C; 22E0 d5 -> +0A
+ * 22E4..23A0 16x MOVEM.L (a1)+,d0-d7 / (a2) / adda #32
+ * 23A4 a1 -> +2; 23A8 a2 -> +6.
+ * Full-page branch only. The unused original path at 23B0 and
+ * the 24BE/260C activation tails remain unsupported.
+ * Side effects are transactional on this C entry. */
+vf2_status vf2_sound_board_step_stream_full_page(
+    vf2_sound_board *board, size_t slot_index
+)
+{
+    uint8_t *record;
+    uint16_t timer;
+    uint8_t mode;
+    uint8_t midi_status;
+    uint32_t source;
+    uint32_t destination;
+    uint32_t remaining;
+    vf2_status result;
+    if (board == NULL || slot_index >= VF2_SOUND_VOICE_COUNT) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    record = board->sound_ram + UINT32_C(0x2000) +
+             slot_index * UINT32_C(0x20);
+    if ((record[0] & UINT8_C(0x80)) == 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    timer = (uint16_t)(read_be16(record + 0x1cu) +
+                       read_be16(record + 0x1au));
+    if ((timer & UINT16_C(0x8000)) != 0u) {
+        /* The original negative timer arm writes +1C and returns to
+         * the drain; this partial-C operation refuses atomically. */
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    mode = record[1u];
+    result = vf2_scsp_read_u8(
+        &board->scsp, UINT32_C(0x0409), &midi_status);
+    if (result != VF2_OK) {
+        return result;
+    }
+    if ((mode == 0u && (midi_status & UINT8_C(0x80)) == 0u) ||
+        (mode == UINT8_C(0x80) &&
+         (midi_status & UINT8_C(0x80)) != 0u)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    remaining = read_be32(record + 0x0au);
+    if (remaining <= UINT32_C(512)) {
+        /* 0x23B0 has different loop/short-page semantics. */
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    source = read_be32(record + 2u);
+    destination = read_be32(record + (mode == 0u ? 0x0eu : 6u));
+    result = vf2_sound_board_copy_engine_page_512(
+        board, &source, &destination);
+    if (result != VF2_OK) {
+        return result;
+    }
+    record[1u] = (uint8_t)(mode + UINT8_C(0x10));
+    write_be16(record + 0x1cu, (uint16_t)(timer & UINT16_C(0x7fff)));
+    write_be32(record + 0x0au, remaining - UINT32_C(512));
+    write_be32(record + 2u, source);
+    write_be32(record + 6u, destination);
+    return VF2_OK;
+}
+
 /* ROM 0xD72..0xD90: 7 instructions, stop BEFORE RTS at 0xD90.
  *   move.w (a1),d4; move.l a0,2(a3,d4.w)
  *   move.l a2,6(a3,d4.w); move.b (a5,d4.w),d5

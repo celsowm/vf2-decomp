@@ -489,6 +489,96 @@ static void test_pcm_stream_page_native(void)
     EXPECT_TRUE(b.sound_ram[0x7ff00u] == 0u);
 }
 
+/* Independent ROM-free gates for the positive original 0x2242
+ * full-page walker arm; no synthetic scheduling/cadence is assumed. */
+static void test_pcm_walker_full_page(void)
+{
+    static vf2_sound_board b;
+    static uint8_t samples[0x1000u];
+    uint8_t *record = b.sound_ram + 0x2000u + 3u * 0x20u;
+    uint8_t before[0x20u];
+    size_t i;
+    memset(&b, 0, sizeof(b));
+    for (i = 0u; i < sizeof(samples); ++i) {
+        samples[i] = (uint8_t)(i * 7u + 13u);
+    }
+    b.sample_rom = samples;
+    b.sample_rom_size = sizeof(samples);
+    EXPECT_TRUE(vf2_sound_board_step_stream_full_page(NULL, 0u) ==
+                VF2_ERROR_INVALID_ARGUMENT);
+    EXPECT_TRUE(vf2_sound_board_step_stream_full_page(&b, 32u) ==
+                VF2_ERROR_INVALID_ARGUMENT);
+    record[0] = 0x80u;
+    record[1] = 0x10u; /* neither zero nor 0x80: no status gate */
+    store_pcm_cursor(record + 2u, UINT32_C(0x800000));
+    store_pcm_cursor(record + 6u, UINT32_C(0x10200));
+    store_pcm_cursor(record + 0x0au, UINT32_C(0x900));
+    record[0x1au] = 0x00u;
+    record[0x1bu] = 0x03u;
+    record[0x1cu] = 0x00u;
+    record[0x1du] = 0x04u;
+    memset(b.sound_ram + 0x10200u, 0x55, 1024u);
+    EXPECT_TRUE(vf2_sound_board_step_stream_full_page(&b, 3u) == VF2_OK);
+    EXPECT_TRUE(memcmp(b.sound_ram + 0x10200u, samples, 512u) == 0);
+    EXPECT_TRUE(record[1] == 0x20u);
+    EXPECT_TRUE(record[5] == 0x02u && record[9] == 0x04u);
+    EXPECT_TRUE(record[0x0du] == 0x00u && record[0x0cu] == 0x07u);
+    EXPECT_TRUE(record[0x1cu] == 0x00u && record[0x1du] == 0x07u);
+    EXPECT_TRUE(b.sound_ram[0x10400u] == 0x55u);
+
+    /* Mode zero selects the original alternate destination at +0E.
+     * Unlike +06, this address is read only, never updated. */
+    record[1] = 0u;
+    store_pcm_cursor(record + 2u, UINT32_C(0x800200));
+    store_pcm_cursor(record + 6u, UINT32_C(0x12200));
+    store_pcm_cursor(record + 0x0eu, UINT32_C(0x14200));
+    store_pcm_cursor(record + 0x0au, UINT32_C(0x700));
+    b.scsp.registers[0x409u] = 0u;
+    memcpy(before, record, sizeof(before));
+    EXPECT_TRUE(vf2_sound_board_step_stream_full_page(&b, 3u) ==
+                VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(memcmp(before, record, sizeof(before)) == 0);
+    b.scsp.registers[0x409u] = 0x80u;
+    EXPECT_TRUE(vf2_sound_board_step_stream_full_page(&b, 3u) == VF2_OK);
+    EXPECT_TRUE(memcmp(b.sound_ram + 0x14200u, samples + 512u, 512u) == 0);
+    EXPECT_TRUE(record[1] == 0x10u);
+    EXPECT_TRUE(record[8] == 0x44u && record[9] == 0u);
+    EXPECT_TRUE(record[0x0eu] == 0x00u && record[0x0fu] == 0x01u);
+
+    /* Mode 0x80 uses +06, with the inverse MIDI7 gate. */
+    record[1] = 0x80u;
+    store_pcm_cursor(record + 2u, UINT32_C(0x800400));
+    store_pcm_cursor(record + 6u, UINT32_C(0x16200));
+    store_pcm_cursor(record + 0x0au, UINT32_C(0x600));
+    memcpy(before, record, sizeof(before));
+    EXPECT_TRUE(vf2_sound_board_step_stream_full_page(&b, 3u) ==
+                VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(memcmp(before, record, sizeof(before)) == 0);
+    b.scsp.registers[0x409u] = 0u;
+    EXPECT_TRUE(vf2_sound_board_step_stream_full_page(&b, 3u) == VF2_OK);
+    EXPECT_TRUE(memcmp(b.sound_ram + 0x16200u, samples + 1024u, 512u) == 0);
+    EXPECT_TRUE(record[1] == 0x90u && record[8] == 0x64u);
+
+    /* Remaining <=512 goes to the 0x23B0 alternative, NOT MOVEM
+     * full-page path. Timer sign underflow also refuses atomically. */
+    record[1] = 0x10u;
+    store_pcm_cursor(record + 0x0au, UINT32_C(512));
+    memcpy(before, record, sizeof(before));
+    EXPECT_TRUE(vf2_sound_board_step_stream_full_page(&b, 3u) ==
+                VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(memcmp(before, record, sizeof(before)) == 0);
+    store_pcm_cursor(record + 0x0au, UINT32_C(1024));
+    record[0x1au] = 0xffu; record[0x1bu] = 0xf0u;
+    record[0x1cu] = 0x00u; record[0x1du] = 0x01u;
+    memcpy(before, record, sizeof(before));
+    EXPECT_TRUE(vf2_sound_board_step_stream_full_page(&b, 3u) ==
+                VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(memcmp(before, record, sizeof(before)) == 0);
+    record[0] = 0x00u;
+    EXPECT_TRUE(vf2_sound_board_step_stream_full_page(&b, 3u) ==
+                VF2_ERROR_UNSUPPORTED);
+}
+
 int main(void)
 {
     static uint8_t audio_rom[0x10010u];
@@ -1940,6 +2030,7 @@ int main(void)
            landed before the 5th record tripped the guard. */
         EXPECT_TRUE(board.sound_ram[0x50000u] == 0xdeu);
     }
+    test_pcm_walker_full_page();
     test_pcm_stream_page_native();
     test_render_first_tone();
     test_ad21_b_class_drain();

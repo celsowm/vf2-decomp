@@ -184,6 +184,16 @@ vf2_status vf2_sound_board_copy_stream_page_512(
     vf2_sound_board *board, size_t slot_index
 );
 
+/* Original 68000 0x2242 -> 0x22B8 -> 0x22CA full-page arm.
+ * Recovers only the *positive, full 512-byte* branch, including the
+ * timer, page-mode, SCSP 0x0409 gating, sample copy and descriptors.
+ * Inactive, countdown-underflow, MIDI-gated, and <=512-byte
+ * remaining-length arms deliberately refuse without side effects.
+ * Not called by normal scheduling; no claim of cycle-exact timing. */
+vf2_status vf2_sound_board_step_stream_full_page(
+    vf2_sound_board *board, size_t slot_index
+);
+
 /* Original 68000 tail at 0xD72..0xD90 (seven instructions).
  * Writes the post-copy A0/A2 pointers to the channel stream,
  * sets SCSP KEYON bits (read/OR/write), and sets stream+0 = 0x80.
