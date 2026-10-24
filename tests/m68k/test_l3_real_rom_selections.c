@@ -1521,8 +1521,62 @@ static int akira_verify_l2_autovector_frame(
             if (legacy_regs.d[index] != vector_regs.d[index] ||
                 (index != 7u &&
                  legacy_regs.a[index] != vector_regs.a[index])) {
+                printf("AKIRA_L2_AUTOVECTOR_REG_DIFF index=%u "
+                       "direct_d=%08x vector_d=%08x "
+                       "direct_a=%08x vector_a=%08x\n",
+                       index, (unsigned)legacy_regs.d[index],
+                       (unsigned)vector_regs.d[index],
+                       (unsigned)legacy_regs.a[index],
+                       (unsigned)vector_regs.a[index]);
                 match = 0;
             }
+        }
+        if (memcmp(legacy_scsp.slot_active, vector_scsp.slot_active,
+                   sizeof(legacy_scsp.slot_active)) != 0 ||
+            memcmp(legacy_scsp.slot_address, vector_scsp.slot_address,
+                   sizeof(legacy_scsp.slot_address)) != 0 ||
+            memcmp(legacy_scsp.slot_step, vector_scsp.slot_step,
+                   sizeof(legacy_scsp.slot_step)) != 0 ||
+            memcmp(legacy_scsp.slot_envelope, vector_scsp.slot_envelope,
+                   sizeof(legacy_scsp.slot_envelope)) != 0 ||
+            memcmp(legacy_scsp.slot_envelope_state,
+                   vector_scsp.slot_envelope_state,
+                   sizeof(legacy_scsp.slot_envelope_state)) != 0 ||
+            memcmp(legacy_scsp.slot_backward, vector_scsp.slot_backward,
+                   sizeof(legacy_scsp.slot_backward)) != 0 ||
+            memcmp(legacy_scsp.midi_input, vector_scsp.midi_input,
+                   sizeof(legacy_scsp.midi_input)) != 0 ||
+            legacy_scsp.midi_read_index != vector_scsp.midi_read_index ||
+            legacy_scsp.midi_write_index != vector_scsp.midi_write_index) {
+            printf("AKIRA_L2_AUTOVECTOR_SCSP_INTERNAL_DIFF "
+                   "active=%u address=%u step=%u envelope=%u "
+                   "state=%u backwards=%u midi=%u read=%u write=%u\n",
+                   (unsigned)(memcmp(
+                       legacy_scsp.slot_active, vector_scsp.slot_active,
+                       sizeof(legacy_scsp.slot_active)) != 0),
+                   (unsigned)(memcmp(
+                       legacy_scsp.slot_address, vector_scsp.slot_address,
+                       sizeof(legacy_scsp.slot_address)) != 0),
+                   (unsigned)(memcmp(
+                       legacy_scsp.slot_step, vector_scsp.slot_step,
+                       sizeof(legacy_scsp.slot_step)) != 0),
+                   (unsigned)(memcmp(
+                       legacy_scsp.slot_envelope, vector_scsp.slot_envelope,
+                       sizeof(legacy_scsp.slot_envelope)) != 0),
+                   (unsigned)(memcmp(
+                       legacy_scsp.slot_envelope_state,
+                       vector_scsp.slot_envelope_state,
+                       sizeof(legacy_scsp.slot_envelope_state)) != 0),
+                   (unsigned)(memcmp(
+                       legacy_scsp.slot_backward, vector_scsp.slot_backward,
+                       sizeof(legacy_scsp.slot_backward)) != 0),
+                   (unsigned)(memcmp(
+                       legacy_scsp.midi_input, vector_scsp.midi_input,
+                       sizeof(legacy_scsp.midi_input)) != 0),
+                   (unsigned)(legacy_scsp.midi_read_index !=
+                              vector_scsp.midi_read_index),
+                   (unsigned)(legacy_scsp.midi_write_index !=
+                              vector_scsp.midi_write_index));
         }
     }
     printf("AKIRA_L2_AUTOVECTOR_FRAME matched=%u "
