@@ -351,3 +351,74 @@ not invoked by this minimal boundary method; production
 main-loop scheduling was not changed. Historical v0802
 remarks that the entire 0x2242 path was dead are
 superseded by this directly executed owner-ROM evidence.
+
+## v0916 — native composite 0x2242 walker over the entire Akira experiment
+
+**First proven composite C/68000 musical-sequence agreement.**
+The explicitly invoked C function
+`vf2_sound_board_step_stream_walk_one(board, slot, &next_a0)`
+routes an empty-ring descriptor through all previously recovered
+active/idle/negative timer, MIDI7-gated no-copy, >512-byte page,
+short-loop page, terminal copy and release paths. The original
+0x265C byte +0x16 controls the next A0, **not** arbitrary modulo-32
+wrapping. Nonempty command dispatch and unsupported PCM bounds
+still refuse without claiming playback.
+
+The owner-ROM `--verify-akira-walk` test now compares C and
+the actual original MC68000 over **32 successive descriptors
+on the first authentic Akira music tick**, checking entire
+512KiB sound RAM, SCSP register bytes and each next A0.
+Observed: `AKIRA_COMPOSITE_WALK_32 parity=1 passes=32
+next_a0=02000 queue=0`, exit code 0.
+
+### Longer controlled comparison: 8,820 experimental ticks
+
+Added another **owner-only, opt-in** mode:
+
+```sh
+vf2_m68k_l3_selection_tests /private/vf2-rom \
+  --verify-akira-composite-10s
+```
+
+For each tick, this test executes the recovered native C
+32-descriptor walk on an independent **PRE-walk** copy of the
+actual current SCSP + sound RAM (after authentic 68000 L2
+stream ISR and command drain). It then executes the original
+MC68000 walker on the authoritative original state. It
+compares the full sound RAM and SCSP state after each tick,
+and reports the **first mismatch**. Only the original-ROM
+result feeds the next tick; this deliberately avoids C
+mutations masking later divergence. Software SCSP is also
+rendered 50 frames between ticks, as in the previous original
+music preview, without writing a proprietary waveform file.
+
+Measured on October 24, 2026 against the private, checksum-
+verified owner ROM and CI binary for `6aac172`:
+
+```text
+AKIRA_COMPOSITE_10S_STRICT parity=1 ticks=8820 passes=282240 original_pages=2160 original_steps=4984294 assumed_cadence=882Hz realtime_verified=0
+```
+
+**Exit code 0**, with zero RAM/SCSP mismatches for every tick.
+The original command driver consumed **456** packets and
+the test saw **2,160** original 512-byte PCM refills. The
+MC68000 interpretation of the walker retired **4,984,294**
+instructions. The expanded `d3dbcc3` test additionally
+checks SCSP voice step, envelopes, key state, MIDI FIFO,
+playback directions and other internal slots rather than
+only register bytes/active flags.
+
+**Crucial limit:** 882 Hz is an experimental pacing value,
+not a measured real 68000 clock or original SCSP interrupt
+scheduler. Passing 282,240 explicit descriptor operations
+proves branch/state equivalence along THIS test trajectory.
+The owner game ROM, samples and generated PCM are kept
+private; none are committed. This C function still has
+no production session-cadence call site.
+
+Next high-value work: recover actual original sound CPU
+main-loop preemption and Timer-A period/interrupt arbitration;
+then replay an observed original IRQ/cycle schedule and
+compare mixed samples against an independent trusted chip
+reference. Do not infer timing from the equality of two
+runs with the SAME chosen pacing.
