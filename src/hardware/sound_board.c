@@ -954,6 +954,65 @@ vf2_status vf2_sound_board_step_stream_timer_handoff(
     return VF2_OK;
 }
 
+/* Authentic sound ROM empty-ring dispatcher fast path:
+ *   2242 MOVE.B (A0),D0; BMI 224E (active)
+ *   2248 JMP 07A6 (inactive, no timer work)
+ *   2258 MOVE.W D0,+1C(A0); 225C JMP 07A6 (negative timer)
+ *   07A6 MOVE.B (A4),D0 (A4=0x2506 command count)
+ *   07A8 BNE 07B0 (nonempty queue is not implemented here)
+ *   07AC JMP 265C (empty)
+ *   265C MOVE.B +16(A0),0x0408(A5)
+ *   2662 BEQ.W 266E (zero byte: restart at A6+0x1000)
+ *   2666 ADDA.W #0x20,A0; 266A JMP 2242 (nonzero byte)
+ *   266E LEA 0x1000(A6),A0; 2672 JMP 2242 (zero byte).
+ * We report A0 but do not schedule or execute the next descriptor. */
+vf2_status vf2_sound_board_step_stream_empty_dispatch(
+    vf2_sound_board *board,
+    size_t slot_index,
+    uint32_t *next_descriptor_address
+)
+{
+    uint8_t *record;
+    uint16_t timer = 0u;
+    uint8_t master;
+    vf2_status result;
+    if (board == NULL || next_descriptor_address == NULL ||
+        slot_index >= VF2_SOUND_VOICE_COUNT) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    record = board->sound_ram + UINT32_C(0x2000) +
+             slot_index * UINT32_C(0x20);
+    /* The dispatcher first reads exactly the command-ring count:
+     * never model its nonempty command path with a silent skip. */
+    if (board->sound_ram[VF2_SOUND_COMMAND_COUNT] != 0u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    if ((record[0u] & UINT8_C(0x80)) != 0u) {
+        timer = (uint16_t)(read_be16(record + 0x1cu) +
+                           read_be16(record + 0x1au));
+        if ((timer & UINT16_C(0x8000)) == 0u) {
+            /* Positive-timer state takes other recovered walker
+             * arms; the empty dispatcher is not reached yet. */
+            return VF2_ERROR_UNSUPPORTED;
+        }
+    }
+    master = record[0x16u];
+    /* SCSP 0x0408 is a valid, mapped register; no sample access. */
+    if ((record[0u] & UINT8_C(0x80)) != 0u) {
+        write_be16(record + 0x1cu, timer);
+    }
+    result = vf2_scsp_write_u8(
+        &board->scsp, UINT32_C(0x0408), master);
+    if (result != VF2_OK) {
+        return result;
+    }
+    *next_descriptor_address = master == 0u ?
+        UINT32_C(0x2000) :
+        UINT32_C(0x2000) +
+        (uint32_t)(slot_index + 1u) * UINT32_C(0x20);
+    return VF2_OK;
+}
+
 /* ROM 0xD72..0xD90: 7 instructions, stop BEFORE RTS at 0xD90.
  *   move.w (a1),d4; move.l a0,2(a3,d4.w)
  *   move.l a2,6(a3,d4.w); move.b (a5,d4.w),d5

@@ -915,6 +915,71 @@ static void test_pcm_walker_negative_timer_handoff(void)
     EXPECT_TRUE(memcmp(saved, r, sizeof(saved)) == 0);
 }
 
+/* Original main-loop single hop with EMPTY command queue:
+ * both inactive and negative-timer descriptors pass via 0x07A6
+ * to the common 0x265C exit and then 0x2242. This must not
+ * invent a timing cadence or run an armed, positive-timer page. */
+static void test_pcm_walker_empty_dispatch_cycle(void)
+{
+    static vf2_sound_board b;
+    uint8_t *r = b.sound_ram + 0x2000u + 5u * 0x20u;
+    uint8_t before[0x20u];
+    uint32_t next = UINT32_C(0xdeadbeef);
+    memset(&b, 0, sizeof(b));
+    r[0u] = 0u;
+    r[0x16u] = 0x64u;
+    r[0x1cu] = 0x7fu; r[0x1du] = 0xfeu;
+    r[0x1au] = 0u; r[0x1bu] = 1u;
+    EXPECT_TRUE(vf2_sound_board_step_stream_empty_dispatch(
+        NULL, 5u, &next) == VF2_ERROR_INVALID_ARGUMENT);
+    EXPECT_TRUE(vf2_sound_board_step_stream_empty_dispatch(
+        &b, 32u, &next) == VF2_ERROR_INVALID_ARGUMENT);
+    EXPECT_TRUE(vf2_sound_board_step_stream_empty_dispatch(
+        &b, 5u, NULL) == VF2_ERROR_INVALID_ARGUMENT);
+    EXPECT_TRUE(vf2_sound_board_step_stream_empty_dispatch(
+        &b, 5u, &next) == VF2_OK);
+    EXPECT_TRUE(next == UINT32_C(0x20c0));
+    EXPECT_TRUE(r[0x1cu] == 0x7fu && r[0x1du] == 0xfeu);
+    EXPECT_TRUE(b.scsp.registers[0x408u] == 0x64u);
+
+    /* Zero master byte must restart A0 at 0x2000, not merely
+     * wrap a modulo-32 descriptor counter. */
+    r[0x16u] = 0u;
+    next = UINT32_C(0xdeadbeef);
+    EXPECT_TRUE(vf2_sound_board_step_stream_empty_dispatch(
+        &b, 5u, &next) == VF2_OK);
+    EXPECT_TRUE(next == UINT32_C(0x2000));
+    EXPECT_TRUE(b.scsp.registers[0x408u] == 0u);
+
+    /* Active negative-timer descriptor stores +1C and THEN
+     * writes the master byte before resuming at next A0. */
+    r[0u] = 0x80u;
+    r[0x16u] = 0x65u;
+    r[0x1cu] = 0x7fu; r[0x1du] = 0xffu;
+    EXPECT_TRUE(vf2_sound_board_step_stream_empty_dispatch(
+        &b, 5u, &next) == VF2_OK);
+    EXPECT_TRUE(next == UINT32_C(0x20c0));
+    EXPECT_TRUE(r[0x1cu] == 0x80u && r[0x1du] == 0x00u);
+    EXPECT_TRUE(b.scsp.registers[0x408u] == 0x65u);
+
+    /* Positive timer or nonempty FIFO is held, not fabricated.
+     * Refused cycles change neither descriptor nor next A0. */
+    r[0x1cu] = 0u; r[0x1du] = 3u;
+    memcpy(before, r, sizeof(before));
+    next = UINT32_C(0xdeadbeef);
+    EXPECT_TRUE(vf2_sound_board_step_stream_empty_dispatch(
+        &b, 5u, &next) == VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(next == UINT32_C(0xdeadbeef));
+    EXPECT_TRUE(memcmp(before, r, sizeof(before)) == 0);
+    r[0u] = 0u;
+    b.sound_ram[VF2_SOUND_COMMAND_COUNT] = 1u;
+    memcpy(before, r, sizeof(before));
+    EXPECT_TRUE(vf2_sound_board_step_stream_empty_dispatch(
+        &b, 5u, &next) == VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(memcmp(before, r, sizeof(before)) == 0);
+    EXPECT_TRUE(next == UINT32_C(0xdeadbeef));
+}
+
 int main(void)
 {
     static uint8_t audio_rom[0x10010u];
@@ -2371,6 +2436,7 @@ int main(void)
     test_pcm_walker_short_release();
     test_pcm_walker_short_terminal();
     test_pcm_walker_negative_timer_handoff();
+    test_pcm_walker_empty_dispatch_cycle();
     test_pcm_stream_page_native();
     test_render_first_tone();
     test_ad21_b_class_drain();

@@ -196,6 +196,20 @@ vf2_status vf2_sound_board_step_stream_timer_handoff(
     vf2_sound_board *board, size_t slot_index
 );
 
+/* ROM 0x2242 -> 0x07A6 -> 0x265C -> 0x2666/0x266E ->
+ * 0x2242: one complete *empty command ring* main-loop hop.
+ * Handles inactive descriptors (no timer change) and active
+ * negative-timer descriptors (+1C word store); refuses a live
+ * positive timer or any pending command. Applies original SCSP
+ * 0x0408 write, and reports the next original A0 address:
+ * +0x16 == 0 resets A0 to 0x2000, otherwise A0 += 0x20.
+ * No audio timer cadence or nonempty dispatcher is inferred. */
+vf2_status vf2_sound_board_step_stream_empty_dispatch(
+    vf2_sound_board *board,
+    size_t slot_index,
+    uint32_t *next_descriptor_address
+);
+
 /* Original 68000 0x2242 -> 0x22B8 -> 0x22CA full-page arm.
  * Recovers only the *positive, full 512-byte* branch, including the
  * timer, page-mode, SCSP 0x0409 gating, sample copy and descriptors.

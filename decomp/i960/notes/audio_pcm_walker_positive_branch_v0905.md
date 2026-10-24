@@ -280,3 +280,32 @@ SCSP registers, program counter and test status against the
 native C operation. No sample-ROM bytes are committed.
 This is a strict branch-level parity test, **not evidence
 that the real scheduler calls the handoff at a given rate**.
+
+## v0914 — full original empty-ring 0x2242 loop recurrence
+
+Recovered the contiguous original main-loop path:
+`0x2242 -> 0x2248/0x225C -> 0x07A6 -> 0x07AC ->
+0x265C -> 0x2666 or 0x266E -> 0x2242`,
+**only when the sound-command ring count at 0x2506 is zero**.
+The original 0x07A6 `MOVE.B (A4),D0` reads exactly that count
+(A4=0x2506). A nonzero count takes an unrecovered dispatcher,
+so the new API explicitly refuses it.
+
+`vf2_sound_board_step_stream_empty_dispatch(board, slot,
+&next_a0)` implements the branch from an inactive descriptor,
+or from an active negative-timer descriptor as recovered in
+v0913. On the common `0x265C` exit it writes stream byte
++0x16 into SCSP 0x0408. Critically, `0x2662 BEQ` checks
+the moved byte's Z flag: **byte zero resets A0 to 0x2000**,
+while nonzero advances the current A0 by 0x20. This is NOT
+an arbitrary 32-descriptor modulo wrap. A live positive
+timer still belongs to the previously validated PCM branches.
+The function is deliberately not called by host scheduling.
+
+The owner-ROM strict suite adds four 68000 entry-to-next-entry
+differentials: inactive vs negative-timer active and zero vs
+nonzero exit byte. It compares **all sound RAM, SCSP registers
+and next 68000 A0** against native C, not only the displayed
+fields. An authenticated original 68000 loop transition is
+now proven for the empty queue; real IRQ/CPU cycle cadence,
+nonempty command ring, and preempted A0 remain open.
