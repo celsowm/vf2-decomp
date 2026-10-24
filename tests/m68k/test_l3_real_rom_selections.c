@@ -2219,14 +2219,15 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
     if (akira_verify_composite_ticks) {
         printf("AKIRA_COMPOSITE_10S_STRICT parity=%u ticks=%u "
                "passes=%u original_pages=%u original_steps=%u "
-               "assumed_cadence=882Hz realtime_verified=0\n",
+               "modeled_cadence=%uHz realtime_verified=0\n",
                (unsigned)(full_drain &&
                           composite_verified_ticks == sequence_ticks),
                (unsigned)composite_verified_ticks,
                (unsigned)(composite_verified_ticks *
                           VF2_SCSP_SLOT_COUNT),
                (unsigned)real_walker_pages,
-               (unsigned)real_walker_steps);
+               (unsigned)real_walker_steps,
+               (unsigned)(44100u / frames_per_tick));
         if (!full_drain ||
             composite_verified_ticks != sequence_ticks) return 0;
     }
@@ -2263,20 +2264,26 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
         }
         printf("AKIRA_MUSIC_SEQUENCE_FINISH rendered_ticks=%u "
                "total_drained=%u last_packet_tick=%u voices_peak=%u "
-               "timer_hz_assumed=882 source=SCSP_TimerA_CE "
+               "timer_hz_modeled=%u source=SCSP_TimerA_CE "
                "original_driver=1 realtime_verified=0\n",
                (unsigned)rendered_ticks, (unsigned)total_drain,
-               (unsigned)last_tick_with_packets, peak_voices);
+               (unsigned)last_tick_with_packets, peak_voices,
+               (unsigned)(44100u / frames_per_tick));
         if (rendered_ticks != sequence_ticks || !full_drain ||
             first_tick_count != 32u || total_drain <= 43u) return 0;
         return write_akira_stereo_pcm(
-            sequenced_dir, akira_native_walk_preview ?
-            "vf2_akira_10s_NATIVE_C_WALK_APPROX_TIMER_scsp_model.wav" :
-            (akira_original_walk_preview ?
-             "vf2_akira_10s_ORIGINAL_WALK_APPROX_TIMER_scsp_model.wav" :
-             (akira_wave_prefill_experiment ?
-              "vf2_akira_10s_PREFILL_UNVERIFIED_scsp_model.wav" :
-              "vf2_akira_ride_the_tiger_10s_sequenced_scsp_model.wav")),
+            sequenced_dir,
+            akira_tima_49_preview ?
+            (akira_native_walk_preview ?
+             "vf2_akira_10s_NATIVE_C_WALK_TIMA49_scsp_model.wav" :
+             "vf2_akira_10s_ORIGINAL_WALK_TIMA49_scsp_model.wav") :
+            (akira_native_walk_preview ?
+             "vf2_akira_10s_NATIVE_C_WALK_APPROX_TIMER_scsp_model.wav" :
+             (akira_original_walk_preview ?
+              "vf2_akira_10s_ORIGINAL_WALK_APPROX_TIMER_scsp_model.wav" :
+              (akira_wave_prefill_experiment ?
+               "vf2_akira_10s_PREFILL_UNVERIFIED_scsp_model.wav" :
+               "vf2_akira_ride_the_tiger_10s_sequenced_scsp_model.wav"))),
             music_left, music_right, total_frames, 1);
     }
     if (strict) {
