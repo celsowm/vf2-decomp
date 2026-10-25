@@ -833,5 +833,79 @@ int main(void)
                     ram[0x1000u] == 0u);
     }
 
+    /* Original VF2 stream worker (at 0x1F7C):
+     * BTST #7,0(A2) = 16 clocks, BNE.W not taken = 12,
+     * RTS = 16. Inactive worker total = 44 clocks.
+     * A taken BNE.W instead consumes 10 clocks. */
+    {
+        static const uint8_t idle_worker[] = {
+            0x08u, 0x2au, 0x00u, 0x07u, 0x00u, 0x00u,
+            0x66u, 0x00u, 0x00u, 0x06u, /* BNE.W -> 0x0e */
+            0x4eu, 0x75u,             /* inactive RTS */
+            0x4eu, 0x71u,             /* unreachable NOP */
+            0x4eu, 0x71u              /* active stop */
+        };
+        uint32_t cycles = 0u, steps = 0u;
+        int paused = 0;
+        make_bus(&bus, &scsp, ram, idle_worker, sizeof(idle_worker));
+        vf2_m68k_regs_reset(&regs);
+        regs.a[2] = UINT32_C(0x2000);
+        regs.a[7] = UINT32_C(0x6ffc);
+        ram[0x6ffcu] = 0u;
+        ram[0x6ffdu] = 0u;
+        ram[0x6ffeu] = 0u;
+        ram[0x6fffu] = 0x10u;
+        regs.x = 1u;
+        regs.c = 1u;
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 16u, 15u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && paused &&
+                    cycles == 0u && steps == 0u &&
+                    regs.pc == 0u && regs.z == 0u && regs.x == 1u);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 16u, 43u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && paused &&
+                    cycles == 28u && steps == 2u &&
+                    regs.pc == 10u && regs.z == 1u &&
+                    regs.c == 1u && regs.x == 1u &&
+                    regs.a[7] == UINT32_C(0x6ffc));
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 16u, 16u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && !paused &&
+                    cycles == 16u && steps == 1u &&
+                    regs.pc == 16u && regs.a[7] == UINT32_C(0x7000));
+        /* Armed record: BNE.W is taken in 10, not 12 clocks. */
+        regs.pc = 0u;
+        ram[0x2000u] = 0x80u;
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 14u, 25u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && paused &&
+                    cycles == 16u && steps == 1u &&
+                    regs.pc == 6u && regs.z == 0u);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 14u, 10u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && !paused &&
+                    cycles == 10u && steps == 1u &&
+                    regs.pc == 14u);
+    }
+    /* Static bit operation is not a universal timing grant:
+     * even the runnable BTST #(An) shape is still refused here. */
+    {
+        static const uint8_t unmeasured_bit[] = {
+            0x08u, 0x12u, 0x00u, 0x07u
+        };
+        uint32_t cycles = 0u, steps = 0u;
+        int paused = 0;
+        make_bus(&bus, &scsp, ram,
+                 unmeasured_bit, sizeof(unmeasured_bit));
+        vf2_m68k_regs_reset(&regs);
+        regs.a[2] = UINT32_C(0x2000);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 4u, 100u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_ERROR_UNSUPPORTED && !paused &&
+                    cycles == 0u && steps == 0u && regs.pc == 0u &&
+                    ram[0x2000u] == 0u);
+    }
+
     return failures == 0 ? 0 : 1;
 }

@@ -1801,12 +1801,184 @@ static int akira_verify_l2_jsr_cycle_prefix(
            "lea_pc=01f32 lea_cycles=8 "
            "jsr_pc=01f36 jsr_cycles=18 "
            "callee_pc=021ba callee_cycles=38 "
-           "five_opcode_cycles=64 eleven_opcode_cycles=128 "
+           "five_opcode_cycles=64 ten_opcode_cycles=128 "
            "return_pc=01f3a "
            "full_steps=%u split_steps=%u "
            "full_isr_timing_not_covered=1\n",
            (unsigned)parity,
            (unsigned)full_steps, (unsigned)(timed_body + 2u));
+    return parity;
+}
+
+/* Opt-in, private-ROM full Timer-A ISR differential on the genuinely
+ * reachable idle path (all eight stream records inactive).
+ *
+ * Input is an independent copy of the existing original-ROM fixture.
+ * Both paths enter vector 26 and execute the original 68000 program
+ * through RTE to 0x2242. The timed path charges:
+ * 44 IRQ entry + 112 MOVEM save + 64 SCSP/ring header
+ * + 64 prescaler return + 8*(18 JSR +16 BTST +12 BNE.W
+ * +16 RTS) + 7*8 LEA +116 MOVEM restore +20 RTE = 972.
+ * No bus stalls, IRQ arbitration, or active record timing modeled. */
+static int akira_verify_l2_idle_isr_cycle_timing(
+    const uint8_t *rom, size_t rom_size
+)
+{
+    static uint8_t original_ram[VF2_SOUND_RAM_BYTES];
+    static uint8_t timed_ram[VF2_SOUND_RAM_BYTES];
+    static vf2_scsp original_scsp, timed_scsp;
+    vf2_m68k_bus original_bus, timed_bus;
+    vf2_m68k_regs original_regs, timed_regs;
+    vf2_status status, original_status;
+    uint32_t entry_cycles = 0u, cycles = 0u, steps = 0u;
+    uint32_t original_steps = 0u, timed_steps = 0u;
+    uint32_t body_cycles = 0u;
+    unsigned i;
+    int suspended = 0, parity = 1;
+    if (rom_size <= UINT32_C(0x2242) ||
+        rom[0x1f7cu] != 0x08u || rom[0x1f7du] != 0x2au ||
+        rom[0x1f82u] != 0x66u || rom[0x1f83u] != 0u)
+        return 0;
+    memcpy(original_ram, step_ram, sizeof(original_ram));
+    memcpy(timed_ram, step_ram, sizeof(timed_ram));
+    memcpy(&original_scsp, &step_scsp, sizeof(original_scsp));
+    memcpy(&timed_scsp, &step_scsp, sizeof(timed_scsp));
+    if (vf2_scsp_attach_sample_ram(
+            &original_scsp, original_ram, sizeof(original_ram)) !=
+            VF2_OK ||
+        vf2_scsp_attach_sample_ram(
+            &timed_scsp, timed_ram, sizeof(timed_ram)) != VF2_OK)
+        return 0;
+    memset(&original_bus, 0, sizeof(original_bus));
+    memset(&timed_bus, 0, sizeof(timed_bus));
+    original_bus.ram = original_ram;
+    original_bus.ram_size = sizeof(original_ram);
+    original_bus.rom = rom;
+    original_bus.rom_size = rom_size;
+    original_bus.sample_rom = sample_bank;
+    original_bus.sample_rom_size = sample_bank_size;
+    original_bus.scsp = &original_scsp;
+    timed_bus.ram = timed_ram;
+    timed_bus.ram_size = sizeof(timed_ram);
+    timed_bus.rom = rom;
+    timed_bus.rom_size = rom_size;
+    timed_bus.sample_rom = sample_bank;
+    timed_bus.sample_rom_size = sample_bank_size;
+    timed_bus.scsp = &timed_scsp;
+    /* Ensure only the measured idle/no-packet control flow runs. */
+    original_ram[0x2506u] = 0u;
+    timed_ram[0x2506u] = 0u;
+    original_ram[0x300cu] = 0u;
+    timed_ram[0x300cu] = 0u;
+    for (i = 0u; i < 8u; ++i) {
+        const size_t record = (size_t)0x3000u + i * 0x20u;
+        original_ram[record] &= (uint8_t)~0x80u;
+        timed_ram[record] &= (uint8_t)~0x80u;
+    }
+    vf2_m68k_regs_reset(&original_regs);
+    original_regs.pc = UINT32_C(0x2242);
+    original_regs.a[4] = UINT32_C(0x2506);
+    original_regs.a[5] = VF2_SCSP_CPU_BASE;
+    original_regs.a[6] = UINT32_C(0x1000);
+    original_regs.a[7] = UINT32_C(0x5000);
+    timed_regs = original_regs;
+    status = vf2_m68k_irq_autovector_enter(
+        &original_bus, &original_regs, 2u);
+    if (status != VF2_OK) return 0;
+    status = vf2_m68k_irq_autovector_enter_timed(
+        &timed_bus, &timed_regs, 2u, &entry_cycles);
+    if (status != VF2_OK || entry_cycles != 44u) return 0;
+    original_status = vf2_m68k_run(
+        &original_bus, &original_regs, UINT32_C(0x2242),
+        0, 100000u, &original_steps);
+    /* The 907-cycle boundary must stop immediately before the
+     * 116-cycle epilogue MOVEM; no partial register restores. */
+    status = vf2_m68k_run_cycle_slice(
+        &timed_bus, &timed_regs, UINT32_C(0x2242),
+        907u, &cycles, &steps, &suspended);
+    if (status != VF2_OK || !suspended ||
+        cycles != 792u || timed_regs.pc != UINT32_C(0x1f76)) {
+        printf("AKIRA_L2_IDLE_ISR_TIMING refused_at=%05x cycles=%u "
+               "steps=%u status=%d\n",
+               (unsigned)timed_regs.pc, (unsigned)cycles,
+               (unsigned)steps, (int)status);
+        return 0;
+    }
+    body_cycles += cycles;
+    timed_steps += steps;
+    status = vf2_m68k_run_cycle_slice(
+        &timed_bus, &timed_regs, UINT32_C(0x2242),
+        116u, &cycles, &steps, &suspended);
+    if (status != VF2_OK || !suspended ||
+        cycles != 116u || steps != 1u ||
+        timed_regs.pc != UINT32_C(0x1f7a)) return 0;
+    body_cycles += cycles;
+    timed_steps += steps;
+    /* One clock short of RTE must not pop the IRQ frame. */
+    status = vf2_m68k_run_cycle_slice(
+        &timed_bus, &timed_regs, UINT32_C(0x2242),
+        19u, &cycles, &steps, &suspended);
+    if (status != VF2_OK || !suspended ||
+        cycles != 0u || steps != 0u ||
+        timed_regs.pc != UINT32_C(0x1f7a) ||
+        timed_regs.irq_active == 0u) return 0;
+    status = vf2_m68k_run_cycle_slice(
+        &timed_bus, &timed_regs, UINT32_C(0x2242),
+        20u, &cycles, &steps, &suspended);
+    if (status != VF2_OK || suspended ||
+        cycles != 20u || steps != 1u ||
+        timed_regs.pc != UINT32_C(0x2242) ||
+        timed_regs.a[7] != UINT32_C(0x5000) ||
+        timed_regs.irq_active != 0u) return 0;
+    timed_steps += steps;
+    parity = original_status == VF2_OK &&
+        original_steps == timed_steps &&
+        original_steps == 52u &&
+        entry_cycles + body_cycles + cycles == 972u &&
+        memcmp(original_ram, timed_ram, sizeof(original_ram)) == 0 &&
+        memcmp(original_scsp.registers, timed_scsp.registers,
+               VF2_SCSP_REGISTER_BYTES) == 0 &&
+        memcmp(original_scsp.slot_active, timed_scsp.slot_active,
+               sizeof(original_scsp.slot_active)) == 0 &&
+        memcmp(original_scsp.slot_address, timed_scsp.slot_address,
+               sizeof(original_scsp.slot_address)) == 0 &&
+        memcmp(original_scsp.slot_step, timed_scsp.slot_step,
+               sizeof(original_scsp.slot_step)) == 0 &&
+        memcmp(original_scsp.slot_envelope, timed_scsp.slot_envelope,
+               sizeof(original_scsp.slot_envelope)) == 0 &&
+        memcmp(original_scsp.slot_envelope_state,
+               timed_scsp.slot_envelope_state,
+               sizeof(original_scsp.slot_envelope_state)) == 0 &&
+        memcmp(original_scsp.slot_backward, timed_scsp.slot_backward,
+               sizeof(original_scsp.slot_backward)) == 0 &&
+        memcmp(original_scsp.midi_input, timed_scsp.midi_input,
+               sizeof(original_scsp.midi_input)) == 0 &&
+        original_scsp.midi_read_index == timed_scsp.midi_read_index &&
+        original_scsp.midi_write_index == timed_scsp.midi_write_index &&
+        original_regs.pc == timed_regs.pc &&
+        original_regs.sr_high == timed_regs.sr_high &&
+        original_regs.irq_active == timed_regs.irq_active &&
+        original_regs.usp == timed_regs.usp &&
+        original_regs.ssp == timed_regs.ssp &&
+        original_regs.x == timed_regs.x &&
+        original_regs.n == timed_regs.n &&
+        original_regs.z == timed_regs.z &&
+        original_regs.v == timed_regs.v &&
+        original_regs.c == timed_regs.c;
+    for (i = 0u; i < 8u; ++i) {
+        if (original_regs.d[i] != timed_regs.d[i] ||
+            original_regs.a[i] != timed_regs.a[i])
+            parity = 0;
+    }
+    printf("AKIRA_L2_IDLE_ISR_TIMING matched=%u "
+           "entry_cycles=%u body_cycles=%u rte_cycles=20 "
+           "total_cycles=%u original_steps=%u timed_steps=%u "
+           "all_active_worker_paths_unmeasured=1 "
+           "hardware_waits_unmodeled=1\n",
+           (unsigned)parity, (unsigned)entry_cycles,
+           (unsigned)body_cycles,
+           (unsigned)(entry_cycles + body_cycles + cycles),
+           (unsigned)original_steps, (unsigned)timed_steps);
     return parity;
 }
 
@@ -1862,6 +2034,10 @@ static void akira_probe_original_walk(const uint8_t *rom, size_t rom_size,
             akira_walk_strict_failed = 1;
         }
         if (!akira_verify_l2_jsr_cycle_prefix(rom, rom_size) &&
+            verify_akira_original_walk) {
+            akira_walk_strict_failed = 1;
+        }
+        if (!akira_verify_l2_idle_isr_cycle_timing(rom, rom_size) &&
             verify_akira_original_walk) {
             akira_walk_strict_failed = 1;
         }

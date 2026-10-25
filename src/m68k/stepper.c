@@ -2322,6 +2322,15 @@ static vf2_status vf2_m68k_cycle_cost(
         *cost = 8u;
         return VF2_OK;
     }
+    if ((op & UINT16_C(0xfff8)) == UINT16_C(0x0828)) {
+        /* BTST #imm,(d16,An) in the original 0x1F7C stream
+         * worker. MC68000UM Table 8-8: static BTST to byte
+         * memory is 8 + 8 EA clocks (Table 8-1) = 16.
+         * Restrict to the observed displacement EA; do not
+         * admit BCHG/BCLR/BSET or unmeasured address forms. */
+        *cost = 16u;
+        return VF2_OK;
+    }
     if ((op & UINT16_C(0xff00)) == UINT16_C(0x4a00) &&
         ((op >> 6u) & UINT16_C(3)) < UINT16_C(3) &&
         ((op >> 3u) & UINT16_C(7)) == 0u) {
