@@ -124,6 +124,19 @@ typedef struct vf2_sound_music_prefix_report {
     uint8_t status_after;
 } vf2_sound_music_prefix_report;
 
+/* Original Akira L2 developer-only continuation (two packets).
+ * A3 is ephemeral; no stream-pointer commit or completed
+ * Timer-A service may be inferred from this report. */
+typedef struct vf2_sound_music_followup_report {
+    uint32_t stream_before;
+    uint32_t a3_after;
+    uint16_t cursor_before;
+    uint16_t cursor_after;
+    uint8_t packet[6];
+    uint8_t status_after;
+    uint8_t duration_byte;
+} vf2_sound_music_followup_report;
+
 typedef struct vf2_sound_dispatch_report {
     uint8_t command;
     uint8_t payload;
@@ -397,6 +410,13 @@ vf2_status vf2_sound_board_maintain_voices(
 vf2_status vf2_sound_board_probe_akira_l2_first_b(
     vf2_sound_board *board,
     vf2_sound_music_prefix_report *report
+);
+
+/* Continue Akira's first B50 packet with BE20 00 and BE10
+ * 00; save special BE10 duration byte 0x72 in descriptor +0E.
+ * Does not complete the music L2 service. */
+vf2_status vf2_sound_board_probe_akira_l2_next_two_b(
+    vf2_sound_board *board, vf2_sound_music_followup_report *report
 );
 
 /* Execute the bounded 0x1f7c stream-interpreter packet paths. */

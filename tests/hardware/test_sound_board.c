@@ -393,6 +393,90 @@ static void test_b0_181c_transactional_interpreter(void)
  * The opcode's high bit is a status flag, not ring packet data.
  * This deliberately does NOT turn the entire L2 tick green:
  * the original worker emits more commands in the same service. */
+/* Genuine stream's first three B-class packet effects,
+ * using synthetic ROM bytes and without starting an L2 IRQ. */
+static void test_akira_l2_next_two_b(void)
+{
+    static vf2_sound_board board;
+    static uint8_t rom[0x16000u];
+    static const uint8_t sample[2] = {0u, 0u};
+    vf2_sound_music_prefix_report first;
+    vf2_sound_music_followup_report next;
+    uint8_t *d;
+    const size_t p = UINT32_C(0x615773) -
+                     VF2_SOUND_AUDIO_ROM_BASE;
+    const uint8_t source[] = {
+        0xbeu,0x50u,0xfeu,0xbeu,0x20u,0x80u,
+        0xbeu,0x10u,0x72u,0x00u
+    };
+    const uint8_t expected[] = {
+        0xbeu,0x50u,0x7eu,0xbeu,0x20u,0x00u,
+        0xbeu,0x10u,0x00u
+    };
+    size_t i;
+    test_boot_rom(rom);
+    memcpy(rom+p, source, sizeof(source));
+    EXPECT_TRUE(vf2_sound_board_initialize(
+        &board, rom, sizeof(rom), sample, sizeof(sample)) == VF2_OK);
+    d = board.sound_ram + VF2_SOUND_DESCRIPTOR_BASE;
+    memset(d, 0, VF2_SOUND_STREAM_DESCRIPTOR_BYTES);
+    d[0] = 0x88u; d[3] = 1u;
+    d[4] = 0u; d[5] = 0x61u; d[6] = 0x57u; d[7] = 0x73u;
+    d[8] = 0u; d[9] = 0x60u; d[10] = 0x9cu; d[11] = 0x3eu;
+    for(i=0u;i<12u;i+=4u) {
+        board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+i+3u] =
+            (uint8_t)(0xa0u+i);
+    }
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_b(
+        &board, &first) == VF2_OK);
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_two_b(
+        &board, &next) == VF2_OK);
+    EXPECT_TRUE(next.stream_before == UINT32_C(0x615773) &&
+                next.a3_after == UINT32_C(0x61577d) &&
+                next.cursor_before == 4u &&
+                next.cursor_after == 12u &&
+                next.status_after == 0x88u &&
+                next.duration_byte == 0x72u);
+    EXPECT_TRUE(d[0] == 0x88u && d[1] == 0xbeu &&
+                d[3] == 0u && d[4] == 0u &&
+                d[5] == 0x61u && d[6] == 0x57u &&
+                d[7] == 0x73u && d[0x0eu] == 0x72u);
+    for(i=0u;i<3u;++i){
+        const uint8_t *q = board.sound_ram +
+            VF2_SOUND_COMMAND_RING_BASE + i*4u;
+        EXPECT_TRUE(memcmp(q,expected+i*3u,3u)==0);
+        EXPECT_TRUE(q[3] == (uint8_t)(0xa0u+i*4u));
+    }
+    EXPECT_TRUE(board.sound_ram[VF2_SOUND_COMMAND_COUNT]==3u &&
+                board.sound_ram[VF2_SOUND_COMMAND_WRITE_CURSOR+1u]==12u);
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_two_b(
+        &board, &next) == VF2_ERROR_UNSUPPORTED);
+    /* Bad source must not advance either counter or write ring. */
+    d[0]=0x89u; d[0x0eu]=0u;
+    board.sound_ram[VF2_SOUND_COMMAND_COUNT]=1u;
+    board.sound_ram[VF2_SOUND_COMMAND_WRITE_CURSOR+1u]=4u;
+    rom[p+8u]=0x73u;
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_two_b(
+        &board,&next)==VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(d[0]==0x89u && d[0x0eu]==0u &&
+                board.sound_ram[VF2_SOUND_COMMAND_COUNT]==1u);
+    rom[p+8u]=0x72u;
+    /* Ring wraps from FFC to 000 and 004. */
+    board.sound_ram[VF2_SOUND_COMMAND_WRITE_CURSOR] = 0x0fu;
+    board.sound_ram[VF2_SOUND_COMMAND_WRITE_CURSOR+1u] = 0xfcu;
+    board.sound_ram[VF2_SOUND_COMMAND_COUNT] = 253u;
+    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+0xff8u]=0xbeu;
+    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+0xff9u]=0x50u;
+    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+0xffau]=0x7eu;
+    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+0xfffu]=0x53u;
+    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+3u]=0x97u;
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_two_b(
+        &board,&next)==VF2_OK);
+    EXPECT_TRUE(next.cursor_after==4u &&
+                board.sound_ram[VF2_SOUND_COMMAND_COUNT]==255u &&
+                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+0xfffu]==0x53u &&
+                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+3u]==0x97u);
+}
 static void test_akira_l2_b_prefix(void)
 {
     static vf2_sound_board board;
@@ -3363,6 +3447,7 @@ int main(void)
     test_pcm_walker_one_descriptor();
     test_pcm_stream_page_native();
     test_render_first_tone();
+    test_akira_l2_next_two_b();
     test_akira_l2_b_prefix();
     test_a0_music_low_header_native();
     test_b0_50_7d_7f_native();
