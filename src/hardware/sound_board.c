@@ -3855,6 +3855,97 @@ static int sound_board_b0_target(
  * Keep original ROM bytes private: only this FNV-1a signature
  * of that 140-byte routine is checked in. Unknown variants
  * retain the preexisting fail-closed / opt-in escape hatch. */
+
+/* Original VF2.1 B0/50 byte2=7E end-of-sequence branch
+ * (68000 0x1C0A -> 0x1D5E). The command table and body are
+ * version-checked by the private-ROM-derived fingerprint below.
+ * No original program bytes or samples are included here. */
+static int sound_board_b0_50_original_version(
+    const vf2_sound_board *board
+)
+{
+    uint64_t hash = UINT64_C(14695981039346656037);
+    size_t i;
+    if (board == NULL || board->audio_rom == NULL ||
+        board->audio_rom_size < UINT32_C(0x1de0)) {
+        return 0;
+    }
+    for (i = UINT32_C(0x1c0a); i < UINT32_C(0x1de0); ++i) {
+        hash ^= board->audio_rom[i];
+        hash *= UINT64_C(1099511628211);
+    }
+    return hash == UINT64_C(0xf2225ef03751054f);
+}
+
+/* A fully bounded C port of only the original B0 50 7E shutdown
+ * path. Preflight all matching voices so malformed SCSP byte
+ * offsets cannot cause partial shutdown. The sound-chip writes
+ * preserve original order for each of the 32 voice records.
+ * This helper is ROM-independent for synthetic regression; the
+ * live dispatcher calls it only for the authenticated ROM. */
+vf2_status vf2_sound_board_apply_b0_end_7e(
+    vf2_sound_board *board,
+    vf2_sound_dispatch_report *report
+)
+{
+    size_t i;
+    if (board == NULL || report == NULL) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    for (i = 0u; i < VF2_SOUND_VOICE_COUNT; ++i) {
+        const uint8_t *v = board->sound_ram +
+            VF2_SOUND_VOICE_TABLE_BASE + i * VF2_SOUND_VOICE_BYTES;
+        const uint8_t ch = v[VF2_SOUND_VOICE_CHANNEL];
+        if ((v[VF2_SOUND_VOICE_FLAGS] & UINT8_C(0x40)) != 0u &&
+            (ch < UINT8_C(9) || ch == UINT8_C(15))) {
+            const uint16_t slot = read_be16(
+                v + VF2_SOUND_VOICE_SLOT);
+            if ((slot & UINT16_C(0x8000)) != 0u ||
+                (uint32_t)slot + UINT32_C(0x0b) >=
+                    VF2_SCSP_REGISTER_BYTES ||
+                UINT32_C(0x2000) + (uint32_t)slot >=
+                    VF2_SOUND_RAM_BYTES) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+        }
+    }
+    for (i = 0u; i < VF2_SOUND_VOICE_COUNT; ++i) {
+        uint8_t *v = board->sound_ram +
+            VF2_SOUND_VOICE_TABLE_BASE + i * VF2_SOUND_VOICE_BYTES;
+        const uint8_t ch = v[VF2_SOUND_VOICE_CHANNEL];
+        if ((v[VF2_SOUND_VOICE_FLAGS] & UINT8_C(0x40)) != 0u &&
+            (ch < UINT8_C(9) || ch == UINT8_C(15))) {
+            const uint32_t slot = (uint32_t)read_be16(
+                v + VF2_SOUND_VOICE_SLOT);
+            vf2_status status = vf2_scsp_write_u8(
+                &board->scsp, slot + UINT32_C(0x0b),
+                UINT8_C(0x1f));
+            if (status != VF2_OK) {
+                return status;
+            }
+            status = vf2_scsp_write_u8(
+                &board->scsp, slot, UINT8_C(0x10));
+            if (status != VF2_OK) {
+                return status;
+            }
+            board->sound_ram[UINT32_C(0x2000) + slot] = 0u;
+            v[VF2_SOUND_VOICE_FLAGS] = 0u;
+            v[VF2_SOUND_VOICE_CHANNEL] = 0u;
+            ++report->voices_cleared;
+        }
+    }
+    /* The original 68000 clears 0x151E(A6), NOT 0x152E. */
+    board->sound_ram[VF2_SOUND_SHARED_COUNTER_151E] = 0u;
+    for (i = 0u; i < 9u; ++i) {
+        board->sound_ram[VF2_SOUND_CHANNEL_CONTROL_BASE + i] = 0u;
+        board->sound_ram[VF2_SOUND_CHANNEL_CONTROL_ALT_BASE + i] = 0u;
+        /* MOVE.W #0,(A4)+: 9 words, NOT 9 bytes. */
+        write_be16(board->sound_ram +
+                   VF2_SOUND_CHANNEL_TABLE_BASE + i * 2u, 0u);
+    }
+    return VF2_OK;
+}
+
 static int sound_board_b0_181c_is_measured_rom(
     const vf2_sound_board *board
 )
@@ -4152,7 +4243,12 @@ static vf2_status sound_board_dispatch_b0(
             return VF2_ERROR_UNSUPPORTED;
         }
         if (target == UINT32_C(0x1c0a)) {
-            /* Terminal sub-dispatcher still unrecovered. */
+            if (argument == UINT8_C(0x7e) &&
+                sound_board_b0_50_original_version(board)) {
+                return vf2_sound_board_apply_b0_end_7e(
+                    board, report);
+            }
+            /* 7D/7F and unknown ROM variants are not admitted. */
             return VF2_ERROR_UNSUPPORTED;
         }
         /* An unanticipated ROM target is deliberately opaque. */

@@ -177,6 +177,15 @@ vf2_status vf2_sound_board_apply_b0_volume_181c(
     vf2_sound_dispatch_report *report
 );
 
+/* Original B0 50 7E voice and channel shutdown. Synthetic tests
+ * can call this bounded helper without a ROM; dispatch_next
+ * requires the exact verified original ROM body. Preflight
+ * refuses an invalid slot before any SCSP/RAM mutation. */
+vf2_status vf2_sound_board_apply_b0_end_7e(
+    vf2_sound_board *board,
+    vf2_sound_dispatch_report *report
+);
+
 vf2_status vf2_sound_board_initialize(
     vf2_sound_board *board,
     const uint8_t *audio_rom,
