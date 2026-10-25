@@ -389,6 +389,115 @@ static void test_b0_181c_transactional_interpreter(void)
 /* ROM-free A0 low-header (music) descriptor setup.
  * Distinct from the already recovered high-bit7 AD23/24
  * six-slot setup. Strictly synthetic ROM pointer/data. */
+/* Native micro-step for original Akira first stream BE 50 FE.
+ * The opcode's high bit is a status flag, not ring packet data.
+ * This deliberately does NOT turn the entire L2 tick green:
+ * the original worker emits more commands in the same service. */
+static void test_akira_l2_b_prefix(void)
+{
+    static vf2_sound_board board;
+    static uint8_t rom[0x16000u];
+    static const uint8_t sample[2] = {0u, 0u};
+    vf2_sound_music_prefix_report report;
+    uint8_t *desc;
+    const size_t offset = UINT32_C(0x615773) -
+                          VF2_SOUND_AUDIO_ROM_BASE;
+    const uint8_t fourth = UINT8_C(0xa7);
+    size_t index;
+    test_boot_rom(rom);
+    rom[offset] = UINT8_C(0xbe);
+    rom[offset + 1u] = UINT8_C(0x50);
+    rom[offset + 2u] = UINT8_C(0xfe);
+    EXPECT_TRUE(vf2_sound_board_initialize(
+        &board, rom, sizeof(rom), sample, sizeof(sample)) ==
+        VF2_OK);
+    desc = board.sound_ram + VF2_SOUND_DESCRIPTOR_BASE;
+    memset(desc, 0u, VF2_SOUND_STREAM_DESCRIPTOR_BYTES);
+    desc[0] = UINT8_C(0x88);
+    desc[2] = 0u;
+    desc[3] = 1u;
+    desc[4] = 0u;
+    desc[5] = UINT8_C(0x61);
+    desc[6] = UINT8_C(0x57);
+    desc[7] = UINT8_C(0x73);
+    desc[8] = 0u;
+    desc[9] = UINT8_C(0x60);
+    desc[10] = UINT8_C(0x9c);
+    desc[11] = UINT8_C(0x3e);
+    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 3u] = fourth;
+    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 7u] = fourth;
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_b(
+        &board, &report) == VF2_OK);
+    EXPECT_TRUE(report.stream_before == UINT32_C(0x615773) &&
+                report.a3_after == UINT32_C(0x615776) &&
+                report.cursor_before == 0u &&
+                report.cursor_after == 4u &&
+                report.packet[0] == UINT8_C(0xbe) &&
+                report.packet[1] == UINT8_C(0x50) &&
+                report.packet[2] == UINT8_C(0x7e) &&
+                report.status_after == UINT8_C(0x89));
+    EXPECT_TRUE(desc[0] == UINT8_C(0x89) &&
+                desc[1] == UINT8_C(0xbe) &&
+                desc[2] == 0u && desc[3] == 0u &&
+                desc[4] == 0u && desc[5] == UINT8_C(0x61) &&
+                desc[6] == UINT8_C(0x57) &&
+                desc[7] == UINT8_C(0x73) &&
+                desc[8] == 0u && desc[9] == UINT8_C(0x60));
+    EXPECT_TRUE(board.sound_ram[VF2_SOUND_COMMAND_RING_BASE] ==
+                UINT8_C(0xbe) &&
+                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 1u] ==
+                UINT8_C(0x50) &&
+                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 2u] ==
+                UINT8_C(0x7e) &&
+                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 3u] ==
+                fourth &&
+                board.sound_ram[VF2_SOUND_COMMAND_COUNT] == 1u &&
+                board.sound_ram[VF2_SOUND_COMMAND_WRITE_CURSOR] == 0u &&
+                board.sound_ram[VF2_SOUND_COMMAND_WRITE_CURSOR + 1u] ==
+                4u);
+    /* Not re-entrant on an unfinished original music tick. */
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_b(
+        &board, &report) == VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(board.sound_ram[VF2_SOUND_COMMAND_COUNT] == 1u);
+    for (index = 0u; index < 4u; ++index) {
+        const uint16_t cursor = index == 0u ? 1u :
+                                index == 1u ? UINT16_C(0xffd) :
+                                index == 2u ? UINT16_C(0x1000) : 0u;
+        uint8_t original_status;
+        uint8_t original_count;
+        /* Reset the descriptor to isolate each invalid-case test. */
+        desc[0] = UINT8_C(0x88);
+        desc[2] = 0u; desc[3] = 1u;
+        original_status = desc[0];
+        board.sound_ram[VF2_SOUND_COMMAND_WRITE_CURSOR] =
+            (uint8_t)(cursor >> 8u);
+        board.sound_ram[VF2_SOUND_COMMAND_WRITE_CURSOR + 1u] =
+            (uint8_t)cursor;
+        board.sound_ram[VF2_SOUND_COMMAND_COUNT] =
+            index == 3u ? UINT8_MAX : 1u;
+        original_count = board.sound_ram[VF2_SOUND_COMMAND_COUNT];
+        EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_b(
+            &board, &report) == VF2_ERROR_UNSUPPORTED);
+        EXPECT_TRUE(desc[0] == original_status &&
+                    desc[3] == 1u &&
+                    board.sound_ram[VF2_SOUND_COMMAND_COUNT] ==
+                        original_count);
+    }
+    /* Restored alignment, then corrupted source byte: no
+     * status/count/ring mutation and no speculative output. */
+    board.sound_ram[VF2_SOUND_COMMAND_WRITE_CURSOR] = 0u;
+    board.sound_ram[VF2_SOUND_COMMAND_WRITE_CURSOR + 1u] = 4u;
+    board.sound_ram[VF2_SOUND_COMMAND_COUNT] = 1u;
+    rom[offset + 2u] = UINT8_C(0x7e);
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_b(
+        &board, &report) == VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(desc[0] == UINT8_C(0x88) &&
+                desc[3] == 1u &&
+                board.sound_ram[VF2_SOUND_COMMAND_COUNT] == 1u &&
+                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 7u] ==
+                    fourth);
+}
+
 static void test_a0_music_low_header_native(void)
 {
     static vf2_sound_board board;
@@ -3254,6 +3363,7 @@ int main(void)
     test_pcm_walker_one_descriptor();
     test_pcm_stream_page_native();
     test_render_first_tone();
+    test_akira_l2_b_prefix();
     test_a0_music_low_header_native();
     test_b0_50_7d_7f_native();
     test_b0_50_7e_native();

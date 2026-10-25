@@ -1434,6 +1434,98 @@ vf2_status vf2_sound_board_maintain_voices(
    (0x1f92-0x1fba) reads stream bytes + the +1 latch and jumps the
    0x1fbc class table. The tick then refuses BEFORE mutating
    anything and names the record, fail closed. */
+/* Bounded ORIGINAL VF2.1 music L2 B-prefix (0x1F7C->0x212E).
+ * This is intentionally a DEVELOPMENT primitive, NOT an entire
+ * Timer-A tick. A music stream may emit many packets during one
+ * original worker invocation: do not claim success for the full
+ * worker based on one packet. The public maintain_streams remains
+ * fail-closed for this pending branch.
+ *
+ * Original first Akira stream begins at CPU ROM 0x615773 with
+ * a negative B-class command, followed by a payload and a
+ * high-bit-marked third byte. Original 0x2040 BCLR #7,D2
+ * forwards its LOW seven bits into the command ring and
+ * 0x2048 BSET #0,descriptor[0] remembers the stripped flag.
+ * ROM 0x211C/0x211E/0x2122/0x2128 files a 3-byte packet,
+ * advances the 4-byte ring cursor and increments count.
+ *
+ * The original stream pointer is held in A3 until later
+ * 0x214E+ handling; descriptor[4] is NOT advanced yet at
+ * the 0x212E stop-PC. Caller receives that ephemeral A3
+ * value separately. All preconditions are checked before
+ * any writes, so even a malformed ROM/cursor cannot create
+ * a partial native packet. */
+vf2_status vf2_sound_board_probe_akira_l2_first_b(
+    vf2_sound_board *board,
+    vf2_sound_music_prefix_report *report
+)
+{
+    uint8_t *ram;
+    uint8_t *desc;
+    uint32_t stream;
+    size_t offset;
+    uint16_t write_cursor;
+    uint8_t count;
+    uint8_t opcode;
+    uint8_t payload;
+    uint8_t tagged;
+    if (board == NULL || report == NULL || board->audio_rom == NULL) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    ram = board->sound_ram;
+    desc = ram + VF2_SOUND_DESCRIPTOR_BASE;
+    stream = read_be32(desc + 4u);
+    write_cursor = read_be16(ram + VF2_SOUND_COMMAND_WRITE_CURSOR);
+    count = ram[VF2_SOUND_COMMAND_COUNT];
+    if (stream != UINT32_C(0x615773) ||
+        desc[0] != UINT8_C(0x88) ||
+        read_be16(desc + 2u) != UINT16_C(1) ||
+        (write_cursor & UINT16_C(3)) != 0u ||
+        write_cursor > UINT16_C(0x0ffc) ||
+        count == UINT8_MAX ||
+        stream < VF2_SOUND_AUDIO_ROM_BASE) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    offset = (size_t)(stream - VF2_SOUND_AUDIO_ROM_BASE);
+    if (offset > board->audio_rom_size ||
+        board->audio_rom_size - offset < 3u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    opcode = board->audio_rom[offset];
+    payload = board->audio_rom[offset + 1u];
+    tagged = board->audio_rom[offset + 2u];
+    /* This exact first packet is structurally authenticated
+     * against the private Akira root. Do not extrapolate
+     * an arbitrary B-class grammar or unrelated ROM build. */
+    if (opcode != UINT8_C(0xbe) ||
+        payload != UINT8_C(0x50) ||
+        tagged != UINT8_C(0xfe)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    *report = (vf2_sound_music_prefix_report){0};
+    report->stream_before = stream;
+    report->a3_after = stream + 3u;
+    report->cursor_before = write_cursor;
+    report->cursor_after = (uint16_t)(
+        (write_cursor + UINT16_C(4)) & UINT16_C(0x0fff));
+    report->packet[0] = opcode;
+    report->packet[1] = payload;
+    report->packet[2] = (uint8_t)(tagged & UINT8_C(0x7f));
+    report->status_after = (uint8_t)(desc[0] | UINT8_C(1));
+    /* From here all writes have valid, preflighted addresses. */
+    write_be16(desc + 2u, 0u);
+    desc[0] = report->status_after;
+    desc[1u] = opcode;
+    ram[VF2_SOUND_COMMAND_RING_BASE + write_cursor] = opcode;
+    ram[VF2_SOUND_COMMAND_RING_BASE + write_cursor + 1u] = payload;
+    ram[VF2_SOUND_COMMAND_RING_BASE + write_cursor + 2u] =
+        report->packet[2];
+    write_be16(ram + VF2_SOUND_COMMAND_WRITE_CURSOR,
+               report->cursor_after);
+    ram[VF2_SOUND_COMMAND_COUNT] = (uint8_t)(count + 1u);
+    return VF2_OK;
+}
+
 vf2_status vf2_sound_board_maintain_streams(
     vf2_sound_board *board,
     vf2_sound_stream_maintenance_report *report

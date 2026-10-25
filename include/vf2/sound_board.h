@@ -111,6 +111,19 @@ typedef struct vf2_sound_stream_maintenance_report {
     uint16_t write_cursor_after;
 } vf2_sound_stream_maintenance_report;
 
+/* An instruction-level, single-packet original music L2
+ * probe. The A3 pointer is ephemeral at the stop-PC and must
+ * NOT be committed to descriptor +4. Does NOT constitute a
+ * completed timer tick or a resumable music scheduler. */
+typedef struct vf2_sound_music_prefix_report {
+    uint32_t stream_before;
+    uint32_t a3_after;
+    uint16_t cursor_before;
+    uint16_t cursor_after;
+    uint8_t packet[3];
+    uint8_t status_after;
+} vf2_sound_music_prefix_report;
+
 typedef struct vf2_sound_dispatch_report {
     uint8_t command;
     uint8_t payload;
@@ -374,6 +387,16 @@ vf2_status vf2_sound_board_write_u16(
 vf2_status vf2_sound_board_maintain_voices(
     vf2_sound_board *board,
     vf2_sound_voice_maintenance_report *report
+);
+
+/* Execute exactly the first original Akira B-class packet up
+ * to 68000 stop-PC 0x212E. Experimental explicit call only;
+ * it never stands in for the full vf2_sound_board_maintain_streams.
+ * This advances the ring and descriptor status but intentionally
+ * does not commit the stream-pointer A3 into descriptor +4. */
+vf2_status vf2_sound_board_probe_akira_l2_first_b(
+    vf2_sound_board *board,
+    vf2_sound_music_prefix_report *report
 );
 
 /* Execute the bounded 0x1f7c stream-interpreter packet paths. */

@@ -236,6 +236,71 @@ static void test_b0_prescaler_setup_original(
  * opcode execution across the first, Akira and last song rows.
  * The 68000's JSR return-stack scratch is intentionally
  * excluded; no proprietary bytes are committed. */
+/* Original 68000 stop-PC differential for the FIRST Akira
+ * B-class music packet. Stop at 0x212E BEFORE the worker
+ * loops to parse another command. This does not claim the
+ * entire tick has finished, nor that music now plays in C.
+ * Owner-only, requires the exact original sound ROM. */
+static void test_akira_l2_first_b_original(
+    const uint8_t *rom, size_t rom_size
+)
+{
+    static vf2_sound_board board;
+    static uint8_t cpu_ram[VF2_SOUND_RAM_BYTES];
+    static vf2_scsp cpu_scsp;
+    vf2_m68k_bus bus;
+    vf2_m68k_regs regs;
+    vf2_sound_music_prefix_report report;
+    uint8_t *desc;
+    uint32_t steps = 0u;
+    vf2_status cpu_status, native_status;
+    size_t i;
+    memset(&board, 0, sizeof(board));
+    board.audio_rom = rom;
+    board.audio_rom_size = rom_size;
+    vf2_scsp_initialize(&board.scsp);
+    desc = board.sound_ram + VF2_SOUND_DESCRIPTOR_BASE;
+    desc[0] = UINT8_C(0x88);
+    desc[3] = 1u;
+    desc[4] = 0u; desc[5] = UINT8_C(0x61);
+    desc[6] = UINT8_C(0x57); desc[7] = UINT8_C(0x73);
+    desc[8] = 0u; desc[9] = UINT8_C(0x60);
+    desc[10] = UINT8_C(0x9c); desc[11] = UINT8_C(0x3e);
+    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 3u] =
+        UINT8_C(0xa7);
+    memcpy(cpu_ram, board.sound_ram, sizeof(cpu_ram));
+    memcpy(&cpu_scsp, &board.scsp, sizeof(cpu_scsp));
+    make_bus(&bus, &cpu_scsp, cpu_ram, rom, rom_size);
+    reset_regs(&regs);
+    regs.pc = UINT32_C(0x1f7c);
+    regs.a[2] = VF2_SOUND_DESCRIPTOR_BASE;
+    cpu_status = vf2_m68k_run(
+        &bus, &regs, UINT32_C(0x212e), 0, 2048u, &steps);
+    native_status = vf2_sound_board_probe_akira_l2_first_b(
+        &board, &report);
+    fprintf(stderr,
+            "AKIRA_L2_FIRST_B_ORIGINAL cpu=%d native=%d steps=%u "
+            "stop=%05x a3=%06x ram_parity=%u scsp_parity=%u\n",
+            (int)cpu_status, (int)native_status, (unsigned)steps,
+            (unsigned)regs.pc, (unsigned)regs.a[3],
+            (unsigned)(memcmp(cpu_ram, board.sound_ram,
+                              sizeof(cpu_ram)) == 0),
+            (unsigned)scsp_equal(&cpu_scsp, &board.scsp));
+    EXPECT_TRUE(cpu_status == VF2_OK && native_status == VF2_OK);
+    EXPECT_TRUE(regs.pc == UINT32_C(0x212e) &&
+                steps > 20u && steps < 2048u);
+    EXPECT_TRUE(regs.a[3] == report.a3_after &&
+                report.a3_after == UINT32_C(0x615776));
+    EXPECT_TRUE(bus.event_count == 0u);
+    EXPECT_TRUE(memcmp(cpu_ram, board.sound_ram,
+                       sizeof(cpu_ram)) == 0);
+    EXPECT_TRUE(scsp_equal(&cpu_scsp, &board.scsp));
+    for (i = 0u; i < VF2_SOUND_STREAM_DESCRIPTOR_BYTES; ++i) {
+        EXPECT_TRUE(cpu_ram[VF2_SOUND_DESCRIPTOR_BASE + i] ==
+                    board.sound_ram[VF2_SOUND_DESCRIPTOR_BASE + i]);
+    }
+}
+
 static void test_a0_music_low_header_original(
     const uint8_t *audio_rom, size_t audio_rom_size
 )
@@ -6527,6 +6592,7 @@ int main(int argc, char **argv)
     test_l2_stream_tick(audio_rom, audio_rom_size);
     test_b0_prescaler_setup_original(audio_rom, audio_rom_size);
     test_b0_181c_native_original(audio_rom, audio_rom_size);
+    test_akira_l2_first_b_original(audio_rom, audio_rom_size);
     test_a0_music_low_header_original(audio_rom, audio_rom_size);
     test_b0_50_7d_7f_original(audio_rom, audio_rom_size);
     test_b0_50_7e_original(audio_rom, audio_rom_size);
