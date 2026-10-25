@@ -5719,43 +5719,48 @@ static void test_l2_stream_tick(
     EXPECT_TRUE(step_ram[VF2_SOUND_STREAM_ALTERNATE_BASE + 2u] == 0u &&
                 step_ram[VF2_SOUND_STREAM_ALTERNATE_BASE + 3u] == 0u);
 
-    /* Fixture 5: prescaler beat emit -> C refuses; S files the beat. */
+    /* Fixture 5: the previously refused original prescaler pulse
+     * is now executed by bounded C, with full-RAM and SCSP parity. */
     memset(cram, 0, VF2_SOUND_RAM_BYTES);
     vf2_scsp_initialize(&board.scsp);
     record = cram + VF2_SOUND_DESCRIPTOR_BASE;
     record[0x0cu] = 8u;
     record[0x0du] = 1u;
     record[0x0eu] = 8u;
+    cram[VF2_SOUND_COMMAND_RING_BASE + 3u] = 0xa5u;
     memcpy(step_ram, cram, VF2_SOUND_RAM_BYTES);
     memcpy(&step_scsp, &board.scsp, sizeof(step_scsp));
     memset(&report, 0, sizeof(report));
     EXPECT_TRUE(vf2_sound_board_maintain_streams(&board, &report) ==
-                VF2_ERROR_UNSUPPORTED);
-    EXPECT_TRUE(report.refused_stage == 1u);
-    EXPECT_TRUE(report.refused_record == 0u);
+                VF2_OK);
+    EXPECT_TRUE(report.refused_stage == 0u);
+    EXPECT_TRUE(report.packets_emitted == 1u);
     EXPECT_TRUE(report.timers_expired == 1u);
-    EXPECT_TRUE(cram[VF2_SOUND_DESCRIPTOR_BASE + 0x0du] == 1u);
-    EXPECT_TRUE(cram[VF2_SOUND_DESCRIPTOR_BASE + 0x0eu] == 8u);
-    EXPECT_TRUE(cram[VF2_SOUND_COMMAND_RING_BASE] == 0u);
-    EXPECT_TRUE(cram[VF2_SOUND_COMMAND_COUNT] == 0u);
+    EXPECT_TRUE(cram[VF2_SOUND_DESCRIPTOR_BASE + 0x0du] == 8u);
+    EXPECT_TRUE(cram[VF2_SOUND_DESCRIPTOR_BASE + 0x0eu] == 4u);
+    EXPECT_TRUE(cram[VF2_SOUND_COMMAND_RING_BASE] == 0xbeu);
+    EXPECT_TRUE(cram[VF2_SOUND_COMMAND_RING_BASE + 1u] == 0x10u);
+    EXPECT_TRUE(cram[VF2_SOUND_COMMAND_RING_BASE + 2u] == 0x04u);
+    EXPECT_TRUE(cram[VF2_SOUND_COMMAND_RING_BASE + 3u] == 0xa5u);
+    EXPECT_TRUE(cram[VF2_SOUND_COMMAND_COUNT] == 1u);
     vf2_m68k_regs_reset(&regs);
     regs.a[5] = UINT32_C(0x100000);
     regs.a[6] = UINT32_C(0x1000);
     regs.a[7] = UINT32_C(0x7f00);
     regs.pc = UINT32_C(0x1f16);
     status = vf2_m68k_run(&bus, &regs, UINT32_C(0x1f7a), 0, 20000u, &done);
-    fprintf(stderr, "l2-tick emit-refuse: S status=%d steps=%u\n",
+    fprintf(stderr, "l2-tick original BE beat: S status=%d steps=%u\n",
             (int)status, (unsigned)done);
     EXPECT_TRUE(status == VF2_OK);
     EXPECT_TRUE(done == 67u);
-    EXPECT_TRUE(step_ram[VF2_SOUND_COMMAND_RING_BASE] == 0xbeu);
-    EXPECT_TRUE(step_ram[VF2_SOUND_COMMAND_RING_BASE + 1u] == 0x10u);
-    EXPECT_TRUE(step_ram[VF2_SOUND_COMMAND_RING_BASE + 2u] == 0x04u);
-    EXPECT_TRUE(step_ram[VF2_SOUND_COMMAND_WRITE_CURSOR] == 0u &&
-                step_ram[VF2_SOUND_COMMAND_WRITE_CURSOR + 1u] == 4u);
-    EXPECT_TRUE(step_ram[VF2_SOUND_COMMAND_COUNT] == 1u);
-    EXPECT_TRUE(step_ram[VF2_SOUND_DESCRIPTOR_BASE + 0x0du] == 8u);
-    EXPECT_TRUE(step_ram[VF2_SOUND_DESCRIPTOR_BASE + 0x0eu] == 4u);
+    EXPECT_TRUE(regs.a[7] == UINT32_C(0x7f00));
+    EXPECT_TRUE(bus.event_count == 0u);
+    EXPECT_TRUE(step_ram[VF2_SOUND_COMMAND_RING_BASE + 3u] == 0xa5u);
+    EXPECT_TRUE(memcmp(cram, step_ram, 0x7ec8u) == 0);
+    EXPECT_TRUE(memcmp(cram + 0x7f00u, step_ram + 0x7f00u,
+                       VF2_SOUND_RAM_BYTES - 0x7f00u) == 0);
+    EXPECT_TRUE(scsp_equal(&board.scsp, &step_scsp));
+
 }
 
 int main(int argc, char **argv)

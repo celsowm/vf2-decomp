@@ -1443,6 +1443,9 @@ vf2_status vf2_sound_board_maintain_streams(
     uint8_t ad_packets[6] = {0u};
     uint8_t ad21_packets[36] = {0u};
     int ad21_mode = 0;
+    int prescaler_beat = 0;
+    uint8_t next_beat_value = 0u;
+    uint16_t beat_cursor = 0u;
     uint16_t ad_cursor = 0u;
 
     if (board == NULL || report == NULL) {
@@ -1459,10 +1462,24 @@ vf2_status vf2_sound_board_maintain_streams(
     if (board->sound_ram[VF2_SOUND_COMMAND_COUNT] != 0xffu) {
         /* Preflight both live-body handoffs before any mutation. */
         if (records[0x0cu] != 0u && records[0x0du] == 1u) {
-            report->timers_expired = 1u;
-            report->refused_stage = 1u;
-            report->refused_record = 0u;
-            return VF2_ERROR_UNSUPPORTED;
+            /* Original 0x21CA subtracts four from the byte at
+             * record 0 +0E, then BMI selects an unported
+             * stream-end path. Admit only the nonnegative BE 10
+             * beat branch already executed by the original-68000
+             * owner-ROM fixture. Keep the end branch fail-closed.
+             * Ring slots are four bytes; the fourth is untouched. */
+            next_beat_value = (uint8_t)(records[0x0eu] - 4u);
+            beat_cursor = (uint16_t)(read_be16(
+                board->sound_ram + VF2_SOUND_COMMAND_WRITE_CURSOR
+            ) & 0x0fffu);
+            if (next_beat_value >= UINT8_C(0x80) ||
+                (beat_cursor & UINT16_C(3)) != 0u) {
+                report->timers_expired = 1u;
+                report->refused_stage = 1u;
+                report->refused_record = 0u;
+                return VF2_ERROR_UNSUPPORTED;
+            }
+            prescaler_beat = 1;
         }
         for (index = 0u; index < 8u; ++index) {
             uint8_t *record = records + index * 0x20u;
@@ -1501,9 +1518,36 @@ vf2_status vf2_sound_board_maintain_streams(
                 }
             }
         }
-        /* Measured body: ordinary countdowns, plus the bounded
-         * 68000 B/90 two-packet AD stream expansion when admitted. */
-        if (records[0x0cu] != 0u) {
+        /* Simultaneously expiring prescaler and stream-worker
+         * packet writers have not been differentially measured.
+         * Refuse the entire tick before either ring mutation. */
+        if (prescaler_beat && ad_index != SIZE_MAX) {
+            report->timers_expired = 1u;
+            report->refused_stage = 1u;
+            report->refused_record = 0u;
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        /* The original prescaler emits BE 10 <beat> and reloads
+         * +0D from +0C; it owns one four-byte ring slot. Do not
+         * replace this with the unmeasured stream-end packet. */
+        if (prescaler_beat) {
+            uint8_t *ring = board->sound_ram +
+                            VF2_SOUND_COMMAND_RING_BASE;
+            const uint16_t next_cursor =
+                (uint16_t)((beat_cursor + 4u) & 0x0fffu);
+            ring[beat_cursor] = UINT8_C(0xbe);
+            ring[beat_cursor + 1u] = UINT8_C(0x10);
+            ring[beat_cursor + 2u] = next_beat_value;
+            records[0x0du] = records[0x0cu];
+            records[0x0eu] = next_beat_value;
+            write_be16(board->sound_ram +
+                       VF2_SOUND_COMMAND_WRITE_CURSOR, next_cursor);
+            board->sound_ram[VF2_SOUND_COMMAND_COUNT] =
+                (uint8_t)(board->sound_ram[VF2_SOUND_COMMAND_COUNT] + 1u);
+            report->timers_expired = 1u;
+            report->packets_emitted = 1u;
+            report->write_cursor_after = next_cursor;
+        } else if (records[0x0cu] != 0u) {
             records[0x0du] = (uint8_t)(records[0x0du] - 1u);
         }
         for (index = 0u; index < 8u; ++index) {

@@ -1731,9 +1731,9 @@ int main(void)
         EXPECT_TRUE(stream_maintenance.write_cursor_before ==
                     stream_maintenance.write_cursor_after);
 
-        /* The prescaler's beat emit is the other unmeasured body:
-           record 0 [0xc] != 0 with [0xd] == 1 refuses at the prescaler
-           stage, and nothing is half-applied. */
+        /* Verified 68000 prescaler pulse: 0x21D2..0x2206
+         * emits BE 10 <beat>, advances one 4-byte ring slot,
+         * reloads +0D from +0C and leaves slot byte 3 alone. */
         EXPECT_TRUE(vf2_sound_board_initialize(&board, audio_rom, sizeof(audio_rom),
                                    sample_rom, sizeof(sample_rom)) == VF2_OK);
         memset(audio_rom, 0, sizeof(audio_rom));
@@ -1742,15 +1742,68 @@ int main(void)
         descriptor[0x0cu] = 8u;
         descriptor[0x0du] = 1u;
         descriptor[0x0eu] = 8u;
+        board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 3u] = 0xa5u;
         EXPECT_TRUE(vf2_sound_board_maintain_streams(
-            &board, &stream_maintenance
-        ) == VF2_ERROR_UNSUPPORTED);
-        EXPECT_TRUE(stream_maintenance.refused_stage == 1u);
-        EXPECT_TRUE(stream_maintenance.refused_record == 0u);
+            &board, &stream_maintenance) == VF2_OK);
         EXPECT_TRUE(stream_maintenance.timers_expired == 1u);
-        EXPECT_TRUE(descriptor[0x0du] == 1u && descriptor[0x0eu] == 8u);
-        EXPECT_TRUE(board.sound_ram[VF2_SOUND_COMMAND_RING_BASE] == 0u);
-        EXPECT_TRUE(board.sound_ram[VF2_SOUND_COMMAND_COUNT] == 0u);
+        EXPECT_TRUE(stream_maintenance.packets_emitted == 1u);
+        EXPECT_TRUE(stream_maintenance.descriptors_scanned == 8u);
+        EXPECT_TRUE(stream_maintenance.refused_stage == 0u);
+        EXPECT_TRUE(stream_maintenance.refused_record == 0xffu);
+        EXPECT_TRUE(descriptor[0x0cu] == 8u &&
+                    descriptor[0x0du] == 8u &&
+                    descriptor[0x0eu] == 4u);
+        EXPECT_TRUE(board.sound_ram[VF2_SOUND_COMMAND_RING_BASE] == 0xbeu &&
+                    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 1u] == 0x10u &&
+                    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 2u] == 4u &&
+                    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 3u] == 0xa5u);
+        EXPECT_TRUE(stream_maintenance.write_cursor_before == 0u &&
+                    stream_maintenance.write_cursor_after == 4u &&
+                    board.sound_ram[VF2_SOUND_COMMAND_COUNT] == 1u);
+
+        /* The next beat (4 -> 0) is still nonnegative and files
+         * BE 10 00; the following beat (0 -> FC) takes the unknown
+         * terminal branch and must refuse without a partial write. */
+        descriptor[0x0du] = 1u;
+        EXPECT_TRUE(vf2_sound_board_maintain_streams(
+            &board, &stream_maintenance) == VF2_OK);
+        EXPECT_TRUE(descriptor[0x0eu] == 0u &&
+                    descriptor[0x0du] == 8u &&
+                    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 4u] == 0xbeu &&
+                    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 5u] == 0x10u &&
+                    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 6u] == 0u &&
+                    board.sound_ram[VF2_SOUND_COMMAND_COUNT] == 2u);
+        descriptor[0x0du] = 1u;
+        EXPECT_TRUE(vf2_sound_board_maintain_streams(
+            &board, &stream_maintenance) == VF2_ERROR_UNSUPPORTED);
+        EXPECT_TRUE(stream_maintenance.refused_stage == 1u &&
+                    stream_maintenance.refused_record == 0u &&
+                    stream_maintenance.timers_expired == 1u);
+        EXPECT_TRUE(descriptor[0x0du] == 1u &&
+                    descriptor[0x0eu] == 0u &&
+                    board.sound_ram[VF2_SOUND_COMMAND_COUNT] == 2u &&
+                    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 8u] == 0u);
+
+        /* A malformed ring cursor refuses atomically, even for a
+         * nonnegative beat. The nominal 0xFFC slot wraps at 0x000. */
+        descriptor[0x0eu] = 8u;
+        board.sound_ram[VF2_SOUND_COMMAND_WRITE_CURSOR] = 0x00u;
+        board.sound_ram[VF2_SOUND_COMMAND_WRITE_CURSOR + 1u] = 0x03u;
+        EXPECT_TRUE(vf2_sound_board_maintain_streams(
+            &board, &stream_maintenance) == VF2_ERROR_UNSUPPORTED);
+        EXPECT_TRUE(descriptor[0x0eu] == 8u &&
+                    descriptor[0x0du] == 1u &&
+                    board.sound_ram[VF2_SOUND_COMMAND_COUNT] == 2u);
+        board.sound_ram[VF2_SOUND_COMMAND_WRITE_CURSOR] = 0x0fu;
+        board.sound_ram[VF2_SOUND_COMMAND_WRITE_CURSOR + 1u] = 0xfcu;
+        EXPECT_TRUE(vf2_sound_board_maintain_streams(
+            &board, &stream_maintenance) == VF2_OK);
+        EXPECT_TRUE(descriptor[0x0du] == 8u &&
+                    descriptor[0x0eu] == 4u &&
+                    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 0xffcu] == 0xbeu &&
+                    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 0xffdu] == 0x10u &&
+                    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 0xffeu] == 4u &&
+                    stream_maintenance.write_cursor_after == 0u);
 
         /* The ring-count gate: 0xff skips the body (0x1f2e bcc) even
            for an armed record; the head pokes still apply. */
