@@ -3821,6 +3821,33 @@ static vf2_status sound_board_dispatch_b0(
     report->handler_address = UINT32_C(0x000013cc);
     report->channel = channel;
     report->selected_value = entry;
+    if (entry == UINT8_C(0x12)) {
+        /* Original B0 table entry 0x12 -> PC 0x18A8:
+         *   LEA 0x2000(A6),A0
+         *   MOVE.B D0,12(A0)
+         *   MOVE.B D0,13(A0)
+         *   RTS
+         * The B0 primer's D0 is ring byte 2, not the
+         * selector. Both stores configure the 0x21BA prescaler
+         * recovered by maintain_streams. */
+        uint8_t *prescaler = board->sound_ram +
+                             VF2_SOUND_DESCRIPTOR_BASE;
+        prescaler[0x0cu] = argument;
+        prescaler[0x0du] = argument;
+        report->handler_address = UINT32_C(0x000018a8);
+        return VF2_OK;
+    }
+    if (entry == UINT8_C(0x10) || entry == UINT8_C(0x50)) {
+        /* These two selectors are live B0 table dispatches:
+         * 0x10 -> 0x181C (volume/descriptor rescale)
+         * 0x50 -> 0x1C0A (D0 sub-dispatch).
+         * In particular, the prescaler's BE 10 <beat> must NOT
+         * be silently consumed as if these were default RTS.
+         * No partial native translation has been established. */
+        report->handler_address = entry == UINT8_C(0x10) ?
+            UINT32_C(0x0000181c) : UINT32_C(0x00001c0a);
+        return VF2_ERROR_UNSUPPORTED;
+    }
     if (entry != 0x3au) {
         /* Owner-ROM AD21 0x2a/0x07 arms were measured to leave
          * RAM unchanged except the common drain head/retirement.

@@ -180,6 +180,95 @@ static void test_render_first_tone(void)
     }
 }
 
+/* B0 0x12 arms the prescaler through the original ROM's two
+ * byte stores at 0x18A8. Native L2 must then file BE 10 04.
+ * The different 0x10 B0 entry is a *real* volume/descriptor
+ * routine (0x181C), NOT a default RTS. Holding that packet
+ * instead of silently consuming it prevents false audio parity.
+ * 0x50 similarly enters a real secondary dispatcher at 0x1C0A. */
+static void test_b0_prescaler_command_chain(void)
+{
+    static vf2_sound_board board;
+    static uint8_t rom[0x10010u];
+    static const uint8_t sample[2] = {0u, 0u};
+    const uint8_t packet[4] = {
+        UINT8_C(0xbe), UINT8_C(0x12), UINT8_C(0x08), UINT8_C(0xa5)
+    };
+    vf2_sound_dispatch_report dispatch;
+    vf2_sound_stream_maintenance_report maintain;
+    uint8_t *desc;
+    uint8_t *rate;
+    test_boot_rom(rom);
+    EXPECT_TRUE(vf2_sound_board_initialize(&board, rom, sizeof(rom),
+                                            sample, sizeof(sample)) == VF2_OK);
+    desc = board.sound_ram + VF2_SOUND_COMMAND_DESCRIPTOR_BASE;
+    rate = board.sound_ram + VF2_SOUND_DESCRIPTOR_BASE;
+    memset(desc, 0, VF2_SOUND_COMMAND_DESCRIPTOR_COUNT *
+                    VF2_SOUND_COMMAND_DESCRIPTOR_BYTES);
+    desc[0] = UINT8_C(0x80);
+    desc[1] = UINT8_C(0x0e);
+    rate[0x0cu] = 0u;
+    rate[0x0du] = UINT8_C(0x55);
+    rate[0x0eu] = 8u;
+    EXPECT_TRUE(vf2_sound_board_emit_command(&board, packet) == VF2_OK);
+    EXPECT_TRUE(vf2_sound_board_dispatch_next(&board, &dispatch) == VF2_OK);
+    EXPECT_TRUE(dispatch.command == UINT8_C(0xbe) &&
+                dispatch.payload == UINT8_C(0x12) &&
+                dispatch.selected_value == UINT8_C(0x12) &&
+                dispatch.descriptors_matched == 1u &&
+                dispatch.handler_address == UINT32_C(0x18a8) &&
+                dispatch.handled == 1);
+    EXPECT_TRUE(rate[0x0cu] == 8u && rate[0x0du] == 8u &&
+                rate[0x0eu] == 8u);
+    EXPECT_TRUE(board.sound_ram[VF2_SOUND_COMMAND_COUNT] == 0u &&
+                board.sound_ram[VF2_SOUND_COMMAND_CURSOR] == 0u &&
+                board.sound_ram[VF2_SOUND_COMMAND_CURSOR + 1u] == 4u);
+    /* A first real timer expiry: the 0x12 command configured
+     * exactly the countdown that causes the already recovered
+     * 0x21CA..0x2206 BE 10 <beat> path. */
+    rate[0x0du] = 1u;
+    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 7u] =
+        UINT8_C(0xa5);
+    EXPECT_TRUE(vf2_sound_board_maintain_streams(
+        &board, &maintain) == VF2_OK);
+    EXPECT_TRUE(maintain.timers_expired == 1u &&
+                maintain.packets_emitted == 1u &&
+                maintain.refused_stage == 0u);
+    EXPECT_TRUE(rate[0x0cu] == 8u && rate[0x0du] == 8u &&
+                rate[0x0eu] == 4u);
+    EXPECT_TRUE(board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 4u] ==
+                    UINT8_C(0xbe) &&
+                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 5u] ==
+                    UINT8_C(0x10) &&
+                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 6u] ==
+                    UINT8_C(0x04) &&
+                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 7u] ==
+                    UINT8_C(0xa5) &&
+                board.sound_ram[VF2_SOUND_COMMAND_COUNT] == 1u);
+    /* Sound command BE 10 04 is NOT an unrecognized table
+     * selector: it lands in original ROM handler 0x181C.
+     * Refuse before retiring the command while the native
+     * translation of that handler remains incomplete. */
+    EXPECT_TRUE(vf2_sound_board_dispatch_next(&board, &dispatch) ==
+                VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(dispatch.command == UINT8_C(0xbe) &&
+                dispatch.selected_value == UINT8_C(0x10) &&
+                dispatch.handler_address == UINT32_C(0x181c) &&
+                dispatch.handled == 0);
+    EXPECT_TRUE(board.sound_ram[VF2_SOUND_COMMAND_COUNT] == 1u &&
+                board.sound_ram[VF2_SOUND_COMMAND_CURSOR] == 0u &&
+                board.sound_ram[VF2_SOUND_COMMAND_CURSOR + 1u] == 4u);
+    /* 0x50 has a different nontrivial branch at 0x1C0A. */
+    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 5u] = UINT8_C(0x50);
+    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 6u] = UINT8_C(0x7e);
+    EXPECT_TRUE(vf2_sound_board_dispatch_next(&board, &dispatch) ==
+                VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(dispatch.handler_address == UINT32_C(0x1c0a) &&
+                dispatch.selected_value == UINT8_C(0x50) &&
+                dispatch.handled == 0 &&
+                board.sound_ram[VF2_SOUND_COMMAND_COUNT] == 1u);
+}
+
 /* Frame-342 AD21 L2's B9/BB..BE packets take the B0-class
  * default table door. BA instead selects the sample uploader, which
  * needs an independent original 68000 differential before asserting
@@ -2571,6 +2660,7 @@ int main(void)
     test_pcm_walker_one_descriptor();
     test_pcm_stream_page_native();
     test_render_first_tone();
+    test_b0_prescaler_command_chain();
     test_ad21_b_class_drain();
     test_ad21_ba_does_not_stage();
     test_ad21_ba07_sample_copy();

@@ -22,6 +22,78 @@ static int failures;
         } \
     } while (0)
 
+/* Owner-ROM differential for B0 selector 0x12 (0x18A8).
+ * Compare the 68000 program's register-independent destination
+ * stores against bounded native C dispatch. This is opt-in only
+ * and does not run in public CI without the original sound ROM.
+ * No ROM bytes or derived proprietary artifacts are committed. */
+static void test_b0_prescaler_setup_original(
+    const uint8_t *audio_rom, size_t audio_rom_size
+)
+{
+    static const uint8_t arguments[] = {0u, 8u, UINT8_C(0xff)};
+    static uint8_t step_ram[VF2_SOUND_RAM_BYTES];
+    static vf2_scsp step_scsp;
+    static vf2_sound_board board;
+    vf2_m68k_bus bus;
+    vf2_m68k_regs regs;
+    vf2_sound_dispatch_report report;
+    size_t i;
+    for (i = 0u; i < sizeof(arguments); ++i) {
+        const uint8_t value = arguments[i];
+        const uint8_t packet[4] = {
+            UINT8_C(0xbe), UINT8_C(0x12), value, UINT8_C(0xa5)
+        };
+        uint32_t steps = 0u;
+        vf2_status status;
+        memset(&board, 0, sizeof(board));
+        board.audio_rom = audio_rom;
+        board.audio_rom_size = audio_rom_size;
+        vf2_scsp_initialize(&board.scsp);
+        board.sound_ram[VF2_SOUND_COMMAND_DESCRIPTOR_BASE] =
+            UINT8_C(0x80);
+        board.sound_ram[VF2_SOUND_COMMAND_DESCRIPTOR_BASE + 1u] =
+            UINT8_C(0x0e);
+        board.sound_ram[VF2_SOUND_DESCRIPTOR_BASE + 0x0cu] =
+            UINT8_C(0x55);
+        board.sound_ram[VF2_SOUND_DESCRIPTOR_BASE + 0x0du] =
+            UINT8_C(0x33);
+        EXPECT_TRUE(vf2_sound_board_emit_command(
+            &board, packet) == VF2_OK);
+        memcpy(step_ram, board.sound_ram, sizeof(step_ram));
+        memcpy(&step_scsp, &board.scsp, sizeof(step_scsp));
+        make_bus(&bus, &step_scsp, step_ram,
+                 audio_rom, audio_rom_size);
+        reset_regs(&regs);
+        regs.pc = UINT32_C(0x18a8);
+        regs.d[0] = value;
+        status = vf2_m68k_run(&bus, &regs, 0u, 1, 32u, &steps);
+        EXPECT_TRUE(status == VF2_OK);
+        EXPECT_TRUE(steps == 4u);
+        EXPECT_TRUE(bus.event_count == 0u);
+        EXPECT_TRUE(vf2_sound_board_dispatch_next(
+            &board, &report) == VF2_OK);
+        EXPECT_TRUE(report.handler_address == UINT32_C(0x18a8) &&
+                    report.selected_value == UINT8_C(0x12) &&
+                    report.descriptors_matched == 1u &&
+                    report.handled == 1);
+        EXPECT_TRUE(board.sound_ram[VF2_SOUND_DESCRIPTOR_BASE + 0x0cu] ==
+                    value &&
+                    board.sound_ram[VF2_SOUND_DESCRIPTOR_BASE + 0x0du] ==
+                    value);
+        EXPECT_TRUE(memcmp(step_ram + VF2_SOUND_DESCRIPTOR_BASE,
+                           board.sound_ram + VF2_SOUND_DESCRIPTOR_BASE,
+                           VF2_SOUND_STREAM_DESCRIPTOR_BYTES) == 0);
+        EXPECT_TRUE(scsp_equal(&board.scsp, &step_scsp));
+        fprintf(stderr, "B0_12_PRESCALER_ORIGINAL_DIFF argument=%02x "
+                        "stepper_steps=%u setup_parity=%u\n",
+                (unsigned)value, (unsigned)steps,
+                (unsigned)(memcmp(step_ram + VF2_SOUND_DESCRIPTOR_BASE,
+                     board.sound_ram + VF2_SOUND_DESCRIPTOR_BASE,
+                     VF2_SOUND_STREAM_DESCRIPTOR_BYTES) == 0));
+    }
+}
+
 /* S7a: drain class-switch routing + e0-head path (see
  * audio_switch_audit_v0819.md). The ROM switch reads the filed
  * $150e byte and jumps: $90->$858, $80->$10d0, $e0->$12b4,
@@ -5871,6 +5943,7 @@ int main(int argc, char **argv)
     test_note_on_off(argv[1], audio_rom, audio_rom_size);
     test_voice_lifecycle_l1(argv[1], audio_rom, audio_rom_size);
     test_l2_stream_tick(audio_rom, audio_rom_size);
+    test_b0_prescaler_setup_original(audio_rom, audio_rom_size);
     test_session_attach(argv[1]);
     test_scsp_dsp_program(audio_rom, audio_rom_size);
     test_vectors(audio_rom, audio_rom_size);
