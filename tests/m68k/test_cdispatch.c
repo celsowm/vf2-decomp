@@ -249,6 +249,64 @@ static void test_a0_music_low_header_original(
     vf2_m68k_bus bus;
     vf2_m68k_regs regs;
     size_t k;
+    /* Original sound-ROM AD10 row has 32 selectors, but
+     * selectors 0x19..0x1E are all-FF sentinel records.
+     * Selector 0x1F aliases the first valid music record.
+     * A0 low-body executable C must refuse sentinels.
+     * This census requires the PRIVATE original ROM. */
+    {
+        size_t idx, valid = 0u, sentinels = 0u;
+        const uint32_t row = UINT32_C(0x8f24);
+        EXPECT_TRUE(audio_rom_size > row + 2u + 32u*4u);
+        for (idx = 0u; idx < 32u; ++idx) {
+            const size_t at = (size_t)row + 2u + 4u*idx;
+            uint32_t record =
+                ((uint32_t)audio_rom[at] << 24u) |
+                ((uint32_t)audio_rom[at+1u] << 16u) |
+                ((uint32_t)audio_rom[at+2u] << 8u) |
+                 (uint32_t)audio_rom[at+3u];
+            const size_t roff =
+                (size_t)(record - VF2_SOUND_AUDIO_ROM_BASE);
+            uint32_t root = 0u;
+            EXPECT_TRUE(record >= VF2_SOUND_AUDIO_ROM_BASE &&
+                        roff + 8u < audio_rom_size);
+            if (record < VF2_SOUND_AUDIO_ROM_BASE ||
+                roff + 8u >= audio_rom_size) continue;
+            root = ((uint32_t)audio_rom[roff+4u] << 24u) |
+                   ((uint32_t)audio_rom[roff+5u] << 16u) |
+                   ((uint32_t)audio_rom[roff+6u] << 8u) |
+                    (uint32_t)audio_rom[roff+7u];
+            if (root == UINT32_MAX) {
+                vf2_status result;
+                size_t j;
+                uint8_t *desc;
+                memset(&board, 0, sizeof(board));
+                board.audio_rom = audio_rom;
+                board.audio_rom_size = audio_rom_size;
+                desc = board.sound_ram + VF2_SOUND_DESCRIPTOR_BASE;
+                memset(desc, UINT8_C(0x73),
+                       VF2_SOUND_STREAM_DESCRIPTOR_BYTES);
+                result = vf2_sound_board_apply_a0_low_music_record(
+                    &board, record);
+                EXPECT_TRUE(result == VF2_ERROR_UNSUPPORTED);
+                for (j = 0u;
+                     j < VF2_SOUND_STREAM_DESCRIPTOR_BYTES; ++j) {
+                    EXPECT_TRUE(desc[j] == UINT8_C(0x73));
+                }
+                ++sentinels;
+            } else if (root >= VF2_SOUND_AUDIO_ROM_BASE &&
+                       (uint64_t)root <
+                       (uint64_t)VF2_SOUND_AUDIO_ROM_BASE +
+                       audio_rom_size) {
+                ++valid;
+            }
+        }
+        EXPECT_TRUE(valid == 26u && sentinels == 6u);
+        fprintf(stderr,
+                "A0_MUSIC_ROW_ORIGINAL_CENSUS selectors=32 "
+                "valid=%u sentinel=%u\n",
+                (unsigned)valid, (unsigned)sentinels);
+    }
     for (k = 0u; k < sizeof(songs); ++k) {
         const uint8_t song = songs[k];
         uint32_t record;

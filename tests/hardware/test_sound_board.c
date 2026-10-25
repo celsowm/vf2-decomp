@@ -441,6 +441,19 @@ static void test_a0_music_low_header_native(void)
     EXPECT_TRUE(vf2_sound_board_apply_a0_low_music_record(
         &board, UINT32_C(0x61000a)) == VF2_ERROR_UNSUPPORTED);
     EXPECT_TRUE(desc[0u] == UINT8_C(0x69));
+    /* Six real AD 10 row selectors 0x19..0x1E point to
+     * all-FF sentinel values instead of a stream root.
+     * Neither the helper nor live dispatch may mistake
+     * the sentinel for a mapped sample or valid track. */
+    rom[0x7504u] = UINT8_C(0xff);
+    rom[0x7505u] = UINT8_C(0xff);
+    rom[0x7506u] = UINT8_C(0xff);
+    rom[0x7507u] = UINT8_C(0xff);
+    EXPECT_TRUE(vf2_sound_board_apply_a0_low_music_record(
+        &board, UINT32_C(0x607500)) == VF2_ERROR_UNSUPPORTED);
+    for (i = 0u; i < VF2_SOUND_STREAM_DESCRIPTOR_BYTES; ++i) {
+        EXPECT_TRUE(desc[i] == UINT8_C(0x69));
+    }
 }
 
 static void test_b0_50_7d_7f_native(void)
