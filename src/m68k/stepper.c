@@ -2303,6 +2303,25 @@ static vf2_status vf2_m68k_cycle_cost(
         *cost = 16u;
         return VF2_OK;
     }
+    /* VF2 L2 Timer-A prologue, observed at 0x1F1A/20/26/2A:
+     *   MOVE.W #imm,(d16,An) = 16 cycles (two SCSP pokes)
+     *   MOVE.B (d16,An),Dn = 12 cycles (FIFO count load)
+     *   CMPI.B #imm,Dn = 8 cycles (count gate)
+     * Motorola MC68000UM MOVE B/W matrix and immediate/compare table.
+     * Restrict to these decoded EA shapes; no generic MOVE timing.
+     * X remains unchanged for the three instructions. */
+    if ((op & UINT16_C(0xf1ff)) == UINT16_C(0x317c)) {
+        *cost = 16u;
+        return VF2_OK;
+    }
+    if ((op & UINT16_C(0xf1f8)) == UINT16_C(0x1028)) {
+        *cost = 12u;
+        return VF2_OK;
+    }
+    if ((op & UINT16_C(0xfff8)) == UINT16_C(0x0c00)) {
+        *cost = 8u;
+        return VF2_OK;
+    }
     if ((op & UINT16_C(0xff00)) == UINT16_C(0x4a00) &&
         ((op >> 6u) & UINT16_C(3)) < UINT16_C(3) &&
         ((op >> 3u) & UINT16_C(7)) == 0u) {

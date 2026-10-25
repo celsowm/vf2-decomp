@@ -1651,11 +1651,11 @@ static int akira_verify_l2_autovector_frame(
     return match;
 }
 
-/* Genuine ROM 0x1F32 LEA 0x2000(A6),A2 followed by
- * 0x1F36 JSR (d16,PC) to the note service. Check exact
- * MOTOROLA cycles 8+18, stack PC and full semantic equivalence
- * against an uninterrupted original-ROM execution through RTS.
- * This is only two timed opcodes, NOT total ISR timing. */
+/* Genuine ROM 0x1F1A..0x1F2E L2 SCSP reload and FIFO gate,
+ * followed by 0x1F32 LEA and 0x1F36 JSR to note service.
+ * Verify 64+64 clocks, stack PC and full semantic equivalence
+ * against original-ROM execution through RTS.
+ * Does NOT time MOVEM/remaining ISR as a contiguous whole. */
 static int akira_verify_l2_jsr_cycle_prefix(
     const uint8_t *rom, size_t rom_size
 )
@@ -1697,15 +1697,42 @@ static int akira_verify_l2_jsr_cycle_prefix(
     timed_bus.sample_rom_size = sample_bank_size;
     timed_bus.scsp = &timed_scsp;
     vf2_m68k_regs_reset(&full_regs);
-    full_regs.pc = UINT32_C(0x1f32);
+    full_regs.pc = UINT32_C(0x1f1a);
     full_regs.a[4] = UINT32_C(0x2506);
     full_regs.a[5] = VF2_SCSP_CPU_BASE;
     full_regs.a[6] = UINT32_C(0x1000);
     full_regs.a[7] = UINT32_C(0x5000);
+    /* The original 0x1F2E BCC.W must miss on count < 0xFF.
+     * Pin the same seed on both independent memory copies. */
+    full_ram[0x2506u] = 0u;
+    timed_ram[0x2506u] = 0u;
     timed_regs = full_regs;
     full_status = vf2_m68k_run(
         &full_bus, &full_regs, UINT32_C(0x1f3a),
         0, 100000u, &full_steps);
+    /* Original pre-JSR L2 path: 16+16+12+8+12 = 64 clocks.
+     * A 63-clock window stops at the BCC instruction boundary,
+     * then 12 additional clocks advance to 0x1F32. */
+    status = vf2_m68k_run_cycle_slice(
+        &timed_bus, &timed_regs, UINT32_C(0x1f32),
+        15u, &cycles, &steps, &suspended);
+    if (status != VF2_OK || !suspended ||
+        cycles != 0u || steps != 0u ||
+        timed_regs.pc != UINT32_C(0x1f1a)) return 0;
+    status = vf2_m68k_run_cycle_slice(
+        &timed_bus, &timed_regs, UINT32_C(0x1f32),
+        63u, &cycles, &steps, &suspended);
+    if (status != VF2_OK || !suspended ||
+        cycles != 52u || steps != 4u ||
+        timed_regs.pc != UINT32_C(0x1f2e)) return 0;
+    timed_body += steps;
+    status = vf2_m68k_run_cycle_slice(
+        &timed_bus, &timed_regs, UINT32_C(0x1f32),
+        12u, &cycles, &steps, &suspended);
+    if (status != VF2_OK || suspended ||
+        cycles != 12u || steps != 1u ||
+        timed_regs.pc != UINT32_C(0x1f32)) return 0;
+    timed_body += steps;
     status = vf2_m68k_run_cycle_slice(
         &timed_bus, &timed_regs, UINT32_C(0x1f36),
         7u, &cycles, &steps, &suspended);
@@ -1770,10 +1797,12 @@ static int akira_verify_l2_jsr_cycle_prefix(
         timed_regs.v != full_regs.v ||
         timed_regs.c != full_regs.c) parity = 0;
     printf("AKIRA_L2_JSR_CYCLES matched=%u "
+           "header_pc=01f1a header_cycles=64 " 
            "lea_pc=01f32 lea_cycles=8 "
            "jsr_pc=01f36 jsr_cycles=18 "
            "callee_pc=021ba callee_cycles=38 "
-           "full_five_opcode_cycles=64 return_pc=01f3a "
+           "five_opcode_cycles=64 eleven_opcode_cycles=128 "
+           "return_pc=01f3a "
            "full_steps=%u split_steps=%u "
            "full_isr_timing_not_covered=1\n",
            (unsigned)parity,

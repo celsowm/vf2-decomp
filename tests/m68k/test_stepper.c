@@ -769,5 +769,69 @@ int main(void)
                     regs.z == 0u && regs.n == 0u);
     }
 
+    /* Original L2 ISR head after MOVEM:
+     * 0x1F1A/20 MOVE.W #imm,d16(A5) = 16 + 16
+     * 0x1F26 MOVE.B d16(A6),D0 = 12
+     * 0x1F2A CMPI.B #$FF,D0 = 8
+     * 0x1F2E BCC.W not taken = 12
+     * Five opcodes cost 64 clocks; no partial SCSP/RAM writes. */
+    {
+        static const uint8_t isr_header[] = {
+            0x3bu, 0x7cu, 0x00u, 0xceu, 0x04u, 0x18u,
+            0x3bu, 0x7cu, 0x00u, 0x40u, 0x04u, 0x22u,
+            0x10u, 0x2eu, 0x15u, 0x06u,
+            0x0cu, 0x00u, 0x00u, 0xffu,
+            0x64u, 0x00u, 0x00u, 0x46u
+        };
+        uint32_t cycles = 0u, steps = 0u;
+        int paused = 0;
+        make_bus(&bus, &scsp, ram, isr_header, sizeof(isr_header));
+        vf2_m68k_regs_reset(&regs);
+        regs.a[5] = UINT32_C(0x1000);
+        regs.a[6] = UINT32_C(0x1000);
+        regs.d[0] = UINT32_C(0xdead0000);
+        ram[0x2506u] = 0u; /* count < 0xFF: BCC.W not taken */
+        regs.x = 1u;
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 24u, 15u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && paused && cycles == 0u &&
+                    steps == 0u && regs.pc == 0u &&
+                    ram[0x1418u] == 0u && ram[0x1422u] == 0u);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 24u, 63u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && paused &&
+                    cycles == 52u && steps == 4u &&
+                    regs.pc == 20u && regs.x == 1u &&
+                    regs.c == 1u && regs.z == 0u &&
+                    regs.d[0] == UINT32_C(0xdead0000));
+        EXPECT_TRUE(ram[0x1418u] == 0u && ram[0x1419u] == 0xceu &&
+                    ram[0x1422u] == 0u && ram[0x1423u] == 0x40u);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 24u, 11u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && paused &&
+                    cycles == 0u && steps == 0u && regs.pc == 20u);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 24u, 12u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && !paused &&
+                    cycles == 12u && steps == 1u && regs.pc == 24u);
+    }
+    /* Admitting a measured MOVE shape must not admit every MOVE:
+     * unsupported addressing remains fail-closed before execution. */
+    {
+        static const uint8_t unknown_move[] = {
+            0x3au, 0xbcu, 0x12u, 0x34u /* MOVE.W #$1234,(A5) */
+        };
+        uint32_t cycles = 0u, steps = 0u;
+        int paused = 0;
+        make_bus(&bus, &scsp, ram, unknown_move, sizeof(unknown_move));
+        vf2_m68k_regs_reset(&regs);
+        regs.a[5] = UINT32_C(0x1000);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 4u, 100u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_ERROR_UNSUPPORTED && !paused &&
+                    cycles == 0u && steps == 0u && regs.pc == 0u &&
+                    ram[0x1000u] == 0u);
+    }
+
     return failures == 0 ? 0 : 1;
 }

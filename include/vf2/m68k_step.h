@@ -138,7 +138,8 @@ vf2_status vf2_m68k_irq_autovector_enter_timed(
  * VF2_ERROR_UNSUPPORTED and all completed prior work preserved.
  * Only the explicitly verified timing subset is admitted: MOVEQ,
  * NOP, BRA/BSR/Bcc/DBcc, selected JSR/JMP/LEA addressing,
- * MOVEM.L -(An)/(An)+, RTS and RTE.
+ * the measured L2 ISR MOVE.W #imm,d16(An), MOVE.B d16(An),Dn,
+ * CMPI.B #imm,Dn and TST forms, MOVEM.L -(An)/(An)+, RTS and RTE.
  * All values are baseline Motorola 68000 clock cycles, excluding
  * optional external wait states and interrupt-entry overhead.
  *
