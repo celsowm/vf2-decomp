@@ -211,6 +211,89 @@ static void test_b0_prescaler_setup_original(
  * 68000 opcodes; report only derived delta counts, not ROM bytes
  * or private music data. The test probes branch structure, it
  * is not a natural Akira scheduler/SCSP audio experiment. */
+
+/* Full original 68000 vs native C differential of the real B0/10
+ * volume handler, using the privately supplied original ROM and
+ * synthetic descriptor/voice records. This gates the exact
+ * 0x181C arithmetic, bit6 voice admission, SCSP slot+0D writes,
+ * ten outer iterations, 32 inner iterations, zero/nonzero
+ * product arms and unchanged RAM. It is NOT public ROM-free CI. */
+static void test_b0_181c_native_original(
+    const uint8_t *audio_rom, size_t audio_rom_size
+)
+{
+    static const uint8_t args[] = {
+        0u, 1u, 4u, 64u, 127u, 128u, 255u
+    };
+    static vf2_sound_board board;
+    static uint8_t step_ram[VF2_SOUND_RAM_BYTES];
+    static vf2_scsp step_scsp;
+    vf2_m68k_bus bus;
+    vf2_m68k_regs regs;
+    size_t sample;
+    for (sample = 0u; sample < sizeof(args); ++sample) {
+        vf2_sound_dispatch_report report = {0};
+        size_t i;
+        uint32_t steps = 0u;
+        vf2_status original;
+        vf2_status native;
+        memset(&board, 0, sizeof(board));
+        board.audio_rom = audio_rom;
+        board.audio_rom_size = audio_rom_size;
+        vf2_scsp_initialize(&board.scsp);
+        for (i = 0u; i < VF2_SOUND_COMMAND_DESCRIPTOR_COUNT; ++i) {
+            uint8_t *desc = board.sound_ram +
+                VF2_SOUND_COMMAND_DESCRIPTOR_BASE +
+                i * VF2_SOUND_COMMAND_DESCRIPTOR_BYTES;
+            desc[0] = UINT8_C(0x80);
+            desc[1u] = (uint8_t)(i % 3u + 1u);
+            desc[3u] = (uint8_t)((i * 23u + 19u) & 255u);
+            desc[10u] = UINT8_C(0x57);
+        }
+        for (i = 0u; i < VF2_SOUND_VOICE_COUNT; ++i) {
+            uint8_t *voice = board.sound_ram +
+                VF2_SOUND_VOICE_TABLE_BASE +
+                i * VF2_SOUND_VOICE_BYTES;
+            const uint16_t slot = (uint16_t)(i * 0x20u);
+            voice[0] = (uint8_t)(slot >> 8u);
+            voice[1] = (uint8_t)slot;
+            voice[2] = (uint8_t)(i % 4u != 0u ? 0x40u : 0u);
+            voice[4] = (uint8_t)(i % 3u + 1u);
+            voice[8] = (uint8_t)((i * 11u) & 255u);
+        }
+        board.sound_ram[VF2_SOUND_SHARED_FACTOR_151F] = 0xf0u;
+        memcpy(step_ram, board.sound_ram, sizeof(step_ram));
+        memcpy(&step_scsp, &board.scsp, sizeof(step_scsp));
+        make_bus(&bus, &step_scsp, step_ram,
+                 audio_rom, audio_rom_size);
+        reset_regs(&regs);
+        regs.pc = UINT32_C(0x181c);
+        regs.d[0] = args[sample];
+        regs.d[2] = UINT32_C(0x10);
+        original = vf2_m68k_run(
+            &bus, &regs, UINT32_MAX, 1, 8192u, &steps);
+        native = vf2_sound_board_apply_b0_volume_181c(
+            &board, args[sample], &report);
+        fprintf(stderr,
+                "B0_181C_NATIVE_PARITY arg=%02x S=%d C=%d "
+                "steps=%u RAM=%u SCSP=%u desc=%u voicewrites=%u\n",
+                (unsigned)args[sample], (int)original,
+                (int)native, (unsigned)steps,
+                (unsigned)(memcmp(step_ram, board.sound_ram,
+                                   sizeof(step_ram)) == 0),
+                (unsigned)scsp_equal(&board.scsp, &step_scsp),
+                (unsigned)report.descriptors_updated,
+                (unsigned)report.voices_updated);
+        EXPECT_TRUE(original == VF2_OK && native == VF2_OK);
+        EXPECT_TRUE(steps > 300u && steps < 8192u);
+        EXPECT_TRUE(bus.event_count == 0u);
+        EXPECT_TRUE(memcmp(step_ram, board.sound_ram,
+                           sizeof(step_ram)) == 0);
+        EXPECT_TRUE(scsp_equal(&board.scsp, &step_scsp));
+        EXPECT_TRUE(report.descriptors_updated == 10u);
+    }
+}
+
 static void probe_b0_181c_original(
     const uint8_t *audio_rom, size_t audio_rom_size
 )
@@ -6079,6 +6162,7 @@ int main(int argc, char **argv)
     test_voice_lifecycle_l1(argv[1], audio_rom, audio_rom_size);
     test_l2_stream_tick(audio_rom, audio_rom_size);
     test_b0_prescaler_setup_original(audio_rom, audio_rom_size);
+    test_b0_181c_native_original(audio_rom, audio_rom_size);
     test_session_attach(argv[1]);
     test_scsp_dsp_program(audio_rom, audio_rom_size);
     test_vectors(audio_rom, audio_rom_size);

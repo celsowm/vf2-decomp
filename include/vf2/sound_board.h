@@ -164,6 +164,19 @@ typedef struct vf2_sound_board {
     uint8_t allow_original_b0_181c_fallback;
 } vf2_sound_board;
 
+/* Native C recovered 68000 B0/10 volume-and-duration routine at
+ * 0x181C..0x18A6. Applies ten command-descriptor duration bytes
+ * and conditional SCSP+0x0D writes to matching flagged voices.
+ * Performs a full slot-address preflight before mutating state.
+ * This helper can be tested on synthetic data without an attached
+ * ROM; dispatch_next invokes it only when the sound-ROM body
+ * matches the measured VF2.1 version. */
+vf2_status vf2_sound_board_apply_b0_volume_181c(
+    vf2_sound_board *board,
+    uint8_t argument,
+    vf2_sound_dispatch_report *report
+);
+
 vf2_status vf2_sound_board_initialize(
     vf2_sound_board *board,
     const uint8_t *audio_rom,

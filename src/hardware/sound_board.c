@@ -3848,6 +3848,139 @@ static int sound_board_b0_target(
  * write, side effect outside the whitelist or time budget must
  * leave the owning board and FIFO untouched. The synthetic ROM
  * regression verifies rollback; owner-ROM execution is pending. */
+
+/* The user's privately held VF2.1 epr-17574.30 image (68000
+ * CPU-visible, word swapped) was inspected locally. 0x181C..0x18A7
+ * is the exact 10-descriptor x 32-voice B0/10 rescale body.
+ * Keep original ROM bytes private: only this FNV-1a signature
+ * of that 140-byte routine is checked in. Unknown variants
+ * retain the preexisting fail-closed / opt-in escape hatch. */
+static int sound_board_b0_181c_is_measured_rom(
+    const vf2_sound_board *board
+)
+{
+    uint64_t digest = UINT64_C(14695981039346656037);
+    size_t i;
+    if (board == NULL || board->audio_rom == NULL ||
+        board->audio_rom_size < UINT32_C(0x18a8)) {
+        return 0;
+    }
+    for (i = UINT32_C(0x181c); i < UINT32_C(0x18a8); ++i) {
+        digest ^= board->audio_rom[i];
+        digest *= UINT64_C(1099511628211);
+    }
+    return digest == UINT64_C(0x6f5ed0278dea669a);
+}
+
+/* Original 68000 control flow:
+ *
+ * 181C LSL.B #1,D0; BEQ/ADDQ.B #1,D0; MOVE.B D0,$151F(A6).
+ * 1828 LEA $3000(A6),A1; MOVEQ #9,D7.
+ * Outer x10: descriptor+3 byte * (D0.w) -> MULU;
+ *     LSR.W #8, then ADDQ.B #1 only when nonzero;
+ *     MOVE.B result,descriptor+10.
+ * 1844 LEA $1800(A6),A2; MOVEQ #31,D6.
+ * Inner x32: CMP.B voice+4,descriptor+1;
+ *     BTST #6,voice+2; if both match,
+ *     MULU.W (voice+8),descriptor+10;
+ *     zero => SCSP[voice.slot_word+0x0D]=0xFF;
+ *     nonzero => SCSP[voice.slot_word+0x0D] =
+ *         (~((product >> 8) & 0xFF) & 0xFF) >> 1.
+ * 1892 ADDA.L #16,A2; DBF D6;
+ * 189C ADDA.L #16,A1; DBF D7; RTS at 18A6.
+ *
+ * The preceding ROM drain ANDI.L #0xFF,D0 makes D0.w clean
+ * before the B0 table's byte load; emulate that admitted
+ * main-loop entry rather than arbitrary stale register state.
+ * This public, bounded helper is tested with synthetic
+ * descriptor/voice data. The real dispatcher only invokes
+ * it when the complete original routine hash matches. */
+vf2_status vf2_sound_board_apply_b0_volume_181c(
+    vf2_sound_board *board,
+    uint8_t argument,
+    vf2_sound_dispatch_report *report
+)
+{
+    uint8_t factor;
+    size_t desc_index;
+    size_t voice_index;
+    if (board == NULL || report == NULL) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    factor = (uint8_t)((uint32_t)argument << 1u);
+    if (factor != 0u) {
+        factor = (uint8_t)(factor + 1u);
+    }
+
+    /* Original bus may address an invalid SCSP slot word. Reject
+     * BEFORE any RAM/SCSP mutation, not after partial output. */
+    for (desc_index = 0u; desc_index < 10u; ++desc_index) {
+        const uint8_t *desc = board->sound_ram +
+            VF2_SOUND_COMMAND_DESCRIPTOR_BASE +
+            desc_index * VF2_SOUND_COMMAND_DESCRIPTOR_BYTES;
+        for (voice_index = 0u; voice_index < VF2_SOUND_VOICE_COUNT;
+             ++voice_index) {
+            const uint8_t *voice = board->sound_ram +
+                VF2_SOUND_VOICE_TABLE_BASE +
+                voice_index * VF2_SOUND_VOICE_BYTES;
+            if (voice[VF2_SOUND_VOICE_CHANNEL] == desc[1u] &&
+                (voice[VF2_SOUND_VOICE_FLAGS] & UINT8_C(0x40)) != 0u) {
+                uint16_t slot_word =
+                    read_be16(voice + VF2_SOUND_VOICE_SLOT);
+                if (slot_word >= UINT16_C(0x8000) ||
+                    (uint32_t)slot_word + 0x0du >=
+                        VF2_SCSP_REGISTER_BYTES) {
+                    return VF2_ERROR_UNSUPPORTED;
+                }
+            }
+        }
+    }
+
+    board->sound_ram[VF2_SOUND_SHARED_FACTOR_151F] = factor;
+    for (desc_index = 0u; desc_index < 10u; ++desc_index) {
+        uint8_t *desc = board->sound_ram +
+            VF2_SOUND_COMMAND_DESCRIPTOR_BASE +
+            desc_index * VF2_SOUND_COMMAND_DESCRIPTOR_BYTES;
+        uint16_t duration = (uint16_t)(
+            ((uint32_t)desc[3u] * factor) >> 8u
+        );
+        if (duration != 0u) {
+            ++duration;
+        }
+        desc[10u] = (uint8_t)duration;
+        ++report->descriptors_updated;
+        for (voice_index = 0u; voice_index < VF2_SOUND_VOICE_COUNT;
+             ++voice_index) {
+            const uint8_t *voice = board->sound_ram +
+                VF2_SOUND_VOICE_TABLE_BASE +
+                voice_index * VF2_SOUND_VOICE_BYTES;
+            if (voice[VF2_SOUND_VOICE_CHANNEL] == desc[1u] &&
+                (voice[VF2_SOUND_VOICE_FLAGS] & UINT8_C(0x40)) != 0u) {
+                uint32_t product = (uint32_t)voice[VF2_SOUND_VOICE_MODE] *
+                                   (uint32_t)desc[10u];
+                uint8_t attenuation = product == 0u ?
+                    UINT8_C(0xff) :
+                    (uint8_t)((UINT32_C(0xff) -
+                              ((product >> 8u) & UINT32_C(0xff))) >> 1u);
+                uint32_t slot_address =
+                    (uint32_t)read_be16(
+                        voice + VF2_SOUND_VOICE_SLOT
+                    ) + UINT32_C(0x0d);
+                vf2_status status = vf2_scsp_write_u8(
+                    &board->scsp, slot_address, attenuation
+                );
+                if (status != VF2_OK) {
+                    /* The preflight makes this unreachable with a
+                     * conforming SCSP register model. */
+                    return status;
+                }
+                ++report->voices_updated;
+            }
+        }
+    }
+    return VF2_OK;
+}
+
 static int sound_board_b0_181c_allowed_byte(size_t address)
 {
     const size_t base = VF2_SOUND_COMMAND_DESCRIPTOR_BASE;
@@ -4006,12 +4139,16 @@ static vf2_status sound_board_dispatch_b0(
             return VF2_OK;
         }
         if (target == UINT32_C(0x181c)) {
+            if (sound_board_b0_181c_is_measured_rom(board)) {
+                return vf2_sound_board_apply_b0_volume_181c(
+                    board, argument, report);
+            }
             if (board->allow_original_b0_181c_fallback != 0u) {
                 return sound_board_b0_181c_interpreter_bridge(
                     board, argument, cursor, report);
             }
-            /* The native C calculation is still unmeasured.
-             * Default mode holds BE 10 xx in the FIFO. */
+            /* Different/unverified sound CPU body: refuse
+             * without fabricating volume updates. */
             return VF2_ERROR_UNSUPPORTED;
         }
         if (target == UINT32_C(0x1c0a)) {

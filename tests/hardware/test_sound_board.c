@@ -191,6 +191,116 @@ static void test_render_first_tone(void)
  * four-instruction-like routine: MOVE.B D0,0x151F(A6); RTS.
  * It validates transactional state commit, not original ROM
  * instruction parity or audio fidelity. */
+
+/* Native reproduction of the real 0x181C 10x32 nested
+ * descriptor/voice volume scan. Synthetic records only: no
+ * proprietary Sega ROM or sample bytes are kept in tests.
+ * Owner-ROM differential independently verifies the formula. */
+static void test_b0_181c_native_volume(void)
+{
+    static vf2_sound_board board;
+    vf2_sound_dispatch_report report = {0};
+    size_t i;
+    memset(&board, 0, sizeof(board));
+    vf2_scsp_initialize(&board.scsp);
+    for (i = 0u; i < 20u; ++i) {
+        uint8_t *desc = board.sound_ram +
+            VF2_SOUND_COMMAND_DESCRIPTOR_BASE +
+            i * VF2_SOUND_COMMAND_DESCRIPTOR_BYTES;
+        desc[0] = 0x80u;
+        desc[1] = (uint8_t)(i % 2u + 1u);
+        desc[3] = (uint8_t)(i < 10u ? 32u + (uint8_t)i : 250u);
+        desc[10u] = 0xa5u;
+    }
+    {
+        uint8_t *voice0 = board.sound_ram + VF2_SOUND_VOICE_TABLE_BASE;
+        uint8_t *voice1 = voice0 + VF2_SOUND_VOICE_BYTES;
+        uint8_t *voice2 = voice1 + VF2_SOUND_VOICE_BYTES;
+        voice0[1u] = 0x20u; /* slot byte-offset 0x0020 */
+        voice0[VF2_SOUND_VOICE_FLAGS] = 0x40u;
+        voice0[VF2_SOUND_VOICE_CHANNEL] = 1u;
+        voice0[VF2_SOUND_VOICE_MODE] = 0x80u;
+        voice1[1u] = 0x40u;
+        voice1[VF2_SOUND_VOICE_FLAGS] = 0x40u;
+        voice1[VF2_SOUND_VOICE_CHANNEL] = 2u;
+        voice1[VF2_SOUND_VOICE_MODE] = 0u;
+        voice2[1u] = 0x60u;
+        voice2[VF2_SOUND_VOICE_FLAGS] = 0u; /* excluded */
+        voice2[VF2_SOUND_VOICE_CHANNEL] = 1u;
+    }
+    EXPECT_TRUE(vf2_sound_board_apply_b0_volume_181c(
+        &board, 0x04u, &report) == VF2_OK);
+    EXPECT_TRUE(board.sound_ram[VF2_SOUND_SHARED_FACTOR_151F] ==
+                0x09u);
+    EXPECT_TRUE(report.descriptors_updated == 10u &&
+                report.voices_updated == 10u);
+    for (i = 0u; i < 20u; ++i) {
+        const uint8_t *desc = board.sound_ram +
+            VF2_SOUND_COMMAND_DESCRIPTOR_BASE +
+            i * VF2_SOUND_COMMAND_DESCRIPTOR_BYTES;
+        uint16_t expected = (uint16_t)(((uint32_t)desc[3] * 9u) >> 8u);
+        if (expected != 0u) ++expected;
+        EXPECT_TRUE(desc[10u] ==
+            (i < 10u ? (uint8_t)expected : UINT8_C(0xa5)));
+    }
+    {
+        uint8_t attenuation = 0u;
+        EXPECT_TRUE(vf2_scsp_read_u8(
+            &board.scsp, 0x002du, &attenuation) == VF2_OK);
+        EXPECT_TRUE(attenuation == 127u);
+        EXPECT_TRUE(vf2_scsp_read_u8(
+            &board.scsp, 0x004du, &attenuation) == VF2_OK);
+        EXPECT_TRUE(attenuation == UINT8_C(0xff));
+        EXPECT_TRUE(vf2_scsp_read_u8(
+            &board.scsp, 0x006du, &attenuation) == VF2_OK);
+        EXPECT_TRUE(attenuation == 0u);
+    }
+    /* The zero path must clear all ten durations and set the
+     * matching voice attenuations to FF (original BMI/BEQ arm). */
+    memset(&report, 0, sizeof(report));
+    EXPECT_TRUE(vf2_sound_board_apply_b0_volume_181c(
+        &board, 0u, &report) == VF2_OK);
+    EXPECT_TRUE(board.sound_ram[VF2_SOUND_SHARED_FACTOR_151F] == 0u);
+    for (i = 0u; i < 10u; ++i) {
+        const uint8_t *desc = board.sound_ram +
+            VF2_SOUND_COMMAND_DESCRIPTOR_BASE +
+            i * VF2_SOUND_COMMAND_DESCRIPTOR_BYTES;
+        EXPECT_TRUE(desc[10u] == 0u);
+    }
+    /* Invalid signed slot displacement must refuse atomically. */
+    {
+        uint8_t *voice = board.sound_ram + VF2_SOUND_VOICE_TABLE_BASE;
+        uint8_t before_duration =
+            board.sound_ram[VF2_SOUND_COMMAND_DESCRIPTOR_BASE + 10u];
+        uint8_t before_factor =
+            board.sound_ram[VF2_SOUND_SHARED_FACTOR_151F];
+        uint8_t before_scsp = 0u;
+        EXPECT_TRUE(vf2_scsp_read_u8(
+            &board.scsp, 0x002du, &before_scsp) == VF2_OK);
+        voice[0] = 0xffu; voice[1u] = 0xffu;
+        memset(&report, 0, sizeof(report));
+        EXPECT_TRUE(vf2_sound_board_apply_b0_volume_181c(
+            &board, 0x7fu, &report) == VF2_ERROR_UNSUPPORTED);
+        EXPECT_TRUE(board.sound_ram[VF2_SOUND_SHARED_FACTOR_151F] ==
+                    before_factor &&
+                    board.sound_ram[
+                        VF2_SOUND_COMMAND_DESCRIPTOR_BASE + 10u] ==
+                    before_duration);
+        {
+            uint8_t now = 0u;
+            EXPECT_TRUE(vf2_scsp_read_u8(
+                &board.scsp, 0x002du, &now) == VF2_OK);
+            EXPECT_TRUE(now == before_scsp);
+        }
+        voice[0] = 0u; voice[1u] = 0x20u;
+    }
+    /* LSL.B + ADDQ.B wraps at 0x80, so factor=0, not 0x101. */
+    memset(&report, 0, sizeof(report));
+    EXPECT_TRUE(vf2_sound_board_apply_b0_volume_181c(
+        &board, 0x80u, &report) == VF2_OK);
+    EXPECT_TRUE(board.sound_ram[VF2_SOUND_SHARED_FACTOR_151F] == 0u);
+}
+
 static void test_b0_181c_transactional_interpreter(void)
 {
     static vf2_sound_board board;
@@ -2805,6 +2915,7 @@ int main(void)
     test_pcm_walker_one_descriptor();
     test_pcm_stream_page_native();
     test_render_first_tone();
+    test_b0_181c_native_volume();
     test_b0_181c_transactional_interpreter();
     test_b0_prescaler_command_chain();
     test_ad21_b_class_drain();
