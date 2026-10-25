@@ -96,10 +96,45 @@ static void test_b0_prescaler_setup_original(
     vf2_m68k_regs regs;
     vf2_sound_dispatch_report report;
     size_t i;
+    /* Independently assert the selector -> handler mapping in
+     * the private original ROM (JMP d16,PC from 0x13DE table).
+     * Do not only compare against a directly injected handler PC:
+     * that would not prove whether a BE 12 or BE 1A selects it. */
+    {
+        const size_t a1a = UINT32_C(0x13de) + UINT32_C(0x1a) * 4u;
+        const size_t a12 = UINT32_C(0x13de) + UINT32_C(0x12) * 4u;
+        if (audio_rom_size <= a1a + 3u) {
+            EXPECT_TRUE(0 && "original ROM lacks B0 jump table");
+            return;
+        }
+        {
+            uint16_t op1a = (uint16_t)((uint16_t)audio_rom[a1a] << 8u |
+                                        audio_rom[a1a + 1u]);
+            uint16_t op12 = (uint16_t)((uint16_t)audio_rom[a12] << 8u |
+                                        audio_rom[a12 + 1u]);
+            uint32_t disp1a = (uint32_t)audio_rom[a1a + 2u] << 8u |
+                              audio_rom[a1a + 3u];
+            uint32_t disp12 = (uint32_t)audio_rom[a12 + 2u] << 8u |
+                              audio_rom[a12 + 3u];
+            int32_t target1a = (int32_t)(a1a + 2u) +
+                (disp1a >= 0x8000u ? (int32_t)disp1a - 0x10000 :
+                                     (int32_t)disp1a);
+            int32_t target12 = (int32_t)(a12 + 2u) +
+                (disp12 >= 0x8000u ? (int32_t)disp12 - 0x10000 :
+                                     (int32_t)disp12);
+            fprintf(stderr, "B0_ROM_TABLE selector_1a=%05x "
+                            "selector_12=%05x\n",
+                    (unsigned)target1a, (unsigned)target12);
+            EXPECT_TRUE(op1a == UINT16_C(0x4efa) &&
+                        op12 == UINT16_C(0x4efa));
+            EXPECT_TRUE(target1a == INT32_C(0x18a8) &&
+                        target12 == INT32_C(0x13dc));
+        }
+    }
     for (i = 0u; i < sizeof(arguments); ++i) {
         const uint8_t value = arguments[i];
         const uint8_t packet[4] = {
-            UINT8_C(0xbe), UINT8_C(0x12), value, UINT8_C(0xa5)
+            UINT8_C(0xbe), UINT8_C(0x1a), value, UINT8_C(0xa5)
         };
         uint32_t steps = 0u;
         vf2_status status;
@@ -131,7 +166,7 @@ static void test_b0_prescaler_setup_original(
         EXPECT_TRUE(vf2_sound_board_dispatch_next(
             &board, &report) == VF2_OK);
         EXPECT_TRUE(report.handler_address == UINT32_C(0x18a8) &&
-                    report.selected_value == UINT8_C(0x12) &&
+                    report.selected_value == UINT8_C(0x1a) &&
                     report.descriptors_matched == 1u &&
                     report.handled == 1);
         EXPECT_TRUE(board.sound_ram[VF2_SOUND_DESCRIPTOR_BASE + 0x0cu] ==
@@ -142,7 +177,7 @@ static void test_b0_prescaler_setup_original(
                            board.sound_ram + VF2_SOUND_DESCRIPTOR_BASE,
                            VF2_SOUND_STREAM_DESCRIPTOR_BYTES) == 0);
         EXPECT_TRUE(scsp_equal(&board.scsp, &step_scsp));
-        fprintf(stderr, "B0_12_PRESCALER_ORIGINAL_DIFF argument=%02x "
+        fprintf(stderr, "B0_1A_PRESCALER_ORIGINAL_DIFF argument=%02x "
                         "stepper_steps=%u setup_parity=%u\n",
                 (unsigned)value, (unsigned)steps,
                 (unsigned)(memcmp(step_ram + VF2_SOUND_DESCRIPTOR_BASE,

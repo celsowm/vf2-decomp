@@ -192,13 +192,35 @@ static void test_b0_prescaler_command_chain(void)
     static uint8_t rom[0x10010u];
     static const uint8_t sample[2] = {0u, 0u};
     const uint8_t packet[4] = {
-        UINT8_C(0xbe), UINT8_C(0x12), UINT8_C(0x08), UINT8_C(0xa5)
+        UINT8_C(0xbe), UINT8_C(0x1a), UINT8_C(0x08), UINT8_C(0xa5)
     };
+    /* This fixture models the independently mapped jump table:
+     * 0x10 -> 0x181C; 0x12 -> default RTS (0x13DC);
+     * 0x1A -> 0x18A8; 0x50 -> 0x1C0A. No host-side
+     * prescaler behavior may override the actual ROM table. */
+    static const struct { uint8_t selector; uint16_t target; } jumps[] = {
+        {UINT8_C(0x10), UINT16_C(0x181c)},
+        {UINT8_C(0x12), UINT16_C(0x13dc)},
+        {UINT8_C(0x1a), UINT16_C(0x18a8)},
+        {UINT8_C(0x50), UINT16_C(0x1c0a)}
+    };
+    size_t i;
     vf2_sound_dispatch_report dispatch;
     vf2_sound_stream_maintenance_report maintain;
     uint8_t *desc;
     uint8_t *rate;
     test_boot_rom(rom);
+    for (i = 0u; i < sizeof(jumps) / sizeof(jumps[0]); ++i) {
+        const size_t at = UINT32_C(0x13de) +
+                          (size_t)jumps[i].selector * 4u;
+        const int32_t offset = (int32_t)jumps[i].target -
+                               (int32_t)(at + 2u);
+        const uint16_t disp = (uint16_t)offset;
+        rom[at] = UINT8_C(0x4e);
+        rom[at + 1u] = UINT8_C(0xfa);
+        rom[at + 2u] = (uint8_t)(disp >> 8u);
+        rom[at + 3u] = (uint8_t)disp;
+    }
     EXPECT_TRUE(vf2_sound_board_initialize(&board, rom, sizeof(rom),
                                             sample, sizeof(sample)) == VF2_OK);
     desc = board.sound_ram + VF2_SOUND_COMMAND_DESCRIPTOR_BASE;
@@ -213,8 +235,8 @@ static void test_b0_prescaler_command_chain(void)
     EXPECT_TRUE(vf2_sound_board_emit_command(&board, packet) == VF2_OK);
     EXPECT_TRUE(vf2_sound_board_dispatch_next(&board, &dispatch) == VF2_OK);
     EXPECT_TRUE(dispatch.command == UINT8_C(0xbe) &&
-                dispatch.payload == UINT8_C(0x12) &&
-                dispatch.selected_value == UINT8_C(0x12) &&
+                dispatch.payload == UINT8_C(0x1a) &&
+                dispatch.selected_value == UINT8_C(0x1a) &&
                 dispatch.descriptors_matched == 1u &&
                 dispatch.handler_address == UINT32_C(0x18a8) &&
                 dispatch.handled == 1);
@@ -223,7 +245,7 @@ static void test_b0_prescaler_command_chain(void)
     EXPECT_TRUE(board.sound_ram[VF2_SOUND_COMMAND_COUNT] == 0u &&
                 board.sound_ram[VF2_SOUND_COMMAND_CURSOR] == 0u &&
                 board.sound_ram[VF2_SOUND_COMMAND_CURSOR + 1u] == 4u);
-    /* A first real timer expiry: the 0x12 command configured
+    /* A first real timer expiry: the ROM-verified 0x1A command configured
      * exactly the countdown that causes the already recovered
      * 0x21CA..0x2206 BE 10 <beat> path. */
     rate[0x0du] = 1u;
@@ -258,7 +280,40 @@ static void test_b0_prescaler_command_chain(void)
     EXPECT_TRUE(board.sound_ram[VF2_SOUND_COMMAND_COUNT] == 1u &&
                 board.sound_ram[VF2_SOUND_COMMAND_CURSOR] == 0u &&
                 board.sound_ram[VF2_SOUND_COMMAND_CURSOR + 1u] == 4u);
-    /* 0x50 has a different nontrivial branch at 0x1C0A. */
+    /* A retargeted table entry cannot be admitted on intuition:
+     * selector 0x1A with malformed JMP must refuse without
+     * altering the timer or retiring the command. */
+    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 5u] =
+        UINT8_C(0x1a);
+    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 6u] =
+        UINT8_C(0x63);
+    {
+        const size_t at = UINT32_C(0x13de) + UINT32_C(0x1a) * 4u;
+        const uint8_t saved = rom[at];
+        const uint8_t prior_rate = rate[0x0cu];
+        const uint8_t prior_countdown = rate[0x0du];
+        rom[at] = 0u;
+        EXPECT_TRUE(vf2_sound_board_dispatch_next(&board, &dispatch) ==
+                    VF2_ERROR_UNSUPPORTED);
+        EXPECT_TRUE(rate[0x0cu] == prior_rate &&
+                    rate[0x0du] == prior_countdown &&
+                    board.sound_ram[VF2_SOUND_COMMAND_COUNT] == 1u);
+        rom[at] = saved;
+    }
+    /* A table entry returning to default RTS is truly inert;
+     * old code erroneously programmed prescaler for 0x12. */
+    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 5u] =
+        UINT8_C(0x12);
+    EXPECT_TRUE(vf2_sound_board_dispatch_next(&board, &dispatch) ==
+                VF2_OK);
+    EXPECT_TRUE(dispatch.handler_address == UINT32_C(0x13dc) &&
+                dispatch.handled == 1 &&
+                rate[0x0cu] == 8u && rate[0x0du] == 8u &&
+                board.sound_ram[VF2_SOUND_COMMAND_COUNT] == 0u);
+    /* Another nontrivial branch: 0x50 -> 0x1C0A. */
+    EXPECT_TRUE(vf2_sound_board_emit_command(
+        &board, (const uint8_t[4]){0xbeu, 0x50u, 0x7eu, 0xa5u}) ==
+                VF2_OK);
     board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 5u] = UINT8_C(0x50);
     board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 6u] = UINT8_C(0x7e);
     EXPECT_TRUE(vf2_sound_board_dispatch_next(&board, &dispatch) ==

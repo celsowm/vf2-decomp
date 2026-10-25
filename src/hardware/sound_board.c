@@ -3798,6 +3798,42 @@ static vf2_status sound_board_dispatch_e0(
     return VF2_OK;
 }
 
+/* The original B0 table is 128 JMP (d16,PC) records at
+ * 0x13DE + 4*index, with the displacement relative to the
+ * extension word at table_entry+2. Earlier recovered notes
+ * disagreed on whether the prescaler setup at 0x18A8 uses
+ * selector 0x12 or 0x1A. Decode the attached original ROM
+ * instead of embedding either guess as executable behavior.
+ * A malformed/unavailable jump table is unsupported, never
+ * permission to synthesize a prescaler write. */
+static int sound_board_b0_target(
+    const vf2_sound_board *board,
+    uint8_t selector,
+    uint32_t *target
+)
+{
+    const size_t at = UINT32_C(0x13de) + (size_t)selector * 4u;
+    int32_t displacement;
+    int32_t absolute;
+    if (board == NULL || target == NULL ||
+        board->audio_rom == NULL ||
+        at > board->audio_rom_size ||
+        board->audio_rom_size - at < 4u ||
+        read_be16(board->audio_rom + at) != UINT16_C(0x4efa)) {
+        return 0;
+    }
+    displacement = (int32_t)read_be16(board->audio_rom + at + 2u);
+    if (displacement >= INT32_C(0x8000)) {
+        displacement -= INT32_C(0x10000);
+    }
+    absolute = (int32_t)(at + 2u) + displacement;
+    if (absolute < 0 || (size_t)absolute >= board->audio_rom_size) {
+        return 0;
+    }
+    *target = (uint32_t)absolute;
+    return 1;
+}
+
 static vf2_status sound_board_dispatch_b0(
     vf2_sound_board *board,
     uint8_t command,
@@ -3821,31 +3857,39 @@ static vf2_status sound_board_dispatch_b0(
     report->handler_address = UINT32_C(0x000013cc);
     report->channel = channel;
     report->selected_value = entry;
-    if (entry == UINT8_C(0x12)) {
-        /* Original B0 table entry 0x12 -> PC 0x18A8:
-         *   LEA 0x2000(A6),A0
-         *   MOVE.B D0,12(A0)
-         *   MOVE.B D0,13(A0)
-         *   RTS
-         * The B0 primer's D0 is ring byte 2, not the
-         * selector. Both stores configure the 0x21BA prescaler
-         * recovered by maintain_streams. */
-        uint8_t *prescaler = board->sound_ram +
-                             VF2_SOUND_DESCRIPTOR_BASE;
-        prescaler[0x0cu] = argument;
-        prescaler[0x0du] = argument;
-        report->handler_address = UINT32_C(0x000018a8);
-        return VF2_OK;
-    }
-    if (entry == UINT8_C(0x10) || entry == UINT8_C(0x50)) {
-        /* These two selectors are live B0 table dispatches:
-         * 0x10 -> 0x181C (volume/descriptor rescale)
-         * 0x50 -> 0x1C0A (D0 sub-dispatch).
-         * In particular, the prescaler's BE 10 <beat> must NOT
-         * be silently consumed as if these were default RTS.
-         * No partial native translation has been established. */
-        report->handler_address = entry == UINT8_C(0x10) ?
-            UINT32_C(0x0000181c) : UINT32_C(0x00001c0a);
+    if (entry == UINT8_C(0x10) || entry == UINT8_C(0x12) ||
+        entry == UINT8_C(0x1a) || entry == UINT8_C(0x50)) {
+        uint32_t target = 0u;
+        if (!sound_board_b0_target(board, entry, &target)) {
+            /* Missing/truncated/mutated ROM jump is not a valid
+             * instruction-backed authority to change state. */
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        report->handler_address = target;
+        if (target == UINT32_C(0x18a8)) {
+            /* Original B0 byte-2 -> D0, 0x18A8:
+             * LEA $2000(A6),A0; MOVE.B D0,12(A0);
+             * MOVE.B D0,13(A0); RTS. The selector itself
+             * is verified through ROM jump-table provenance. */
+            uint8_t *prescaler = board->sound_ram +
+                                 VF2_SOUND_DESCRIPTOR_BASE;
+            prescaler[0x0cu] = argument;
+            prescaler[0x0du] = argument;
+            return VF2_OK;
+        }
+        if (target == UINT32_C(0x13dc)) {
+            /* Authentic B0 default RTS: no device mutation. */
+            return VF2_OK;
+        }
+        if (target == UINT32_C(0x181c) ||
+            target == UINT32_C(0x1c0a)) {
+            /* BE 10 xx is a real duration/volume updater,
+             * and BE 50 xx is a real end-control dispatcher.
+             * Preserve the command until their side effects
+             * are established by original-ROM differential. */
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        /* An unanticipated ROM target is deliberately opaque. */
         return VF2_ERROR_UNSUPPORTED;
     }
     if (entry != 0x3au) {
