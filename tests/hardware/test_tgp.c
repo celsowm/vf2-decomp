@@ -390,27 +390,41 @@ static void test_tgp_command_header_decode(void)
     CHECK(vf2_tgp_is_command_header(UINT32_C(0x03800707)));          /* op 0x07 */
     CHECK(vf2_tgp_command_opcode(UINT32_C(0x03800707)) == 0x07u);
 
-    /* Verified fixed payload lengths; everything else fails closed (-1). */
+    /* Measured argument counts (docs/TGP_COMMANDS.md); unmeasured opcodes and
+     * 0x70..0x7f fail closed (-1). */
     CHECK(vf2_tgp_command_payload_words(0x0bu) == 12);
     CHECK(vf2_tgp_command_payload_words(0x34u) == 1);
     CHECK(vf2_tgp_command_payload_words(0x01u) == 0);
     CHECK(vf2_tgp_command_payload_words(0x02u) == 0);
-    CHECK(vf2_tgp_command_payload_words(0x13u) == 0);
+    CHECK(vf2_tgp_command_payload_words(0x13u) == 2);  /* Fn_add */
     CHECK(vf2_tgp_command_payload_words(0x00u) == 0);
-    CHECK(vf2_tgp_command_payload_words(0x29u) == -1); /* variable-length */
-    CHECK(vf2_tgp_command_payload_words(0x3fu) == -1); /* end marker, not pinned */
+    CHECK(vf2_tgp_command_payload_words(0x29u) == 3);  /* Fn_point_trans */
+    CHECK(vf2_tgp_command_payload_words(0x37u) == 2);
+    CHECK(vf2_tgp_command_payload_words(0x39u) == 3);
+    CHECK(vf2_tgp_command_payload_words(0x3fu) == 3);  /* Fn_zyx_rot */
+    CHECK(vf2_tgp_command_payload_words(0x1fu) == -1); /* not measured */
     CHECK(vf2_tgp_command_payload_words(0x7fu) == -1);
+    CHECK(vf2_tgp_command_reply_words(0x13u) == 1);
+    CHECK(vf2_tgp_command_reply_words(0x29u) == 3);
+    CHECK(vf2_tgp_command_reply_words(0x0bu) == 0);
+    CHECK(vf2_tgp_command_reply_words(0x4au) == -1);   /* data-dependent */
+    CHECK(vf2_tgp_command_reply_words(0x7fu) == -1);
+    CHECK(strcmp(vf2_tgp_command_name(0x3fu), "Fn_zyx_rot") == 0);
+    CHECK(strcmp(vf2_tgp_command_name(0x0bu), "Fn_mul_matrix") == 0);
+    CHECK(vf2_tgp_command_name(0x70u) == NULL);
 
-    /* Framer over a synthetic stream: matrix (0x0b, 12 payload), object
-     * (0x01, 0), op 0x34 (1), a variable op 0x29 (header-delimited to 2 here),
-     * end (0x1f, 0). Payload words are arbitrary non-header constants. */
+    /* Framer over a synthetic stream: Fn_mul_matrix (0x0b, 12 args),
+     * push_matrix (0x01, 0), Fn_mov_matrix (0x34, 1), Fn_zyx_rot (0x3f, 3,
+     * one of them 0.0, which looks like a header but is consumed as an
+     * argument), and an unmeasured op 0x1f (header-delimited to 2 here). */
     {
         static const uint32_t hdr0b = UINT32_C(0x05800b0b);
         static const uint32_t hdr01 = UINT32_C(0x00800101);
         static const uint32_t hdr34 = UINT32_C(0x1a003434);
-        static const uint32_t hdr29 = UINT32_C(0x14802929);
-        static const uint32_t hdr1f = UINT32_C(0x1f803f3f);
+        static const uint32_t hdr3f = UINT32_C(0x1f803f3f);
+        static const uint32_t hdr1f = UINT32_C(0x0f801f1f);
         const uint32_t pay = UINT32_C(0x12345678); /* not a header */
+        const uint32_t zero = UINT32_C(0x00000000); /* 0.0f: header-shaped */
         uint32_t stream[32];
         size_t n = 0u, pos = 0u;
         vf2_tgp_command cmd;
@@ -418,13 +432,15 @@ static void test_tgp_command_header_decode(void)
 
         CHECK(vf2_tgp_is_command_header(hdr34)); /* 0x1a003434 -> op 0x34 */
         CHECK(vf2_tgp_command_opcode(hdr34) == 0x34u);
+        CHECK(vf2_tgp_command_opcode(hdr1f) == 0x1fu);
         CHECK(!vf2_tgp_is_command_header(pay));
+        CHECK(vf2_tgp_is_command_header(zero));
 
         stream[n++] = hdr0b; for (k = 0u; k < 12u; ++k) stream[n++] = pay;
         stream[n++] = hdr01;
         stream[n++] = hdr34; stream[n++] = pay;
-        stream[n++] = hdr29; stream[n++] = pay; stream[n++] = pay;
-        stream[n++] = hdr1f;
+        stream[n++] = hdr3f; stream[n++] = pay; stream[n++] = zero; stream[n++] = pay;
+        stream[n++] = hdr1f; stream[n++] = pay; stream[n++] = pay;
 
         pos = vf2_tgp_next_command(stream, n, 0u, &cmd);
         CHECK(cmd.opcode == 0x0bu && cmd.payload_count == 12u && cmd.length_verified && pos == 13u);
@@ -433,10 +449,12 @@ static void test_tgp_command_header_decode(void)
         pos = vf2_tgp_next_command(stream, n, pos, &cmd);
         CHECK(cmd.opcode == 0x34u && cmd.payload_count == 1u && cmd.length_verified && pos == 16u);
         pos = vf2_tgp_next_command(stream, n, pos, &cmd);
-        CHECK(cmd.opcode == 0x29u && cmd.payload_count == 2u && !cmd.length_verified && pos == 19u);
+        CHECK(cmd.opcode == 0x3fu && cmd.payload_count == 3u && cmd.length_verified && pos == 20u);
         pos = vf2_tgp_next_command(stream, n, pos, &cmd);
-        CHECK(cmd.opcode == 0x3fu && cmd.payload_count == 0u && pos == 20u);
+        CHECK(cmd.opcode == 0x1fu && cmd.payload_count == 2u && !cmd.length_verified && pos == 23u);
         CHECK(pos == n); /* framed the whole synthetic stream */
+        /* A fixed-length command cut short is an error, not a short frame. */
+        CHECK(vf2_tgp_next_command(stream, 18u, 16u, &cmd) == 0u);
         CHECK(vf2_tgp_next_command(stream, n, 1u, &cmd) == 0u); /* not a header */
     }
 }

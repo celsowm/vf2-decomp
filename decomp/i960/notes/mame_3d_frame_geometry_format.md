@@ -188,3 +188,20 @@ ids MAME produces from this stream -- so the native pipeline's output can be
 diffed against it. The captured input stream alone pins the format but not the
 expected output; the per-pixel/per-vertex reference is the oracle the Phase 6
 exit compares against.
+
+## Correction: these are TGP function calls (2026-10)
+
+The header-shaped words in this capture are the TGP program's own commands,
+not geometrizer classes, and they are not header-delimited. Measured on an
+emulated TGP running VF2 2.1's uploaded program, and matched to the names and
+counts in Sega's PS2 port (`docs/TGP_COMMANDS.md`, `decomp/tgp/commands.csv`):
+
+- `0x01`/`0x02` are `Fn_push_matrix`/`Fn_pop_matrix`; `0x3f` is
+  `Fn_zyx_rot` with 3 arguments, not an end marker.
+- `0x29`, `0x37`, `0x39` are fixed at 3, 2, 3 arguments, not variable.
+- `0x13` `Fn_add` takes 2 arguments: one is nearly always `0x00000000`
+  (0.0), which passes the header test as opcode 0x00 and made it look like 0.
+- The pinned lengths 0x0b = 12, 0x34 = 1 and 0x01/0x02 = 0 stand.
+
+`vf2_tgp_command_payload_words` now returns the measured count for all 72
+opcodes seen; the sections above are kept as the record of the first reading.

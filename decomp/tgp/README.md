@@ -23,7 +23,10 @@ uploaded TGP microcode interpreter. The current boundary includes:
 - the masked polygon-ROM word window used by object-data commands;
 - the table-backed sin/cos, atan, inverse and inverse-square-root services;
 
-- the function-port packet tag formed from the host word offset; and
+- the function-port packet tag formed from the host word offset;
+- the TGP FIFO command table (`commands.csv`, `docs/TGP_COMMANDS.md`): the
+  `Fn_*` name, argument count and reply count of each opcode, measured on the
+  game's own uploaded program and matched to Sega's PS2 port; and
 - a bounded geometry-stream framing scanner for documented command classes,
   including object/direct/polygon data counts and end markers.
 - a stateful software geometry executor for direct data, polygon-ROM/RAM object
