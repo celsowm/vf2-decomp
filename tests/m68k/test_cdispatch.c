@@ -218,6 +218,133 @@ static void test_b0_prescaler_setup_original(
  * 0x181C arithmetic, bit6 voice admission, SCSP slot+0D writes,
  * ten outer iterations, 32 inner iterations, zero/nonzero
  * product arms and unchanged RAM. It is NOT public ROM-free CI. */
+
+/* Owner-ROM differential for the B0/50 byte2=7E shutdown.
+ * Compare every RAM byte and the complete modeled SCSP state
+ * after actual original opcodes at PC 0x1C0A vs independent
+ * bounded native C. This test is compiled publicly but only
+ * runs when the owner supplies the original sound ROM.
+ * Never embed private ROM/music bytes in this source. */
+static void test_b0_50_7e_original(
+    const uint8_t *audio_rom, size_t audio_rom_size
+)
+{
+    static vf2_sound_board board;
+    static uint8_t step_ram[VF2_SOUND_RAM_BYTES];
+    static vf2_scsp step_scsp;
+    vf2_m68k_bus bus;
+    vf2_m68k_regs regs;
+    size_t scenario;
+    for (scenario = 0u; scenario < 3u; ++scenario) {
+        vf2_sound_dispatch_report report = {0};
+        vf2_status interpreter_status;
+        vf2_status native_status;
+        size_t i, expected_clears = 0u;
+        uint32_t steps = 0u;
+        memset(&board, 0, sizeof(board));
+        board.audio_rom = audio_rom;
+        board.audio_rom_size = audio_rom_size;
+        vf2_scsp_initialize(&board.scsp);
+        for (i = 0u; i < VF2_SOUND_VOICE_COUNT; ++i) {
+            uint8_t *v = board.sound_ram +
+                VF2_SOUND_VOICE_TABLE_BASE +
+                i * VF2_SOUND_VOICE_BYTES;
+            const uint16_t slot = (uint16_t)(i * 0x20u);
+            const int armed = scenario != 0u &&
+                (scenario == 1u || (i % 3u != 0u));
+            const uint8_t ch = (uint8_t)(i % 16u);
+            v[0] = (uint8_t)(slot >> 8u);
+            v[1] = (uint8_t)slot;
+            v[2] = armed ? UINT8_C(0x40) : 0u;
+            v[4] = ch;
+            v[8] = UINT8_C(0x36);
+            board.sound_ram[UINT32_C(0x2000) + slot] =
+                UINT8_C(0xa3);
+            EXPECT_TRUE(vf2_scsp_write_u8(
+                &board.scsp, (uint32_t)slot,
+                UINT8_C(0x20)) == VF2_OK);
+            EXPECT_TRUE(vf2_scsp_write_u8(
+                &board.scsp, (uint32_t)slot + 0x0bu,
+                UINT8_C(0xb0)) == VF2_OK);
+            if (armed && (ch < 9u || ch == 15u)) {
+                ++expected_clears;
+            }
+        }
+        for (i = 0u; i < 20u; ++i) {
+            board.sound_ram[VF2_SOUND_CHANNEL_TABLE_BASE + i] =
+                UINT8_C(0x12);
+        }
+        for (i = 0u; i < 16u; ++i) {
+            board.sound_ram[VF2_SOUND_CHANNEL_CONTROL_BASE + i] =
+                UINT8_C(0x34);
+            board.sound_ram[VF2_SOUND_CHANNEL_CONTROL_ALT_BASE + i] =
+                UINT8_C(0x56);
+        }
+        board.sound_ram[VF2_SOUND_SHARED_COUNTER_151E] =
+            UINT8_C(0x7e);
+        board.sound_ram[VF2_SOUND_SHARED_COUNTER_152E] =
+            UINT8_C(0x68);
+        memcpy(step_ram, board.sound_ram, sizeof(step_ram));
+        memcpy(&step_scsp, &board.scsp, sizeof(step_scsp));
+        make_bus(&bus, &step_scsp, step_ram,
+                 audio_rom, audio_rom_size);
+        reset_regs(&regs);
+        regs.pc = UINT32_C(0x1c0a);
+        regs.d[0] = UINT32_C(0x7e);
+        interpreter_status = vf2_m68k_run(
+            &bus, &regs, UINT32_MAX, 1, 8000u, &steps);
+        native_status = vf2_sound_board_apply_b0_end_7e(
+            &board, &report);
+        fprintf(stderr,
+                "B0_50_7E_DIFF scenario=%u original=%d C=%d "
+                "steps=%u ram=%u scsp=%u cleared=%u\n",
+                (unsigned)scenario,
+                (int)interpreter_status, (int)native_status,
+                (unsigned)steps,
+                (unsigned)(memcmp(step_ram, board.sound_ram,
+                    sizeof(step_ram)) == 0),
+                (unsigned)scsp_equal(&step_scsp, &board.scsp),
+                (unsigned)report.voices_cleared);
+        EXPECT_TRUE(interpreter_status == VF2_OK &&
+                    native_status == VF2_OK);
+        EXPECT_TRUE(steps > 100u && steps < 8000u);
+        EXPECT_TRUE(bus.event_count == 0u);
+        EXPECT_TRUE(report.voices_cleared == expected_clears);
+        EXPECT_TRUE(memcmp(step_ram, board.sound_ram,
+                           sizeof(step_ram)) == 0);
+        EXPECT_TRUE(scsp_equal(&step_scsp, &board.scsp));
+        EXPECT_TRUE(board.sound_ram[
+            VF2_SOUND_SHARED_COUNTER_152E] == 0x68u);
+    }
+    /* The live dispatcher also recognizes the authenticated
+     * original B0/50 jump and retires BE 50 7E. */
+    {
+        vf2_sound_dispatch_report report = {0};
+        const uint8_t packet[4] = {
+            UINT8_C(0xbe), UINT8_C(0x50), UINT8_C(0x7e), 0u
+        };
+        memset(&board, 0, sizeof(board));
+        board.audio_rom = audio_rom;
+        board.audio_rom_size = audio_rom_size;
+        vf2_scsp_initialize(&board.scsp);
+        board.sound_ram[VF2_SOUND_COMMAND_DESCRIPTOR_BASE] =
+            UINT8_C(0x80);
+        board.sound_ram[VF2_SOUND_COMMAND_DESCRIPTOR_BASE + 1u] =
+            UINT8_C(0x0e);
+        board.sound_ram[VF2_SOUND_SHARED_COUNTER_151E] =
+            UINT8_C(0x77);
+        EXPECT_TRUE(vf2_sound_board_emit_command(
+            &board, packet) == VF2_OK);
+        EXPECT_TRUE(vf2_sound_board_dispatch_next(
+            &board, &report) == VF2_OK);
+        EXPECT_TRUE(report.handler_address == UINT32_C(0x1c0a));
+        EXPECT_TRUE(report.handled == 1 &&
+                    report.selected_value == UINT8_C(0x50));
+        EXPECT_TRUE(board.sound_ram[VF2_SOUND_COMMAND_COUNT] == 0u);
+        EXPECT_TRUE(board.sound_ram[VF2_SOUND_SHARED_COUNTER_151E] == 0u);
+    }
+}
+
 static void test_b0_181c_native_original(
     const uint8_t *audio_rom, size_t audio_rom_size
 )
@@ -6163,6 +6290,7 @@ int main(int argc, char **argv)
     test_l2_stream_tick(audio_rom, audio_rom_size);
     test_b0_prescaler_setup_original(audio_rom, audio_rom_size);
     test_b0_181c_native_original(audio_rom, audio_rom_size);
+    test_b0_50_7e_original(audio_rom, audio_rom_size);
     test_session_attach(argv[1]);
     test_scsp_dsp_program(audio_rom, audio_rom_size);
     test_vectors(audio_rom, audio_rom_size);
