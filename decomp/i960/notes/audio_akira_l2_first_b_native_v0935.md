@@ -107,3 +107,41 @@ full return, pointer-update and real CPU-cycle timing
 are still unrecovered. Do not interpret these three
 packets as an entire Timer-A IRQ or claim native
 continuous music / a new WAV.
+
+## v0937 — first original class-9 music event
+
+The local owner VF2.1 sound-ROM jump table at 0x1FBC
+has a class-9 entry at 0x1FE0, a JMP (d16,PC) to
+**0x2080**. The first Akira class-9 stream event
+is 9F 48 F7 immediately after the three previously
+recovered B-class events, at 0x61577D.
+
+The original 68000 0x2080 class-9 routine writes
+the opcode and following byte, BCLR #7 on its third
+byte, sets status bit0 on a previously set high bit,
+and joins the shared 0x211C emitter. At original
+stop PC 0x212C the fourth music command is
+**9F 48 77**, status becomes 0x89, pending ring
+count rises from 3 to 4, cursor from 12 to 16,
+and ephemeral A3 points to 0x615780. The music
+descriptor stream pointer at +4 remains 0x615773.
+The ring's fourth byte stays untouched.
+
+A new standalone `vf2_sound_board_probe_akira_l2_first_9f`
+performs only this fourth original packet, with strict
+source, descriptor, three-prior-packet, cursor, count
+and ROM bounds guards. This is NOT a full L2 tick.
+The public synthetic unit covers success, mutated
+source refusal, capacity rejection, re-entry rejection
+and 4KiB cursor wraparound. The opt-in owner-ROM
+differential single-steps the real Motorola 68000
+to the *fourth* visit to 0x212C and compares full
+RAM, SCSP and temporary A3 with the three C probes.
+It is not executed in public ROM-free GitHub Actions.
+
+The next original stream events are more class-9
+packets followed by mixed command/control events.
+They still need their own bounded worker treatment,
+correct pointer and countdown finalization, and a
+real-cycle IRQ scheduler before native PCM rendering.
+No new Akira WAV or acoustic parity is claimed.

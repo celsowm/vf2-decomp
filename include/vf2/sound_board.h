@@ -137,6 +137,17 @@ typedef struct vf2_sound_music_followup_report {
     uint8_t duration_byte;
 } vf2_sound_music_followup_report;
 
+/* Opt-in single 9F-class packet after three verified Akira
+ * B-class L2 packets. Not an entire L2 worker or IRQ. */
+typedef struct vf2_sound_music_9f_report {
+    uint32_t stream_before;
+    uint32_t a3_after;
+    uint16_t cursor_before;
+    uint16_t cursor_after;
+    uint8_t packet[3];
+    uint8_t status_after;
+} vf2_sound_music_9f_report;
+
 typedef struct vf2_sound_dispatch_report {
     uint8_t command;
     uint8_t payload;
@@ -417,6 +428,15 @@ vf2_status vf2_sound_board_probe_akira_l2_first_b(
  * Does not complete the music L2 service. */
 vf2_status vf2_sound_board_probe_akira_l2_next_two_b(
     vf2_sound_board *board, vf2_sound_music_followup_report *report
+);
+
+/* Emit only the original first Akira 9F 48 77 music
+ * command at original 68000 stop-PC 0x212C. Caller
+ * must have already applied the three native B packets.
+ * The normal full L2 path remains fail-closed. */
+vf2_status vf2_sound_board_probe_akira_l2_first_9f(
+    vf2_sound_board *board,
+    vf2_sound_music_9f_report *report
 );
 
 /* Execute the bounded 0x1f7c stream-interpreter packet paths. */
