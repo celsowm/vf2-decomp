@@ -1,7 +1,9 @@
 #include "vf2/sound_board.h"
+#include "vf2/m68k_step.h"
 #include "sound_a0_descriptor.h"
 #include "sound_l2_ad.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 /* ROM table addressed by the 0x174c B0 handler's PC-relative lookup at
@@ -3834,11 +3836,133 @@ static int sound_board_b0_target(
     return 1;
 }
 
+/* Experimental original-ROM 0x181C escape hatch. This is a
+ * constrained interpreter bridge, NOT the native C translation.
+ * The first known original effects are the factor at 0x251F and
+ * 10-byte duration in the command-descriptor records; everything
+ * else stays unsupported until a differential proves it.
+ *
+ * Build a disposable RAM/SCSP clone, execute at most 4096 actual
+ * 68000 opcodes, and commit ONLY the exact whitelisted byte
+ * changes when an RTS finishes. An invalid opcode, hardware
+ * write, side effect outside the whitelist or time budget must
+ * leave the owning board and FIFO untouched. The synthetic ROM
+ * regression verifies rollback; owner-ROM execution is pending. */
+static int sound_board_b0_181c_allowed_byte(size_t address)
+{
+    const size_t base = VF2_SOUND_COMMAND_DESCRIPTOR_BASE;
+    const size_t extent =
+        (size_t)VF2_SOUND_COMMAND_DESCRIPTOR_COUNT *
+        VF2_SOUND_COMMAND_DESCRIPTOR_BYTES;
+    if (address == VF2_SOUND_SHARED_FACTOR_151F) {
+        return 1;
+    }
+    if (address >= base && address - base < extent &&
+        (address - base) % VF2_SOUND_COMMAND_DESCRIPTOR_BYTES == 0x0au) {
+        return 1;
+    }
+    /* Private 68000 subroutine stack scratch is not committed. */
+    return address >= 0x7e00u && address < 0x7f00u;
+}
+
+static vf2_status sound_board_b0_181c_interpreter_bridge(
+    vf2_sound_board *board,
+    uint8_t argument,
+    uint16_t cursor,
+    vf2_sound_dispatch_report *report
+)
+{
+    uint8_t *copy;
+    vf2_scsp scsp;
+    vf2_m68k_bus bus = {0};
+    vf2_m68k_regs regs;
+    uint32_t steps_done = 0u;
+    vf2_status status;
+    size_t i;
+
+    if (board == NULL || report == NULL || board->audio_rom == NULL ||
+        board->audio_rom_size <= UINT32_C(0x181e)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    /* A copied SCSP must never retain a pointer into the live
+     * owner's sample RAM. Other borrowed sample-RAM arrangements
+     * cannot be proven safe here. */
+    if (board->scsp.sample_ram != NULL &&
+        board->scsp.sample_ram != board->sound_ram) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    copy = (uint8_t *)malloc(VF2_SOUND_RAM_BYTES);
+    if (copy == NULL) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    memcpy(copy, board->sound_ram, VF2_SOUND_RAM_BYTES);
+    scsp = board->scsp;
+    if (scsp.sample_ram != NULL) {
+        scsp.sample_ram = copy;
+    }
+    bus.ram = copy;
+    bus.ram_size = VF2_SOUND_RAM_BYTES;
+    bus.rom = board->audio_rom;
+    bus.rom_size = board->audio_rom_size;
+    bus.sample_rom = board->sample_rom;
+    bus.sample_rom_size = board->sample_rom_size;
+    bus.scsp = &scsp;
+    vf2_m68k_regs_reset(&regs);
+    regs.pc = UINT32_C(0x181c);
+    regs.a[5] = UINT32_C(0x100000);
+    regs.a[6] = UINT32_C(0x1000);
+    regs.a[7] = UINT32_C(0x7f00);
+    regs.a[3] = VF2_SOUND_COMMAND_RING_BASE +
+        (uint32_t)((cursor + 2u) & UINT16_C(0x0fff));
+    regs.d[0] = argument;
+    regs.d[2] = UINT32_C(0x10);
+    status = vf2_m68k_run(
+        &bus, &regs, UINT32_MAX, 1, 4096u, &steps_done);
+    if (status != VF2_OK || steps_done == 0u ||
+        regs.pc >= board->audio_rom_size ||
+        board->audio_rom_size - regs.pc < 2u ||
+        read_be16(board->audio_rom + regs.pc) != UINT16_C(0x4e75) ||
+        bus.event_count != 0u) {
+        free(copy);
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    /* An SCSP write is not yet part of the recovered 0x181C
+     * contract, even if the interpreter happens to model it. */
+    scsp.sample_ram = board->scsp.sample_ram;
+    if (memcmp(&scsp, &board->scsp, sizeof(scsp)) != 0) {
+        free(copy);
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    for (i = 0u; i < VF2_SOUND_RAM_BYTES; ++i) {
+        if (copy[i] != board->sound_ram[i] &&
+            !sound_board_b0_181c_allowed_byte(i)) {
+            free(copy);
+            return VF2_ERROR_UNSUPPORTED;
+        }
+    }
+    for (i = 0u; i < VF2_SOUND_RAM_BYTES; ++i) {
+        if (copy[i] != board->sound_ram[i] &&
+            sound_board_b0_181c_allowed_byte(i) &&
+            !(i >= 0x7e00u && i < 0x7f00u)) {
+            if (i >= VF2_SOUND_COMMAND_DESCRIPTOR_BASE &&
+                i - VF2_SOUND_COMMAND_DESCRIPTOR_BASE <
+                    (size_t)VF2_SOUND_COMMAND_DESCRIPTOR_COUNT *
+                    VF2_SOUND_COMMAND_DESCRIPTOR_BYTES) {
+                ++report->descriptors_updated;
+            }
+            board->sound_ram[i] = copy[i];
+        }
+    }
+    free(copy);
+    return VF2_OK;
+}
+
 static vf2_status sound_board_dispatch_b0(
     vf2_sound_board *board,
     uint8_t command,
     uint8_t payload,
     uint8_t argument,
+    uint16_t cursor,
     vf2_sound_dispatch_report *report
 )
 {
@@ -3881,12 +4005,17 @@ static vf2_status sound_board_dispatch_b0(
             /* Authentic B0 default RTS: no device mutation. */
             return VF2_OK;
         }
-        if (target == UINT32_C(0x181c) ||
-            target == UINT32_C(0x1c0a)) {
-            /* BE 10 xx is a real duration/volume updater,
-             * and BE 50 xx is a real end-control dispatcher.
-             * Preserve the command until their side effects
-             * are established by original-ROM differential. */
+        if (target == UINT32_C(0x181c)) {
+            if (board->allow_original_b0_181c_fallback != 0u) {
+                return sound_board_b0_181c_interpreter_bridge(
+                    board, argument, cursor, report);
+            }
+            /* The native C calculation is still unmeasured.
+             * Default mode holds BE 10 xx in the FIFO. */
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        if (target == UINT32_C(0x1c0a)) {
+            /* Terminal sub-dispatcher still unrecovered. */
             return VF2_ERROR_UNSUPPORTED;
         }
         /* An unanticipated ROM target is deliberately opaque. */
@@ -4037,7 +4166,8 @@ vf2_status vf2_sound_board_dispatch_next(
             vf2_status status = sound_board_dispatch_b0(
                 board, local.command, local.payload,
                 ram[VF2_SOUND_COMMAND_RING_BASE +
-                    ((cursor + 2u) & UINT16_C(0x0fffu))], &local
+                    ((cursor + 2u) & UINT16_C(0x0fffu))],
+                cursor, &local
             );
             if (status != VF2_OK) {
                 *report = local;

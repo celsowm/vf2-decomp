@@ -186,6 +186,89 @@ static void test_render_first_tone(void)
  * routine (0x181C), NOT a default RTS. Holding that packet
  * instead of silently consuming it prevents false audio parity.
  * 0x50 similarly enters a real secondary dispatcher at 0x1C0A. */
+/* The experimental 0x181C original-ROM fallback is OFF by
+ * default. This ROM-free test uses a deliberately synthetic
+ * four-instruction-like routine: MOVE.B D0,0x151F(A6); RTS.
+ * It validates transactional state commit, not original ROM
+ * instruction parity or audio fidelity. */
+static void test_b0_181c_transactional_interpreter(void)
+{
+    static vf2_sound_board board;
+    static uint8_t rom[0x10010u];
+    static const uint8_t sample[2] = {0u, 0u};
+    const uint8_t packet[4] = {0xbeu, 0x10u, 0x04u, 0xa5u};
+    const size_t at = UINT32_C(0x13de) + UINT32_C(0x10) * 4u;
+    int32_t delta = (int32_t)UINT32_C(0x181c) -
+                    (int32_t)(at + 2u);
+    const uint16_t displacement = (uint16_t)delta;
+    vf2_sound_dispatch_report report;
+    uint8_t *desc;
+    test_boot_rom(rom);
+    /* B0 selector 10 -> handler 181C in the synthetic ROM. */
+    rom[at] = 0x4eu;
+    rom[at + 1u] = 0xfau;
+    rom[at + 2u] = (uint8_t)(displacement >> 8u);
+    rom[at + 3u] = (uint8_t)displacement;
+    /* MOVE.B D0,$151F(A6); RTS */
+    rom[0x181cu] = 0x1du;
+    rom[0x181du] = 0x40u;
+    rom[0x181eu] = 0x15u;
+    rom[0x181fu] = 0x1fu;
+    rom[0x1820u] = 0x4eu;
+    rom[0x1821u] = 0x75u;
+    EXPECT_TRUE(vf2_sound_board_initialize(
+        &board, rom, sizeof(rom), sample, sizeof(sample)) == VF2_OK);
+    desc = board.sound_ram + VF2_SOUND_COMMAND_DESCRIPTOR_BASE;
+    memset(desc, 0, VF2_SOUND_COMMAND_DESCRIPTOR_COUNT *
+                    VF2_SOUND_COMMAND_DESCRIPTOR_BYTES);
+    desc[0] = 0x80u;
+    desc[1] = 0x0eu;
+    board.sound_ram[VF2_SOUND_SHARED_FACTOR_151F] = 0x9au;
+    EXPECT_TRUE(vf2_sound_board_emit_command(&board, packet) == VF2_OK);
+    /* No change and no retirement when the opt-in is disabled. */
+    EXPECT_TRUE(vf2_sound_board_dispatch_next(&board, &report) ==
+                VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(board.sound_ram[VF2_SOUND_SHARED_FACTOR_151F] == 0x9au &&
+                board.sound_ram[VF2_SOUND_COMMAND_COUNT] == 1u &&
+                report.handler_address == UINT32_C(0x181c));
+    board.allow_original_b0_181c_fallback = 1u;
+    EXPECT_TRUE(vf2_sound_board_dispatch_next(&board, &report) ==
+                VF2_OK);
+    EXPECT_TRUE(board.sound_ram[VF2_SOUND_SHARED_FACTOR_151F] == 4u &&
+                board.sound_ram[VF2_SOUND_COMMAND_COUNT] == 0u &&
+                report.handled == 1 &&
+                report.handler_address == UINT32_C(0x181c));
+
+    /* A mapped 68000 store outside the permitted effect set
+     * must roll back even if the opcode and RTS both succeed. */
+    rom[0x181fu] = 0x2eu; /* $152E(A6), not $151F(A6) */
+    board.sound_ram[VF2_SOUND_SHARED_FACTOR_151F] = 0x9au;
+    board.sound_ram[0x252eu] = 0x53u;
+    EXPECT_TRUE(vf2_sound_board_emit_command(&board, packet) == VF2_OK);
+    EXPECT_TRUE(vf2_sound_board_dispatch_next(&board, &report) ==
+                VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(board.sound_ram[VF2_SOUND_SHARED_FACTOR_151F] == 0x9au &&
+                board.sound_ram[0x252eu] == 0x53u &&
+                board.sound_ram[VF2_SOUND_COMMAND_COUNT] == 1u &&
+                report.handled == 0);
+    /* A legal first mutation, followed by an unknown opcode,
+     * is rolled back atomically as well. */
+    rom[0x181fu] = 0x1fu;
+    rom[0x1820u] = 0xffu;
+    rom[0x1821u] = 0xffu;
+    EXPECT_TRUE(vf2_sound_board_dispatch_next(&board, &report) ==
+                VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(board.sound_ram[VF2_SOUND_SHARED_FACTOR_151F] == 0x9au &&
+                board.sound_ram[VF2_SOUND_COMMAND_COUNT] == 1u);
+    /* A JSR-less self-loop cannot consume CPU forever. */
+    rom[0x181cu] = 0x60u; /* BRA.S -2 */
+    rom[0x181du] = 0xfeu;
+    EXPECT_TRUE(vf2_sound_board_dispatch_next(&board, &report) ==
+                VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(board.sound_ram[VF2_SOUND_SHARED_FACTOR_151F] == 0x9au &&
+                board.sound_ram[VF2_SOUND_COMMAND_COUNT] == 1u);
+}
+
 static void test_b0_prescaler_command_chain(void)
 {
     static vf2_sound_board board;
@@ -2722,6 +2805,7 @@ int main(void)
     test_pcm_walker_one_descriptor();
     test_pcm_stream_page_native();
     test_render_first_tone();
+    test_b0_181c_transactional_interpreter();
     test_b0_prescaler_command_chain();
     test_ad21_b_class_drain();
     test_ad21_ba_does_not_stage();

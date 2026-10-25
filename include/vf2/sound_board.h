@@ -154,6 +154,14 @@ typedef struct vf2_sound_board {
      * Default OFF preserves historical FAC refusal, including
      * allocator arrivals with unverified D4/SCSP addressing. */
     uint8_t allow_verified_90_allocator;
+    /* EXPERIMENTAL, default OFF. For B0 payload selector 0x10
+     * only: execute original sound-ROM 0x181C through the
+     * bounded 68000 interpreter in a disposable RAM/SCSP clone.
+     * Commit only a verified shared-factor or descriptor-duration
+     * byte delta, and only if execution reaches RTS without
+     * any unsupported instruction or hardware effect.
+     * Not a native translation or proven arcade audio parity. */
+    uint8_t allow_original_b0_181c_fallback;
 } vf2_sound_board;
 
 vf2_status vf2_sound_board_initialize(
