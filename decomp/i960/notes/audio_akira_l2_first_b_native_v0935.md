@@ -18,7 +18,7 @@ the 0x2048 arm. The command's fourth sound-ring byte is untouched.
 The original 0x211E..0x2128 path advances the 12-bit four-byte
 ring write cursor and pending count. The A3 stream pointer was
 postincremented three times, from 0x615773 to 0x615776, but
-the worker descriptor pointer +4 is unchanged at stop-PC 0x212E.
+the worker descriptor pointer +4 is unchanged at stop-PC 0x212C.
 The important distinction is that A3 is **temporary register
 state**, not a committed stream cursor. Subsequent worker
 control-flow may consume many more events in the same L2 tick.
@@ -49,7 +49,7 @@ refusal. No Sega code, music stream bytes or PCM are committed.
 
 An owner-only ROM-backed differential starts the original
 68000 at PC 0x1F7C on this same descriptor and stops
-**before** PC 0x212E. It compares complete RAM and modeled
+**before** PC 0x212C. It compares complete RAM and modeled
 SCSP state, A3 register against the native report and
 source+3 and the original descriptor. It is not part of
 the ordinary public ROM-free CI, and still needs execution
@@ -57,7 +57,7 @@ with the user's original ROM set.
 
 ## Next exact frontier
 
-Continue the original 68000 at 0x212E after this packet,
+Continue the original 68000 at 0x212C after this packet,
 trace whether descriptor bit0 selects the next worker instruction,
 and reconstruct the **whole bounded music stream** until the
 original returns, including multi-packet ring emissions and

@@ -237,7 +237,7 @@ static void test_b0_prescaler_setup_original(
  * The 68000's JSR return-stack scratch is intentionally
  * excluded; no proprietary bytes are committed. */
 /* Original 68000 stop-PC differential for the FIRST Akira
- * B-class music packet. Stop at 0x212E BEFORE the worker
+ * B-class music packet. Stop at 0x212C BEFORE the worker
  * loops to parse another command. This does not claim the
  * entire tick has finished, nor that music now plays in C.
  * Owner-only, requires the exact original sound ROM. */
@@ -275,7 +275,7 @@ static void test_akira_l2_first_b_original(
     regs.pc = UINT32_C(0x1f7c);
     regs.a[2] = VF2_SOUND_DESCRIPTOR_BASE;
     cpu_status = vf2_m68k_run(
-        &bus, &regs, UINT32_C(0x212e), 0, 2048u, &steps);
+        &bus, &regs, UINT32_C(0x212c), 0, 2048u, &steps);
     native_status = vf2_sound_board_probe_akira_l2_first_b(
         &board, &report);
     fprintf(stderr,
@@ -287,7 +287,7 @@ static void test_akira_l2_first_b_original(
                               sizeof(cpu_ram)) == 0),
             (unsigned)scsp_equal(&cpu_scsp, &board.scsp));
     EXPECT_TRUE(cpu_status == VF2_OK && native_status == VF2_OK);
-    EXPECT_TRUE(regs.pc == UINT32_C(0x212e) &&
+    EXPECT_TRUE(regs.pc == UINT32_C(0x212c) &&
                 steps > 20u && steps < 2048u);
     EXPECT_TRUE(regs.a[3] == report.a3_after &&
                 report.a3_after == UINT32_C(0x615776));

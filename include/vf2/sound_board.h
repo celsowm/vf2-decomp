@@ -390,7 +390,7 @@ vf2_status vf2_sound_board_maintain_voices(
 );
 
 /* Execute exactly the first original Akira B-class packet up
- * to 68000 stop-PC 0x212E. Experimental explicit call only;
+ * to 68000 stop-PC 0x212C. Experimental explicit call only;
  * it never stands in for the full vf2_sound_board_maintain_streams.
  * This advances the ring and descriptor status but intentionally
  * does not commit the stream-pointer A3 into descriptor +4. */

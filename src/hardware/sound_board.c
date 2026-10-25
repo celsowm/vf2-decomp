@@ -1434,7 +1434,7 @@ vf2_status vf2_sound_board_maintain_voices(
    (0x1f92-0x1fba) reads stream bytes + the +1 latch and jumps the
    0x1fbc class table. The tick then refuses BEFORE mutating
    anything and names the record, fail closed. */
-/* Bounded ORIGINAL VF2.1 music L2 B-prefix (0x1F7C->0x212E).
+/* Bounded ORIGINAL VF2.1 music L2 B-prefix (0x1F7C->0x212C).
  * This is intentionally a DEVELOPMENT primitive, NOT an entire
  * Timer-A tick. A music stream may emit many packets during one
  * original worker invocation: do not claim success for the full
@@ -1451,7 +1451,7 @@ vf2_status vf2_sound_board_maintain_voices(
  *
  * The original stream pointer is held in A3 until later
  * 0x214E+ handling; descriptor[4] is NOT advanced yet at
- * the 0x212E stop-PC. Caller receives that ephemeral A3
+ * the 0x212C stop-PC. Caller receives that ephemeral A3
  * value separately. All preconditions are checked before
  * any writes, so even a malformed ROM/cursor cannot create
  * a partial native packet. */
