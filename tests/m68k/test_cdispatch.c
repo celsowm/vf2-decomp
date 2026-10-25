@@ -22,6 +22,63 @@ static int failures;
         } \
     } while (0)
 
+/* S7a: drain class-switch routing + e0-head path (see
+ * audio_switch_audit_v0819.md). The ROM switch reads the filed
+ * $150e byte and jumps: $90->$858, $80->$10d0, $e0->$12b4,
+ * $b0->$13ca, $c0->$1e5a, $a0->$1e74, anything else->rts at $856
+ * (byte-verified 4e 75). S2b retired the C's default->90 mapping:
+ * unlisted classes ignore (handler 0x856) with drain consume.
+ */
+
+static void make_bus(
+    vf2_m68k_bus *bus,
+    vf2_scsp *scsp,
+    uint8_t *ram,
+    const uint8_t *rom,
+    size_t rom_size
+)
+{
+    bus->ram = ram;
+    bus->ram_size = VF2_SOUND_RAM_BYTES;
+    bus->rom = rom;
+    bus->rom_size = rom_size;
+    bus->sample_rom = NULL;
+    bus->sample_rom_size = 0u;
+    bus->scsp = scsp;
+    bus->event_count = 0u;
+}
+
+static void reset_regs(vf2_m68k_regs *regs)
+{
+    vf2_m68k_regs_reset(regs);
+    regs->a[5] = UINT32_C(0x100000);
+    regs->a[6] = UINT32_C(0x1000);
+    regs->a[7] = UINT32_C(0x7f00);
+    regs->pc = UINT32_C(0x81a);
+}
+
+static int scsp_equal(const vf2_scsp *a, const vf2_scsp *b)
+{
+    size_t i = 0u;
+    if (memcmp(a->registers, b->registers, sizeof(a->registers)) != 0) {
+        return 0;
+    }
+    for (i = 0u; i < VF2_SCSP_SLOT_COUNT; ++i) {
+        if (a->slot_address[i] != b->slot_address[i] ||
+            a->slot_step[i] != b->slot_step[i] ||
+            a->slot_envelope[i] != b->slot_envelope[i] ||
+            a->slot_active[i] != b->slot_active[i] ||
+            a->slot_envelope_state[i] != b->slot_envelope_state[i] ||
+            a->slot_backward[i] != b->slot_backward[i]) {
+            return 0;
+        }
+    }
+    return (memcmp(a->midi_input, b->midi_input, sizeof(a->midi_input)) ==
+            0 &&
+            a->midi_read_index == b->midi_read_index &&
+            a->midi_write_index == b->midi_write_index);
+}
+
 /* Owner-ROM differential for B0 selector 0x12 (0x18A8).
  * Compare the 68000 program's register-independent destination
  * stores against bounded native C dispatch. This is opt-in only
@@ -92,63 +149,6 @@ static void test_b0_prescaler_setup_original(
                      board.sound_ram + VF2_SOUND_DESCRIPTOR_BASE,
                      VF2_SOUND_STREAM_DESCRIPTOR_BYTES) == 0));
     }
-}
-
-/* S7a: drain class-switch routing + e0-head path (see
- * audio_switch_audit_v0819.md). The ROM switch reads the filed
- * $150e byte and jumps: $90->$858, $80->$10d0, $e0->$12b4,
- * $b0->$13ca, $c0->$1e5a, $a0->$1e74, anything else->rts at $856
- * (byte-verified 4e 75). S2b retired the C's default->90 mapping:
- * unlisted classes ignore (handler 0x856) with drain consume.
- */
-
-static void make_bus(
-    vf2_m68k_bus *bus,
-    vf2_scsp *scsp,
-    uint8_t *ram,
-    const uint8_t *rom,
-    size_t rom_size
-)
-{
-    bus->ram = ram;
-    bus->ram_size = VF2_SOUND_RAM_BYTES;
-    bus->rom = rom;
-    bus->rom_size = rom_size;
-    bus->sample_rom = NULL;
-    bus->sample_rom_size = 0u;
-    bus->scsp = scsp;
-    bus->event_count = 0u;
-}
-
-static void reset_regs(vf2_m68k_regs *regs)
-{
-    vf2_m68k_regs_reset(regs);
-    regs->a[5] = UINT32_C(0x100000);
-    regs->a[6] = UINT32_C(0x1000);
-    regs->a[7] = UINT32_C(0x7f00);
-    regs->pc = UINT32_C(0x81a);
-}
-
-static int scsp_equal(const vf2_scsp *a, const vf2_scsp *b)
-{
-    size_t i = 0u;
-    if (memcmp(a->registers, b->registers, sizeof(a->registers)) != 0) {
-        return 0;
-    }
-    for (i = 0u; i < VF2_SCSP_SLOT_COUNT; ++i) {
-        if (a->slot_address[i] != b->slot_address[i] ||
-            a->slot_step[i] != b->slot_step[i] ||
-            a->slot_envelope[i] != b->slot_envelope[i] ||
-            a->slot_active[i] != b->slot_active[i] ||
-            a->slot_envelope_state[i] != b->slot_envelope_state[i] ||
-            a->slot_backward[i] != b->slot_backward[i]) {
-            return 0;
-        }
-    }
-    return (memcmp(a->midi_input, b->midi_input, sizeof(a->midi_input)) ==
-            0 &&
-            a->midi_read_index == b->midi_read_index &&
-            a->midi_write_index == b->midi_write_index);
 }
 
 /* Switch routing: filed class -> arm entry. Step counts predicted
