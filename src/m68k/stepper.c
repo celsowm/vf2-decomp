@@ -2324,10 +2324,17 @@ static vf2_status vf2_m68k_cycle_cost(
     }
     if ((op & UINT16_C(0xfff8)) == UINT16_C(0x0828)) {
         /* BTST #imm,(d16,An) in the original 0x1F7C stream
-         * worker. MC68000UM Table 8-8: static BTST to byte
-         * memory is 8 + 8 EA clocks (Table 8-1) = 16.
-         * Restrict to the observed displacement EA; do not
-         * admit BCHG/BCLR/BSET or unmeasured address forms. */
+         * worker. MC68000UM: 8 + 8 EA clocks = 16.
+         * Other bit operations/address forms remain unmeasured. */
+        *cost = 16u;
+        return VF2_OK;
+    }
+    if ((op & UINT16_C(0xfff8)) == UINT16_C(0x5368)) {
+        /* Original 0x1F88: SUBQ.W #1,$0002(A2), only the
+         * exact one-word decrement to d16(An). MC68000
+         * quick B/W memory instruction 8 + displaced EA 8
+         * = 16 uncontended clocks. Preserve the stepper's
+         * 16-bit wrap and X/C/N/Z flag implementation. */
         *cost = 16u;
         return VF2_OK;
     }

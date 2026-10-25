@@ -1820,8 +1820,8 @@ static int akira_verify_l2_jsr_cycle_prefix(
  * + 64 prescaler return + 8*(18 JSR +16 BTST +12 BNE.W
  * +16 RTS) + 7*8 LEA +116 MOVEM restore +20 RTE = 972.
  * No bus stalls, IRQ arbitration, or active record timing modeled. */
-static int akira_verify_l2_idle_isr_cycle_timing(
-    const uint8_t *rom, size_t rom_size
+static int akira_verify_l2_isr_cycle_timing_variant(
+    const uint8_t *rom, size_t rom_size, unsigned active_record
 )
 {
     static uint8_t original_ram[VF2_SOUND_RAM_BYTES];
@@ -1833,11 +1833,14 @@ static int akira_verify_l2_idle_isr_cycle_timing(
     uint32_t entry_cycles = 0u, cycles = 0u, steps = 0u;
     uint32_t original_steps = 0u, timed_steps = 0u;
     uint32_t body_cycles = 0u;
+    uint32_t expected_prefix = active_record != 0u ? 818u : 792u;
     unsigned i;
     int suspended = 0, parity = 1;
     if (rom_size <= UINT32_C(0x2242) ||
         rom[0x1f7cu] != 0x08u || rom[0x1f7du] != 0x2au ||
-        rom[0x1f82u] != 0x66u || rom[0x1f83u] != 0u)
+        rom[0x1f82u] != 0x66u || rom[0x1f83u] != 0u ||
+        rom[0x1f88u] != 0x53u || rom[0x1f89u] != 0x6au ||
+        rom[0x1f8cu] != 0x67u || rom[0x1f8du] != 0u)
         return 0;
     memcpy(original_ram, step_ram, sizeof(original_ram));
     memcpy(timed_ram, step_ram, sizeof(timed_ram));
@@ -1875,6 +1878,16 @@ static int akira_verify_l2_idle_isr_cycle_timing(
         original_ram[record] &= (uint8_t)~0x80u;
         timed_ram[record] &= (uint8_t)~0x80u;
     }
+    /* One active but non-expiring stream (record 3). Preserve
+     * the same independent initial state in both snapshots. */
+    if (active_record != 0u) {
+        original_ram[0x3060u] |= UINT8_C(0x80);
+        timed_ram[0x3060u] |= UINT8_C(0x80);
+        original_ram[0x3062u] = 0u;
+        timed_ram[0x3062u] = 0u;
+        original_ram[0x3063u] = 5u;
+        timed_ram[0x3063u] = 5u;
+    }
     vf2_m68k_regs_reset(&original_regs);
     original_regs.pc = UINT32_C(0x2242);
     original_regs.a[4] = UINT32_C(0x2506);
@@ -1891,13 +1904,14 @@ static int akira_verify_l2_idle_isr_cycle_timing(
     original_status = vf2_m68k_run(
         &original_bus, &original_regs, UINT32_C(0x2242),
         0, 100000u, &original_steps);
-    /* The 907-cycle boundary must stop immediately before the
-     * 116-cycle epilogue MOVEM; no partial register restores. */
+    /* Just below the 116-clock MOVEM restore: the idle body
+     * costs 792 clocks, or 818 with one live countdown. */
     status = vf2_m68k_run_cycle_slice(
         &timed_bus, &timed_regs, UINT32_C(0x2242),
-        907u, &cycles, &steps, &suspended);
+        expected_prefix + 115u, &cycles, &steps, &suspended);
     if (status != VF2_OK || !suspended ||
-        cycles != 792u || timed_regs.pc != UINT32_C(0x1f76)) {
+        cycles != expected_prefix ||
+        timed_regs.pc != UINT32_C(0x1f76)) {
         printf("AKIRA_L2_IDLE_ISR_TIMING refused_at=%05x cycles=%u "
                "steps=%u status=%d\n",
                (unsigned)timed_regs.pc, (unsigned)cycles,
@@ -1933,8 +1947,9 @@ static int akira_verify_l2_idle_isr_cycle_timing(
     timed_steps += steps;
     parity = original_status == VF2_OK &&
         original_steps == timed_steps &&
-        original_steps == 52u &&
-        entry_cycles + body_cycles + cycles == 972u &&
+        original_steps == 52u + 2u * active_record &&
+        entry_cycles + body_cycles + cycles ==
+            972u + 26u * active_record &&
         memcmp(original_ram, timed_ram, sizeof(original_ram)) == 0 &&
         memcmp(original_scsp.registers, timed_scsp.registers,
                VF2_SCSP_REGISTER_BYTES) == 0 &&
@@ -1970,16 +1985,35 @@ static int akira_verify_l2_idle_isr_cycle_timing(
             original_regs.a[i] != timed_regs.a[i])
             parity = 0;
     }
-    printf("AKIRA_L2_IDLE_ISR_TIMING matched=%u "
+    if (active_record != 0u &&
+        (original_ram[0x3062u] != 0u ||
+         original_ram[0x3063u] != 4u ||
+         timed_ram[0x3062u] != 0u ||
+         timed_ram[0x3063u] != 4u))
+        parity = 0;
+    printf("AKIRA_L2_ISR_TIMING variant=%s matched=%u "
            "entry_cycles=%u body_cycles=%u rte_cycles=20 "
            "total_cycles=%u original_steps=%u timed_steps=%u "
-           "all_active_worker_paths_unmeasured=1 "
+           "worker_applier_unmeasured=1 "
            "hardware_waits_unmodeled=1\n",
+           active_record != 0u ? "one-active" : "idle",
            (unsigned)parity, (unsigned)entry_cycles,
            (unsigned)body_cycles,
            (unsigned)(entry_cycles + body_cycles + cycles),
            (unsigned)original_steps, (unsigned)timed_steps);
     return parity;
+}
+
+/* Keep both owner-ROM differential legs mandatory in strict mode. */
+static int akira_verify_l2_idle_isr_cycle_timing(
+    const uint8_t *rom, size_t rom_size
+)
+{
+    const int idle = akira_verify_l2_isr_cycle_timing_variant(
+        rom, rom_size, 0u);
+    const int one_active = akira_verify_l2_isr_cycle_timing_variant(
+        rom, rom_size, 1u);
+    return idle && one_active;
 }
 
 /* Original-ROM candidate page-refill service: 0x2242 walker.

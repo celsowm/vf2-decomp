@@ -907,5 +907,109 @@ int main(void)
                     ram[0x2000u] == 0u);
     }
 
+    /* The original live, non-expiring worker decrements
+     * the 16-bit countdown and returns without applying audio.
+     * 0x1F88 SUBQ.W #1,2(A2) is 16 clocks; the path costs
+     * BTST16+BNE taken10+SUBQ16+BEQ not-taken12+RTS16=70. */
+    {
+        static const uint8_t live_countdown[] = {
+            0x08u, 0x2au, 0x00u, 0x07u, 0x00u, 0x00u,
+            0x66u, 0x00u, 0x00u, 0x06u, /* to 0x0e */
+            0x4eu, 0x75u,             /* idle RTS */
+            0x4eu, 0x71u,             /* unreachable NOP */
+            0x53u, 0x6au, 0x00u, 0x02u, /* SUBQ.W #1,2(A2) */
+            0x67u, 0x00u, 0x00u, 0x04u, /* BEQ.W to 0x18 */
+            0x4eu, 0x75u,             /* nonexpired RTS */
+            0x4eu, 0x71u,             /* expiration body sentinel */
+            0x4eu, 0x71u              /* caller stop 0x1c */
+        };
+        uint32_t cycles = 0u, steps = 0u;
+        int paused = 0;
+        make_bus(&bus, &scsp, ram,
+                 live_countdown, sizeof(live_countdown));
+        vf2_m68k_regs_reset(&regs);
+        regs.a[2] = UINT32_C(0x2000);
+        regs.a[7] = UINT32_C(0x6ffc);
+        ram[0x2000u] = 0x80u; /* armed record */
+        ram[0x2002u] = 0u;
+        ram[0x2003u] = 5u;
+        ram[0x6ffcu] = 0u;
+        ram[0x6ffdu] = 0u;
+        ram[0x6ffeu] = 0u;
+        ram[0x6fffu] = 0x1cu;
+        regs.x = 1u;
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 28u, 41u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && paused &&
+                    cycles == 26u && steps == 2u &&
+                    regs.pc == 14u && regs.z == 0u &&
+                    regs.x == 1u && ram[0x2003u] == 5u);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 28u, 15u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && paused &&
+                    cycles == 0u && steps == 0u &&
+                    regs.pc == 14u && ram[0x2003u] == 5u);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 28u, 16u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && paused &&
+                    cycles == 16u && steps == 1u &&
+                    regs.pc == 18u && ram[0x2002u] == 0u &&
+                    ram[0x2003u] == 4u &&
+                    regs.z == 0u && regs.n == 0u &&
+                    regs.c == 0u && regs.x == 0u);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 28u, 11u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && paused &&
+                    cycles == 0u && steps == 0u &&
+                    regs.pc == 18u);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 28u, 12u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && paused &&
+                    cycles == 12u && steps == 1u &&
+                    regs.pc == 22u);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 28u, 16u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && !paused &&
+                    cycles == 16u && steps == 1u &&
+                    regs.pc == 28u && regs.a[7] == 0x7000u);
+        /* When 1 -> 0, BEQ.W takes the original applier edge.
+         * Only time its entry, without executing/replacing it. */
+        make_bus(&bus, &scsp, ram,
+                 live_countdown, sizeof(live_countdown));
+        vf2_m68k_regs_reset(&regs);
+        regs.a[2] = UINT32_C(0x2000);
+        ram[0x2000u] = 0x80u;
+        ram[0x2003u] = 1u;
+        regs.x = 1u;
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 24u, 51u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && paused &&
+                    cycles == 42u && steps == 3u &&
+                    regs.pc == 18u && ram[0x2003u] == 0u &&
+                    regs.z == 1u && regs.x == 0u);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 24u, 10u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_OK && !paused &&
+                    cycles == 10u && steps == 1u &&
+                    regs.pc == 24u);
+    }
+    /* The SUBQ clock admission is deliberately not global. */
+    {
+        static const uint8_t unmeasured_quick[] = {
+            0x53u, 0x52u /* SUBQ.W #1,(A2) */
+        };
+        uint32_t cycles = 0u, steps = 0u;
+        int paused = 0;
+        make_bus(&bus, &scsp, ram,
+                 unmeasured_quick, sizeof(unmeasured_quick));
+        vf2_m68k_regs_reset(&regs);
+        regs.a[2] = UINT32_C(0x2000);
+        status = vf2_m68k_run_cycle_slice(
+            &bus, &regs, 2u, 100u, &cycles, &steps, &paused);
+        EXPECT_TRUE(status == VF2_ERROR_UNSUPPORTED && !paused &&
+                    cycles == 0u && steps == 0u &&
+                    regs.pc == 0u && ram[0x2000u] == 0u);
+    }
+
     return failures == 0 ? 0 : 1;
 }

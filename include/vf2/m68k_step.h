@@ -139,8 +139,8 @@ vf2_status vf2_m68k_irq_autovector_enter_timed(
  * Only the explicitly verified timing subset is admitted: MOVEQ,
  * NOP, BRA/BSR/Bcc/DBcc, selected JSR/JMP/LEA addressing,
  * the measured L2 ISR MOVE.W #imm,d16(An), MOVE.B d16(An),Dn,
- * CMPI.B #imm,Dn, TST and BTST #imm,d16(An),
- * MOVEM.L -(An)/(An)+, RTS and RTE.
+ * CMPI.B #imm,Dn, TST, BTST #imm,d16(An), and
+ * SUBQ.W #1,d16(An), MOVEM.L -(An)/(An)+, RTS and RTE.
  * All values are baseline Motorola 68000 clock cycles, excluding
  * optional external wait states and interrupt-entry overhead.
  *
