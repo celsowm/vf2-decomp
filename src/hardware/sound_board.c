@@ -3877,6 +3877,131 @@ static int sound_board_b0_50_original_version(
     return hash == UINT64_C(0xf2225ef03751054f);
 }
 
+
+/* Original sound-ROM B0/50 0x7D and 0x7F branches share the
+ * 0x1C0A dispatcher with the previously recovered 0x7E arm.
+ *
+ * 0x7D: key off flagged voices on channels 9..14; clear channel
+ *      tables for ONLY those six channels; zero 0x252E.
+ * 0x7F: key off ALL flagged voices; when the original voice
+ *      channel was 15 or original flags bit 4 is clear, subtract
+ *      one from 0x251E and subtract one from every voice+9
+ *      which is neither FF nor <= the selected voice's +9.
+ *      Finally clear all 16 channel tables (32 bytes at 4200).
+ *
+ * Validate every indexed voice slot before changing anything.
+ * The 68000 stores to SCSP and RAM are in ORIGINAL voice order;
+ * the inner age sweep uses CURRENT, mutable voice+9 bytes.
+ * Original bytecode-versus-reference parity with a private ROM:
+ * 8/8 synthetic idle/active/age-mixed scenarios, all RAM and
+ * SCSP register bytes and SCSP write order matched. */
+vf2_status vf2_sound_board_apply_b0_end_7d_7f(
+    vf2_sound_board *board,
+    uint8_t argument,
+    vf2_sound_dispatch_report *report
+)
+{
+    size_t i;
+    size_t j;
+    const int full_stop = argument == UINT8_C(0x7f);
+    if (board == NULL || report == NULL ||
+        (argument != UINT8_C(0x7d) && !full_stop)) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    for (i = 0u; i < VF2_SOUND_VOICE_COUNT; ++i) {
+        const uint8_t *voice = board->sound_ram +
+            VF2_SOUND_VOICE_TABLE_BASE +
+            i * VF2_SOUND_VOICE_BYTES;
+        const uint8_t channel = voice[VF2_SOUND_VOICE_CHANNEL];
+        if ((voice[VF2_SOUND_VOICE_FLAGS] & UINT8_C(0x40)) != 0u &&
+            (full_stop || (channel >= UINT8_C(9) &&
+                           channel < UINT8_C(15)))) {
+            const uint16_t slot = read_be16(
+                voice + VF2_SOUND_VOICE_SLOT);
+            if ((slot & UINT16_C(0x8000)) != 0u ||
+                (uint32_t)slot + UINT32_C(0x0b) >=
+                    VF2_SCSP_REGISTER_BYTES ||
+                UINT32_C(0x2000) + (uint32_t)slot >=
+                    VF2_SOUND_RAM_BYTES) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+        }
+    }
+    for (i = 0u; i < VF2_SOUND_VOICE_COUNT; ++i) {
+        uint8_t *voice = board->sound_ram +
+            VF2_SOUND_VOICE_TABLE_BASE +
+            i * VF2_SOUND_VOICE_BYTES;
+        const uint8_t original_channel =
+            voice[VF2_SOUND_VOICE_CHANNEL];
+        const uint8_t original_flags =
+            voice[VF2_SOUND_VOICE_FLAGS];
+        if ((original_flags & UINT8_C(0x40)) == 0u ||
+            (!full_stop && (original_channel < UINT8_C(9) ||
+                            original_channel >= UINT8_C(15)))) {
+            continue;
+        }
+        {
+            const uint32_t slot = (uint32_t)read_be16(
+                voice + VF2_SOUND_VOICE_SLOT);
+            vf2_status status = vf2_scsp_write_u8(
+                &board->scsp, slot + UINT32_C(0x0b),
+                UINT8_C(0x1f));
+            if (status != VF2_OK) return status;
+            status = vf2_scsp_write_u8(
+                &board->scsp, slot, UINT8_C(0x10));
+            if (status != VF2_OK) return status;
+            board->sound_ram[UINT32_C(0x2000) + slot] = 0u;
+            voice[VF2_SOUND_VOICE_FLAGS] = 0u;
+            voice[VF2_SOUND_VOICE_CHANNEL] = 0u;
+            ++report->voices_cleared;
+        }
+        if (full_stop &&
+            (original_channel == UINT8_C(15) ||
+             (original_flags & UINT8_C(0x10)) == 0u)) {
+            const uint8_t original_age =
+                voice[VF2_SOUND_VOICE_AGE];
+            --board->sound_ram[VF2_SOUND_SHARED_COUNTER_151E];
+            for (j = 0u; j < VF2_SOUND_VOICE_COUNT; ++j) {
+                uint8_t *other = board->sound_ram +
+                    VF2_SOUND_VOICE_TABLE_BASE +
+                    j * VF2_SOUND_VOICE_BYTES;
+                uint8_t *age = other + VF2_SOUND_VOICE_AGE;
+                if (*age != UINT8_C(0xff) &&
+                    original_age < *age) {
+                    --*age;
+                }
+            }
+        }
+    }
+    if (full_stop) {
+        /* B0/50 7F: all sixteen channels; 16 word stores
+         * to 4200 and 16 byte stores to each control table. */
+        for (i = 0u; i < 16u; ++i) {
+            board->sound_ram[VF2_SOUND_CHANNEL_CONTROL_BASE + i] =
+                0u;
+            board->sound_ram[
+                VF2_SOUND_CHANNEL_CONTROL_ALT_BASE + i] = 0u;
+            write_be16(
+                board->sound_ram +
+                VF2_SOUND_CHANNEL_TABLE_BASE + 2u * i, 0u);
+        }
+    } else {
+        /* B0/50 7D: six channels (9..14); the 16-bit
+         * channel table starts 18 bytes after 0x4200. */
+        for (i = 9u; i < 15u; ++i) {
+            board->sound_ram[VF2_SOUND_CHANNEL_CONTROL_BASE + i] =
+                0u;
+            board->sound_ram[
+                VF2_SOUND_CHANNEL_CONTROL_ALT_BASE + i] = 0u;
+            write_be16(
+                board->sound_ram +
+                VF2_SOUND_CHANNEL_TABLE_BASE + 2u * i, 0u);
+        }
+        board->sound_ram[VF2_SOUND_SHARED_COUNTER_152E] = 0u;
+    }
+    return VF2_OK;
+}
+
 /* A fully bounded C port of only the original B0 50 7E shutdown
  * path. Preflight all matching voices so malformed SCSP byte
  * offsets cannot cause partial shutdown. The sound-chip writes
@@ -4243,12 +4368,20 @@ static vf2_status sound_board_dispatch_b0(
             return VF2_ERROR_UNSUPPORTED;
         }
         if (target == UINT32_C(0x1c0a)) {
-            if (argument == UINT8_C(0x7e) &&
-                sound_board_b0_50_original_version(board)) {
+            if (!sound_board_b0_50_original_version(board)) {
+                return VF2_ERROR_UNSUPPORTED;
+            }
+            if (argument == UINT8_C(0x7e)) {
                 return vf2_sound_board_apply_b0_end_7e(
                     board, report);
             }
-            /* 7D/7F and unknown ROM variants are not admitted. */
+            if (argument == UINT8_C(0x7d) ||
+                argument == UINT8_C(0x7f)) {
+                return vf2_sound_board_apply_b0_end_7d_7f(
+                    board, argument, report);
+            }
+            /* Other entry args are not known to be inert
+             * in every sound CPU revision: keep fail closed. */
             return VF2_ERROR_UNSUPPORTED;
         }
         /* An unanticipated ROM target is deliberately opaque. */

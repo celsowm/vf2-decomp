@@ -382,6 +382,174 @@ static void test_b0_181c_transactional_interpreter(void)
 
 /* Native shutdown for authentic B0 selector 50, argument 7E.
  * All data below are synthetic; no Sega program or PCM is stored. */
+
+/* ROM-free tests of original 0x1CCA (7D) and 0x1C24 (7F).
+ * Use synthetic voice records: the owned ROM is not copied
+ * into these tests. */
+static void test_b0_50_7d_7f_native(void)
+{
+    static vf2_sound_board board;
+    vf2_sound_dispatch_report report = {0};
+    size_t i;
+    uint8_t reg;
+    for (i = 0u; i < 2u; ++i) {
+        size_t k;
+        const uint8_t arg = i == 0u ? UINT8_C(0x7d) :
+                                       UINT8_C(0x7f);
+        memset(&board, 0, sizeof(board));
+        vf2_scsp_initialize(&board.scsp);
+        for (k = 0u; k < VF2_SOUND_VOICE_COUNT; ++k) {
+            uint8_t *v = board.sound_ram +
+                VF2_SOUND_VOICE_TABLE_BASE +
+                k * VF2_SOUND_VOICE_BYTES;
+            const uint16_t slot = (uint16_t)(k * 0x20u);
+            v[0] = (uint8_t)(slot >> 8u);
+            v[1] = (uint8_t)slot;
+            v[2] = k % 4u == 0u ? 0u : UINT8_C(0x40);
+            v[4] = (uint8_t)(k % 16u);
+            v[9] = k % 7u == 0u ? UINT8_C(0xff) :
+                                     (uint8_t)(k * 5u);
+            board.sound_ram[UINT32_C(0x2000) + slot] =
+                UINT8_C(0x5c);
+            EXPECT_TRUE(vf2_scsp_write_u8(
+                &board.scsp, (uint32_t)slot,
+                UINT8_C(0x20)) == VF2_OK);
+            EXPECT_TRUE(vf2_scsp_write_u8(
+                &board.scsp, (uint32_t)slot + 0x0bu,
+                UINT8_C(0xb0)) == VF2_OK);
+        }
+        for (k = 0u; k < 16u; ++k) {
+            board.sound_ram[VF2_SOUND_CHANNEL_CONTROL_BASE+k] =
+                UINT8_C(0x31);
+            board.sound_ram[
+                VF2_SOUND_CHANNEL_CONTROL_ALT_BASE+k] =
+                UINT8_C(0x62);
+        }
+        for (k = 0u; k < 32u; ++k) {
+            board.sound_ram[VF2_SOUND_CHANNEL_TABLE_BASE+k] =
+                UINT8_C(0x41);
+        }
+        board.sound_ram[VF2_SOUND_SHARED_COUNTER_151E] =
+            UINT8_C(0x50);
+        board.sound_ram[VF2_SOUND_SHARED_COUNTER_152E] =
+            UINT8_C(0x60);
+        memset(&report, 0, sizeof(report));
+        EXPECT_TRUE(vf2_sound_board_apply_b0_end_7d_7f(
+            &board, arg, &report) == VF2_OK);
+        EXPECT_TRUE(board.sound_ram[
+            VF2_SOUND_SHARED_COUNTER_152E] ==
+            (arg == UINT8_C(0x7d) ? 0u : UINT8_C(0x60)));
+        if (arg == UINT8_C(0x7d)) {
+            EXPECT_TRUE(board.sound_ram[
+                VF2_SOUND_SHARED_COUNTER_151E] == UINT8_C(0x50));
+        } else {
+            EXPECT_TRUE(board.sound_ram[
+                VF2_SOUND_SHARED_COUNTER_151E] < UINT8_C(0x50));
+        }
+        {
+            size_t cleared = 0u;
+            for (k = 0u; k < VF2_SOUND_VOICE_COUNT; ++k) {
+                const uint8_t *v = board.sound_ram +
+                    VF2_SOUND_VOICE_TABLE_BASE +
+                    k * VF2_SOUND_VOICE_BYTES;
+                const uint8_t ch = (uint8_t)(k % 16u);
+                const uint32_t slot = (uint32_t)(k * 0x20u);
+                const int stopped = k % 4u != 0u &&
+                    (arg == UINT8_C(0x7f) ||
+                     (ch >= 9u && ch < 15u));
+                if (stopped) ++cleared;
+                EXPECT_TRUE(v[2] == (stopped ? 0u :
+                              (k % 4u == 0u ? 0u : 0x40u)));
+                EXPECT_TRUE(v[4] == (stopped ? 0u : ch));
+                EXPECT_TRUE(board.sound_ram[
+                    UINT32_C(0x2000)+slot] ==
+                    (stopped ? 0u : 0x5cu));
+                EXPECT_TRUE(vf2_scsp_read_u8(
+                    &board.scsp, slot + 0x0bu,
+                    &reg) == VF2_OK);
+                EXPECT_TRUE(reg == (stopped ? 0x1fu : 0xb0u));
+                EXPECT_TRUE(vf2_scsp_read_u8(
+                    &board.scsp, slot, &reg) == VF2_OK);
+                EXPECT_TRUE(reg == (stopped ? 0x10u : 0x20u));
+            }
+            EXPECT_TRUE(report.voices_cleared == cleared);
+        }
+        for (k = 0u; k < 16u; ++k) {
+            const int blank = arg == UINT8_C(0x7f) ||
+                (k >= 9u && k < 15u);
+            EXPECT_TRUE(board.sound_ram[
+                VF2_SOUND_CHANNEL_CONTROL_BASE+k] ==
+                (blank ? 0u : 0x31u));
+            EXPECT_TRUE(board.sound_ram[
+                VF2_SOUND_CHANNEL_CONTROL_ALT_BASE+k] ==
+                (blank ? 0u : 0x62u));
+            EXPECT_TRUE(board.sound_ram[
+                VF2_SOUND_CHANNEL_TABLE_BASE+2u*k] ==
+                (blank ? 0u : 0x41u));
+            EXPECT_TRUE(board.sound_ram[
+                VF2_SOUND_CHANNEL_TABLE_BASE+2u*k+1u] ==
+                (blank ? 0u : 0x41u));
+        }
+    }
+    /* A flagged invalid late slot must refuse atomically,
+     * before keying off even the earliest voice. */
+    for (i = 0u; i < 2u; ++i) {
+        const uint8_t arg = i == 0u ? UINT8_C(0x7d) :
+                                       UINT8_C(0x7f);
+        uint8_t *early;
+        uint8_t *late;
+        memset(&board, 0, sizeof(board));
+        vf2_scsp_initialize(&board.scsp);
+        early = board.sound_ram + VF2_SOUND_VOICE_TABLE_BASE;
+        late = early + 31u * VF2_SOUND_VOICE_BYTES;
+        early[1] = UINT8_C(0x20);
+        early[2] = UINT8_C(0x40);
+        early[4] = UINT8_C(10);
+        late[0] = UINT8_C(0x7f);
+        late[1] = UINT8_C(0xff);
+        late[2] = UINT8_C(0x40);
+        late[4] = UINT8_C(14);
+        board.sound_ram[UINT32_C(0x2020)] = UINT8_C(0x8f);
+        board.sound_ram[VF2_SOUND_SHARED_COUNTER_151E] =
+            UINT8_C(0x33);
+        board.sound_ram[VF2_SOUND_SHARED_COUNTER_152E] =
+            UINT8_C(0x44);
+        memset(&report, 0, sizeof(report));
+        EXPECT_TRUE(vf2_sound_board_apply_b0_end_7d_7f(
+            &board, arg, &report) == VF2_ERROR_UNSUPPORTED);
+        EXPECT_TRUE(report.voices_cleared == 0u);
+        EXPECT_TRUE(early[2] == UINT8_C(0x40) &&
+                    late[2] == UINT8_C(0x40));
+        EXPECT_TRUE(board.sound_ram[UINT32_C(0x2020)] ==
+                    UINT8_C(0x8f));
+        EXPECT_TRUE(board.sound_ram[
+            VF2_SOUND_SHARED_COUNTER_151E] == UINT8_C(0x33) &&
+                    board.sound_ram[
+            VF2_SOUND_SHARED_COUNTER_152E] == UINT8_C(0x44));
+    }
+    memset(&board, 0, sizeof(board));
+    vf2_scsp_initialize(&board.scsp);
+    EXPECT_TRUE(vf2_sound_board_apply_b0_end_7d_7f(
+        &board, UINT8_C(0x7e), &report) ==
+        VF2_ERROR_INVALID_ARGUMENT);
+    /* For 7F, original flags bit4 suppresses the age/counter
+     * updates unless original channel was 15. */
+    {
+        uint8_t *v = board.sound_ram +
+            VF2_SOUND_VOICE_TABLE_BASE;
+        v[1] = UINT8_C(0x20);
+        v[2] = UINT8_C(0x50);
+        v[4] = UINT8_C(10);
+        v[9] = UINT8_C(5);
+        board.sound_ram[VF2_SOUND_SHARED_COUNTER_151E] =
+            UINT8_C(9);
+        EXPECT_TRUE(vf2_sound_board_apply_b0_end_7d_7f(
+            &board, UINT8_C(0x7f), &report) == VF2_OK);
+        EXPECT_TRUE(board.sound_ram[
+            VF2_SOUND_SHARED_COUNTER_151E] == UINT8_C(9));
+    }
+}
+
 static void test_b0_50_7e_native(void)
 {
     static vf2_sound_board board;
@@ -3016,6 +3184,7 @@ int main(void)
     test_pcm_walker_one_descriptor();
     test_pcm_stream_page_native();
     test_render_first_tone();
+    test_b0_50_7d_7f_native();
     test_b0_50_7e_native();
     test_b0_181c_native_volume();
     test_b0_181c_transactional_interpreter();

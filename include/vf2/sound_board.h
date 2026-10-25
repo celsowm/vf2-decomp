@@ -186,6 +186,19 @@ vf2_status vf2_sound_board_apply_b0_end_7e(
     vf2_sound_dispatch_report *report
 );
 
+/* Original B0 50 7D and 7F end-sequence arms: 7D stops only
+ * flagged channels 9..14 and zeros 0x252E and corresponding
+ * channel tables; 7F stops all flagged voices, fixes 0x251E
+ * and age ordering, and zeros all 16 channel tables.
+ * Invalid original slot addresses refuse before mutation.
+ * Public synthetic helper; live dispatch requires original
+ * sound-ROM fingerprint agreement. */
+vf2_status vf2_sound_board_apply_b0_end_7d_7f(
+    vf2_sound_board *board,
+    uint8_t argument,
+    vf2_sound_dispatch_report *report
+);
+
 vf2_status vf2_sound_board_initialize(
     vf2_sound_board *board,
     const uint8_t *audio_rom,
