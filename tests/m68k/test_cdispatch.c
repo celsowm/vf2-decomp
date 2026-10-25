@@ -96,6 +96,7 @@ static void test_b0_prescaler_setup_original(
     vf2_m68k_regs regs;
     vf2_sound_dispatch_report report;
     size_t i;
+    uint8_t actual_setup_selector = UINT8_C(0xff);
     /* Independently assert the selector -> handler mapping in
      * the private original ROM (JMP d16,PC from 0x13DE table).
      * Do not only compare against a directly injected handler PC:
@@ -127,14 +128,29 @@ static void test_b0_prescaler_setup_original(
                     (unsigned)target1a, (unsigned)target12);
             EXPECT_TRUE(op1a == UINT16_C(0x4efa) &&
                         op12 == UINT16_C(0x4efa));
-            EXPECT_TRUE(target1a == INT32_C(0x18a8) &&
-                        target12 == INT32_C(0x13dc));
+            /* v0788 and v0799 disagreed about this index.
+             * Both layouts are explicitly representable, but
+             * exactly one must select the measured 0x18A8 body
+             * and the other must be the default RTS. */
+            EXPECT_TRUE(
+                (target1a == INT32_C(0x18a8) &&
+                 target12 == INT32_C(0x13dc)) ||
+                (target12 == INT32_C(0x18a8) &&
+                 target1a == INT32_C(0x13dc)));
+            if (target1a == INT32_C(0x18a8)) {
+                actual_setup_selector = UINT8_C(0x1a);
+            } else if (target12 == INT32_C(0x18a8)) {
+                actual_setup_selector = UINT8_C(0x12);
+            }
         }
+    }
+    if (actual_setup_selector == UINT8_C(0xff)) {
+        return;
     }
     for (i = 0u; i < sizeof(arguments); ++i) {
         const uint8_t value = arguments[i];
         const uint8_t packet[4] = {
-            UINT8_C(0xbe), UINT8_C(0x1a), value, UINT8_C(0xa5)
+            UINT8_C(0xbe), actual_setup_selector, value, UINT8_C(0xa5)
         };
         uint32_t steps = 0u;
         vf2_status status;
@@ -166,7 +182,7 @@ static void test_b0_prescaler_setup_original(
         EXPECT_TRUE(vf2_sound_board_dispatch_next(
             &board, &report) == VF2_OK);
         EXPECT_TRUE(report.handler_address == UINT32_C(0x18a8) &&
-                    report.selected_value == UINT8_C(0x1a) &&
+                    report.selected_value == actual_setup_selector &&
                     report.descriptors_matched == 1u &&
                     report.handled == 1);
         EXPECT_TRUE(board.sound_ram[VF2_SOUND_DESCRIPTOR_BASE + 0x0cu] ==
@@ -177,12 +193,86 @@ static void test_b0_prescaler_setup_original(
                            board.sound_ram + VF2_SOUND_DESCRIPTOR_BASE,
                            VF2_SOUND_STREAM_DESCRIPTOR_BYTES) == 0);
         EXPECT_TRUE(scsp_equal(&board.scsp, &step_scsp));
-        fprintf(stderr, "B0_1A_PRESCALER_ORIGINAL_DIFF argument=%02x "
+        fprintf(stderr, "B0_PRESCALER_ORIGINAL_DIFF selector=%02x argument=%02x "
                         "stepper_steps=%u setup_parity=%u\n",
+                (unsigned)actual_setup_selector,
                 (unsigned)value, (unsigned)steps,
                 (unsigned)(memcmp(step_ram + VF2_SOUND_DESCRIPTOR_BASE,
                      board.sound_ram + VF2_SOUND_DESCRIPTOR_BASE,
                      VF2_SOUND_STREAM_DESCRIPTOR_BYTES) == 0));
+    }
+}
+
+
+/* Opt-in owner-ROM examination of the as-yet-untranslated
+ * volume/duration updater at PC 0x181C. Deliberately does NOT
+ * compute or accept an unmeasured C substitute. Isolated
+ * synthetic record seeds are replayed through actual original
+ * 68000 opcodes; report only derived delta counts, not ROM bytes
+ * or private music data. The test probes branch structure, it
+ * is not a natural Akira scheduler/SCSP audio experiment. */
+static void probe_b0_181c_original(
+    const uint8_t *audio_rom, size_t audio_rom_size
+)
+{
+    static const uint8_t values[] = {
+        0u, UINT8_C(0x04), UINT8_C(0x40), UINT8_C(0x7f)
+    };
+    static uint8_t ram[VF2_SOUND_RAM_BYTES];
+    static vf2_scsp scsp;
+    vf2_m68k_bus bus;
+    vf2_m68k_regs regs;
+    size_t variant;
+    for (variant = 0u; variant < sizeof(values); ++variant) {
+        const uint8_t value = values[variant];
+        uint8_t old[VF2_SOUND_COMMAND_DESCRIPTOR_COUNT];
+        size_t i;
+        unsigned desc10_changes = 0u;
+        unsigned desc3_changes = 0u;
+        unsigned other_changes = 0u;
+        uint32_t steps = 0u;
+        vf2_status status;
+        memset(ram, 0, sizeof(ram));
+        vf2_scsp_initialize(&scsp);
+        for (i = 0u; i < VF2_SOUND_COMMAND_DESCRIPTOR_COUNT; ++i) {
+            uint8_t *desc = ram + VF2_SOUND_COMMAND_DESCRIPTOR_BASE +
+                i * VF2_SOUND_COMMAND_DESCRIPTOR_BYTES;
+            desc[0] = UINT8_C(0x80);
+            desc[1] = (uint8_t)(i & 15u);
+            desc[3] = (uint8_t)(0x20u + (uint8_t)i);
+            desc[10u] = UINT8_C(0x66);
+            old[i] = desc[3];
+        }
+        ram[VF2_SOUND_SHARED_FACTOR_151F] = UINT8_C(0xff);
+        make_bus(&bus, &scsp, ram, audio_rom, audio_rom_size);
+        reset_regs(&regs);
+        regs.pc = UINT32_C(0x181c);
+        regs.d[0] = value;
+        regs.d[2] = UINT32_C(0x10);
+        status = vf2_m68k_run(&bus, &regs, 0u, 1, 8192u, &steps);
+        for (i = 0u; i < VF2_SOUND_COMMAND_DESCRIPTOR_COUNT; ++i) {
+            const uint8_t *desc =
+                ram + VF2_SOUND_COMMAND_DESCRIPTOR_BASE +
+                i * VF2_SOUND_COMMAND_DESCRIPTOR_BYTES;
+            if (desc[3] != old[i]) ++desc3_changes;
+            if (desc[10u] != UINT8_C(0x66)) ++desc10_changes;
+        }
+        for (i = 0u; i < 16u; ++i) {
+            if (ram[UINT32_C(0x2510) + i] !=
+                (i == 15u ? UINT8_C(0xff) : 0u)) {
+                ++other_changes;
+            }
+        }
+        printf("B0_181C_ORIGINAL_PROBE argument=%02x status=%d "
+               "steps=%u stop_pc=%05x shared_factor=%02x "
+               "desc3_changed=%u desc10_changed=%u "
+               "shared_bytes_changed=%u scsp_events=%u "
+               "native_parity_unproven=1\n",
+               (unsigned)value, (int)status, (unsigned)steps,
+               (unsigned)regs.pc,
+               (unsigned)ram[VF2_SOUND_SHARED_FACTOR_151F],
+               desc3_changes, desc10_changes, other_changes,
+               (unsigned)bus.event_count);
     }
 }
 
@@ -5886,6 +5976,16 @@ int main(int argc, char **argv)
         return 2;
     }
     fprintf(stderr, "audio region size: 0x%x\n", (unsigned)audio_rom_size);
+    if (argc == 3 && strcmp(argv[2], "--probe-b0-181c") == 0) {
+        probe_b0_181c_original(audio_rom, audio_rom_size);
+        free(audio_rom);
+        return 0;
+    }
+    if (argc != 2) {
+        fprintf(stderr, "usage: %s <rom-dir> [--probe-b0-181c]\n", argv[0]);
+        free(audio_rom);
+        return 2;
+    }
     test_switch_routing(audio_rom, audio_rom_size);
     test_e0_head_nomatch(audio_rom, audio_rom_size);
     test_e0_gate_rts(audio_rom, audio_rom_size);

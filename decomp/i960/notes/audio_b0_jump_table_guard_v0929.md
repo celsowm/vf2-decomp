@@ -48,11 +48,14 @@ checks the no-side-effect refusal path.
 
 The owner-only differential now checks the original
 ROM JMP words and absolute targets for both disputed
-indices before executing the four real `0x18A8`
-instructions and comparing their descriptor effects
-with native C for input arguments `00`, `08`, `FF`.
-It will fail on an original-ROM disagreement; it
-has not been executed here without private assets.
+indices. It accepts either historical layout **only
+when exactly one selector targets 0x18A8 and the other
+is default RTS**. It then dynamically chooses the actual
+selector, executes the four real `0x18A8` instructions
+and compares descriptor effects with native C for input
+arguments `00`, `08`, `FF`.
+It will fail on an unsupported layout; it has not
+been executed here without private assets.
 
 No game ROM, PCM, WAV, or copyrighted code copied
 from a proprietary image is checked in.
@@ -77,3 +80,25 @@ cmake -S . -B build -DVF2_BUILD_TESTS=ON \
 cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
+
+## Optional original 0x181C branch characterization
+
+A new, separate owner-ROM diagnostic characterizes PC
+`0x181C` using **four explicitly synthetic argument
+bytes** (0, 4, 64 and 127). It reports original 68000
+instruction count, termination PC/status, shared-factor
+byte at `0x251F`, how many descriptor +3 and +10
+fields changed, and SCSP event count. No copyrighted
+ROM bytes, WAV, or music data are printed. This is
+an **observational diagnostic**, NOT proof of a native
+translation. A failed/unsupported stepper path is
+reported as such and does not fake any side effects.
+
+```sh
+build/vf2_m68k_cdispatch_tests /private/vf2 --probe-b0-181c
+```
+
+The probe will help separate the true shared-factor
+and ten-descriptor routine from the superseded v0793
+per-descriptor calculation. Until ROM-backed comparisons
+succeed, the live BE10 handler remains fail-closed.

@@ -314,8 +314,15 @@ static void test_b0_prescaler_command_chain(void)
     EXPECT_TRUE(vf2_sound_board_emit_command(
         &board, (const uint8_t[4]){0xbeu, 0x50u, 0x7eu, 0xa5u}) ==
                 VF2_OK);
-    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 5u] = UINT8_C(0x50);
-    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 6u] = UINT8_C(0x7e);
+    /* emit_command placed BE 50 7E at cursor 8, after the
+     * earlier default-RTS command retired from cursor 4. */
+    EXPECT_TRUE(board.sound_ram[VF2_SOUND_COMMAND_CURSOR + 1u] == 8u &&
+                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 8u] ==
+                    UINT8_C(0xbe) &&
+                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 9u] ==
+                    UINT8_C(0x50) &&
+                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 10u] ==
+                    UINT8_C(0x7e));
     EXPECT_TRUE(vf2_sound_board_dispatch_next(&board, &dispatch) ==
                 VF2_ERROR_UNSUPPORTED);
     EXPECT_TRUE(dispatch.handler_address == UINT32_C(0x1c0a) &&
