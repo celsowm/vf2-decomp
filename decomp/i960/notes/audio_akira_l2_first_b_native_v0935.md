@@ -65,3 +65,45 @@ pointer state. Only then wire a completed tick into native
 `vf2_sound_board_maintain_streams`, followed by the SCSP
 and real interrupt scheduling separately. No fresh Akira WAV
 or audio-fidelity claim is made here.
+
+## v0936 — continuation through the first three music B packets
+
+At original PC 0x212C, the test previously stopped after
+**one** packet, but bit0 of stream descriptor status makes
+the 68000 retry at 0x1F96 while preserving A3.
+
+Locally reading the user-owned sound ROM, the follow-up
+commands are BE 20 80 and BE 10 72 00. The second emits
+BE 20 00, with BCLR bit7 signalling another retry. The
+third uses the *special* 0x10 branch: because descriptor
+byte +0C is zero, it copies the third input byte 0x72
+to descriptor +0E and **reads the next 00 as the actual
+command's third output byte**. It emits BE 10 00,
+clears the status bit0, and reaches PC 0x212C with
+A3=0x61577D. The record +4 pointer is unchanged.
+
+The new explicit native
+`vf2_sound_board_probe_akira_l2_next_two_b` requires the
+previous BE 50 7E already in the sound ring and validates
+the source stream, bit0 status, timer zero, descriptor
++0C, queue count/cursor and capacity **before mutation**.
+It appends the two extra ring entries without touching
+their fourth bytes, writes +0E=0x72, and returns A3
+separately rather than prematurely committing it.
+
+ROM-free C tests cover the exact three packets, source
+mutation refusal, malformed state and circular ring
+wrap. An owner-only differential invokes the **real
+68000 sound ROM** in one-instruction resumable slices,
+waiting for the **third** arrival at PC 0x212C
+(`sound_ram[command_count] == 3`), then compares the
+entire RAM image, full modeled SCSP and A3 to the
+independent native two-step helper. The differential
+has not been executed in public CI without private ROM.
+
+Crucial limit: after those first three packets the
+same L2 worker continues into 9F-class commands; its
+full return, pointer-update and real CPU-cycle timing
+are still unrecovered. Do not interpret these three
+packets as an entire Timer-A IRQ or claim native
+continuous music / a new WAV.

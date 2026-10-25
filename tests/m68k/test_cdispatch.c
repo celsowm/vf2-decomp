@@ -241,6 +241,89 @@ static void test_b0_prescaler_setup_original(
  * loops to parse another command. This does not claim the
  * entire tick has finished, nor that music now plays in C.
  * Owner-only, requires the exact original sound ROM. */
+/* Opt-in user-ROM differential: execute ACTUAL 68000 opcodes
+ * across the first three Akira B-class music commands.
+ * 0x212C is visited after every packet, so single-step
+ * until count=3 at that exact instruction boundary.
+ * Compare full RAM and SCSP; ephemeral A3 must be +10. */
+static void test_akira_l2_three_b_original(
+    const uint8_t *rom, size_t rom_size
+)
+{
+    static vf2_sound_board board;
+    static uint8_t cpu_ram[VF2_SOUND_RAM_BYTES];
+    static vf2_scsp cpu_scsp;
+    vf2_m68k_bus bus;
+    vf2_m68k_regs regs;
+    vf2_sound_music_prefix_report first;
+    vf2_sound_music_followup_report follow;
+    uint8_t *d;
+    size_t i;
+    uint32_t steps = 0u;
+    vf2_status status = VF2_OK;
+    int reached = 0;
+    memset(&board, 0, sizeof(board));
+    board.audio_rom = rom;
+    board.audio_rom_size = rom_size;
+    vf2_scsp_initialize(&board.scsp);
+    d = board.sound_ram + VF2_SOUND_DESCRIPTOR_BASE;
+    d[0] = UINT8_C(0x88); d[3] = 1u;
+    d[4] = 0u; d[5] = 0x61u;
+    d[6] = 0x57u; d[7] = 0x73u;
+    d[8] = 0u; d[9] = 0x60u;
+    d[10] = 0x9cu; d[11] = 0x3eu;
+    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 3u] = 0xa7u;
+    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 7u] = 0xa8u;
+    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + 11u] = 0xa9u;
+    memcpy(cpu_ram, board.sound_ram, sizeof(cpu_ram));
+    memcpy(&cpu_scsp, &board.scsp, sizeof(cpu_scsp));
+    make_bus(&bus, &cpu_scsp, cpu_ram, rom, rom_size);
+    reset_regs(&regs);
+    regs.pc = UINT32_C(0x1f7c);
+    regs.a[2] = VF2_SOUND_DESCRIPTOR_BASE;
+    for (i = 0u; i < 2048u; ++i) {
+        uint32_t retired = 0u;
+        int suspended = 0;
+        if (regs.pc == UINT32_C(0x212c) &&
+            cpu_ram[VF2_SOUND_COMMAND_COUNT] == 3u) {
+            reached = 1;
+            break;
+        }
+        status = vf2_m68k_run_slice(
+            &bus, &regs, UINT32_MAX, 0,
+            1u, &retired, &suspended);
+        if (status != VF2_OK || retired != 1u ||
+            suspended == 0) {
+            break;
+        }
+        ++steps;
+    }
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_b(
+        &board, &first) == VF2_OK);
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_two_b(
+        &board, &follow) == VF2_OK);
+    fprintf(stderr,
+        "AKIRA_L2_THREE_B_ORIGINAL reached=%d status=%d "
+        "pc=%05x steps=%u a3=%06x full_ram_equal=%u "
+        "scsp_equal=%u packets=%u\n",
+        reached, (int)status, (unsigned)regs.pc,
+        (unsigned)steps, (unsigned)regs.a[3],
+        (unsigned)(memcmp(cpu_ram, board.sound_ram,
+                           sizeof(cpu_ram)) == 0),
+        (unsigned)scsp_equal(&cpu_scsp, &board.scsp),
+        (unsigned)cpu_ram[VF2_SOUND_COMMAND_COUNT]);
+    EXPECT_TRUE(reached && status == VF2_OK);
+    EXPECT_TRUE(regs.pc == UINT32_C(0x212c));
+    EXPECT_TRUE(regs.a[3] == follow.a3_after &&
+                follow.a3_after == UINT32_C(0x61577d));
+    EXPECT_TRUE(follow.cursor_after == 12u &&
+                follow.duration_byte == 0x72u);
+    EXPECT_TRUE(bus.event_count == 0u);
+    EXPECT_TRUE(memcmp(cpu_ram, board.sound_ram,
+                       sizeof(cpu_ram)) == 0);
+    EXPECT_TRUE(scsp_equal(&cpu_scsp, &board.scsp));
+}
+
 static void test_akira_l2_first_b_original(
     const uint8_t *rom, size_t rom_size
 )
@@ -6592,6 +6675,7 @@ int main(int argc, char **argv)
     test_l2_stream_tick(audio_rom, audio_rom_size);
     test_b0_prescaler_setup_original(audio_rom, audio_rom_size);
     test_b0_181c_native_original(audio_rom, audio_rom_size);
+    test_akira_l2_three_b_original(audio_rom, audio_rom_size);
     test_akira_l2_first_b_original(audio_rom, audio_rom_size);
     test_a0_music_low_header_original(audio_rom, audio_rom_size);
     test_b0_50_7d_7f_original(audio_rom, audio_rom_size);
