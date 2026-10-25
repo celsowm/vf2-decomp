@@ -229,6 +229,91 @@ static void test_b0_prescaler_setup_original(
 /* Opt-in differential: original 68000 vs native C 7D / 7F
  * on private owner ROM. Full sound RAM and SCSP model parity
  * (no ROM or original program bytes in the repository). */
+/* Private-ROM differential for the original low-header A0
+ * music entry. Start at PC 0x1E98 with the row-entry pointer
+ * already resolved by the A0 max gate and stop before 1ED2 RTS.
+ * Compare the full 32-byte native descriptor with original
+ * opcode execution across the first, Akira and last song rows.
+ * The 68000's JSR return-stack scratch is intentionally
+ * excluded; no proprietary bytes are committed. */
+static void test_a0_music_low_header_original(
+    const uint8_t *audio_rom, size_t audio_rom_size
+)
+{
+    static const uint8_t songs[] = {
+        UINT8_C(0x00), UINT8_C(0x04), UINT8_C(0x1f)
+    };
+    static vf2_sound_board board;
+    static uint8_t step_ram[VF2_SOUND_RAM_BYTES];
+    static vf2_scsp step_scsp;
+    vf2_m68k_bus bus;
+    vf2_m68k_regs regs;
+    size_t k;
+    for (k = 0u; k < sizeof(songs); ++k) {
+        const uint8_t song = songs[k];
+        uint32_t record;
+        uint32_t steps = 0u;
+        vf2_status original;
+        vf2_status native;
+        size_t i;
+        memset(&board, 0, sizeof(board));
+        board.audio_rom = audio_rom;
+        board.audio_rom_size = audio_rom_size;
+        vf2_scsp_initialize(&board.scsp);
+        memset(board.sound_ram + VF2_SOUND_DESCRIPTOR_BASE,
+               UINT8_C(0xa5), VF2_SOUND_STREAM_DESCRIPTOR_BYTES);
+        record = ((uint32_t)audio_rom[0x8f26u + 4u*song] << 24u) |
+                 ((uint32_t)audio_rom[0x8f27u + 4u*song] << 16u) |
+                 ((uint32_t)audio_rom[0x8f28u + 4u*song] << 8u) |
+                  (uint32_t)audio_rom[0x8f29u + 4u*song];
+        memcpy(step_ram, board.sound_ram, sizeof(step_ram));
+        memcpy(&step_scsp, &board.scsp, sizeof(step_scsp));
+        make_bus(&bus, &step_scsp, step_ram,
+                 audio_rom, audio_rom_size);
+        reset_regs(&regs);
+        regs.pc = UINT32_C(0x1e98);
+        regs.d[0] = song;
+        regs.a[4] = UINT32_C(0x608f26);
+        original = vf2_m68k_run(
+            &bus, &regs, UINT32_C(0x1ed2), 0, 512u, &steps);
+        native = vf2_sound_board_apply_a0_low_music_record(
+            &board, record);
+        fprintf(stderr,
+                "A0_MUSIC_LOW_ORIGINAL song=%02x m68k=%d native=%d "
+                "steps=%u descriptor_equal=%u\n",
+                (unsigned)song, (int)original, (int)native,
+                (unsigned)steps,
+                (unsigned)(memcmp(
+                    step_ram + VF2_SOUND_DESCRIPTOR_BASE,
+                    board.sound_ram + VF2_SOUND_DESCRIPTOR_BASE,
+                    VF2_SOUND_STREAM_DESCRIPTOR_BYTES) == 0));
+        EXPECT_TRUE(original == VF2_OK && native == VF2_OK);
+        EXPECT_TRUE(regs.pc == UINT32_C(0x1ed2));
+        EXPECT_TRUE(steps >= 60u && steps < 512u);
+        EXPECT_TRUE(bus.event_count == 0u);
+        EXPECT_TRUE(memcmp(
+            step_ram + VF2_SOUND_DESCRIPTOR_BASE,
+            board.sound_ram + VF2_SOUND_DESCRIPTOR_BASE,
+            VF2_SOUND_STREAM_DESCRIPTOR_BYTES) == 0);
+        EXPECT_TRUE(scsp_equal(&board.scsp, &step_scsp));
+        /* No music stream may overwrite unrelated RAM,
+         * other than the four bytes of emulated JSR stack. */
+        for (i = 0u; i < VF2_SOUND_RAM_BYTES; ++i) {
+            if ((i >= 0x7efcu && i < 0x7f00u) ||
+                (i >= VF2_SOUND_DESCRIPTOR_BASE &&
+                 i < VF2_SOUND_DESCRIPTOR_BASE +
+                     VF2_SOUND_STREAM_DESCRIPTOR_BYTES)) continue;
+            if (step_ram[i] != board.sound_ram[i]) {
+                fprintf(stderr,
+                        "A0_MUSIC_LOW_UNEXPECTED_RAM addr=%05x\n",
+                        (unsigned)i);
+                EXPECT_TRUE(0);
+                break;
+            }
+        }
+    }
+}
+
 static void test_b0_50_7d_7f_original(
     const uint8_t *audio_rom, size_t audio_rom_size
 )
@@ -6384,6 +6469,7 @@ int main(int argc, char **argv)
     test_l2_stream_tick(audio_rom, audio_rom_size);
     test_b0_prescaler_setup_original(audio_rom, audio_rom_size);
     test_b0_181c_native_original(audio_rom, audio_rom_size);
+    test_a0_music_low_header_original(audio_rom, audio_rom_size);
     test_b0_50_7d_7f_original(audio_rom, audio_rom_size);
     test_b0_50_7e_original(audio_rom, audio_rom_size);
     test_session_attach(argv[1]);

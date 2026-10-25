@@ -3516,6 +3516,73 @@ static vf2_status sound_board_dispatch_90(
     }
 }
 
+/* Original VF2.1 low-bit7 A0 music body: 0x1E98..0x1ED2
+ * with the shared 0x1F04..0x1F12 32-byte zeroing helper.
+ * The signatures were computed from the owner's CPU-visible
+ * word-swapped epr-17574.30, without shipping program bytes.
+ * Unknown sound-driver revisions must not be admitted. */
+static int sound_board_a0_low_music_is_measured_rom(
+    const vf2_sound_board *board
+)
+{
+    uint64_t h_body = UINT64_C(14695981039346656037);
+    uint64_t h_clear = UINT64_C(14695981039346656037);
+    size_t i;
+    if (board == NULL || board->audio_rom == NULL ||
+        board->audio_rom_size < UINT32_C(0x1f14)) {
+        return 0;
+    }
+    for (i = UINT32_C(0x1e98); i < UINT32_C(0x1ed4); ++i) {
+        h_body ^= board->audio_rom[i];
+        h_body *= UINT64_C(1099511628211);
+    }
+    for (i = UINT32_C(0x1f04); i < UINT32_C(0x1f14); ++i) {
+        h_clear ^= board->audio_rom[i];
+        h_clear *= UINT64_C(1099511628211);
+    }
+    return h_body == UINT64_C(0x3e801f733bfac198) &&
+           h_clear == UINT64_C(0x69aa21014c18e656);
+}
+
+/* Bounded original 68000 low-header music descriptor installation.
+ * 1E9E MOVE.B (A2)+,D0; BTST #7 -> clear-bit branch.
+ * 1EAE LEA $2000(A6),A4; 1EB2 JSR 1F04 zeros 32 bytes;
+ * 1EB6 ADDQ.L #3,A2; 1EB8 MOVE.L (A2)+,4(A4);
+ * 1EBC MOVE.L A2,8(A4); 1EC0 MOVE.W #1,2(A4);
+ * 1EC6/1ECC BSET #3/#7,0(A4); 1ED2 RTS.
+ * The 68000 row stores a record POINTER (not PCM). The
+ * record's first byte 0x10 is the actual Akira family header.
+ * This helper has no dependency on private ROM bytes and is
+ * regression-tested with synthetic sound data. */
+vf2_status vf2_sound_board_apply_a0_low_music_record(
+    vf2_sound_board *board, uint32_t record
+)
+{
+    uint8_t header = 0u;
+    uint32_t first_stream = 0u;
+    uint8_t *desc;
+    if (board == NULL || board->audio_rom == NULL ||
+        record < VF2_SOUND_AUDIO_ROM_BASE ||
+        record > UINT32_MAX - UINT32_C(8) ||
+        read_audio_byte_absolute(board, record, &header) != VF2_OK ||
+        header != UINT8_C(0x10) ||
+        read_audio_be32(board, record + 4u, &first_stream) != VF2_OK ||
+        first_stream < VF2_SOUND_AUDIO_ROM_BASE ||
+        (uint64_t)first_stream >=
+            (uint64_t)VF2_SOUND_AUDIO_ROM_BASE + board->audio_rom_size ||
+        (uint64_t)record + 8u >=
+            (uint64_t)VF2_SOUND_AUDIO_ROM_BASE + board->audio_rom_size) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    desc = board->sound_ram + VF2_SOUND_DESCRIPTOR_BASE;
+    memset(desc, 0, VF2_SOUND_STREAM_DESCRIPTOR_BYTES);
+    desc[0] = UINT8_C(0x88);
+    write_be16(desc + 2u, UINT16_C(1));
+    write_be32(desc + 4u, first_stream);
+    write_be32(desc + 8u, record + 8u);
+    return VF2_OK;
+}
+
 static vf2_status sound_board_dispatch_a0(
     vf2_sound_board *board,
     uint8_t command,
@@ -3564,6 +3631,27 @@ static vf2_status sound_board_dispatch_a0(
      * non-pristine history). Residue-wild by measurement:
      * refuse at the join, packet held. */
     report->handler_address = UINT32_C(0x00001e98);
+    /* VF2.1 sound test / music family AD 10 xx: row max 0x1F,
+     * all 32 original records have a 0x10 low-bit7 header.
+     * At 0x1E9E the original 68000 takes the clear-bit7 arm
+     * into 0x1EAE, which installs descriptor 0 at 0x3000.
+     * Never substitute the earlier high-header six-slot scan. */
+    if (command == UINT8_C(0xad) &&
+        payload == UINT8_C(0x10) &&
+        sound_board_a0_low_music_is_measured_rom(board)) {
+        uint32_t record = 0u;
+        if (read_audio_be32(
+                board, row_base + UINT32_C(2) +
+                       (uint32_t)ring_byte2 * UINT32_C(4),
+                &record) == VF2_OK &&
+            vf2_sound_board_apply_a0_low_music_record(
+                board, record) == VF2_OK) {
+            report->handler_address = UINT32_C(0x00001ed2);
+            ++report->descriptors_updated;
+            return VF2_OK;
+        }
+        return VF2_ERROR_UNSUPPORTED;
+    }
     /* Original owner-ROM AD23/AD24 record headers have bit7 set.
      * Authentic i960 frame-342 command AD 21 00 selects row
      * 0x6091A8 (max=0x007B), record 0x60A6B2, header=0xCF.

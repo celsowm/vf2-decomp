@@ -2645,27 +2645,41 @@ static int probe_akira_music(const uint8_t *rom, size_t rom_size,
            (int)c_status, (unsigned)report.handler_address,
            (int)to_record, (unsigned)regs.pc, (unsigned)steps,
            (unsigned)report.descriptors_matched);
-    if (c_status != VF2_ERROR_UNSUPPORTED ||
-        report.handler_address != UINT32_C(0x1e98) ||
+    if (c_status != VF2_OK ||
+        report.handler_address != UINT32_C(0x1ed2) ||
+        report.handled == 0 ||
         to_record != VF2_OK || regs.pc != UINT32_C(0x1e98)) {
         fprintf(stderr, "AKIRA_A0_FRONTIER failed: no original ROM join\n");
         return 0;
     }
-    /* Beyond here is a DIAGNOSTIC of the previously unmodeled
-     * low-header A0 body. Original success/unsupported are reported,
-     * never laundered into native-C/SCSP music parity. */
+    /* The low-header A0 descriptor init is now native. The
+     * full original path is still used as an independent oracle;
+     * later L2 stream/PCM scheduling remains unproven. */
     tail_status = vf2_m68k_run(&bus, &regs, UINT32_C(0x265c),
                                0, 100000u, &tail_steps);
     for (i = 0u; i < VF2_SCSP_SLOT_COUNT; ++i) {
         active += (unsigned)(step_scsp.slot_active[i] != 0u);
     }
     printf("AKIRA_A0_TAIL original_status=%d pc=%05x steps=%u "
-           "queue=%u active_slots=%u C_unrecovered=1 "
+           "queue=%u active_slots=%u C_descriptor_only=1 "
            "music_pcm_not_proven=1\n",
            (int)tail_status, (unsigned)regs.pc,
            (unsigned)tail_steps,
            (unsigned)step_ram[VF2_SOUND_COMMAND_COUNT], active);
     if (tail_status == VF2_OK && regs.pc == UINT32_C(0x265c)) {
+        /* Compare the newly recovered low-header descriptor
+         * against the original 68000 after completing the A0
+         * drain. This is a state checkpoint, not audible parity. */
+        if (memcmp(step_ram + VF2_SOUND_DESCRIPTOR_BASE,
+                   board.sound_ram + VF2_SOUND_DESCRIPTOR_BASE,
+                   VF2_SOUND_STREAM_DESCRIPTOR_BYTES) != 0 ||
+            step_ram[VF2_SOUND_COMMAND_COUNT] !=
+                board.sound_ram[VF2_SOUND_COMMAND_COUNT]) {
+            fprintf(stderr, "AKIRA_A0_NATIVE_DESCRIPTOR_PARITY_FAIL\n");
+            return 0;
+        }
+        printf("AKIRA_A0_NATIVE_DESCRIPTOR_PARITY matched=1 "
+               "command_consumed=1 stream_scheduler_unproven=1\n");
         size_t slot, tick;
         /* Show exact original descriptor pointers after AD10/04,
          * without dumping copyright-protected stream content. */

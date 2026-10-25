@@ -199,6 +199,16 @@ vf2_status vf2_sound_board_apply_b0_end_7d_7f(
     vf2_sound_dispatch_report *report
 );
 
+/* Recover 68000 A0 clear-bit7 branch 0x1EAE..0x1ED2.
+ * Initialize the primary 0x3000 music stream descriptor:
+ * status=0x88, countdown=1, first stream pointer=record+4
+ * BE32 and next pointer=record+8. The helper handles
+ * synthetic data without the original ROM; real dispatch
+ * requires the verified original 68000 body fingerprint. */
+vf2_status vf2_sound_board_apply_a0_low_music_record(
+    vf2_sound_board *board, uint32_t record
+);
+
 vf2_status vf2_sound_board_initialize(
     vf2_sound_board *board,
     const uint8_t *audio_rom,

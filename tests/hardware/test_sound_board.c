@@ -386,6 +386,63 @@ static void test_b0_181c_transactional_interpreter(void)
 /* ROM-free tests of original 0x1CCA (7D) and 0x1C24 (7F).
  * Use synthetic voice records: the owned ROM is not copied
  * into these tests. */
+/* ROM-free A0 low-header (music) descriptor setup.
+ * Distinct from the already recovered high-bit7 AD23/24
+ * six-slot setup. Strictly synthetic ROM pointer/data. */
+static void test_a0_music_low_header_native(void)
+{
+    static vf2_sound_board board;
+    static uint8_t rom[0x10010u];
+    static const uint8_t sample[2] = {0u, 0u};
+    uint8_t *desc;
+    size_t i;
+    test_boot_rom(rom);
+    rom[0x7500u] = UINT8_C(0x10);
+    rom[0x7501u] = UINT8_C(0x10);
+    rom[0x7502u] = UINT8_C(0x10);
+    rom[0x7503u] = UINT8_C(0x10);
+    /* First stream root 0x607600; continuation word begins at
+     * ROM record+8 = 0x607508. No payload bytes are copied. */
+    rom[0x7504u] = UINT8_C(0x00);
+    rom[0x7505u] = UINT8_C(0x60);
+    rom[0x7506u] = UINT8_C(0x76);
+    rom[0x7507u] = UINT8_C(0x00);
+    EXPECT_TRUE(vf2_sound_board_initialize(
+        &board, rom, sizeof(rom), sample, sizeof(sample)) == VF2_OK);
+    desc = board.sound_ram + VF2_SOUND_DESCRIPTOR_BASE;
+    memset(desc, 0xa5, VF2_SOUND_STREAM_DESCRIPTOR_BYTES);
+    EXPECT_TRUE(vf2_sound_board_apply_a0_low_music_record(
+        &board, UINT32_C(0x607500)) == VF2_OK);
+    EXPECT_TRUE(desc[0u] == UINT8_C(0x88) &&
+                desc[1u] == 0u &&
+                desc[2u] == 0u && desc[3u] == 1u &&
+                desc[4u] == 0u && desc[5u] == UINT8_C(0x60) &&
+                desc[6u] == UINT8_C(0x76) && desc[7u] == 0u &&
+                desc[8u] == 0u && desc[9u] == UINT8_C(0x60) &&
+                desc[10u] == UINT8_C(0x75) &&
+                desc[11u] == UINT8_C(0x08));
+    for (i = 12u; i < VF2_SOUND_STREAM_DESCRIPTOR_BYTES; ++i) {
+        EXPECT_TRUE(desc[i] == 0u);
+    }
+    memset(desc, 0x69, VF2_SOUND_STREAM_DESCRIPTOR_BYTES);
+    rom[0x7500u] = UINT8_C(0x90);
+    EXPECT_TRUE(vf2_sound_board_apply_a0_low_music_record(
+        &board, UINT32_C(0x607500)) == VF2_ERROR_UNSUPPORTED);
+    for (i = 0u; i < VF2_SOUND_STREAM_DESCRIPTOR_BYTES; ++i) {
+        EXPECT_TRUE(desc[i] == UINT8_C(0x69));
+    }
+    rom[0x7500u] = UINT8_C(0x10);
+    rom[0x7505u] = UINT8_C(0x61);
+    rom[0x7506u] = UINT8_C(0x01);
+    rom[0x7507u] = UINT8_C(0x00); /* 0x610100: outside ROM */
+    EXPECT_TRUE(vf2_sound_board_apply_a0_low_music_record(
+        &board, UINT32_C(0x607500)) == VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(desc[0u] == UINT8_C(0x69));
+    EXPECT_TRUE(vf2_sound_board_apply_a0_low_music_record(
+        &board, UINT32_C(0x61000a)) == VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(desc[0u] == UINT8_C(0x69));
+}
+
 static void test_b0_50_7d_7f_native(void)
 {
     static vf2_sound_board board;
@@ -3184,6 +3241,7 @@ int main(void)
     test_pcm_walker_one_descriptor();
     test_pcm_stream_page_native();
     test_render_first_tone();
+    test_a0_music_low_header_native();
     test_b0_50_7d_7f_native();
     test_b0_50_7e_native();
     test_b0_181c_native_volume();
