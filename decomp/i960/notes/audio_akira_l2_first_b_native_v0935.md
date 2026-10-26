@@ -313,3 +313,41 @@ Immediately next in the original source is a class-8 command at A3
 complete argument consumption, control-flow and any extra side effects
 must be recovered before implementing packet #13. The whole L2 worker
 and native sound remain unsupported; no music/WAV fidelity claim.
+
+## v0942 — Akira 13th/14th: class-8 fixed payload and retry-bit clearing
+
+Independent inspection of owner-owned VF2.1 sound CPU ROM
+`epr-17574.30` in LOAD16_WORD_SWAP order identified a new 68000
+handler at original PC `0x2052` for class 8. It consumes exactly
+**two source bytes**, files the opcode and bit7-masked argument
+and then uses `MOVEQ #0x7F,D2` before the shared ring emitter.
+At `0x615795` the next sequence is **80 B6 | 07 F8 0A**:
+
+- 13th packet (class 8, handler `0x2052`): **80 36 7F**,
+  A3 becomes `0x615797`, descriptor status bit0 is set.
+- 14th packet (class 0, handler `0x2080`): **07 F8 0A**,
+  A3 becomes `0x61579A`, no input high-bit tag. The original
+  `0x1F96` retry clear leaves descriptor status **0x88**.
+
+At the 14th `0x212C` boundary, the empty-ring count is 14,
+write cursor 56 and descriptor's persistent stream pointer
+remains `0x615773`. Since bit0 now clears, the original CPU
+will take a **different control-flow arm** after `0x212C`,
+not another automatic packet retry.
+
+The bounded native `vf2_sound_board_probe_akira_l2_next_80_07`
+requires the exact 39-byte original prefix, previous 12 ring
+packets, valid status/counter/slot alignment and room for two
+writes before mutating anything. It preserves both fourth bytes.
+ROM-free C regression: normal execution, refused corrupted source,
+refused prior packet, capacity rejection, re-entry refusal, and
+FFC-to-000 circular wrap. A new opt-in owner-ROM differential
+single-steps genuine original 68000 instructions until the
+**14th** arrival at PC `0x212C`; checks both jump-table targets,
+A3, all RAM, modeled SCSP, status bit and emitted count.
+The private differential has **not** been run yet.
+
+**Next frontier:** trace the original post-14th no-retry arm
+`0x2138` and determine which bytes it consumes, how it alters
+descriptor+4 and whether it returns to the L2 scheduler.
+No continuous music or DAC-accurate PCM is claimed.

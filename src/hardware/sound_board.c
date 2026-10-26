@@ -2144,6 +2144,106 @@ vf2_status vf2_sound_board_probe_akira_l2_next_b0_07(
     return VF2_OK;
 }
 
+/* Next genuine Akira commands after packet #12:
+ * Class 8 (0x2052) consumes 80 B6, masks B6 to 36
+ * and sets D2=7F before the shared 0x211C emitter.
+ * Class 0 (0x2080) consumes 07 F8 0A without a tagged
+ * high bit; the original 0x1F96 retry-clear therefore
+ * leaves descriptor status 0x88 at the 14th 0x212C.
+ * No inference about subsequent L2 worker return is made. */
+vf2_status vf2_sound_board_probe_akira_l2_next_80_07(
+    vf2_sound_board *board,
+    vf2_sound_music_80_07_report *report
+)
+{
+    static const uint8_t original_prefix[39] = {
+        0xbeu,0x50u,0xfeu,0xbeu,0x20u,0x80u,
+        0xbeu,0x10u,0x72u,0x00u,
+        0x9fu,0x48u,0xf7u,0x9fu,0x2eu,0xc0u,
+        0x9fu,0x33u,0xffu,
+        0xc1u,0x81u,0x9fu,0x2bu,0xeeu,0xc3u,0x82u,
+        0xc8u,0x8du,
+        0xb0u,0x0au,0xc0u,0x07u,0xffu,0xc0u,
+        0x80u,0xb6u,0x07u,0xf8u,0x0au
+    };
+    static const uint8_t previous[36] = {
+        0xbeu,0x50u,0x7eu,0xbeu,0x20u,0x00u,
+        0xbeu,0x10u,0x00u,0x9fu,0x48u,0x77u,
+        0x9fu,0x2eu,0x40u,0x9fu,0x33u,0x7fu,
+        0xc1u,0x01u,0x00u,0x9fu,0x2bu,0x6eu,
+        0xc3u,0x02u,0x00u,0xc8u,0x0du,0x00u,
+        0xb0u,0x0au,0x40u,0x07u,0xffu,0x40u
+    };
+    uint8_t *ram;
+    uint8_t *desc;
+    uint32_t stream;
+    uint16_t cursor;
+    size_t offset;
+    size_t i;
+    if (board == NULL || report == NULL || board->audio_rom == NULL) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    ram = board->sound_ram;
+    desc = ram + VF2_SOUND_DESCRIPTOR_BASE;
+    stream = read_be32(desc + 4u);
+    cursor = read_be16(ram + VF2_SOUND_COMMAND_WRITE_CURSOR);
+    if (stream != UINT32_C(0x615773) ||
+        desc[0] != UINT8_C(0x89) ||
+        desc[1] != UINT8_C(0x07) ||
+        read_be16(desc + 2u) != 0u ||
+        desc[0x0eu] != UINT8_C(0x72) ||
+        ram[VF2_SOUND_COMMAND_COUNT] != 12u ||
+        (cursor & UINT16_C(3)) != 0u ||
+        cursor > UINT16_C(0x0ffc)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    offset = (size_t)(stream - VF2_SOUND_AUDIO_ROM_BASE);
+    if (offset > board->audio_rom_size ||
+        board->audio_rom_size - offset < sizeof(original_prefix) ||
+        memcmp(board->audio_rom + offset, original_prefix,
+               sizeof(original_prefix)) != 0) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    for (i = 0u; i < 12u; ++i) {
+        const uint16_t ix = (uint16_t)(
+            (cursor + UINT16_C(0x1000) -
+             (uint16_t)(48u - 4u*i)) & UINT16_C(0x0fff));
+        if (memcmp(ram + VF2_SOUND_COMMAND_RING_BASE + ix,
+                   previous + 3u*i, 3u) != 0) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+    }
+
+    *report = (vf2_sound_music_80_07_report){0};
+    report->stream_before = stream;
+    report->a3_after = stream + (uint32_t)sizeof(original_prefix);
+    report->cursor_before = cursor;
+    report->cursor_after =
+        (uint16_t)((cursor + UINT16_C(8)) & UINT16_C(0x0fff));
+    report->packet[0] = original_prefix[34];
+    report->packet[1] = (uint8_t)(original_prefix[35] & UINT8_C(0x7f));
+    report->packet[2] = UINT8_C(0x7f); /* class 8 fixed D2 */
+    report->packet[3] = original_prefix[36];
+    report->packet[4] = original_prefix[37];
+    report->packet[5] = original_prefix[38];
+    report->status_after = UINT8_C(0x88);
+
+    /* Preflight complete. Only three bytes of each ring entry
+     * are written, preserving the trailing bookkeeping byte. */
+    for (i = 0u; i < 2u; ++i) {
+        const uint16_t ix = (uint16_t)(
+            (cursor + (uint16_t)(i*4u)) & UINT16_C(0x0fff));
+        memcpy(ram + VF2_SOUND_COMMAND_RING_BASE + ix,
+               report->packet + 3u*i, 3u);
+    }
+    desc[0] = report->status_after;
+    desc[1] = report->packet[3];
+    write_be16(ram + VF2_SOUND_COMMAND_WRITE_CURSOR,
+               report->cursor_after);
+    ram[VF2_SOUND_COMMAND_COUNT] = 14u;
+    return VF2_OK;
+}
+
 vf2_status vf2_sound_board_maintain_streams(
     vf2_sound_board *board,
     vf2_sound_stream_maintenance_report *report

@@ -194,6 +194,17 @@ typedef struct vf2_sound_music_b0_07_report {
     uint8_t status_after;
 } vf2_sound_music_b0_07_report;
 
+/* Original Akira packets #13/#14: class 8 fixed trailing 0x7F,
+ * then class 0 normal three-byte packet without bit0 retry. */
+typedef struct vf2_sound_music_80_07_report {
+    uint32_t stream_before;
+    uint32_t a3_after;
+    uint16_t cursor_before;
+    uint16_t cursor_after;
+    uint8_t packet[6];
+    uint8_t status_after;
+} vf2_sound_music_80_07_report;
+
 typedef struct vf2_sound_dispatch_report {
     uint8_t command;
     uint8_t payload;
@@ -515,6 +526,14 @@ vf2_status vf2_sound_board_probe_akira_l2_tenth_c(
 vf2_status vf2_sound_board_probe_akira_l2_next_b0_07(
     vf2_sound_board *board,
     vf2_sound_music_b0_07_report *report
+);
+
+/* Akira #13/#14, original 80 B6 -> 80 36 7F and
+ * 07 F8 0A -> 07 F8 0A. The second clears descriptor bit0.
+ * Explicit diagnostic, not a completed L2 tick. */
+vf2_status vf2_sound_board_probe_akira_l2_next_80_07(
+    vf2_sound_board *board,
+    vf2_sound_music_80_07_report *report
 );
 
 /* Execute the bounded 0x1f7c stream-interpreter packet paths. */
