@@ -200,3 +200,47 @@ worker return / stream pointer update; only
 after full L2 transaction parity can it drive
 a real-time native music renderer. No new WAV
 or hardware-fidelity claim is made.
+
+## v0939 — 7th/8th/9th original music packets (new class C)
+
+The owner's VF2.1 sound-ROM L2 dispatch table at
+0x1FBC maps 68000 classes **C** and D to **0x20AC**
+and class 9 to **0x2080**. Original stream bytes at
+0x615786..0x61578C are:
+`C1 81 | 9F 2B EE | C3 82`. The class-C handler
+strips the top bit of the second byte, sets status
+bit0 and forwards a **ZERO third byte** to the
+shared 0x211C packet emitter. Thus the new three
+packets at original ninth stop-PC 0x212C are:
+
+7. C1 01 00
+8. 9F 2B 6E
+9. C3 02 00
+
+The 68000's A3 is now 0x61578D, the descriptor+4
+stream pointer remains 0x615773, status stays 0x89,
+pending ring count becomes nine and cursor 36
+in the initially empty ring.
+
+An explicit opt-in C micro-probe
+`vf2_sound_board_probe_akira_l2_first_mixed_c`
+validates 26 bytes of original root content,
+all six prior ring packets, status/count/cursor
+and FIFO capacity **before mutation**, emitting the
+three packets atomically. It is not connected to
+the normal stream scheduler. ROM-free regressions
+check exact output, fourth-byte preservation,
+source corruption / capacity refusal, repeat
+invocation refusal and 4KiB circular wrap.
+A private-ROM differential runs genuine 68000
+one-instruction slices until the ninth original
+packet's 0x212C instruction boundary and compares
+complete RAM/SCSP and ephemeral A3 against the
+five native micro-probes. It is opt-in and not part
+of public ROM-free CI.
+
+The next original event is class-C **C8 8D**. The
+full music L2 worker and hardware-correct SCSP
+audio remain unimplemented. A nine-packet
+prefix is not a playable song nor proof of a
+completed original Timer-A interrupt.

@@ -1843,6 +1843,118 @@ vf2_status vf2_sound_board_probe_akira_l2_next_two_9f(
     return VF2_OK;
 }
 
+
+/* The first mixed class-C / class-9 Akira sequence:
+ *   original C1 81  -> ring C1 01 00 (C handler 0x20AC)
+ *   original 9F 2B EE -> ring 9F 2B 6E (9 handler 0x2080)
+ *   original C3 82  -> ring C3 02 00 (C handler 0x20AC)
+ *
+ * Original class C writes its opcode and masked second
+ * byte, then MOVEQ #0,D2 writes a ZERO third byte through
+ * 0x211C, setting descriptor bit0 when second bit7 was set.
+ * Class 9 writes masked third byte. All three source tagged
+ * arguments have bit7 set and preserve bit0 of descriptor.
+ *
+ * Explicit developer-only native micro-step for emission
+ * #7/#8/#9: NOT a completed L2 interrupt. Input stream
+ * identity, all six previous packets, counter, descriptor
+ * fields and buffer bounds are checked before any writes. */
+vf2_status vf2_sound_board_probe_akira_l2_first_mixed_c(
+    vf2_sound_board *board,
+    vf2_sound_music_mixed_report *report
+)
+{
+    static const uint8_t source_prefix[26] = {
+        UINT8_C(0xbe),UINT8_C(0x50),UINT8_C(0xfe),
+        UINT8_C(0xbe),UINT8_C(0x20),UINT8_C(0x80),
+        UINT8_C(0xbe),UINT8_C(0x10),UINT8_C(0x72),0u,
+        UINT8_C(0x9f),UINT8_C(0x48),UINT8_C(0xf7),
+        UINT8_C(0x9f),UINT8_C(0x2e),UINT8_C(0xc0),
+        UINT8_C(0x9f),UINT8_C(0x33),UINT8_C(0xff),
+        UINT8_C(0xc1),UINT8_C(0x81),
+        UINT8_C(0x9f),UINT8_C(0x2b),UINT8_C(0xee),
+        UINT8_C(0xc3),UINT8_C(0x82)
+    };
+    static const uint8_t six_packets[18] = {
+        UINT8_C(0xbe),UINT8_C(0x50),UINT8_C(0x7e),
+        UINT8_C(0xbe),UINT8_C(0x20),0u,
+        UINT8_C(0xbe),UINT8_C(0x10),0u,
+        UINT8_C(0x9f),UINT8_C(0x48),UINT8_C(0x77),
+        UINT8_C(0x9f),UINT8_C(0x2e),UINT8_C(0x40),
+        UINT8_C(0x9f),UINT8_C(0x33),UINT8_C(0x7f)
+    };
+    static const uint8_t output[9] = {
+        UINT8_C(0xc1),UINT8_C(0x01),0u,
+        UINT8_C(0x9f),UINT8_C(0x2b),UINT8_C(0x6e),
+        UINT8_C(0xc3),UINT8_C(0x02),0u
+    };
+    uint8_t *ram;
+    uint8_t *desc;
+    uint16_t cursor;
+    uint8_t count;
+    uint32_t stream;
+    size_t source_offset;
+    size_t i;
+    if (board == NULL || report == NULL || board->audio_rom == NULL) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    ram = board->sound_ram;
+    desc = ram + VF2_SOUND_DESCRIPTOR_BASE;
+    stream = read_be32(desc + 4u);
+    cursor = read_be16(ram + VF2_SOUND_COMMAND_WRITE_CURSOR);
+    count = ram[VF2_SOUND_COMMAND_COUNT];
+    if (stream != UINT32_C(0x615773) ||
+        desc[0] != UINT8_C(0x89) ||
+        desc[1] != UINT8_C(0x9f) ||
+        read_be16(desc + 2u) != 0u ||
+        desc[0x0eu] != UINT8_C(0x72) ||
+        count < 6u || count > UINT8_C(252) ||
+        (cursor & UINT16_C(3)) != 0u ||
+        cursor > UINT16_C(0x0ffc)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    source_offset = (size_t)(stream - VF2_SOUND_AUDIO_ROM_BASE);
+    if (source_offset > board->audio_rom_size ||
+        board->audio_rom_size - source_offset < sizeof(source_prefix) ||
+        memcmp(board->audio_rom + source_offset, source_prefix,
+               sizeof(source_prefix)) != 0) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    for (i = 0u; i < 6u; ++i) {
+        const uint16_t ix = (uint16_t)(
+            (cursor + UINT16_C(0x1000) -
+             (uint16_t)(24u - 4u*i)) & UINT16_C(0x0fff));
+        if (memcmp(ram + VF2_SOUND_COMMAND_RING_BASE + ix,
+                   six_packets + 3u*i, 3u) != 0) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+    }
+
+    *report = (vf2_sound_music_mixed_report){0};
+    report->stream_before = stream;
+    report->a3_after = stream + (uint32_t)sizeof(source_prefix);
+    report->cursor_before = cursor;
+    report->cursor_after = (uint16_t)(
+        (cursor + UINT16_C(12)) & UINT16_C(0x0fff));
+    memcpy(report->packet, output, sizeof(output));
+    report->status_after = (uint8_t)(desc[0] | UINT8_C(1));
+
+    for (i = 0u; i < 3u; ++i) {
+        const uint16_t ix = (uint16_t)(
+            (cursor + (uint16_t)(i*4u)) & UINT16_C(0x0fff));
+        uint8_t *entry = ram + VF2_SOUND_COMMAND_RING_BASE + ix;
+        entry[0] = report->packet[3u*i];
+        entry[1] = report->packet[3u*i+1u];
+        entry[2] = report->packet[3u*i+2u];
+    }
+    desc[0] = report->status_after;
+    desc[1] = UINT8_C(0xc3);
+    write_be16(ram + VF2_SOUND_COMMAND_WRITE_CURSOR,
+               report->cursor_after);
+    ram[VF2_SOUND_COMMAND_COUNT] = (uint8_t)(count + 3u);
+    return VF2_OK;
+}
+
 vf2_status vf2_sound_board_maintain_streams(
     vf2_sound_board *board,
     vf2_sound_stream_maintenance_report *report

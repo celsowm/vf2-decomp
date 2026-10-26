@@ -160,6 +160,18 @@ typedef struct vf2_sound_music_9f_pair_report {
     uint8_t status_after;
 } vf2_sound_music_9f_pair_report;
 
+/* Three native Akira mixed class-C/9 packets from original
+ * 68000 stop PC 0x212C, with temporary A3 still held by CPU.
+ * Never treat this as an entire L2 timer service. */
+typedef struct vf2_sound_music_mixed_report {
+    uint32_t stream_before;
+    uint32_t a3_after;
+    uint16_t cursor_before;
+    uint16_t cursor_after;
+    uint8_t packet[9];
+    uint8_t status_after;
+} vf2_sound_music_mixed_report;
+
 typedef struct vf2_sound_dispatch_report {
     uint8_t command;
     uint8_t payload;
@@ -458,6 +470,14 @@ vf2_status vf2_sound_board_probe_akira_l2_first_9f(
 vf2_status vf2_sound_board_probe_akira_l2_next_two_9f(
     vf2_sound_board *board,
     vf2_sound_music_9f_pair_report *report
+);
+
+/* Append packets #7-#9 for the original Akira music root:
+ * C1 01 00, 9F 2B 6E, C3 02 00. Strictly preflight
+ * source/pending packet history; do not complete an L2 tick. */
+vf2_status vf2_sound_board_probe_akira_l2_first_mixed_c(
+    vf2_sound_board *board,
+    vf2_sound_music_mixed_report *report
 );
 
 /* Execute the bounded 0x1f7c stream-interpreter packet paths. */
