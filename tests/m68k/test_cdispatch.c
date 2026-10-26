@@ -272,6 +272,104 @@ static void test_b0_prescaler_setup_original(
  * boundary. Class 8 -> 0x2052, class 0 -> 0x2080.
  * Descriptor status 0x88 after class 0 is critical:
  * the next original control path is not another 0x1F96 retry. */
+/* First original Akira music descriptor's **actual worker
+ * return prelude**, immediately BEFORE the 0x2158 RTS. This
+ * checks the packed countdown and committed A3 pointer against
+ * genuine 68000 instructions, not a guessed scheduler outcome. */
+static void test_akira_first_worker_return_original(
+    const uint8_t *rom,size_t rom_size
+)
+{
+    static vf2_sound_board board;
+    static uint8_t actual_ram[VF2_SOUND_RAM_BYTES];
+    static vf2_scsp actual_scsp;
+    vf2_m68k_bus bus;
+    vf2_m68k_regs regs;
+    vf2_sound_music_prefix_report p0;
+    vf2_sound_music_followup_report p1;
+    vf2_sound_music_9f_report p2;
+    vf2_sound_music_9f_pair_report p3;
+    vf2_sound_music_mixed_report p4;
+    vf2_sound_music_c_followup_report p5;
+    vf2_sound_music_b0_07_report p6;
+    vf2_sound_music_80_07_report p7;
+    vf2_sound_music_first_return_report p8;
+    uint8_t *d;
+    vf2_status status=VF2_OK;
+    uint32_t instructions=0u;
+    int reached=0;
+    size_t i;
+    memset(&board,0,sizeof(board));
+    board.audio_rom=rom;
+    board.audio_rom_size=rom_size;
+    vf2_scsp_initialize(&board.scsp);
+    d=board.sound_ram+VF2_SOUND_DESCRIPTOR_BASE;
+    d[0]=0x88u;d[3]=1u;
+    d[4]=0u;d[5]=0x61u;d[6]=0x57u;d[7]=0x73u;
+    d[8]=0u;d[9]=0x60u;d[10]=0x9cu;d[11]=0x3eu;
+    for(i=0u;i<56u;i+=4u) {
+        board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+i+3u]=
+            (uint8_t)(0x80u+i);
+    }
+    memcpy(actual_ram,board.sound_ram,sizeof(actual_ram));
+    memcpy(&actual_scsp,&board.scsp,sizeof(actual_scsp));
+    make_bus(&bus,&actual_scsp,actual_ram,rom,rom_size);
+    reset_regs(&regs);
+    regs.pc=UINT32_C(0x1f7c);
+    regs.a[2]=VF2_SOUND_DESCRIPTOR_BASE;
+    for(i=0u;i<11000u;++i) {
+        uint32_t done=0u;
+        int suspended=0;
+        if(regs.pc==UINT32_C(0x2158) &&
+           actual_ram[VF2_SOUND_COMMAND_COUNT]==14u) {
+            reached=1;
+            break;
+        }
+        status=vf2_m68k_run_slice(
+            &bus,&regs,UINT32_MAX,0,1u,&done,&suspended);
+        if(status!=VF2_OK || done!=1u || !suspended) break;
+        ++instructions;
+    }
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_b(
+        &board,&p0)==VF2_OK);
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_two_b(
+        &board,&p1)==VF2_OK);
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_9f(
+        &board,&p2)==VF2_OK);
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_two_9f(
+        &board,&p3)==VF2_OK);
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_mixed_c(
+        &board,&p4)==VF2_OK);
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_tenth_c(
+        &board,&p5)==VF2_OK);
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_b0_07(
+        &board,&p6)==VF2_OK);
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_80_07(
+        &board,&p7)==VF2_OK);
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_return(
+        &board,&p8)==VF2_OK);
+    fprintf(stderr,
+        "AKIRA_FIRST_WORKER_RETURN reached=%d cpu=%d steps=%u "
+        "pc=%05x a3=%06x pointer=%06x duration=%04x "
+        "ram=%u scsp=%u\n",
+        reached,(int)status,(unsigned)instructions,
+        (unsigned)regs.pc,(unsigned)regs.a[3],
+        (unsigned)p8.stream_after,(unsigned)p8.countdown_after,
+        (unsigned)(memcmp(actual_ram,board.sound_ram,
+                          sizeof(actual_ram))==0),
+        (unsigned)scsp_equal(&actual_scsp,&board.scsp));
+    EXPECT_TRUE(reached && status==VF2_OK);
+    EXPECT_TRUE(regs.pc==UINT32_C(0x2158) &&
+                regs.a[3]==UINT32_C(0x61579c));
+    EXPECT_TRUE(p8.stream_after==UINT32_C(0x61579c) &&
+                p8.countdown_after==UINT16_C(0x16c7));
+    EXPECT_TRUE(bus.event_count==0u);
+    EXPECT_TRUE(actual_ram[VF2_SOUND_COMMAND_COUNT]==14u);
+    EXPECT_TRUE(memcmp(actual_ram,board.sound_ram,
+                       sizeof(actual_ram))==0);
+    EXPECT_TRUE(scsp_equal(&actual_scsp,&board.scsp));
+}
+
 static void test_akira_fourteen_initial_packets_original(
     const uint8_t *rom,size_t rom_size
 )
@@ -7244,6 +7342,7 @@ int main(int argc, char **argv)
     test_l2_stream_tick(audio_rom, audio_rom_size);
     test_b0_prescaler_setup_original(audio_rom, audio_rom_size);
     test_b0_181c_native_original(audio_rom, audio_rom_size);
+    test_akira_first_worker_return_original(audio_rom, audio_rom_size);
     test_akira_fourteen_initial_packets_original(audio_rom, audio_rom_size);
     test_akira_twelve_initial_packets_original(audio_rom, audio_rom_size);
     test_akira_ten_initial_packets_original(audio_rom, audio_rom_size);

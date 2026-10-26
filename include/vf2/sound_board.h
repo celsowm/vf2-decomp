@@ -205,6 +205,16 @@ typedef struct vf2_sound_music_80_07_report {
     uint8_t status_after;
 } vf2_sound_music_80_07_report;
 
+/* The first Akira music worker's post-packet duration and
+ * stream-pointer commit, just before original 68000 RTS. */
+typedef struct vf2_sound_music_first_return_report {
+    uint32_t stream_before;
+    uint32_t stream_after;
+    uint16_t countdown_after;
+    uint16_t cursor;
+    uint8_t pending_count;
+} vf2_sound_music_first_return_report;
+
 typedef struct vf2_sound_dispatch_report {
     uint8_t command;
     uint8_t payload;
@@ -534,6 +544,15 @@ vf2_status vf2_sound_board_probe_akira_l2_next_b0_07(
 vf2_status vf2_sound_board_probe_akira_l2_next_80_07(
     vf2_sound_board *board,
     vf2_sound_music_80_07_report *report
+);
+
+/* Finish ONLY the original Akira descriptor's first worker:
+ * after the 14th packet at 0x212C, 0x2138..0x2158 commits
+ * the next music pointer and a variable-length countdown.
+ * Opt-in isolated probe; NOT the full L2 IRQ/scheduler. */
+vf2_status vf2_sound_board_probe_akira_l2_first_return(
+    vf2_sound_board *board,
+    vf2_sound_music_first_return_report *report
 );
 
 /* Execute the bounded 0x1f7c stream-interpreter packet paths. */

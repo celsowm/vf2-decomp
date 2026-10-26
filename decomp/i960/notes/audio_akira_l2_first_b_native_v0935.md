@@ -351,3 +351,36 @@ The private differential has **not** been run yet.
 `0x2138` and determine which bytes it consumes, how it alters
 descriptor+4 and whether it returns to the L2 scheduler.
 No continuous music or DAC-accurate PCM is claimed.
+
+## v0943 — first Akira music descriptor reaches original pre-RTS pointer commit
+
+In the verified owner ROM, after packet #14 the original 68000
+enters the non-retry path at `0x2138`, rather than `0x1F96`.
+It reads a nonzero variable-length countdown. Source bytes at
+A3 `0x61579A` are **AC C7**. Original 68000 opcodes at
+`0x2144..0x2158` strip bit7 of the first byte, apply
+`LSL.W #7,D2`, `OR.B (A3)+,D2`, then commit via
+`MOVE.W D2,2(A2)` and `MOVE.L A3,4(A2)`.
+
+The resulting music descriptor updates, **before RTS at 0x2158**:
+- Countdown word +2 becomes `0x16C7` (5831).
+- Persistent source pointer +4 becomes `0x61579C`.
+- Fourteen prior ring packets, their fourth bytes, status 0x88,
+  count 14, cursor 56 and descriptor +0E=72 stay unchanged.
+
+An opt-in native `vf2_sound_board_probe_akira_l2_first_return`
+now checks the 41-byte original source fingerprint/prefix and all
+fourteen prior ring slots before writing either descriptor field.
+ROM-free tests include success, source corruption, corrupted prior
+ring history, refusal on repeat, byte-for-byte preserved FIFO and
+a circular-history case. Owner-ROM differential executes original
+68000 opcodes starting at worker PC 0x1F7C until PC `0x2158`,
+then compares full sound RAM, modeled SCSP and temporary A3 against
+all nine bounded native probes. This needs a local original-ROM test
+run before claiming parity; public CI is ROM-free.
+
+**Scope:** recovery of one complete initial music **descriptor worker
+body through the pre-RTS boundary**. The higher-level L2 scan loop,
+other descriptors, Timer-A scheduling, SCSP rendering and arcade DAC
+are *not* recovered by this change. Next prove the worker's integration
+inside a whole interrupt tick, without prematurely declaring playback.
