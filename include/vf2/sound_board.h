@@ -183,6 +183,17 @@ typedef struct vf2_sound_music_c_followup_report {
     uint8_t status_after;
 } vf2_sound_music_c_followup_report;
 
+/* Akira's original packets #11/#12 (class B0 and class 07).
+ * Temporary A3 is a CPU register, not committed to descriptor+4. */
+typedef struct vf2_sound_music_b0_07_report {
+    uint32_t stream_before;
+    uint32_t a3_after;
+    uint16_t cursor_before;
+    uint16_t cursor_after;
+    uint8_t packet[6];
+    uint8_t status_after;
+} vf2_sound_music_b0_07_report;
+
 typedef struct vf2_sound_dispatch_report {
     uint8_t command;
     uint8_t payload;
@@ -497,6 +508,13 @@ vf2_status vf2_sound_board_probe_akira_l2_first_mixed_c(
 vf2_status vf2_sound_board_probe_akira_l2_tenth_c(
     vf2_sound_board *board,
     vf2_sound_music_c_followup_report *report
+);
+
+/* Original Akira entries #11/#12: B0 0A 40 and 07 FF 40.
+ * Opt-in atomic native micro-step; not a finished L2 timer tick. */
+vf2_status vf2_sound_board_probe_akira_l2_next_b0_07(
+    vf2_sound_board *board,
+    vf2_sound_music_b0_07_report *report
 );
 
 /* Execute the bounded 0x1f7c stream-interpreter packet paths. */

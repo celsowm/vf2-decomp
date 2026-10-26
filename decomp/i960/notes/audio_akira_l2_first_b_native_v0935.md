@@ -277,3 +277,39 @@ post-tenth stream grammar and entire L2 worker return/descriptor-pointer
 commit under original 68000 differential, then connect the proven
 worker to IRQ-driven music rendering. No audio/WAV or hardware parity
 claim is made here.
+
+## v0941 — Akira 11th/12th genuine source entries (B0 and 0 classes)
+
+Owner ROM `epr-17574.30`, CPU-visible 16-bit word-swapped, SHA-1
+`b6c0c3f0473bd7fc3ef4f5146110dfcc899a5af9`, independently
+inspected on October 26, 2026. At ephemeral A3 `0x61578F`, the
+next six source bytes are two successive original events:
+
+- Packet #11: B0 0A C0, class B -> original handler `0x1FFC`.
+  With bit7 stripped: **B0 0A 40**.
+- Packet #12: 07 FF C0, class 0 -> original handler `0x2080`.
+  With bit7 stripped: **07 FF 40**.
+
+The real ROM's class table at `0x1FBC` has two PC-relative
+`JMP` entries targeting exactly these two handlers; the owner-ROM
+differential checks both routes explicitly before execution.
+Both source third bytes have bit7 set, retaining descriptor bit0.
+The twelfth shared emitter boundary `0x212C` is expected with
+ephemeral A3 `0x615795`, packet count 12 and empty-ring cursor 48.
+
+The native opt-in `vf2_sound_board_probe_akira_l2_next_b0_07` validates
+34 original source bytes, the whole ten-packet pending history, exact
+descriptor state and two aligned circular FIFO slots before **any** write.
+It atomically appends both packets, preserves fourth bytes, and keeps the
+persistent descriptor+4 pointer untouched. ROM-free C regressions cover
+success, source corruption, missing prior packet, full queue, repeat call
+and FFC-to-000 wrap. The owner-only `vf2_m68k_cdispatch_tests` comparison
+now walks genuine original 68000 instructions until count 12 at PC 212C
+and compares all 512 KiB of RAM, complete modeled SCSP and temporary A3.
+**Do not claim differential parity until the local original-ROM test passes.**
+
+Immediately next in the original source is a class-8 command at A3
+`0x615795`. The class-8 jump table selects handler `0x2052`; its
+complete argument consumption, control-flow and any extra side effects
+must be recovered before implementing packet #13. The whole L2 worker
+and native sound remain unsupported; no music/WAV fidelity claim.
