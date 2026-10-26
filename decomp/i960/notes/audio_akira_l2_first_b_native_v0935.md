@@ -244,3 +244,36 @@ full music L2 worker and hardware-correct SCSP
 audio remain unimplemented. A nine-packet
 prefix is not a playable song nor proof of a
 completed original Timer-A interrupt.
+
+## v0940 — tenth original Akira L2 class-C packet (candidate)
+
+The previous ROM-backed audit identifies the following source pair after
+packet #9: **C8 8D** at ephemeral A3 `0x61578D`. The already documented
+original class-C branch at 68000 PC `0x20AC` masks the argument's top bit,
+sets descriptor status bit0, and emits a zero third byte via `0x211C`.
+The expected tenth ring entry is therefore **C8 0D 00**; after emission
+A3 is expected at `0x61578F`, count 10 and cursor 40 in an empty ring.
+
+The opt-in `vf2_sound_board_probe_akira_l2_tenth_c` validates the full
+28-byte Akira source prefix, descriptor identity and state, exact nine
+previous 3-byte ring entries, one available ring slot and the circular
+write cursor before touching RAM. It preserves the fourth byte of the
+ring entry and the descriptor stream pointer (which the original CPU
+has not yet committed at this instruction boundary). ROM-free tests
+cover normal state, source corruption, a corrupt prior packet, a full
+queue, repeated invocation, descriptor preservation and FFC -> 000
+wraparound.
+
+The private `vf2_m68k_cdispatch_tests` executable now includes an
+original-instruction 68000 differential stopping at **the tenth**
+`0x212C` emission (not its first visit). It compares *all* sound RAM,
+modeled SCSP registers and ephemeral A3 against the six native micro-steps.
+This test needs the owner's ROM locally; its pass is **not claimed**
+without running it. ROM-free/public CI similarly must be verified from
+the resulting build rather than assumed.
+
+This is an isolated prefix recovery only. Next frontier: recover the
+post-tenth stream grammar and entire L2 worker return/descriptor-pointer
+commit under original 68000 differential, then connect the proven
+worker to IRQ-driven music rendering. No audio/WAV or hardware parity
+claim is made here.

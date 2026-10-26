@@ -1955,6 +1955,97 @@ vf2_status vf2_sound_board_probe_akira_l2_first_mixed_c(
     return VF2_OK;
 }
 
+/* Tenth original Akira emission: C8 8D at A3=0x61578D.
+ * The original class-C handler at 0x20AC masks bit7 from the
+ * second argument, sets descriptor status bit0, and emits a
+ * zero-valued third byte through the common 0x211C ring writer.
+ * This opt-in isolated micro-step is deliberately NOT linked
+ * to the periodic stream-maintenance path. */
+vf2_status vf2_sound_board_probe_akira_l2_tenth_c(
+    vf2_sound_board *board,
+    vf2_sound_music_c_followup_report *report
+)
+{
+    static const uint8_t original_prefix[28] = {
+        0xbeu,0x50u,0xfeu,0xbeu,0x20u,0x80u,
+        0xbeu,0x10u,0x72u,0x00u,
+        0x9fu,0x48u,0xf7u,0x9fu,0x2eu,0xc0u,
+        0x9fu,0x33u,0xffu,
+        0xc1u,0x81u,0x9fu,0x2bu,0xeeu,0xc3u,0x82u,
+        0xc8u,0x8du
+    };
+    static const uint8_t prior_packets[27] = {
+        0xbeu,0x50u,0x7eu,0xbeu,0x20u,0x00u,
+        0xbeu,0x10u,0x00u,0x9fu,0x48u,0x77u,
+        0x9fu,0x2eu,0x40u,0x9fu,0x33u,0x7fu,
+        0xc1u,0x01u,0x00u,0x9fu,0x2bu,0x6eu,
+        0xc3u,0x02u,0x00u
+    };
+    uint8_t *ram;
+    uint8_t *desc;
+    uint16_t cursor;
+    uint32_t stream;
+    size_t offset;
+    size_t i;
+
+    if (board == NULL || report == NULL || board->audio_rom == NULL) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    ram = board->sound_ram;
+    desc = ram + VF2_SOUND_DESCRIPTOR_BASE;
+    stream = read_be32(desc + 4u);
+    cursor = read_be16(ram + VF2_SOUND_COMMAND_WRITE_CURSOR);
+    if (stream != UINT32_C(0x615773) ||
+        desc[0] != UINT8_C(0x89) ||
+        desc[1] != UINT8_C(0xc3) ||
+        read_be16(desc + 2u) != 0u ||
+        desc[0x0eu] != UINT8_C(0x72) ||
+        ram[VF2_SOUND_COMMAND_COUNT] != 9u ||
+        (cursor & UINT16_C(3)) != 0u ||
+        cursor > UINT16_C(0x0ffc)) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    offset = (size_t)(stream - VF2_SOUND_AUDIO_ROM_BASE);
+    if (offset > board->audio_rom_size ||
+        board->audio_rom_size - offset < sizeof(original_prefix) ||
+        memcmp(board->audio_rom + offset, original_prefix,
+               sizeof(original_prefix)) != 0) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    /* Verify the complete earlier nine-packet history, including
+     * circular ring wrap, before writing any native state. */
+    for (i = 0u; i < 9u; ++i) {
+        const uint16_t slot = (uint16_t)(
+            (cursor + UINT16_C(0x1000) -
+             (uint16_t)(36u - 4u*i)) & UINT16_C(0x0fff));
+        if (memcmp(ram + VF2_SOUND_COMMAND_RING_BASE + slot,
+                   prior_packets + 3u*i, 3u) != 0) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+    }
+    *report = (vf2_sound_music_c_followup_report){0};
+    report->stream_before = stream;
+    report->a3_after = stream + (uint32_t)sizeof(original_prefix);
+    report->cursor_before = cursor;
+    report->cursor_after =
+        (uint16_t)((cursor + UINT16_C(4)) & UINT16_C(0x0fff));
+    report->packet[0] = original_prefix[26];
+    report->packet[1] = (uint8_t)(original_prefix[27] & UINT8_C(0x7f));
+    report->packet[2] = 0u;
+    report->status_after = (uint8_t)(desc[0] | UINT8_C(1));
+
+    /* One four-byte ring slot, but only bytes 0..2 are owned
+     * by the original 0x211C emitter. Preserve byte 3. */
+    memcpy(ram + VF2_SOUND_COMMAND_RING_BASE + cursor,
+           report->packet, sizeof(report->packet));
+    desc[0] = report->status_after;
+    desc[1] = report->packet[0];
+    ram[VF2_SOUND_COMMAND_COUNT] = 10u;
+    write_be16(ram + VF2_SOUND_COMMAND_WRITE_CURSOR,
+               report->cursor_after);
+    return VF2_OK;
+}
+
 vf2_status vf2_sound_board_maintain_streams(
     vf2_sound_board *board,
     vf2_sound_stream_maintenance_report *report

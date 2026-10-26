@@ -172,6 +172,17 @@ typedef struct vf2_sound_music_mixed_report {
     uint8_t status_after;
 } vf2_sound_music_mixed_report;
 
+/* Original Akira stream packet #10: class C8 8D -> C8 0D 00.
+ * The 68000 A3 remains ephemeral; not a complete L2 service. */
+typedef struct vf2_sound_music_c_followup_report {
+    uint32_t stream_before;
+    uint32_t a3_after;
+    uint16_t cursor_before;
+    uint16_t cursor_after;
+    uint8_t packet[3];
+    uint8_t status_after;
+} vf2_sound_music_c_followup_report;
+
 typedef struct vf2_sound_dispatch_report {
     uint8_t command;
     uint8_t payload;
@@ -478,6 +489,14 @@ vf2_status vf2_sound_board_probe_akira_l2_next_two_9f(
 vf2_status vf2_sound_board_probe_akira_l2_first_mixed_c(
     vf2_sound_board *board,
     vf2_sound_music_mixed_report *report
+);
+
+/* Append the tenth original Akira class-C packet (C8 0D 00)
+ * only after the exact nine-packet original prefix is resident.
+ * Diagnostic micro-step; the live L2 scheduler remains untouched. */
+vf2_status vf2_sound_board_probe_akira_l2_tenth_c(
+    vf2_sound_board *board,
+    vf2_sound_music_c_followup_report *report
 );
 
 /* Execute the bounded 0x1f7c stream-interpreter packet paths. */
