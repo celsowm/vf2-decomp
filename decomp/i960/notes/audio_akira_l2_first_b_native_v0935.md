@@ -145,3 +145,58 @@ They still need their own bounded worker treatment,
 correct pointer and countdown finalization, and a
 real-cycle IRQ scheduler before native PCM rendering.
 No new Akira WAV or acoustic parity is claimed.
+
+## v0938 — fifth and sixth Akira packets, both class 9
+
+Local private VF2.1 sound ROM audit confirmed that after
+the fourth ring packet (9F 48 77) the original music
+stream contains **9F 2E C0** and **9F 33 FF**, at
+0x615780 and 0x615783. The original 68000 class-9
+applier at 0x2080 strips bit 7 of third bytes and
+sets descriptor status bit0. As a result, at its
+SIXTH arrival at PC 0x212C the ring's first 6
+three-byte packets are:
+
+1. BE 50 7E
+2. BE 20 00
+3. BE 10 00 (saved descriptor+0E = 72)
+4. 9F 48 77
+5. **9F 2E 40**
+6. **9F 33 7F**
+
+The temporary 68000 A3 has advanced 19 stream bytes
+from 0x615773 to **0x615786**, while original
+descriptor+4 stays unchanged. Status is 0x89,
+count is six, write cursor is 24 for an empty
+starting ring. Fourth bytes are never overwritten.
+
+New ROM-free primitive
+`vf2_sound_board_probe_akira_l2_next_two_9f`
+requires the entire 19-byte original source pattern,
+a valid primary descriptor, the four previously
+emitted packet slots, two available FIFO slots
+and an aligned ring cursor. Any mismatch refuses
+atomically before touching RAM/SCSP. It writes
+both new packets together, including the wraparound
+case, and reports ephemeral A3. The ordinary L2
+scheduler is left unchanged and fail-closed for
+this still-unfinished music worker.
+
+Public tests cover output, exact preserved fourth
+bytes, bad ROM, FIFO exhaustion, re-entry and
+the 0xFFC/0x000 split. An opt-in owner-ROM test
+replays REAL 68000 instructions in one-instruction
+slices until the sixth visit to PC 0x212C and
+checks full RAM, modeled SCSP and A3 against the
+four original-derived native micro-steps. This
+owner-ROM test has not run in public CI.
+
+The immediately following original stream begins
+with **C1 81**, introducing a different command
+class and no longer the plain B-/9F three-byte
+grammar. The next frontier must recover that
+class-C handler and complete the original L2
+worker return / stream pointer update; only
+after full L2 transaction parity can it drive
+a real-time native music renderer. No new WAV
+or hardware-fidelity claim is made.

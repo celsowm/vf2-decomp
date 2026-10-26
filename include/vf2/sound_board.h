@@ -148,6 +148,18 @@ typedef struct vf2_sound_music_9f_report {
     uint8_t status_after;
 } vf2_sound_music_9f_report;
 
+/* Developer-only two-packet original Akira class-9 continuation.
+ * A3 is an ephemeral 68000 register, not a committed music
+ * stream cursor; completing this step does NOT finish L2. */
+typedef struct vf2_sound_music_9f_pair_report {
+    uint32_t stream_before;
+    uint32_t a3_after;
+    uint16_t cursor_before;
+    uint16_t cursor_after;
+    uint8_t packet[6];
+    uint8_t status_after;
+} vf2_sound_music_9f_pair_report;
+
 typedef struct vf2_sound_dispatch_report {
     uint8_t command;
     uint8_t payload;
@@ -437,6 +449,15 @@ vf2_status vf2_sound_board_probe_akira_l2_next_two_b(
 vf2_status vf2_sound_board_probe_akira_l2_first_9f(
     vf2_sound_board *board,
     vf2_sound_music_9f_report *report
+);
+
+/* Follow 9F 48 77 with two original class-9 packets,
+ * 9F 2E 40 and 9F 33 7F. Strictly validates the original
+ * 19-byte stream prefix and prior four ring entries.
+ * A diagnostic, NOT a completed L2 timer tick. */
+vf2_status vf2_sound_board_probe_akira_l2_next_two_9f(
+    vf2_sound_board *board,
+    vf2_sound_music_9f_pair_report *report
 );
 
 /* Execute the bounded 0x1f7c stream-interpreter packet paths. */

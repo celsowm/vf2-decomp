@@ -251,6 +251,90 @@ static void test_b0_prescaler_setup_original(
  * real instruction boundary, so run one step at a time and
  * require pending-count 4 before stopping. The owner-ROM
  * test is opt-in, not run by public CI. */
+/* Owner ROM differential through sixth Akira music emission.
+ * Stop at ORIGINAL instruction PC 0x212C only when FIFO count
+ * reaches six. A simple run(stop_pc) exits after packet #1!
+ * Uses real ROM instructions and compares entire RAM/SCSP to
+ * four separately bounded native prefix helpers.
+ * This is an opt-in private asset test, not public ROM-free CI. */
+static void test_akira_six_initial_packets_original(
+    const uint8_t *rom,size_t rom_size
+)
+{
+    static vf2_sound_board board;
+    static uint8_t actual_ram[VF2_SOUND_RAM_BYTES];
+    static vf2_scsp actual_scsp;
+    vf2_m68k_bus bus;
+    vf2_m68k_regs regs;
+    vf2_sound_music_prefix_report first;
+    vf2_sound_music_followup_report follow;
+    vf2_sound_music_9f_report fourth;
+    vf2_sound_music_9f_pair_report sixth;
+    uint8_t *d;
+    uint32_t instructions=0u;
+    vf2_status status=VF2_OK;
+    int reached=0;
+    size_t i;
+    memset(&board,0,sizeof(board));
+    board.audio_rom=rom;
+    board.audio_rom_size=rom_size;
+    vf2_scsp_initialize(&board.scsp);
+    d=board.sound_ram+VF2_SOUND_DESCRIPTOR_BASE;
+    d[0]=0x88u;d[3]=1u;
+    d[4]=0u;d[5]=0x61u;d[6]=0x57u;d[7]=0x73u;
+    d[8]=0u;d[9]=0x60u;d[10]=0x9cu;d[11]=0x3eu;
+    for(i=0u;i<24u;i+=4u) {
+        board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+i+3u]=
+            (uint8_t)(0xa1u+i);
+    }
+    memcpy(actual_ram,board.sound_ram,sizeof(actual_ram));
+    memcpy(&actual_scsp,&board.scsp,sizeof(actual_scsp));
+    make_bus(&bus,&actual_scsp,actual_ram,rom,rom_size);
+    reset_regs(&regs);
+    regs.pc=UINT32_C(0x1f7c);
+    regs.a[2]=VF2_SOUND_DESCRIPTOR_BASE;
+    for(i=0u;i<4096u;++i) {
+        uint32_t done=0u;
+        int suspended=0;
+        if(regs.pc==UINT32_C(0x212c) &&
+           actual_ram[VF2_SOUND_COMMAND_COUNT]==6u) {
+            reached=1;
+            break;
+        }
+        status=vf2_m68k_run_slice(
+            &bus,&regs,UINT32_MAX,0,1u,&done,&suspended);
+        if(status!=VF2_OK || done!=1u || !suspended) break;
+        ++instructions;
+    }
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_b(
+        &board,&first)==VF2_OK);
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_two_b(
+        &board,&follow)==VF2_OK);
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_9f(
+        &board,&fourth)==VF2_OK);
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_two_9f(
+        &board,&sixth)==VF2_OK);
+    fprintf(stderr,
+        "AKIRA_6_PACKET_DIFF reached=%d cpu=%d steps=%u "
+        "pc=%05x a3=%06x ram=%u scsp=%u count=%u\n",
+        reached,(int)status,(unsigned)instructions,
+        (unsigned)regs.pc,(unsigned)regs.a[3],
+        (unsigned)(memcmp(actual_ram,board.sound_ram,
+                          sizeof(actual_ram))==0),
+        (unsigned)scsp_equal(&actual_scsp,&board.scsp),
+        (unsigned)actual_ram[VF2_SOUND_COMMAND_COUNT]);
+    EXPECT_TRUE(reached && status==VF2_OK);
+    EXPECT_TRUE(regs.pc==UINT32_C(0x212c) &&
+                regs.a[3]==sixth.a3_after &&
+                sixth.a3_after==UINT32_C(0x615786));
+    EXPECT_TRUE(bus.event_count==0u);
+    EXPECT_TRUE(actual_ram[VF2_SOUND_COMMAND_COUNT]==6u &&
+                sixth.cursor_after==24u);
+    EXPECT_TRUE(memcmp(actual_ram,board.sound_ram,
+                       sizeof(actual_ram))==0);
+    EXPECT_TRUE(scsp_equal(&actual_scsp,&board.scsp));
+}
+
 static void test_akira_first_9f_original(
     const uint8_t *rom, size_t rom_size
 )
@@ -6754,6 +6838,7 @@ int main(int argc, char **argv)
     test_l2_stream_tick(audio_rom, audio_rom_size);
     test_b0_prescaler_setup_original(audio_rom, audio_rom_size);
     test_b0_181c_native_original(audio_rom, audio_rom_size);
+    test_akira_six_initial_packets_original(audio_rom, audio_rom_size);
     test_akira_first_9f_original(audio_rom, audio_rom_size);
     test_akira_l2_three_b_original(audio_rom, audio_rom_size);
     test_akira_l2_first_b_original(audio_rom, audio_rom_size);
