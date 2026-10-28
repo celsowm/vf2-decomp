@@ -281,10 +281,12 @@ static void test_akira_first_worker_return_original(
 )
 {
     static vf2_sound_board board;
+    static vf2_sound_board atomic_board;
     static uint8_t actual_ram[VF2_SOUND_RAM_BYTES];
     static vf2_scsp actual_scsp;
     vf2_m68k_bus bus;
     vf2_m68k_regs regs;
+    vf2_sound_music_worker_report worker = {0};
     vf2_sound_music_prefix_report p0;
     vf2_sound_music_followup_report p1;
     vf2_sound_music_9f_report p2;
@@ -311,6 +313,7 @@ static void test_akira_first_worker_return_original(
         board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+i+3u]=
             (uint8_t)(0x80u+i);
     }
+    memcpy(&atomic_board,&board,sizeof(board));
     memcpy(actual_ram,board.sound_ram,sizeof(actual_ram));
     memcpy(&actual_scsp,&board.scsp,sizeof(actual_scsp));
     make_bus(&bus,&actual_scsp,actual_ram,rom,rom_size);
@@ -368,6 +371,15 @@ static void test_akira_first_worker_return_original(
     EXPECT_TRUE(memcmp(actual_ram,board.sound_ram,
                        sizeof(actual_ram))==0);
     EXPECT_TRUE(scsp_equal(&actual_scsp,&board.scsp));
+    /* Original 68000 independent of both native paths. */
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_worker(
+        &atomic_board,&worker)==VF2_OK);
+    EXPECT_TRUE(worker.stream_after==UINT32_C(0x61579c) &&
+                worker.countdown_after==UINT16_C(0x16c7) &&
+                worker.packets_emitted==14u);
+    EXPECT_TRUE(memcmp(actual_ram,atomic_board.sound_ram,
+                       sizeof(actual_ram))==0);
+    EXPECT_TRUE(scsp_equal(&actual_scsp,&atomic_board.scsp));
 }
 
 static void test_akira_fourteen_initial_packets_original(
