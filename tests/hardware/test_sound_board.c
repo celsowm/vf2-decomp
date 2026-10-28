@@ -908,6 +908,9 @@ static void test_akira_next_80_07_native(void)
 static void test_akira_first_worker_return(void)
 {
     static vf2_sound_board board;
+    static vf2_sound_board seed_board;
+    static vf2_sound_board atomic_board;
+    vf2_sound_music_worker_report worker = {0};
     static uint8_t rom[0x16000u];
     static const uint8_t sample[2] = {0u,0u};
     static const uint8_t source[41] = {
@@ -955,6 +958,18 @@ static void test_akira_first_worker_return(void)
         board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+i+3u] =
             (uint8_t)(0x80u+i);
     }
+    memcpy(&seed_board, &board, sizeof(board));
+    memcpy(&atomic_board, &seed_board, sizeof(board));
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_worker(
+        &atomic_board, &worker) == VF2_OK);
+    EXPECT_TRUE(worker.stream_before == UINT32_C(0x615773) &&
+                worker.stream_after == UINT32_C(0x61579c) &&
+                worker.countdown_after == UINT16_C(0x16c7) &&
+                worker.cursor_before == 0u &&
+                worker.cursor_after == 56u &&
+                worker.pending_before == 0u &&
+                worker.pending_after == 14u &&
+                worker.packets_emitted == 14u);
     EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_b(
         &board,&p0)==VF2_OK);
     EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_two_b(
@@ -1000,8 +1015,50 @@ static void test_akira_first_worker_return(void)
         EXPECT_TRUE(memcmp(q,fourteen+3u*i,3u)==0);
         EXPECT_TRUE(q[3]==(uint8_t)(0x80u+4u*i));
     }
+    EXPECT_TRUE(memcmp(&atomic_board, &board, sizeof(board)) == 0);
     EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_return(
         &board,&p8)==VF2_ERROR_UNSUPPORTED);
+
+    /* Atomic refusal when the very last source byte is corrupted.
+     * Earlier probes would already have emitted fourteen packets. */
+    memcpy(&atomic_board, &seed_board, sizeof(board));
+    rom[at+40u] = 0xc6u;
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_worker(
+        &atomic_board, &worker) == VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(memcmp(&atomic_board, &seed_board, sizeof(board)) == 0);
+    rom[at+40u] = 0xc7u;
+    /* A full fourteen-packet chain must not wrap the pending count. */
+    memcpy(&atomic_board, &seed_board, sizeof(board));
+    atomic_board.sound_ram[VF2_SOUND_COMMAND_COUNT] = 242u;
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_worker(
+        &atomic_board, &worker) == VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(atomic_board.sound_ram[VF2_SOUND_COMMAND_COUNT] == 242u);
+    atomic_board.sound_ram[VF2_SOUND_COMMAND_COUNT] = 0u;
+    EXPECT_TRUE(memcmp(&atomic_board, &seed_board, sizeof(board)) == 0);
+    /* Complete worker writes across the 4 KiB circular ring edge. */
+    memcpy(&atomic_board, &seed_board, sizeof(board));
+    atomic_board.sound_ram[VF2_SOUND_COMMAND_WRITE_CURSOR] = 0x0fu;
+    atomic_board.sound_ram[VF2_SOUND_COMMAND_WRITE_CURSOR+1u] = 0xfcu;
+    for (i=0u; i<14u; ++i) {
+        const size_t slot = (0x0ffcu+4u*i)&0x0fffu;
+        atomic_board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+slot+3u] =
+            (uint8_t)(0x20u+i);
+    }
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_worker(
+        &atomic_board, &worker) == VF2_OK);
+    EXPECT_TRUE(worker.cursor_before == 0x0ffcu &&
+                worker.cursor_after == 0x0034u &&
+                worker.pending_after == 14u &&
+                worker.countdown_after == UINT16_C(0x16c7));
+    for (i=0u; i<14u; ++i) {
+        const size_t slot = (0x0ffcu+4u*i)&0x0fffu;
+        EXPECT_TRUE(memcmp(
+            atomic_board.sound_ram+VF2_SOUND_COMMAND_RING_BASE+slot,
+            fourteen+3u*i, 3u)==0);
+        EXPECT_TRUE(atomic_board.sound_ram[
+            VF2_SOUND_COMMAND_RING_BASE+slot+3u] ==
+            (uint8_t)(0x20u+i));
+    }
 
     /* Original 14-packet history straddles the end of ring. */
     d[2]=0u;d[3]=0u;
