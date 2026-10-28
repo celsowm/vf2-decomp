@@ -2336,6 +2336,107 @@ vf2_status vf2_sound_board_probe_akira_l2_first_return(
     return VF2_OK;
 }
 
+/* Compose the original first Akira descriptor worker from nine
+ * instruction-bounded native probes. They validate each stage against
+ * the measured packet history and keep A3 ephemeral until the final
+ * 0x2138..0x2158 countdown/pointer commit.
+ *
+ * The intermediate steps are executed on a disposable board: if a late
+ * source-byte, queue-capacity, or ring-history guard rejects, no prefix
+ * of commands escapes into the caller's RAM. Keep this opt-in and
+ * separate from maintain_streams until the enclosing L2 scan, other
+ * records and interrupt timing have a full original-ROM differential. */
+vf2_status vf2_sound_board_probe_akira_l2_first_worker(
+    vf2_sound_board *board,
+    vf2_sound_music_worker_report *report
+)
+{
+    vf2_sound_board *candidate;
+    vf2_sound_music_prefix_report p0;
+    vf2_sound_music_followup_report p1;
+    vf2_sound_music_9f_report p2;
+    vf2_sound_music_9f_pair_report p3;
+    vf2_sound_music_mixed_report p4;
+    vf2_sound_music_c_followup_report p5;
+    vf2_sound_music_b0_07_report p6;
+    vf2_sound_music_80_07_report p7;
+    vf2_sound_music_first_return_report p8;
+    vf2_status status;
+    vf2_sound_music_worker_report next_report = {0};
+    if (board == NULL || report == NULL || board->audio_rom == NULL) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    next_report.cursor_before = read_be16(
+        board->sound_ram + VF2_SOUND_COMMAND_WRITE_CURSOR);
+    next_report.pending_before =
+        board->sound_ram[VF2_SOUND_COMMAND_COUNT];
+    /* Fourteen ring entries must fit the 8-bit pending counter.
+     * Conservatively refuse rather than model unproven overflow. */
+    if (next_report.pending_before > UINT8_MAX - 14u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    candidate = (vf2_sound_board *)malloc(sizeof(*candidate));
+    if (candidate == NULL) {
+        return VF2_ERROR_OUT_OF_MEMORY;
+    }
+    memcpy(candidate, board, sizeof(*candidate));
+    status = vf2_sound_board_probe_akira_l2_first_b(candidate, &p0);
+    if (status == VF2_OK) {
+        status = vf2_sound_board_probe_akira_l2_next_two_b(candidate, &p1);
+    }
+    if (status == VF2_OK) {
+        status = vf2_sound_board_probe_akira_l2_first_9f(candidate, &p2);
+    }
+    if (status == VF2_OK) {
+        status = vf2_sound_board_probe_akira_l2_next_two_9f(candidate, &p3);
+    }
+    if (status == VF2_OK) {
+        status = vf2_sound_board_probe_akira_l2_first_mixed_c(candidate, &p4);
+    }
+    if (status == VF2_OK) {
+        status = vf2_sound_board_probe_akira_l2_tenth_c(candidate, &p5);
+    }
+    if (status == VF2_OK) {
+        status = vf2_sound_board_probe_akira_l2_next_b0_07(candidate, &p6);
+    }
+    if (status == VF2_OK) {
+        status = vf2_sound_board_probe_akira_l2_next_80_07(candidate, &p7);
+    }
+    if (status == VF2_OK) {
+        status = vf2_sound_board_probe_akira_l2_first_return(candidate, &p8);
+    }
+    if (status != VF2_OK) {
+        free(candidate);
+        return status;
+    }
+    next_report.stream_before = p0.stream_before;
+    next_report.stream_after = p8.stream_after;
+    next_report.cursor_after = read_be16(
+        candidate->sound_ram + VF2_SOUND_COMMAND_WRITE_CURSOR);
+    next_report.countdown_after = p8.countdown_after;
+    next_report.pending_after =
+        candidate->sound_ram[VF2_SOUND_COMMAND_COUNT];
+    next_report.packets_emitted = 14u;
+    /* The final state must preserve the observed ring accounting.
+     * A bad intermediate stage is a refusal, not a partial commit. */
+    if (next_report.pending_after !=
+            (uint8_t)(next_report.pending_before + 14u) ||
+        next_report.cursor_after !=
+            (uint16_t)((next_report.cursor_before + 56u) & 0x0fffu) ||
+        p8.stream_before != p0.stream_before ||
+        p8.stream_after != UINT32_C(0x61579c) ||
+        p8.countdown_after != UINT16_C(0x16c7)) {
+        free(candidate);
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    memcpy(board->sound_ram, candidate->sound_ram,
+           sizeof(board->sound_ram));
+    board->scsp = candidate->scsp;
+    *report = next_report;
+    free(candidate);
+    return VF2_OK;
+}
+
 vf2_status vf2_sound_board_maintain_streams(
     vf2_sound_board *board,
     vf2_sound_stream_maintenance_report *report
