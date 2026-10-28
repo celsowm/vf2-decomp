@@ -555,6 +555,27 @@ vf2_status vf2_sound_board_probe_akira_l2_first_return(
     vf2_sound_music_first_return_report *report
 );
 
+/* Atomic, opt-in composition of the nine independently recovered
+ * first-Akira descriptor micro-steps. Finishes the worker through its
+ * pre-RTS pointer commit at 0x2158, NOT the L2 scan or Timer-A IRQ.
+ * On any refusal the entire sound board stays byte-for-byte intact.
+ * No proprietary ROM content is embedded in this implementation. */
+typedef struct vf2_sound_music_worker_report {
+    uint32_t stream_before;
+    uint32_t stream_after;
+    uint16_t cursor_before;
+    uint16_t cursor_after;
+    uint16_t countdown_after;
+    uint8_t pending_before;
+    uint8_t pending_after;
+    uint8_t packets_emitted;
+} vf2_sound_music_worker_report;
+
+vf2_status vf2_sound_board_probe_akira_l2_first_worker(
+    vf2_sound_board *board,
+    vf2_sound_music_worker_report *report
+);
+
 /* Execute the bounded 0x1f7c stream-interpreter packet paths. */
 vf2_status vf2_sound_board_maintain_streams(
     vf2_sound_board *board,
