@@ -2144,13 +2144,12 @@ vf2_status vf2_sound_board_probe_akira_l2_next_b0_07(
     return VF2_OK;
 }
 
-/* Next genuine Akira commands after packet #12:
- * Class 8 (0x2052) consumes 80 B6, masks B6 to 36
- * and sets D2=7F before the shared 0x211C emitter.
- * Class 0 (0x2080) consumes 07 F8 0A without a tagged
- * high bit; the original 0x1F96 retry-clear therefore
- * leaves descriptor status 0x88 at the 14th 0x212C.
- * No inference about subsequent L2 worker return is made. */
+/* Owner-ROM verified packets #13 and #14:
+ * Class C (0x20AC) consumes C0 80 and emits C0 00 00.
+ * Class B (0x1FFC) then consumes B6 07 F8 and emits B6 07 78.
+ * At the 14th 0x212C entry, A3 is 0x615799, descriptor
+ * status remains 0x89, and the interpreter continues.
+ * This is not the end of the original L2 worker. */
 vf2_status vf2_sound_board_probe_akira_l2_next_c0_b6(
     vf2_sound_board *board,
     vf2_sound_music_c0_b6_report *report
