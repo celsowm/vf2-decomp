@@ -384,3 +384,17 @@ body through the pre-RTS boundary**. The higher-level L2 scan loop,
 other descriptors, Timer-A scheduling, SCSP rendering and arcade DAC
 are *not* recovered by this change. Next prove the worker's integration
 inside a whole interrupt tick, without prematurely declaring playback.
+
+## v0952 — owner-ROM corrections, 30 October 2026
+
+Owner-only original 68000 execution disproved the prior Akira packet
+#3, #12, #13 and #14 payload hypotheses. Measured entries are
+`BE 10 72`, `B0 07 7F`, `C0 00 00` and `B6 07 78`.
+At the 14th emitter boundary PC `0x212C`, the descriptor status is
+`0x89`, A3 is `0x615799`, and the interpreter continues. The
+old pre-RTS claim at `0x2158` after packet #14 is **retracted**.
+The legacy first-return probe now explicitly returns UNSUPPORTED;
+`maintain_streams` remains unmodified. Original SR events are checked
+against the full 2*N-1 event sequence rather than incorrectly requiring
+zero bus telemetry. Full original-ROM RAM/SCSP parity is a separate
+required gate and is not claimed from public ROM-free CI.
