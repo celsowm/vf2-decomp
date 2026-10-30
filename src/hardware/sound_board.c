@@ -1652,7 +1652,7 @@ vf2_status vf2_sound_board_probe_akira_l2_first_9f(
     static const uint8_t three[9] = {
         UINT8_C(0xbe), UINT8_C(0x50), UINT8_C(0x7e),
         UINT8_C(0xbe), UINT8_C(0x20), UINT8_C(0x00),
-        UINT8_C(0xbe), UINT8_C(0x10), UINT8_C(0x00)
+        UINT8_C(0xbe), UINT8_C(0x10), UINT8_C(0x72)
     };
     if (board == NULL || report == NULL || board->audio_rom == NULL) {
         return VF2_ERROR_INVALID_ARGUMENT;
@@ -1762,7 +1762,7 @@ vf2_status vf2_sound_board_probe_akira_l2_next_two_9f(
     static const uint8_t prior_packets[12] = {
         UINT8_C(0xbe), UINT8_C(0x50), UINT8_C(0x7e),
         UINT8_C(0xbe), UINT8_C(0x20), 0u,
-        UINT8_C(0xbe), UINT8_C(0x10), 0u,
+        UINT8_C(0xbe), UINT8_C(0x10), UINT8_C(0x72),
         UINT8_C(0x9f), UINT8_C(0x48), UINT8_C(0x77)
     };
     uint8_t *ram;
