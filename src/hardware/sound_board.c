@@ -1531,7 +1531,7 @@ vf2_status vf2_sound_board_probe_akira_l2_first_b(
  * the next two packets are BE 20 80 and BE 10 72 00.
  * At the original special BE10 branch 0x201C..0x203E,
  * 0x72 is STORED to stream descriptor +0E and the emitted
- * BE10 packet carries 00, not 72. This is a standalone
+ * BE10 packet carries 72, not 00. This is a standalone
  * micro-probe; it does NOT finish the original music tick.
  *
  * Strictly validate original source, prior first ring packet,
@@ -1590,7 +1590,7 @@ vf2_status vf2_sound_board_probe_akira_l2_next_two_b(
     }
     *report = (vf2_sound_music_followup_report){0};
     report->stream_before = stream;
-    report->a3_after = stream + UINT32_C(10);
+    report->a3_after = stream + UINT32_C(9);
     report->cursor_before = cursor;
     report->cursor_after = (uint16_t)(
         (cursor + UINT16_C(8)) & UINT16_C(0x0fff));
@@ -1599,7 +1599,7 @@ vf2_status vf2_sound_board_probe_akira_l2_next_two_b(
     report->packet[2] = 0u;
     report->packet[3] = UINT8_C(0xbe);
     report->packet[4] = UINT8_C(0x10);
-    report->packet[5] = 0u;
+    report->packet[5] = UINT8_C(0x72);
     report->status_after = UINT8_C(0x88);
     report->duration_byte = UINT8_C(0x72);
     {
@@ -1878,7 +1878,7 @@ vf2_status vf2_sound_board_probe_akira_l2_first_mixed_c(
     static const uint8_t six_packets[18] = {
         UINT8_C(0xbe),UINT8_C(0x50),UINT8_C(0x7e),
         UINT8_C(0xbe),UINT8_C(0x20),0u,
-        UINT8_C(0xbe),UINT8_C(0x10),0u,
+        UINT8_C(0xbe),UINT8_C(0x10),UINT8_C(0x72),
         UINT8_C(0x9f),UINT8_C(0x48),UINT8_C(0x77),
         UINT8_C(0x9f),UINT8_C(0x2e),UINT8_C(0x40),
         UINT8_C(0x9f),UINT8_C(0x33),UINT8_C(0x7f)
@@ -1976,7 +1976,7 @@ vf2_status vf2_sound_board_probe_akira_l2_tenth_c(
     };
     static const uint8_t prior_packets[27] = {
         0xbeu,0x50u,0x7eu,0xbeu,0x20u,0x00u,
-        0xbeu,0x10u,0x00u,0x9fu,0x48u,0x77u,
+        0xbeu,0x10u,0x72u,0x9fu,0x48u,0x77u,
         0x9fu,0x2eu,0x40u,0x9fu,0x33u,0x7fu,
         0xc1u,0x01u,0x00u,0x9fu,0x2bu,0x6eu,
         0xc3u,0x02u,0x00u
@@ -2068,7 +2068,7 @@ vf2_status vf2_sound_board_probe_akira_l2_next_b0_07(
     };
     static const uint8_t ten_packets[30] = {
         0xbeu,0x50u,0x7eu,0xbeu,0x20u,0x00u,
-        0xbeu,0x10u,0x00u,0x9fu,0x48u,0x77u,
+        0xbeu,0x10u,0x72u,0x9fu,0x48u,0x77u,
         0x9fu,0x2eu,0x40u,0x9fu,0x33u,0x7fu,
         0xc1u,0x01u,0x00u,0x9fu,0x2bu,0x6eu,
         0xc3u,0x02u,0x00u,0xc8u,0x0du,0x00u
@@ -2115,16 +2115,16 @@ vf2_status vf2_sound_board_probe_akira_l2_next_b0_07(
     }
     *report = (vf2_sound_music_b0_07_report){0};
     report->stream_before = stream;
-    report->a3_after = stream + (uint32_t)sizeof(original_prefix);
+    report->a3_after = stream + UINT32_C(33);
     report->cursor_before = cursor;
     report->cursor_after =
         (uint16_t)((cursor + UINT16_C(8)) & UINT16_C(0x0fff));
     report->packet[0] = original_prefix[28];
     report->packet[1] = original_prefix[29];
     report->packet[2] = (uint8_t)(original_prefix[30] & UINT8_C(0x7f));
-    report->packet[3] = original_prefix[31];
-    report->packet[4] = original_prefix[32];
-    report->packet[5] = (uint8_t)(original_prefix[33] & UINT8_C(0x7f));
+    report->packet[3] = original_prefix[28];
+    report->packet[4] = original_prefix[31];
+    report->packet[5] = (uint8_t)(original_prefix[32] & UINT8_C(0x7f));
     report->status_after = (uint8_t)(desc[0] | UINT8_C(1));
 
     /* The original shared emitter writes exactly 3 bytes
@@ -2151,9 +2151,9 @@ vf2_status vf2_sound_board_probe_akira_l2_next_b0_07(
  * high bit; the original 0x1F96 retry-clear therefore
  * leaves descriptor status 0x88 at the 14th 0x212C.
  * No inference about subsequent L2 worker return is made. */
-vf2_status vf2_sound_board_probe_akira_l2_next_80_07(
+vf2_status vf2_sound_board_probe_akira_l2_next_c0_b6(
     vf2_sound_board *board,
-    vf2_sound_music_80_07_report *report
+    vf2_sound_music_c0_b6_report *report
 )
 {
     static const uint8_t original_prefix[39] = {
@@ -2168,11 +2168,11 @@ vf2_status vf2_sound_board_probe_akira_l2_next_80_07(
     };
     static const uint8_t previous[36] = {
         0xbeu,0x50u,0x7eu,0xbeu,0x20u,0x00u,
-        0xbeu,0x10u,0x00u,0x9fu,0x48u,0x77u,
+        0xbeu,0x10u,0x72u,0x9fu,0x48u,0x77u,
         0x9fu,0x2eu,0x40u,0x9fu,0x33u,0x7fu,
         0xc1u,0x01u,0x00u,0x9fu,0x2bu,0x6eu,
         0xc3u,0x02u,0x00u,0xc8u,0x0du,0x00u,
-        0xb0u,0x0au,0x40u,0x07u,0xffu,0x40u
+        0xb0u,0x0au,0x40u,0xb0u,0x07u,0x7fu
     };
     uint8_t *ram;
     uint8_t *desc;
@@ -2189,7 +2189,7 @@ vf2_status vf2_sound_board_probe_akira_l2_next_80_07(
     cursor = read_be16(ram + VF2_SOUND_COMMAND_WRITE_CURSOR);
     if (stream != UINT32_C(0x615773) ||
         desc[0] != UINT8_C(0x89) ||
-        desc[1] != UINT8_C(0x07) ||
+        desc[1] != UINT8_C(0xb0) ||
         read_be16(desc + 2u) != 0u ||
         desc[0x0eu] != UINT8_C(0x72) ||
         ram[VF2_SOUND_COMMAND_COUNT] != 12u ||
@@ -2214,19 +2214,19 @@ vf2_status vf2_sound_board_probe_akira_l2_next_80_07(
         }
     }
 
-    *report = (vf2_sound_music_80_07_report){0};
+    *report = (vf2_sound_music_c0_b6_report){0};
     report->stream_before = stream;
-    report->a3_after = stream + (uint32_t)sizeof(original_prefix);
+    report->a3_after = stream + UINT32_C(38);
     report->cursor_before = cursor;
     report->cursor_after =
         (uint16_t)((cursor + UINT16_C(8)) & UINT16_C(0x0fff));
-    report->packet[0] = original_prefix[34];
-    report->packet[1] = (uint8_t)(original_prefix[35] & UINT8_C(0x7f));
-    report->packet[2] = UINT8_C(0x7f); /* class 8 fixed D2 */
-    report->packet[3] = original_prefix[36];
-    report->packet[4] = original_prefix[37];
-    report->packet[5] = original_prefix[38];
-    report->status_after = UINT8_C(0x88);
+    report->packet[0] = original_prefix[33];
+    report->packet[1] = (uint8_t)(original_prefix[34] & UINT8_C(0x7f));
+    report->packet[2] = 0u; /* class C fixed D2 */
+    report->packet[3] = original_prefix[35];
+    report->packet[4] = original_prefix[36];
+    report->packet[5] = (uint8_t)(original_prefix[37] & UINT8_C(0x7f));
+    report->status_after = UINT8_C(0x89);
 
     /* Preflight complete. Only three bytes of each ring entry
      * are written, preserving the trailing bookkeeping byte. */
@@ -2244,96 +2244,18 @@ vf2_status vf2_sound_board_probe_akira_l2_next_80_07(
     return VF2_OK;
 }
 
-/* After the first fourteen Akira packet emissions, the
- * original 68000 reaches 0x212C with status bit0 cleared.
- * The 0x2138 branch reads a nonzero length byte AC, clears
- * bit7, shifts 2C left by seven, ORs the following C7 byte
- * and commits the resulting 0x16C7 word to descriptor+2.
- * MOVE.L A3,4(A2) commits 0x61579C to descriptor+4.
- * At stop PC 0x2158, this worker is about to RTS.
- *
- * Only the ROM-audited first descriptor/stream is handled.
- * Preflight full stream identity and fourteen prior FIFO
- * entries. Do not attach this probe to the live scheduler. */
+/* Original 68000 does not return after Akira packet #14. The earlier
+ * worker-return hypothesis was disproved by owner-ROM tracing.
+ * Preserve the API for ABI compatibility, but fail closed. */
 vf2_status vf2_sound_board_probe_akira_l2_first_return(
     vf2_sound_board *board,
     vf2_sound_music_first_return_report *report
 )
 {
-    static const uint8_t original_prefix[41] = {
-        0xbeu,0x50u,0xfeu,0xbeu,0x20u,0x80u,
-        0xbeu,0x10u,0x72u,0x00u,
-        0x9fu,0x48u,0xf7u,0x9fu,0x2eu,0xc0u,
-        0x9fu,0x33u,0xffu,
-        0xc1u,0x81u,0x9fu,0x2bu,0xeeu,0xc3u,0x82u,
-        0xc8u,0x8du,
-        0xb0u,0x0au,0xc0u,0x07u,0xffu,0xc0u,
-        0x80u,0xb6u,0x07u,0xf8u,0x0au,
-        0xacu,0xc7u
-    };
-    static const uint8_t fourteen[42] = {
-        0xbeu,0x50u,0x7eu,0xbeu,0x20u,0x00u,
-        0xbeu,0x10u,0x00u,0x9fu,0x48u,0x77u,
-        0x9fu,0x2eu,0x40u,0x9fu,0x33u,0x7fu,
-        0xc1u,0x01u,0x00u,0x9fu,0x2bu,0x6eu,
-        0xc3u,0x02u,0x00u,0xc8u,0x0du,0x00u,
-        0xb0u,0x0au,0x40u,0x07u,0xffu,0x40u,
-        0x80u,0x36u,0x7fu,0x07u,0xf8u,0x0au
-    };
-    uint8_t *ram;
-    uint8_t *desc;
-    uint32_t stream;
-    uint16_t cursor;
-    uint16_t countdown;
-    size_t offset;
-    size_t i;
-    if (board == NULL || report == NULL || board->audio_rom == NULL) {
+    if (board == NULL || report == NULL) {
         return VF2_ERROR_INVALID_ARGUMENT;
     }
-    ram = board->sound_ram;
-    desc = ram + VF2_SOUND_DESCRIPTOR_BASE;
-    stream = read_be32(desc + 4u);
-    cursor = read_be16(ram + VF2_SOUND_COMMAND_WRITE_CURSOR);
-    if (stream != UINT32_C(0x615773) ||
-        desc[0] != UINT8_C(0x88) ||
-        desc[1] != UINT8_C(0x07) ||
-        read_be16(desc + 2u) != 0u ||
-        desc[0x0eu] != UINT8_C(0x72) ||
-        ram[VF2_SOUND_COMMAND_COUNT] != 14u ||
-        (cursor & UINT16_C(3)) != 0u ||
-        cursor > UINT16_C(0x0ffc)) {
-        return VF2_ERROR_UNSUPPORTED;
-    }
-    offset = (size_t)(stream - VF2_SOUND_AUDIO_ROM_BASE);
-    if (offset > board->audio_rom_size ||
-        board->audio_rom_size - offset < sizeof(original_prefix) ||
-        memcmp(board->audio_rom + offset, original_prefix,
-               sizeof(original_prefix)) != 0) {
-        return VF2_ERROR_UNSUPPORTED;
-    }
-    for (i = 0u; i < 14u; ++i) {
-        const uint16_t ix = (uint16_t)(
-            (cursor + UINT16_C(0x1000) -
-             (uint16_t)(56u - 4u*i)) & UINT16_C(0x0fff));
-        if (memcmp(ram + VF2_SOUND_COMMAND_RING_BASE + ix,
-                   fourteen + 3u*i, 3u) != 0) {
-            return VF2_ERROR_UNSUPPORTED;
-        }
-    }
-    /* Original 68000: BCLR #7,D2; LSL.W #7,D2;
-     * OR.B (A3)+,D2; MOVE.W D2,2(A2); MOVE.L A3,4(A2). */
-    countdown = (uint16_t)(
-        ((uint16_t)(original_prefix[39] & UINT8_C(0x7f)) << 7u) |
-        (uint16_t)original_prefix[40]);
-    *report = (vf2_sound_music_first_return_report){0};
-    report->stream_before = stream;
-    report->stream_after = stream + (uint32_t)sizeof(original_prefix);
-    report->countdown_after = countdown;
-    report->cursor = cursor;
-    report->pending_count = ram[VF2_SOUND_COMMAND_COUNT];
-    write_be16(desc + 2u, countdown);
-    write_be32(desc + 4u, report->stream_after);
-    return VF2_OK;
+    return VF2_ERROR_UNSUPPORTED;
 }
 
 vf2_status vf2_sound_board_maintain_streams(
