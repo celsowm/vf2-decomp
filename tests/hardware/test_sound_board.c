@@ -772,8 +772,8 @@ static void test_akira_next_b0_07_native(void)
                 board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+3u]==0x94u);
 }
 
-/* At the 14th emission class-8 has a fixed third byte 7F.
- * The following untagged class-0 entry leaves status 0x88. */
+/* Original #13/#14 are class C0 and B6, not class 8 and class 0.
+ * The continuation bit remains set (descriptor status 0x89). */
 static void test_akira_next_c0_b6_native(void)
 {
     static vf2_sound_board board;
