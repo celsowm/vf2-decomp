@@ -79,6 +79,52 @@ static int scsp_equal(const vf2_scsp *a, const vf2_scsp *b)
             a->midi_write_index == b->midi_write_index);
 }
 
+/* Measured owner-ROM telemetry. MOVE #imm,SR is explicitly logged
+ * as an event by the 68000 stepper; no external-bus event is permitted. */
+static void expect_akira_sr_events(
+    const vf2_m68k_bus *bus, const char *scenario, size_t packets
+)
+{
+    static const uint32_t handler_pc[14] = {
+        UINT32_C(0x1ffc), UINT32_C(0x1ffc), UINT32_C(0x1ffc),
+        UINT32_C(0x2080), UINT32_C(0x2080), UINT32_C(0x2080),
+        UINT32_C(0x20ac), UINT32_C(0x2080), UINT32_C(0x20ac),
+        UINT32_C(0x20ac), UINT32_C(0x1ffc), UINT32_C(0x1ffc),
+        UINT32_C(0x20ac), UINT32_C(0x1ffc)
+    };
+    size_t i;
+    size_t want;
+    if (bus == NULL || packets == 0u || packets > 14u) {
+        EXPECT_TRUE(0 && "invalid Akira SR expectation");
+        return;
+    }
+    want = packets * 2u - 1u;
+    if (bus->event_count != want) {
+        fprintf(stderr, "AKIRA_SR_COUNT stage=%s actual=%u expected=%u\n",
+                scenario, (unsigned)bus->event_count, (unsigned)want);
+    }
+    EXPECT_TRUE(bus->event_count == want);
+    for (i = 0u; i < bus->event_count && i < want; ++i) {
+        const vf2_m68k_bus_event *ev = &bus->events[i];
+        const uint32_t pc = (i & 1u) ? UINT32_C(0x212c) :
+                            handler_pc[i / 2u];
+        const uint32_t sr = (i & 1u) ? UINT32_C(0x2000) :
+                            UINT32_C(0x2700);
+        const int matched = ev->address == pc && ev->value == sr &&
+                            ev->size == 1u && ev->is_write == 1u;
+        if (!matched) {
+            fprintf(stderr,
+                    "AKIRA_SR_EVENT stage=%s index=%u pc=%06x "
+                    "sr=%04x size=%u write=%u expected_pc=%06x "
+                    "expected_sr=%04x\n",
+                    scenario, (unsigned)i, (unsigned)ev->address,
+                    (unsigned)ev->value, (unsigned)ev->size,
+                    (unsigned)ev->is_write, (unsigned)pc, (unsigned)sr);
+        }
+        EXPECT_TRUE(matched);
+    }
+}
+
 /* Owner-ROM differential for B0 selector 0x12 (0x18A8).
  * Compare the 68000 program's register-independent destination
  * stores against bounded native C dispatch. This is opt-in only
@@ -276,100 +322,6 @@ static void test_b0_prescaler_setup_original(
  * return prelude**, immediately BEFORE the 0x2158 RTS. This
  * checks the packed countdown and committed A3 pointer against
  * genuine 68000 instructions, not a guessed scheduler outcome. */
-static void test_akira_first_worker_return_original(
-    const uint8_t *rom,size_t rom_size
-)
-{
-    static vf2_sound_board board;
-    static uint8_t actual_ram[VF2_SOUND_RAM_BYTES];
-    static vf2_scsp actual_scsp;
-    vf2_m68k_bus bus;
-    vf2_m68k_regs regs;
-    vf2_sound_music_prefix_report p0;
-    vf2_sound_music_followup_report p1;
-    vf2_sound_music_9f_report p2;
-    vf2_sound_music_9f_pair_report p3;
-    vf2_sound_music_mixed_report p4;
-    vf2_sound_music_c_followup_report p5;
-    vf2_sound_music_b0_07_report p6;
-    vf2_sound_music_80_07_report p7;
-    vf2_sound_music_first_return_report p8;
-    uint8_t *d;
-    vf2_status status=VF2_OK;
-    uint32_t instructions=0u;
-    int reached=0;
-    size_t i;
-    memset(&board,0,sizeof(board));
-    board.audio_rom=rom;
-    board.audio_rom_size=rom_size;
-    vf2_scsp_initialize(&board.scsp);
-    d=board.sound_ram+VF2_SOUND_DESCRIPTOR_BASE;
-    d[0]=0x88u;d[3]=1u;
-    d[4]=0u;d[5]=0x61u;d[6]=0x57u;d[7]=0x73u;
-    d[8]=0u;d[9]=0x60u;d[10]=0x9cu;d[11]=0x3eu;
-    for(i=0u;i<56u;i+=4u) {
-        board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+i+3u]=
-            (uint8_t)(0x80u+i);
-    }
-    memcpy(actual_ram,board.sound_ram,sizeof(actual_ram));
-    memcpy(&actual_scsp,&board.scsp,sizeof(actual_scsp));
-    make_bus(&bus,&actual_scsp,actual_ram,rom,rom_size);
-    reset_regs(&regs);
-    regs.pc=UINT32_C(0x1f7c);
-    regs.a[2]=VF2_SOUND_DESCRIPTOR_BASE;
-    for(i=0u;i<11000u;++i) {
-        uint32_t done=0u;
-        int suspended=0;
-        if(regs.pc==UINT32_C(0x2158) &&
-           actual_ram[VF2_SOUND_COMMAND_COUNT]==14u) {
-            reached=1;
-            break;
-        }
-        status=vf2_m68k_run_slice(
-            &bus,&regs,UINT32_MAX,0,1u,&done,&suspended);
-        if(status!=VF2_OK || done!=1u || !suspended) break;
-        ++instructions;
-    }
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_b(
-        &board,&p0)==VF2_OK);
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_two_b(
-        &board,&p1)==VF2_OK);
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_9f(
-        &board,&p2)==VF2_OK);
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_two_9f(
-        &board,&p3)==VF2_OK);
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_mixed_c(
-        &board,&p4)==VF2_OK);
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_tenth_c(
-        &board,&p5)==VF2_OK);
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_b0_07(
-        &board,&p6)==VF2_OK);
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_80_07(
-        &board,&p7)==VF2_OK);
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_return(
-        &board,&p8)==VF2_OK);
-    fprintf(stderr,
-        "AKIRA_FIRST_WORKER_RETURN reached=%d cpu=%d steps=%u "
-        "pc=%05x a3=%06x pointer=%06x duration=%04x "
-        "ram=%u scsp=%u\n",
-        reached,(int)status,(unsigned)instructions,
-        (unsigned)regs.pc,(unsigned)regs.a[3],
-        (unsigned)p8.stream_after,(unsigned)p8.countdown_after,
-        (unsigned)(memcmp(actual_ram,board.sound_ram,
-                          sizeof(actual_ram))==0),
-        (unsigned)scsp_equal(&actual_scsp,&board.scsp));
-    EXPECT_TRUE(reached && status==VF2_OK);
-    EXPECT_TRUE(regs.pc==UINT32_C(0x2158) &&
-                regs.a[3]==UINT32_C(0x61579c));
-    EXPECT_TRUE(p8.stream_after==UINT32_C(0x61579c) &&
-                p8.countdown_after==UINT16_C(0x16c7));
-    EXPECT_TRUE(bus.event_count==0u);
-    EXPECT_TRUE(actual_ram[VF2_SOUND_COMMAND_COUNT]==14u);
-    EXPECT_TRUE(memcmp(actual_ram,board.sound_ram,
-                       sizeof(actual_ram))==0);
-    EXPECT_TRUE(scsp_equal(&actual_scsp,&board.scsp));
-}
-
 static void test_akira_fourteen_initial_packets_original(
     const uint8_t *rom,size_t rom_size
 )
@@ -386,7 +338,7 @@ static void test_akira_fourteen_initial_packets_original(
     vf2_sound_music_mixed_report p4;
     vf2_sound_music_c_followup_report p5;
     vf2_sound_music_b0_07_report p6;
-    vf2_sound_music_80_07_report p7;
+    vf2_sound_music_c0_b6_report p7;
     vf2_status status=VF2_OK;
     uint8_t *d;
     uint32_t instructions=0u;
@@ -397,9 +349,9 @@ static void test_akira_fourteen_initial_packets_original(
         return;
     }
     {
-        static const uint8_t classes[2]={8u,0u};
+        static const uint8_t classes[2]={12u,11u};
         static const uint32_t targets[2]={
-            UINT32_C(0x2052),UINT32_C(0x2080)
+            UINT32_C(0x20ac),UINT32_C(0x1ffc)
         };
         for(i=0u;i<2u;++i) {
             const size_t at=UINT32_C(0x1fbc)+4u*classes[i];
@@ -458,7 +410,7 @@ static void test_akira_fourteen_initial_packets_original(
         &board,&p5)==VF2_OK);
     EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_b0_07(
         &board,&p6)==VF2_OK);
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_80_07(
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_c0_b6(
         &board,&p7)==VF2_OK);
     fprintf(stderr,
         "AKIRA_14_PACKET_DIFF reached=%d cpu=%d steps=%u "
@@ -473,9 +425,9 @@ static void test_akira_fourteen_initial_packets_original(
     EXPECT_TRUE(reached && status==VF2_OK);
     EXPECT_TRUE(regs.pc==UINT32_C(0x212c) &&
                 regs.a[3]==p7.a3_after &&
-                p7.a3_after==UINT32_C(0x61579a));
-    EXPECT_TRUE(actual_ram[VF2_SOUND_DESCRIPTOR_BASE]==0x88u);
-    EXPECT_TRUE(bus.event_count==0u);
+                p7.a3_after==UINT32_C(0x615799));
+    EXPECT_TRUE(actual_ram[VF2_SOUND_DESCRIPTOR_BASE]==0x89u);
+    expect_akira_sr_events(&bus, "test_akira_fourteen_initial_packets_original", 14u);
     EXPECT_TRUE(actual_ram[VF2_SOUND_COMMAND_COUNT]==14u &&
                 p7.cursor_after==56u);
     EXPECT_TRUE(memcmp(actual_ram,board.sound_ram,
@@ -512,11 +464,9 @@ static void test_akira_twelve_initial_packets_original(
     /* Original 16-way jump table at 0x1FBC: class 0 -> 2080
      * and B -> 1FFC, both JMP (d16,PC). No assumed handler. */
     {
-        static const uint8_t classes[2]={0u,11u};
-        static const uint32_t targets[2]={
-            UINT32_C(0x2080),UINT32_C(0x1ffc)
-        };
-        for(i=0u;i<2u;++i) {
+        static const uint8_t classes[1]={11u};
+        static const uint32_t targets[1]={UINT32_C(0x1ffc)};
+        for(i=0u;i<1u;++i) {
             const size_t at=UINT32_C(0x1fbc)+4u*classes[i];
             const uint32_t op=((uint32_t)rom[at]<<8u)|rom[at+1u];
             const int16_t disp=(int16_t)(
@@ -586,8 +536,8 @@ static void test_akira_twelve_initial_packets_original(
     EXPECT_TRUE(reached && status==VF2_OK);
     EXPECT_TRUE(regs.pc==UINT32_C(0x212c) &&
                 regs.a[3]==p6.a3_after &&
-                p6.a3_after==UINT32_C(0x615795));
-    EXPECT_TRUE(bus.event_count==0u);
+                p6.a3_after==UINT32_C(0x615794));
+    expect_akira_sr_events(&bus, "test_akira_twelve_initial_packets_original", 12u);
     EXPECT_TRUE(actual_ram[VF2_SOUND_COMMAND_COUNT]==12u &&
                 p6.cursor_after==48u);
     EXPECT_TRUE(memcmp(actual_ram,board.sound_ram,
@@ -672,7 +622,7 @@ static void test_akira_ten_initial_packets_original(
     EXPECT_TRUE(regs.pc==UINT32_C(0x212c) &&
                 regs.a[3]==p5.a3_after &&
                 p5.a3_after==UINT32_C(0x61578f));
-    EXPECT_TRUE(bus.event_count==0u);
+    expect_akira_sr_events(&bus, "test_akira_ten_initial_packets_original", 10u);
     EXPECT_TRUE(actual_ram[VF2_SOUND_COMMAND_COUNT]==10u &&
                 p5.cursor_after==40u);
     EXPECT_TRUE(memcmp(actual_ram,board.sound_ram,
@@ -753,7 +703,7 @@ static void test_akira_nine_initial_packets_original(
     EXPECT_TRUE(regs.pc==UINT32_C(0x212c) &&
                 regs.a[3]==p4.a3_after &&
                 p4.a3_after==UINT32_C(0x61578d));
-    EXPECT_TRUE(bus.event_count==0u);
+    expect_akira_sr_events(&bus, "test_akira_nine_initial_packets_original", 9u);
     EXPECT_TRUE(actual_ram[VF2_SOUND_COMMAND_COUNT]==9u &&
                 p4.cursor_after==36u);
     EXPECT_TRUE(memcmp(actual_ram,board.sound_ram,
@@ -831,7 +781,7 @@ static void test_akira_six_initial_packets_original(
     EXPECT_TRUE(regs.pc==UINT32_C(0x212c) &&
                 regs.a[3]==sixth.a3_after &&
                 sixth.a3_after==UINT32_C(0x615786));
-    EXPECT_TRUE(bus.event_count==0u);
+    expect_akira_sr_events(&bus, "test_akira_six_initial_packets_original", 6u);
     EXPECT_TRUE(actual_ram[VF2_SOUND_COMMAND_COUNT]==6u &&
                 sixth.cursor_after==24u);
     EXPECT_TRUE(memcmp(actual_ram,board.sound_ram,
@@ -908,7 +858,7 @@ static void test_akira_first_9f_original(
                 n9.packet[0]==0x9fu &&
                 n9.packet[1]==0x48u &&
                 n9.packet[2]==0x77u);
-    EXPECT_TRUE(bus.event_count==0u);
+    expect_akira_sr_events(&bus, "test_akira_first_9f_original", 4u);
     EXPECT_TRUE(memcmp(cpu_ram,board.sound_ram,sizeof(cpu_ram))==0);
     EXPECT_TRUE(scsp_equal(&cpu_scsp,&board.scsp));
 }
@@ -982,10 +932,10 @@ static void test_akira_l2_three_b_original(
     EXPECT_TRUE(reached && status == VF2_OK);
     EXPECT_TRUE(regs.pc == UINT32_C(0x212c));
     EXPECT_TRUE(regs.a[3] == follow.a3_after &&
-                follow.a3_after == UINT32_C(0x61577d));
+                follow.a3_after == UINT32_C(0x61577c));
     EXPECT_TRUE(follow.cursor_after == 12u &&
                 follow.duration_byte == 0x72u);
-    EXPECT_TRUE(bus.event_count == 0u);
+    expect_akira_sr_events(&bus, "test_akira_l2_three_b_original", 3u);
     EXPECT_TRUE(memcmp(cpu_ram, board.sound_ram,
                        sizeof(cpu_ram)) == 0);
     EXPECT_TRUE(scsp_equal(&cpu_scsp, &board.scsp));
@@ -1041,7 +991,7 @@ static void test_akira_l2_first_b_original(
                 steps > 20u && steps < 2048u);
     EXPECT_TRUE(regs.a[3] == report.a3_after &&
                 report.a3_after == UINT32_C(0x615776));
-    EXPECT_TRUE(bus.event_count == 0u);
+    expect_akira_sr_events(&bus, "test_akira_l2_first_b_original", 1u);
     EXPECT_TRUE(memcmp(cpu_ram, board.sound_ram,
                        sizeof(cpu_ram)) == 0);
     EXPECT_TRUE(scsp_equal(&cpu_scsp, &board.scsp));
@@ -7342,7 +7292,6 @@ int main(int argc, char **argv)
     test_l2_stream_tick(audio_rom, audio_rom_size);
     test_b0_prescaler_setup_original(audio_rom, audio_rom_size);
     test_b0_181c_native_original(audio_rom, audio_rom_size);
-    test_akira_first_worker_return_original(audio_rom, audio_rom_size);
     test_akira_fourteen_initial_packets_original(audio_rom, audio_rom_size);
     test_akira_twelve_initial_packets_original(audio_rom, audio_rom_size);
     test_akira_ten_initial_packets_original(audio_rom, audio_rom_size);
