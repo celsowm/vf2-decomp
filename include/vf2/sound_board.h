@@ -204,8 +204,8 @@ typedef struct vf2_sound_music_c0_b6_report {
     uint8_t status_after;
 } vf2_sound_music_c0_b6_report;
 
-/* The first Akira music worker's post-packet duration and
- * stream-pointer commit, just before original 68000 RTS. */
+/* Legacy first-worker-return report. Original continuation after
+ * packet #14 disproved this pre-RTS hypothesis; probe is unsupported. */
 typedef struct vf2_sound_music_first_return_report {
     uint32_t stream_before;
     uint32_t stream_after;
