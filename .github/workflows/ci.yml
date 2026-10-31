@@ -115,6 +115,7 @@ jobs:
             build/vf2_m68k_90_ad_followup_tests
             build/vf2_m68k_cdispatch_tests
             build/vf2_m68k_akira15_tests
+            build/vf2_m68k_akira_l2_integrated_tests
             build/vf2_m68k_frame342_dispatch_tests
             build/vf2_m68k_engine_copy_page_tests
           if-no-files-found: error
