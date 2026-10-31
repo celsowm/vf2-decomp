@@ -2529,7 +2529,6 @@ vf2_status vf2_sound_board_probe_akira_l2_first_worker32(
     for (i = 0u; i < 17u; ++i) {
         uint8_t packet[3];
         uint8_t tagged;
-        const uint8_t op = source[pos]; /* bounded by source hash */
         uint16_t write_cursor = read_be16(
             ram + VF2_SOUND_COMMAND_WRITE_CURSOR);
         if ((desc[0] & UINT8_C(1)) == 0u) {
