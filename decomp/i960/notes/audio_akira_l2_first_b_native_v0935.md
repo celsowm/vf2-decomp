@@ -451,3 +451,42 @@ The CTest observer selftest verifies positive packet extraction, missing
 emitter PC, wrong cursor, wrong count, and invalid RAM bounds without a
 ROM. The full original 68000 continuation itself remains owner-local
 and unverified until the local command is run.
+
+## v0955 — stored native/original 10-second WAV artifacts compare exactly
+
+The user's existing private WAV artifacts named
+`vf2_akira_10s_NATIVE_C_WALK_TIMA49_scsp_model.wav` and
+`vf2_akira_10s_ORIGINAL_WALK_TIMA49_scsp_model.wav` were compared
+locally on 2026-10-30. Each is stereo 16-bit PCM at 44,100 Hz and
+contains exactly 441,000 frames (10 seconds). Their **entire WAV bytes**
+and decoded 882,000 PCM sample values match (zero differing frames);
+both entire-file SHA-256 values equal
+`463d20c14383c408fd5b55dd78c36675ed3ca3c3bc06a76a92dd0e5f36de5b3e`.
+
+**Interpretation:** a pair of *stored artifacts* have identical bytes
+under the recorded Timer-A-49 experiment. This alone does not verify
+the provenance of either WAV, independently demonstrate that the
+C-only and original-MC68000 executors each produced it, or establish
+real arcade timing/DAC fidelity. It also does **not** resolve the
+separate pending corrected Akira #14+ native worker.
+
+To keep future comparisons reproducible, the repository now includes
+a streaming standard-library-only gate, refusing different frame
+counts, rates, channel counts and widths, and detecting the first
+differing frame/channel/byte if PCM diverges:
+
+```sh
+python tools/python/audio_pcm_diff.py \
+    /private/native.wav /private/original.wav --json
+
+# Uses small synthetic generated WAVs; public CI needs no ROM or audio.
+python tools/python/test_audio_pcm_diff.py -v
+```
+
+It reports PCM and complete-file SHA-256 separately, and its exit
+status is 0 for identical format/PCM, 1 for differences, 2 for
+invalid inputs. The comparison tool does not generate, authenticate
+or independently reproduce the two WAVs. To elevate artifact equality
+to a defensible **execution** parity claim, regenerate both from
+independently identified paths against the same private owner-ROM
+fixture and perform the comparison without manually copying WAVs.
