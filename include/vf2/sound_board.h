@@ -585,6 +585,18 @@ vf2_status vf2_sound_board_probe_akira_l2_fifteenth_b(
     vf2_sound_music_fifteenth_report *report
 );
 
+/* One original Akira descriptor worker: 32 packets to 0x2158 RTS.
+ * Bounded, source-guarded music stream grammar; NOT a full L2 ISR. */
+typedef struct vf2_sound_music_worker32_report {
+    uint32_t stream_before, stream_after, ephemeral_a3_after;
+    uint16_t cursor_before, cursor_after, countdown_after;
+    uint8_t pending_before, pending_after, status_after, packets_emitted;
+} vf2_sound_music_worker32_report;
+
+vf2_status vf2_sound_board_probe_akira_l2_first_worker32(
+    vf2_sound_board *board, vf2_sound_music_worker32_report *report
+);
+
 /* Legacy first-return probe disproved: always UNSUPPORTED. */
 vf2_status vf2_sound_board_probe_akira_l2_first_return(
     vf2_sound_board *board,
