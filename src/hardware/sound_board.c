@@ -2249,8 +2249,9 @@ vf2_status vf2_sound_board_probe_akira_l2_next_c0_b6(
  * A disposable full board copy makes late failure strictly atomic.
  *
  * CAUTION: At this boundary A3 is ephemeral (0x615799). Descriptor
- * +4 is still 0x615773 and status bit0 remains set (0x89). No IRQ
- * completion, duration commit or audible music is claimed. */
+ * +4 is still 0x615773, countdown is consumed to zero and
+ * status bit0 remains set (0x89). No IRQ completion, new duration
+ * commit or audible music is claimed. */
 vf2_status vf2_sound_board_probe_akira_l2_prefix14(
     vf2_sound_board *board,
     vf2_sound_music_prefix14_report *report
@@ -2332,8 +2333,7 @@ vf2_status vf2_sound_board_probe_akira_l2_prefix14(
         read_be32(candidate->sound_ram +
                   VF2_SOUND_DESCRIPTOR_BASE + 4u) != next.stream_before ||
         read_be16(candidate->sound_ram +
-                  VF2_SOUND_DESCRIPTOR_BASE + 2u) !=
-            read_be16(board->sound_ram + VF2_SOUND_DESCRIPTOR_BASE + 2u)) {
+                  VF2_SOUND_DESCRIPTOR_BASE + 2u) != 0u) {
         free(candidate);
         return VF2_ERROR_UNSUPPORTED;
     }
