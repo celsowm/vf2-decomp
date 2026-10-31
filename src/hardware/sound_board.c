@@ -2243,6 +2243,110 @@ vf2_status vf2_sound_board_probe_akira_l2_next_c0_b6(
     return VF2_OK;
 }
 
+/* Compose eight separately bounded C recoveries through the 14th
+ * original shared-emitter instruction boundary. The native probes
+ * individually preflight the original stream and prior ring packets.
+ * A disposable full board copy makes late failure strictly atomic.
+ *
+ * CAUTION: At this boundary A3 is ephemeral (0x615799). Descriptor
+ * +4 is still 0x615773 and status bit0 remains set (0x89). No IRQ
+ * completion, duration commit or audible music is claimed. */
+vf2_status vf2_sound_board_probe_akira_l2_prefix14(
+    vf2_sound_board *board,
+    vf2_sound_music_prefix14_report *report
+)
+{
+    vf2_sound_board *candidate;
+    vf2_sound_music_prefix_report first;
+    vf2_sound_music_followup_report two_b;
+    vf2_sound_music_9f_report first_9f;
+    vf2_sound_music_9f_pair_report two_9f;
+    vf2_sound_music_mixed_report mixed;
+    vf2_sound_music_c_followup_report tenth;
+    vf2_sound_music_b0_07_report next_b0;
+    vf2_sound_music_c0_b6_report last;
+    vf2_sound_music_prefix14_report next = {0};
+    vf2_status status;
+
+    if (board == NULL || report == NULL || board->audio_rom == NULL) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    next.stream_before = read_be32(
+        board->sound_ram + VF2_SOUND_DESCRIPTOR_BASE + 4u);
+    next.cursor_before = read_be16(
+        board->sound_ram + VF2_SOUND_COMMAND_WRITE_CURSOR);
+    next.pending_before = board->sound_ram[VF2_SOUND_COMMAND_COUNT];
+    /* Refuse wrap of the 8-bit pending counter. All other command
+     * guards remain in their independently verified micro-probes. */
+    if (next.pending_before > UINT8_MAX - 14u) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    candidate = (vf2_sound_board *)malloc(sizeof(*candidate));
+    if (candidate == NULL) {
+        return VF2_ERROR_OUT_OF_MEMORY;
+    }
+    memcpy(candidate, board, sizeof(*candidate));
+
+    status = vf2_sound_board_probe_akira_l2_first_b(candidate, &first);
+    if (status == VF2_OK) {
+        status = vf2_sound_board_probe_akira_l2_next_two_b(candidate, &two_b);
+    }
+    if (status == VF2_OK) {
+        status = vf2_sound_board_probe_akira_l2_first_9f(candidate, &first_9f);
+    }
+    if (status == VF2_OK) {
+        status = vf2_sound_board_probe_akira_l2_next_two_9f(candidate, &two_9f);
+    }
+    if (status == VF2_OK) {
+        status = vf2_sound_board_probe_akira_l2_first_mixed_c(candidate, &mixed);
+    }
+    if (status == VF2_OK) {
+        status = vf2_sound_board_probe_akira_l2_tenth_c(candidate, &tenth);
+    }
+    if (status == VF2_OK) {
+        status = vf2_sound_board_probe_akira_l2_next_b0_07(candidate, &next_b0);
+    }
+    if (status == VF2_OK) {
+        status = vf2_sound_board_probe_akira_l2_next_c0_b6(candidate, &last);
+    }
+    if (status != VF2_OK) {
+        free(candidate);
+        return status;
+    }
+
+    next.ephemeral_a3_after = last.a3_after;
+    next.cursor_after = read_be16(
+        candidate->sound_ram + VF2_SOUND_COMMAND_WRITE_CURSOR);
+    next.pending_after = candidate->sound_ram[VF2_SOUND_COMMAND_COUNT];
+    next.status_after = candidate->sound_ram[VF2_SOUND_DESCRIPTOR_BASE];
+    next.packets_emitted = 14u;
+    if (first.stream_before != next.stream_before ||
+        last.stream_before != next.stream_before ||
+        next.stream_before != UINT32_C(0x615773) ||
+        next.ephemeral_a3_after != UINT32_C(0x615799) ||
+        next.status_after != UINT8_C(0x89) ||
+        next.pending_after != (uint8_t)(next.pending_before + 14u) ||
+        next.cursor_after !=
+            (uint16_t)((next.cursor_before + 56u) & UINT16_C(0x0fff)) ||
+        read_be32(candidate->sound_ram +
+                  VF2_SOUND_DESCRIPTOR_BASE + 4u) != next.stream_before ||
+        read_be16(candidate->sound_ram +
+                  VF2_SOUND_DESCRIPTOR_BASE + 2u) !=
+            read_be16(board->sound_ram + VF2_SOUND_DESCRIPTOR_BASE + 2u)) {
+        free(candidate);
+        return VF2_ERROR_UNSUPPORTED;
+    }
+
+    /* The only writes made by these probes are sound RAM and SCSP.
+     * Preserve the owner's ROM/sample pointers and other board state. */
+    memcpy(board->sound_ram, candidate->sound_ram, sizeof(board->sound_ram));
+    board->scsp = candidate->scsp;
+    *report = next;
+    free(candidate);
+    return VF2_OK;
+}
+
 /* Original 68000 does not return after Akira packet #14. The earlier
  * worker-return hypothesis was disproved by owner-ROM tracing.
  * Preserve the API for ABI compatibility, but fail closed. */
