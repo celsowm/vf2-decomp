@@ -644,6 +644,15 @@ if(VF2_BUILD_TESTS)
     add_test(NAME vf2_m68k_akira15_rom_free
              COMMAND vf2_m68k_akira15_tests --rom-free)
 
+    # Full original 0x1F16..0x1F7A L2 ISR path, including 32-packet
+    # worker and unconditional SCSP pokes, tested with private ROM.
+    add_executable(vf2_m68k_akira_l2_integrated_tests
+                   tests/m68k/test_akira_l2_integrated.c)
+    target_link_libraries(vf2_m68k_akira_l2_integrated_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_m68k_akira_l2_integrated_tests)
+    add_test(NAME vf2_m68k_akira_l2_integrated_rom_free
+             COMMAND vf2_m68k_akira_l2_integrated_tests --rom-free)
+
     # The original-68000 Akira post-14 observer itself is testable
     # WITHOUT original ROMs. Owner-only continuation is a separate
     # explicit command and never executes in public CI.
