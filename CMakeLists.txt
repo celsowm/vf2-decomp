@@ -635,6 +635,15 @@ if(VF2_BUILD_TESTS)
     target_link_libraries(vf2_m68k_cdispatch_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_m68k_cdispatch_tests)
 
+    # Original-ROM measured Akira #15 at 0x212C, full RAM/SCSP
+    # differential in private runs, strict synthetic ROM-free fixture.
+    add_executable(vf2_m68k_akira15_tests
+                   tests/m68k/test_akira15_differential.c)
+    target_link_libraries(vf2_m68k_akira15_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_m68k_akira15_tests)
+    add_test(NAME vf2_m68k_akira15_rom_free
+             COMMAND vf2_m68k_akira15_tests --rom-free)
+
     # The original-68000 Akira post-14 observer itself is testable
     # WITHOUT original ROMs. Owner-only continuation is a separate
     # explicit command and never executes in public CI.
