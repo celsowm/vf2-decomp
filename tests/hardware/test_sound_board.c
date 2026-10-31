@@ -879,7 +879,8 @@ static void test_akira_prefix14_atomic(void)
         }
         EXPECT_TRUE(board.sound_ram[VF2_SOUND_DESCRIPTOR_BASE + 7u] ==
                     0x73u &&
-                    board.sound_ram[VF2_SOUND_DESCRIPTOR_BASE + 2u] == 0u);
+                    board.sound_ram[VF2_SOUND_DESCRIPTOR_BASE + 2u] == 0u &&
+                    board.sound_ram[VF2_SOUND_DESCRIPTOR_BASE + 3u] == 0u);
         /* Late corrupted source: all fourteen native emissions must
          * roll back, preserving both caller board and output report. */
         memcpy(&board, &seed, sizeof(board));
