@@ -452,6 +452,13 @@ if(VF2_BUILD_TESTS)
     vf2_set_project_warnings(vf2_tile_tests)
     add_test(NAME vf2_tile COMMAND vf2_tile_tests)
     if(EXISTS "${VF2_ROM_DIR}")
+        # Private owner-ROM 68000 oracle: genuine 0x1F16..0x1F7A L2
+        # followed by three real countdown ticks vs integrated C.
+        # Never executes in hosted CI without the user's private ROM.
+        add_test(NAME vf2_m68k_akira_l2_four_ticks_owner_rom
+                 COMMAND vf2_m68k_akira_l2_integrated_tests "${VF2_ROM_DIR}")
+        set_tests_properties(vf2_m68k_akira_l2_four_ticks_owner_rom
+                             PROPERTIES TIMEOUT 900)
         add_test(NAME vf2_tile_font COMMAND vf2_tile_tests "${VF2_ROM_DIR}")
         # Cold snapshot for the end-to-end session tile-layer test (TEST MENU),
         # generated on demand from the ROM (never committed).
