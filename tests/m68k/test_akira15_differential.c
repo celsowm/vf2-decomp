@@ -159,6 +159,7 @@ static int owner_differential(const uint8_t *rom, size_t rom_size,
     if (trace_continuation) {
         unsigned last_count = 15u;
         uint32_t more_steps = 0u;
+        uint32_t observed_prior_events = 0u;
         /* A private ROM is required. This is the SAME 68000 regs/RAM/
          * SCSP object that already matched native at packet 15. */
         for (more_steps = 0u; more_steps < 15000u; ++more_steps) {
@@ -196,13 +197,12 @@ static int owner_differential(const uint8_t *rom, size_t rom_size,
                     (unsigned)original_ram[VF2_SOUND_DESCRIPTOR_BASE+6u],
                     (unsigned)original_ram[VF2_SOUND_DESCRIPTOR_BASE+7u],
                     (unsigned)(instructions+more_steps),
-                    (unsigned)bus.event_count);
+                    (unsigned)(observed_prior_events + bus.event_count));
                 last_count = count;
                 if (count == 32u) {
                     fprintf(stderr,
                         "AKIRA_FOLLOWUP_BOUNDARY count=32 reached=1 "
-                        "full_worker_return_proven=0\n");
-                    return 1;
+                        "worker_return_unobserved=1\n");
                 }
             }
             if (regs.pc == UINT32_C(0x2158) &&
@@ -215,6 +215,10 @@ static int owner_differential(const uint8_t *rom, size_t rom_size,
                     (unsigned)regs.a[3],
                     (unsigned)(instructions+more_steps));
                 return 1;
+            }
+            if (bus.event_count >= 60u) {
+                observed_prior_events += (uint32_t)bus.event_count;
+                bus.event_count = 0u; /* passive telemetry only */
             }
             status = vf2_m68k_run_slice(
                 &bus,&regs,UINT32_MAX,0,1u,&done,&suspended);
