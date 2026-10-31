@@ -599,3 +599,63 @@ Production `vf2_sound_board_maintain_streams` is unchanged
 and fails closed for the incomplete music interpreter. Before
 connecting it, further original-PC packets and a real
 worker return / stream-pointer commit must be measured.
+
+## v0958 — first Akira descriptor worker complete, real 68000 RTC boundary
+
+On 31 October 2026, the owner's verified private VF2.1 sound ROM
+(`epr-17574.30`, original SHA-1 already recorded in v0957)
+was executed **without a reset** from the native-exact 15th packet
+all the way through the first descriptor worker's true RTS.
+The original Motorola 68000 emitted **32 packets**, then reached
+**PC 0x2158 RTS after exactly 1,024 instructions**, with ephemeral
+A3 `0x6157CC`. The 17 newly observed emissions include:
+16 = `C7 07 00`, 26 = `E6 00 40`, 28 = `B6 2A 38`,
+32 = `96 2D 7F`; the continuation status changes from
+`0x89` to `0x88` at packet 28, followed by no-retry zero
+separators. This is **not** the false worker return once proposed
+after the 14th packet.
+
+New independent native C function
+`vf2_sound_board_probe_akira_l2_first_worker32`:
+
+- composes the already original-verified 14+1 packet primitives on
+  a disposable board;
+- authenticates the remainder of the owner-verified stream using an
+  FNV-1a source fingerprint (no unredacted ROM content published);
+- interprets bounded B / 9 / E three-byte commands, C-class two-byte
+  commands, inherited opcodes, high-bit continuation flags, and the
+  measured zero-sentinel no-retry path, checking every emitted
+  three-byte packet against the original differential witness;
+- preserves every fourth ring byte, enforces cursor alignment and
+  counter capacity, and commits nothing on an unrecognized source or
+  unsupported path;
+- after 32 emissions, consumes the original two-byte variable-length
+  duration, commits **`0x01B2`** to descriptor+2 and persistent
+  source pointer **`0x6157CC`** to descriptor+4.
+
+**Strongest executed owner-ROM result:**
+
+```text
+AKIRA_WORKER32_ORIGINAL_DIFF PASS pc=02158 steps=1024 packets=32 a3=6157cc duration=01b2 stream=6157cc ram=1 scsp=1
+```
+
+This is *full 512 KiB sound-RAM and entire modeled SCSP state equality*
+against the original CPU **at the actual RTS**, observed by running the
+GitHub CI-compiled binary locally on the owner's provided private ROM.
+It is not only a synthetic native-vs-native test, and no sound ROM was
+uploaded or committed. Run locally:
+
+```sh
+build/vf2_m68k_akira15_tests /private/vf2 --trace-continuation
+```
+
+The ROM-free CTest covers the exact initial 15-packet boundary,
+ring wrap, malformed packet history and full-worker refusal when
+the authenticated tail is unavailable. The ROM-backed successful
+worker parity is owner-only.
+
+**Remaining gap:** the enclosing L2 IRQ body, timer cadence, other
+descriptors and general audio stream grammar are not covered.
+`vf2_sound_board_maintain_streams` is still unchanged and refuses
+unrecognized stream handoffs. Do not claim the Akira song plays
+continuously, or audio bit-identical to the hardware.
