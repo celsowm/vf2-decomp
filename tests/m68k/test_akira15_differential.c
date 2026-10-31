@@ -12,6 +12,7 @@
 /* Native 15th Akira packet plus private-ROM 68000 differential.
  * An original-ROM comparison is opt-in, never represented by fake data. */
 static vf2_sound_board native_board;
+static vf2_sound_board full_worker_board;
 static vf2_sound_board snapshot;
 static uint8_t original_ram[VF2_SOUND_RAM_BYTES];
 static vf2_scsp original_scsp;
@@ -214,6 +215,46 @@ static int owner_differential(const uint8_t *rom, size_t rom_size,
                     (unsigned)original_ram[VF2_SOUND_COMMAND_COUNT],
                     (unsigned)regs.a[3],
                     (unsigned)(instructions+more_steps));
+                {
+                    vf2_sound_music_worker32_report worker;
+                    size_t at;
+                    prepare(&full_worker_board, rom, rom_size, 0u);
+                    if (!check(vf2_sound_board_probe_akira_l2_first_worker32(
+                        &full_worker_board, &worker) == VF2_OK,
+                        "native 32-packet descriptor worker")) return 0;
+                    if (memcmp(original_ram, full_worker_board.sound_ram,
+                               sizeof(original_ram)) != 0) {
+                        for (at = 0u; at < sizeof(original_ram); ++at) {
+                            if (original_ram[at] !=
+                                full_worker_board.sound_ram[at]) break;
+                        }
+                        fprintf(stderr,
+                            "AKIRA_WORKER32_RAM_MISMATCH offset=%05x "
+                            "original=%02x native=%02x\n",
+                            (unsigned)at,(unsigned)original_ram[at],
+                            (unsigned)full_worker_board.sound_ram[at]);
+                        return 0;
+                    }
+                    if (!check(
+                        memcmp(&original_scsp, &full_worker_board.scsp,
+                               sizeof(original_scsp)) == 0 &&
+                        worker.packets_emitted == 32u &&
+                        worker.pending_after == 32u &&
+                        worker.ephemeral_a3_after == regs.a[3] &&
+                        worker.countdown_after == UINT16_C(0x01b2) &&
+                        worker.stream_after == UINT32_C(0x6157cc),
+                        "full original/native worker32 SCSP/commit")) return 0;
+                    fprintf(stderr,
+                        "AKIRA_WORKER32_ORIGINAL_DIFF PASS "
+                        "pc=%05x steps=%u packets=%u a3=%06x "
+                        "duration=%04x stream=%06x ram=1 scsp=1\n",
+                        (unsigned)regs.pc,
+                        (unsigned)(instructions+more_steps),
+                        (unsigned)worker.pending_after,
+                        (unsigned)regs.a[3],
+                        (unsigned)worker.countdown_after,
+                        (unsigned)worker.stream_after);
+                }
                 return 1;
             }
             if (bus.event_count >= 60u) {
@@ -265,6 +306,18 @@ int main(int argc, char **argv)
         ok = native_case(fake_rom, sizeof(fake_rom), 0u) &&
              native_case(fake_rom, sizeof(fake_rom),
                          UINT16_C(0x0ffc));
+        if (ok) {
+            vf2_sound_music_worker32_report refused;
+            prepare(&native_board, fake_rom, sizeof(fake_rom), 0u);
+            memcpy(&snapshot, &native_board, sizeof(snapshot));
+            memset(&refused, 0x5au, sizeof(refused));
+            ok = check(
+                vf2_sound_board_probe_akira_l2_first_worker32(
+                    &native_board, &refused) == VF2_ERROR_UNSUPPORTED &&
+                memcmp(&native_board, &snapshot, sizeof(snapshot)) == 0 &&
+                refused.packets_emitted == UINT8_C(0x5a),
+                "worker32 rejects unverified source without mutation");
+        }
         if (ok) puts("AKIRA_15_NATIVE_ROM_FREE PASS");
         return ok ? 0 : 1;
     }
