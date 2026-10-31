@@ -567,6 +567,24 @@ vf2_status vf2_sound_board_probe_akira_l2_prefix14(
     vf2_sound_music_prefix14_report *report
 );
 
+/* Owner-ROM measured 15th Akira L2 emission at PC 0x212C:
+ * 0A AC inherits B6, emitting B6 0A 2C. The original A3
+ * becomes 0x61579B but descriptor+4 remains 0x615773.
+ * One bounded emission, NOT a completed worker/IRQ. */
+typedef struct vf2_sound_music_fifteenth_report {
+    uint32_t stream_before;
+    uint32_t a3_after;
+    uint16_t cursor_before;
+    uint16_t cursor_after;
+    uint8_t packet[3];
+    uint8_t status_after;
+} vf2_sound_music_fifteenth_report;
+
+vf2_status vf2_sound_board_probe_akira_l2_fifteenth_b(
+    vf2_sound_board *board,
+    vf2_sound_music_fifteenth_report *report
+);
+
 /* Legacy first-return probe disproved: always UNSUPPORTED. */
 vf2_status vf2_sound_board_probe_akira_l2_first_return(
     vf2_sound_board *board,
