@@ -547,8 +547,9 @@ vf2_status vf2_sound_board_probe_akira_l2_next_c0_b6(
 
 /* Proven 14-emission Akira prefix ending at the original 68000
  * shared emitter PC 0x212c. This is NOT a worker return or L2 IRQ.
- * The descriptor ROM pointer and countdown remain unchanged; the
- * original ephemeral A3 is reported but not committed to RAM.
+ * The descriptor ROM pointer is not committed; the old countdown
+ * is consumed, but no new duration is installed at this boundary.
+ * Original ephemeral A3 is reported but not committed to RAM.
  * Full-board atomicity: no caller mutation or report on refusal. */
 typedef struct vf2_sound_music_prefix14_report {
     uint32_t stream_before;
