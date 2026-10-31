@@ -71,7 +71,7 @@ def run_pair(binary: Path, rom_dir: Path, timeout_seconds: int = 1200) -> dict:
             raise PairGateError("generated WAV has unexpected Timer-A-49 preview format")
         report["run_modes"] = [entry[0] for entry in EXPECTED]
         report["scope"] = "original_l2_dispatch_scsp_model_native_vs_original_pcm_walker"
-        report["original_rom_owner_local"] = True
+        report["rom_directory_supplied_by_caller"] = True
         report["arcade_timing_or_dac_fidelity_proven"] = False
         return report
 
