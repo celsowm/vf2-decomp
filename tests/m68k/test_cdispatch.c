@@ -121,6 +121,18 @@ static int akira_post14_selftest(void)
     bus.ram_size = 0u;
     if (akira_post14_observe(&bus, &regs, 15u, 60u, &packet) ||
         memcmp(&packet, sentinel, sizeof(packet)) != 0) return 1;
+    /* A 15th packet after a write at 0xFFC is stored at 0xFFC
+     * with cursor zero, not at the first ring entry. */
+    bus.ram_size = sizeof(ram);
+    ram[VF2_SOUND_COMMAND_COUNT] = 15u;
+    ram[VF2_SOUND_COMMAND_WRITE_CURSOR + 1u] = 0u;
+    ram[VF2_SOUND_COMMAND_RING_BASE + 0xffcu] = 0xabu;
+    ram[VF2_SOUND_COMMAND_RING_BASE + 0xffdu] = 0xcdu;
+    ram[VF2_SOUND_COMMAND_RING_BASE + 0xffeu] = 0xefu;
+    if (!akira_post14_observe(&bus, &regs, 15u, 0u, &packet) ||
+        packet.bytes[0] != 0xabu ||
+        packet.bytes[1] != 0xcdu ||
+        packet.bytes[2] != 0xefu || packet.cursor != 0u) return 1;
     puts("akira-post14: ROM-free observer selftest PASS");
     return 0;
 }
@@ -678,7 +690,7 @@ static void test_akira_fourteen_initial_packets_original(
             scsp_equal(&actual_scsp, &atomic_board.scsp);
         if (!valid_prefix) {
             fprintf(stderr, "AKIRA_POST14 REFUSED: original/native "
-                            "prefix parity not established\\n");
+                            "prefix parity not established\n");
             EXPECT_TRUE(valid_prefix);
         } else {
             EXPECT_TRUE(akira_post14_trace(&bus, &regs));
@@ -7459,7 +7471,7 @@ int main(int argc, char **argv)
     }
     if (argc != 2) {
         fprintf(stderr, "usage: %s <rom-dir> "
-                        "[--probe-b0-181c | --probe-akira-continuation]\\n",
+                        "[--probe-b0-181c | --probe-akira-continuation]\n",
                 argv[0]);
         free(audio_rom);
         return 2;
