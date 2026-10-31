@@ -2678,6 +2678,71 @@ vf2_status vf2_sound_board_maintain_streams(
     );
     report->write_cursor_after = report->write_cursor_before;
     records = board->sound_ram + VF2_SOUND_DESCRIPTOR_BASE;
+    /* Original 0x1F16 L2: the first, now fully recovered Akira
+     * record-0 worker reaches 0x2158 after 32 queue emissions.
+     * Admit only its authenticated ROM/descriptor fixture with
+     * no competing stream writers or prescaler pulse. All remaining
+     * original IRQ paths retain their existing fail-closed guards.
+     *
+     * The isolated worker returns at a subroutine boundary, whereas
+     * this code additionally applies the two unconditional original
+     * ISR head SCSP writes. Run on a disposable full-board copy to
+     * ensure a failed worker or SCSP write cannot partially mutate
+     * the caller's RAM, SCSP or reports. */
+    if (board->sound_ram[VF2_SOUND_COMMAND_COUNT] == 0u &&
+        (records[0] & UINT8_C(0x80)) != 0u &&
+        read_be16(records + 2u) == 1u &&
+        read_be32(records + 4u) == UINT32_C(0x615773)) {
+        vf2_sound_board *candidate;
+        vf2_sound_music_worker32_report worker;
+        vf2_status status;
+        size_t scan;
+        int exclusive = records[0x0cu] == 0u;
+        for (scan = 1u; scan < 8u; ++scan) {
+            if ((records[scan * 0x20u] & UINT8_C(0x80)) != 0u) {
+                exclusive = 0;
+                break;
+            }
+        }
+        if (!exclusive) {
+            report->timers_expired = 1u;
+            report->refused_stage = 2u;
+            report->refused_record = 0u;
+            return VF2_ERROR_UNSUPPORTED;
+        }
+        candidate = (vf2_sound_board *)malloc(sizeof(*candidate));
+        if (candidate == NULL) return VF2_ERROR_OUT_OF_MEMORY;
+        memcpy(candidate, board, sizeof(*candidate));
+        status = vf2_scsp_write_u16(&candidate->scsp,
+                                    UINT32_C(0x418), UINT16_C(0xce));
+        if (status == VF2_OK) {
+            status = vf2_scsp_write_u16(&candidate->scsp,
+                                        UINT32_C(0x422), UINT16_C(0x40));
+        }
+        if (status == VF2_OK) {
+            status = vf2_sound_board_probe_akira_l2_first_worker32(
+                candidate, &worker);
+        }
+        if (status != VF2_OK ||
+            worker.packets_emitted != 32u ||
+            worker.pending_after != 32u) {
+            free(candidate);
+            report->timers_expired = 1u;
+            report->refused_stage = 2u;
+            report->refused_record = 0u;
+            return status == VF2_OK ? VF2_ERROR_UNSUPPORTED : status;
+        }
+        memcpy(board->sound_ram, candidate->sound_ram,
+               sizeof(board->sound_ram));
+        board->scsp = candidate->scsp;
+        free(candidate);
+        report->descriptors_scanned = 8u;
+        report->timers_expired = 1u;
+        report->packets_emitted = 32u;
+        report->bytes_consumed = 89u;
+        report->write_cursor_after = worker.cursor_after;
+        return VF2_OK;
+    }
     /* 0x1f26-0x1f2e: byte gate, == 0xff skips the body. */
     if (board->sound_ram[VF2_SOUND_COMMAND_COUNT] != 0xffu) {
         /* Preflight both live-body handoffs before any mutation. */
