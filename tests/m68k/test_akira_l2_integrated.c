@@ -174,6 +174,80 @@ static int actual_rom(const uint8_t *rom, size_t size)
         (unsigned)original_ram[VF2_SOUND_DESCRIPTOR_BASE + 6u],
         (unsigned)original_ram[VF2_SOUND_DESCRIPTOR_BASE + 7u],
         (unsigned)sr_events);
+
+    /* The first worker installed the original 0x01B2 countdown.
+     * Continue three more real L2 ticks on the same RAM and SCSP;
+     * the verified worker must NOT re-run or append FIFO entries.
+     * Only the CPU scratch registers are reset at each IRQ entry. */
+    {
+        unsigned tick;
+        for (tick = 1u; tick <= 3u; ++tick) {
+            const uint16_t expected =
+                (uint16_t)(UINT16_C(0x01b2) - (uint16_t)tick);
+            uint32_t next_steps = 0u;
+            int second_reached = 0;
+            status = vf2_sound_board_maintain_streams(&board, &report);
+            if (!assert_true(status == VF2_OK &&
+                report.packets_emitted == 0u &&
+                report.timers_expired == 0u &&
+                report.descriptors_scanned == 8u &&
+                report.write_cursor_after == UINT16_C(128),
+                "native follow-up L2 does not replay worker")) return 0;
+            vf2_m68k_regs_reset(&regs);
+            regs.pc = UINT32_C(0x1f16);
+            regs.a[5] = UINT32_C(0x100000);
+            regs.a[6] = UINT32_C(0x1000);
+            regs.a[7] = UINT32_C(0x7f00);
+            bus.event_count = 0u;
+            for (next_steps = 0u; next_steps < 800u; ++next_steps) {
+                uint32_t done = 0u;
+                int suspended = 0;
+                if (regs.pc == UINT32_C(0x1f7a)) {
+                    second_reached = 1;
+                    break;
+                }
+                status = vf2_m68k_run_slice(
+                    &bus, &regs, UINT32_MAX, 0, 1u,
+                    &done, &suspended);
+                if (status != VF2_OK || done != 1u || !suspended) {
+                    fprintf(stderr,
+                        "AKIRA_L2_FOLLOWUP_CPU_REFUSED tick=%u pc=%05x "
+                        "status=%d steps=%u\n",
+                        tick,(unsigned)regs.pc,(int)status,
+                        (unsigned)next_steps);
+                    return 0;
+                }
+            }
+            if (!assert_true(second_reached &&
+                regs.a[7] == UINT32_C(0x7f00) &&
+                original_ram[VF2_SOUND_COMMAND_COUNT] == 32u &&
+                original_ram[VF2_SOUND_DESCRIPTOR_BASE + 2u] ==
+                    (uint8_t)(expected >> 8u) &&
+                original_ram[VF2_SOUND_DESCRIPTOR_BASE + 3u] ==
+                    (uint8_t)expected,
+                "original L2 follow-up countdown and queue")) return 0;
+            for (at = 0u; at < VF2_SOUND_RAM_BYTES; ++at) {
+                if (at >= 0x7e00u && at < 0x7f00u) continue;
+                if (original_ram[at] != board.sound_ram[at]) {
+                    fprintf(stderr,
+                        "AKIRA_L2_FOLLOWUP_RAM_MISMATCH tick=%u "
+                        "at=%05x original=%02x native=%02x\n",
+                        tick,(unsigned)at,(unsigned)original_ram[at],
+                        (unsigned)board.sound_ram[at]);
+                    return 0;
+                }
+            }
+            if (!assert_true(memcmp(&original_scsp, &board.scsp,
+                                    sizeof(original_scsp)) == 0,
+                "original/native SCSP equality on repeated L2 tick")) {
+                return 0;
+            }
+            fprintf(stderr,
+                "AKIRA_L2_FOLLOWUP_DIFF PASS tick=%u steps=%u "
+                "duration=%04x queue=32 ram=1 scsp=1\n",
+                tick,(unsigned)next_steps,(unsigned)expected);
+        }
+    }
     return 1;
 }
 
