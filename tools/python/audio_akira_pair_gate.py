@@ -17,6 +17,7 @@ import json
 import subprocess
 import sys
 import tempfile
+import wave
 from pathlib import Path
 
 from audio_pcm_diff import compare_pcm
@@ -63,7 +64,7 @@ def run_pair(binary: Path, rom_dir: Path, timeout_seconds: int = 1200) -> dict:
             outputs.append(output)
         try:
             report = compare_pcm(outputs[0], outputs[1])
-        except (OSError, EOFError, ValueError) as exc:
+        except (OSError, EOFError, ValueError, wave.Error) as exc:
             raise PairGateError(f"generated WAV could not be compared: {exc}") from exc
         if report["sample_rate"] != 44100 or report["frames"] != 441000 or \
                 report["channels"] != 2 or report["sample_width_bytes"] != 2:
