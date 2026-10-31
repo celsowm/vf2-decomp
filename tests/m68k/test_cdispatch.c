@@ -327,6 +327,8 @@ static void test_akira_fourteen_initial_packets_original(
 )
 {
     static vf2_sound_board board;
+    static vf2_sound_board atomic_board;
+    vf2_sound_music_prefix14_report prefix14;
     static uint8_t actual_ram[VF2_SOUND_RAM_BYTES];
     static vf2_scsp actual_scsp;
     vf2_m68k_bus bus;
@@ -377,6 +379,7 @@ static void test_akira_fourteen_initial_packets_original(
         board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+i+3u]=
             (uint8_t)(0x80u+i);
     }
+    memcpy(&atomic_board,&board,sizeof(board));
     memcpy(actual_ram,board.sound_ram,sizeof(actual_ram));
     memcpy(&actual_scsp,&board.scsp,sizeof(actual_scsp));
     make_bus(&bus,&actual_scsp,actual_ram,rom,rom_size);
@@ -433,6 +436,18 @@ static void test_akira_fourteen_initial_packets_original(
     EXPECT_TRUE(memcmp(actual_ram,board.sound_ram,
                        sizeof(actual_ram))==0);
     EXPECT_TRUE(scsp_equal(&actual_scsp,&board.scsp));
+    /* Independent one-call C path against original instruction
+     * stepping; never compare only the two native implementations. */
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_prefix14(
+        &atomic_board, &prefix14) == VF2_OK);
+    EXPECT_TRUE(prefix14.ephemeral_a3_after == regs.a[3] &&
+                prefix14.pending_after == 14u &&
+                prefix14.status_after == UINT8_C(0x89) &&
+                prefix14.cursor_after == 56u);
+    EXPECT_TRUE(memcmp(actual_ram,atomic_board.sound_ram,
+                       sizeof(actual_ram)) == 0);
+    EXPECT_TRUE(scsp_equal(&actual_scsp,&atomic_board.scsp));
+
 }
 
 static void test_akira_twelve_initial_packets_original(
