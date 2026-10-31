@@ -13,6 +13,227 @@
 #include <string.h>
 
 static int failures;
+/* Owner-ROM continuation probe is strictly opt-in. No inferred Akira
+ * opcode, timer duration or descriptor commit enters production C. */
+static int akira_post14_enabled;
+
+typedef struct akira_post14_packet {
+    uint8_t count;
+    uint16_t cursor;
+    uint8_t bytes[3];
+    uint32_t a3;
+    uint8_t descriptor_status;
+    uint16_t countdown;
+    uint32_t stream_pointer;
+} akira_post14_packet;
+
+/* Read a complete original ring emission at the shared 0x212C
+ * instruction boundary. All observations are passive; reject
+ * inconsistent cursor/count rather than manufacturing a packet. */
+static int akira_post14_observe(
+    const vf2_m68k_bus *bus,
+    const vf2_m68k_regs *regs,
+    uint8_t expected_count, uint16_t expected_cursor,
+    akira_post14_packet *packet
+)
+{
+    akira_post14_packet next = {0};
+    const uint8_t *ram;
+    uint16_t slot;
+    if (bus == NULL || regs == NULL || packet == NULL ||
+        bus->ram == NULL || bus->ram_size < VF2_SOUND_RAM_BYTES ||
+        regs->pc != UINT32_C(0x212c) ||
+        expected_count <= 14u ||
+        expected_cursor > UINT16_C(0x0ffc) ||
+        (expected_cursor & UINT16_C(3)) != 0u) {
+        return 0;
+    }
+    ram = bus->ram;
+    if (ram[VF2_SOUND_COMMAND_COUNT] != expected_count ||
+        (uint16_t)(((uint16_t)ram[VF2_SOUND_COMMAND_WRITE_CURSOR] << 8u) |
+                   ram[VF2_SOUND_COMMAND_WRITE_CURSOR + 1u]) !=
+            expected_cursor) {
+        return 0;
+    }
+    slot = (uint16_t)((expected_cursor + UINT16_C(0x1000) -
+                       UINT16_C(4)) & UINT16_C(0x0fff));
+    next.count = expected_count;
+    next.cursor = expected_cursor;
+    memcpy(next.bytes, ram + VF2_SOUND_COMMAND_RING_BASE + slot, 3u);
+    next.a3 = regs->a[3];
+    next.descriptor_status = ram[VF2_SOUND_DESCRIPTOR_BASE];
+    next.countdown =
+        (uint16_t)(((uint16_t)ram[VF2_SOUND_DESCRIPTOR_BASE + 2u] << 8u) |
+                   ram[VF2_SOUND_DESCRIPTOR_BASE + 3u]);
+    next.stream_pointer =
+        ((uint32_t)ram[VF2_SOUND_DESCRIPTOR_BASE + 4u] << 24u) |
+        ((uint32_t)ram[VF2_SOUND_DESCRIPTOR_BASE + 5u] << 16u) |
+        ((uint32_t)ram[VF2_SOUND_DESCRIPTOR_BASE + 6u] << 8u) |
+        (uint32_t)ram[VF2_SOUND_DESCRIPTOR_BASE + 7u];
+    *packet = next;
+    return 1;
+}
+
+static int akira_post14_selftest(void)
+{
+    static uint8_t ram[VF2_SOUND_RAM_BYTES];
+    vf2_m68k_bus bus = {0};
+    vf2_m68k_regs regs;
+    akira_post14_packet packet;
+    uint8_t sentinel[sizeof(packet)];
+    uint16_t slot = 56u;
+    memset(&regs, 0, sizeof(regs));
+    memset(&packet, 0x5a, sizeof(packet));
+    memset(sentinel, 0x5a, sizeof(sentinel));
+    bus.ram = ram;
+    bus.ram_size = sizeof(ram);
+    regs.pc = UINT32_C(0x212c);
+    regs.a[3] = UINT32_C(0x61579a);
+    ram[VF2_SOUND_COMMAND_COUNT] = 15u;
+    ram[VF2_SOUND_COMMAND_WRITE_CURSOR + 1u] = 60u;
+    ram[VF2_SOUND_COMMAND_RING_BASE + slot] = 0x12u;
+    ram[VF2_SOUND_COMMAND_RING_BASE + slot + 1u] = 0x34u;
+    ram[VF2_SOUND_COMMAND_RING_BASE + slot + 2u] = 0x56u;
+    ram[VF2_SOUND_DESCRIPTOR_BASE] = 0x89u;
+    ram[VF2_SOUND_DESCRIPTOR_BASE + 4u] = 0x00u;
+    ram[VF2_SOUND_DESCRIPTOR_BASE + 5u] = 0x61u;
+    ram[VF2_SOUND_DESCRIPTOR_BASE + 6u] = 0x57u;
+    ram[VF2_SOUND_DESCRIPTOR_BASE + 7u] = 0x73u;
+    if (!akira_post14_observe(&bus, &regs, 15u, 60u, &packet) ||
+        packet.count != 15u || packet.cursor != 60u ||
+        packet.bytes[0] != 0x12u || packet.bytes[1] != 0x34u ||
+        packet.bytes[2] != 0x56u ||
+        packet.a3 != UINT32_C(0x61579a) ||
+        packet.stream_pointer != UINT32_C(0x615773) ||
+        packet.descriptor_status != 0x89u) {
+        return 1;
+    }
+    memset(&packet, 0x5a, sizeof(packet));
+    regs.pc = UINT32_C(0x212e);
+    if (akira_post14_observe(&bus, &regs, 15u, 60u, &packet) ||
+        memcmp(&packet, sentinel, sizeof(packet)) != 0) return 1;
+    regs.pc = UINT32_C(0x212c);
+    if (akira_post14_observe(&bus, &regs, 15u, 64u, &packet) ||
+        memcmp(&packet, sentinel, sizeof(packet)) != 0) return 1;
+    ram[VF2_SOUND_COMMAND_COUNT] = 14u;
+    if (akira_post14_observe(&bus, &regs, 15u, 60u, &packet) ||
+        memcmp(&packet, sentinel, sizeof(packet)) != 0) return 1;
+    bus.ram_size = 0u;
+    if (akira_post14_observe(&bus, &regs, 15u, 60u, &packet) ||
+        memcmp(&packet, sentinel, sizeof(packet)) != 0) return 1;
+    puts("akira-post14: ROM-free observer selftest PASS");
+    return 0;
+}
+
+/* Genuine original 68000 continuation from the *fourteenth* ring
+ * emission. It is NOT the native recovery. The first next boundary
+ * may be a fifteenth packet or a worker RTS. No expected output is
+ * hardcoded; no snapshots, traces or proprietary bytes are committed.
+ * The process exits nonzero if the interpreter refuses or stalls. */
+static int akira_post14_trace(
+    vf2_m68k_bus *bus, vf2_m68k_regs *regs
+)
+{
+    uint32_t steps = 0u;
+    uint32_t prior_pc = UINT32_MAX;
+    uint32_t changes = 0u;
+    uint32_t first_pc[48] = {0};
+    uint16_t initial_cursor;
+    uint16_t expected_cursor;
+    size_t i;
+    vf2_status result = VF2_OK;
+    akira_post14_packet packet;
+    const uint8_t *ram;
+    if (bus == NULL || regs == NULL || bus->ram == NULL ||
+        bus->rom == NULL || bus->ram_size < VF2_SOUND_RAM_BYTES ||
+        regs->pc != UINT32_C(0x212c) ||
+        bus->ram[VF2_SOUND_COMMAND_COUNT] != 14u) return 0;
+    ram = bus->ram;
+    initial_cursor =
+        (uint16_t)(((uint16_t)ram[VF2_SOUND_COMMAND_WRITE_CURSOR] << 8u) |
+                   ram[VF2_SOUND_COMMAND_WRITE_CURSOR + 1u]);
+    if ((initial_cursor & 3u) != 0u ||
+        initial_cursor > UINT16_C(0x0ffc)) return 0;
+    expected_cursor = (uint16_t)((initial_cursor + 4u) & 0x0fffu);
+    for (steps = 0u; steps < 20000u; ++steps) {
+        uint32_t done = 0u;
+        int suspended = 0;
+        if (regs->pc != prior_pc) {
+            if (changes < 48u) first_pc[changes] = regs->pc;
+            ++changes;
+            prior_pc = regs->pc;
+        }
+        if (regs->pc == UINT32_C(0x212c) &&
+            ram[VF2_SOUND_COMMAND_COUNT] != 14u) {
+            if (akira_post14_observe(
+                    bus, regs, 15u, expected_cursor, &packet)) {
+                fprintf(stderr,
+                    "AKIRA_POST14 first-emission count=%u cursor=%04x "
+                    "pkt=%02x%02x%02x a3=%06x status=%02x "
+                    "duration=%04x stream=%06x steps=%u sr_events=%u\n",
+                    (unsigned)packet.count,(unsigned)packet.cursor,
+                    (unsigned)packet.bytes[0],(unsigned)packet.bytes[1],
+                    (unsigned)packet.bytes[2],(unsigned)packet.a3,
+                    (unsigned)packet.descriptor_status,
+                    (unsigned)packet.countdown,
+                    (unsigned)packet.stream_pointer,(unsigned)steps,
+                    (unsigned)bus->event_count);
+                goto complete;
+            }
+            fprintf(stderr,
+                "AKIRA_POST14 invalid next emitter: pc=%05x count=%u "
+                "cursor=%02x%02x\n", (unsigned)regs->pc,
+                (unsigned)ram[VF2_SOUND_COMMAND_COUNT],
+                (unsigned)ram[VF2_SOUND_COMMAND_WRITE_CURSOR],
+                (unsigned)ram[VF2_SOUND_COMMAND_WRITE_CURSOR + 1u]);
+            break;
+        }
+        /* 0x2158 is a candidate return site from a previous,
+         * DISPROVED hypothesis: only admit it if the actual attached
+         * ROM still holds RTS at this precise PC. */
+        if (regs->pc == UINT32_C(0x2158) &&
+            bus->rom_size > UINT32_C(0x2159) &&
+            bus->rom[0x2158] == 0x4eu &&
+            bus->rom[0x2159] == 0x75u) {
+            fprintf(stderr,
+                "AKIRA_POST14 worker-rts pc=02158 count=%u "
+                "cursor=%02x%02x a3=%06x status=%02x steps=%u\n",
+                (unsigned)ram[VF2_SOUND_COMMAND_COUNT],
+                (unsigned)ram[VF2_SOUND_COMMAND_WRITE_CURSOR],
+                (unsigned)ram[VF2_SOUND_COMMAND_WRITE_CURSOR + 1u],
+                (unsigned)regs->a[3],
+                (unsigned)ram[VF2_SOUND_DESCRIPTOR_BASE],
+                (unsigned)steps);
+            goto complete;
+        }
+        result = vf2_m68k_run_slice(
+            bus, regs, UINT32_MAX, 0, 1u, &done, &suspended);
+        if (result != VF2_OK || done != 1u || !suspended) {
+            fprintf(stderr,
+                "AKIRA_POST14 executor-refusal status=%d pc=%05x "
+                "steps=%u done=%u suspended=%d\n",
+                (int)result,(unsigned)regs->pc,(unsigned)steps,
+                (unsigned)done,suspended);
+            break;
+        }
+    }
+    fprintf(stderr,
+        "AKIRA_POST14 unresolved: steps=%u pc=%05x count=%u "
+        "status=%02x\n", (unsigned)steps,(unsigned)regs->pc,
+        (unsigned)ram[VF2_SOUND_COMMAND_COUNT],
+        (unsigned)ram[VF2_SOUND_DESCRIPTOR_BASE]);
+    for (i = 0u; i < changes && i < 48u; ++i) {
+        fprintf(stderr, "AKIRA_POST14 path[%u]=%05x\n",
+                (unsigned)i,(unsigned)first_pc[i]);
+    }
+    return 0;
+complete:
+    for (i = 0u; i < changes && i < 48u; ++i) {
+        fprintf(stderr, "AKIRA_POST14 path[%u]=%05x\n",
+                (unsigned)i,(unsigned)first_pc[i]);
+    }
+    return 1;
+}
 
 #define EXPECT_TRUE(condition) \
     do { \
@@ -447,6 +668,22 @@ static void test_akira_fourteen_initial_packets_original(
     EXPECT_TRUE(memcmp(actual_ram,atomic_board.sound_ram,
                        sizeof(actual_ram)) == 0);
     EXPECT_TRUE(scsp_equal(&actual_scsp,&atomic_board.scsp));
+    if (akira_post14_enabled) {
+        const int valid_prefix =
+            reached && status == VF2_OK &&
+            regs.pc == UINT32_C(0x212c) &&
+            regs.a[3] == UINT32_C(0x615799) &&
+            memcmp(actual_ram, atomic_board.sound_ram,
+                   sizeof(actual_ram)) == 0 &&
+            scsp_equal(&actual_scsp, &atomic_board.scsp);
+        if (!valid_prefix) {
+            fprintf(stderr, "AKIRA_POST14 REFUSED: original/native "
+                            "prefix parity not established\\n");
+            EXPECT_TRUE(valid_prefix);
+        } else {
+            EXPECT_TRUE(akira_post14_trace(&bus, &regs));
+        }
+    }
 
 }
 
@@ -7192,6 +7429,10 @@ int main(int argc, char **argv)
     uint8_t *audio_rom = NULL;
     size_t audio_rom_size = 0u;
 
+    if (argc == 2 &&
+        strcmp(argv[1], "--selftest-akira-continuation") == 0) {
+        return akira_post14_selftest();
+    }
     if (argc < 2) {
         fprintf(stderr, "usage: %s <rom-dir>\n", argv[0]);
         return 2;
@@ -7208,8 +7449,18 @@ int main(int argc, char **argv)
         free(audio_rom);
         return 0;
     }
+    if (argc == 3 &&
+        strcmp(argv[2], "--probe-akira-continuation") == 0) {
+        akira_post14_enabled = 1;
+        test_akira_fourteen_initial_packets_original(
+            audio_rom, audio_rom_size);
+        free(audio_rom);
+        return failures == 0 ? 0 : 1;
+    }
     if (argc != 2) {
-        fprintf(stderr, "usage: %s <rom-dir> [--probe-b0-181c]\n", argv[0]);
+        fprintf(stderr, "usage: %s <rom-dir> "
+                        "[--probe-b0-181c | --probe-akira-continuation]\\n",
+                argv[0]);
         free(audio_rom);
         return 2;
     }
