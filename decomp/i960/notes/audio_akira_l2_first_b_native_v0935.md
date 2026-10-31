@@ -398,3 +398,56 @@ The legacy first-return probe now explicitly returns UNSUPPORTED;
 against the full 2*N-1 event sequence rather than incorrectly requiring
 zero bus telemetry. Full original-ROM RAM/SCSP parity is a separate
 required gate and is not claimed from public ROM-free CI.
+
+## v0954 — forensic continuation beyond the 14th original emitter
+
+The corrected ROM-independent Akira prefix is now an atomic native transaction,
+`vf2_sound_board_probe_akira_l2_prefix14`, with full-board rollback on a late
+unsupported command, a 4 KiB wraparound fixture, and owner-only full sound-RAM /
+SCSP comparison to genuine 68000 execution through **the fourteenth**
+`0x212c` boundary. See PR #126. This does *not* complete L2 or install
+the new stream duration.
+
+**The post-14 path has not been recovered.** In particular, the older
+`0x2138 -> 0x2158` pre-RTS theory after packet #14 was disproved and
+is not being restored. The owner-ROM correction material verifies the
+14th stop PC, A3 `0x615799`, descriptor status `0x89`, and the corrected
+four packets; it does **not** establish the 15th packet.
+
+A dedicated opt-in original-emulator continuation probe was added, without
+introducing any more guessed native opcodes. The probe first constructs the
+exact corrected Akira fixture, executes the ORIGINAL 68000 up to the
+fourteenth `0x212c`, and demands native-C vs original full RAM/SCSP equality.
+**Only then** does it resume the *same original CPU registers, event bus,
+RAM and SCSP* until it encounters either the next `0x212c` with count 15
+and an exactly advanced ring cursor, or an actual RTS opcode at the
+previously nominated `0x2158` PC. Unsupported opcodes, corrupt counts,
+unbounded progress or mismatches fail nonzero with bounded PC diagnostics.
+
+Local owner-ROM commands (no ROM data published):
+
+```sh
+# Native Linux / macOS (adapt .exe / -C Debug on Windows):
+cmake -S . -B build -DVF2_BUILD_TESTS=ON -DVF2_WARNINGS_AS_ERRORS=ON
+cmake --build build --parallel
+
+# Public, ROM-free (also part of CTest):
+build/vf2_m68k_cdispatch_tests --selftest-akira-continuation
+
+# Private owner's verified original ROM directory:
+build/vf2_m68k_cdispatch_tests /private/vf2 --probe-akira-continuation
+```
+
+Output `AKIRA_POST14 first-emission` lists the next original 3-byte packet,
+exact ephemeral A3, descriptor status, duration, stream pointer, instruction
+count and SR event count. A shorter `worker-rts` record is printed only
+when a genuine RTS is found at PC `0x2158`; a path breadcrumb list (up to
+48 PCs) supports later translation. These values are **observations
+to collect locally**, not values measured by the hosted CI. The diagnostic
+never modifies the native sound board, production scheduler or emulator;
+no ROM, WAV, trace or extracted sample bytes are committed.
+
+The CTest observer selftest verifies positive packet extraction, missing
+emitter PC, wrong cursor, wrong count, and invalid RAM bounds without a
+ROM. The full original 68000 continuation itself remains owner-local
+and unverified until the local command is run.
