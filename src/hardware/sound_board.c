@@ -2347,6 +2347,95 @@ vf2_status vf2_sound_board_probe_akira_l2_prefix14(
     return VF2_OK;
 }
 
+/* The 15th original 68000 emission continues at handler 0x1FFC,
+ * following the 0x212C -> 0x2130 -> 0x2136 -> 0x1F96 retry.
+ * Source bytes 0A AC at A3=0x615799 inherit descriptor opcode B6.
+ * No source-pointer commit or duration reload occurs at this boundary.
+ *
+ * Before writing, validate all preceding 14 emitted entries and the
+ * 40-byte Akira source prefix. The ring's fourth byte is metadata. */
+vf2_status vf2_sound_board_probe_akira_l2_fifteenth_b(
+    vf2_sound_board *board,
+    vf2_sound_music_fifteenth_report *report
+)
+{
+    static const uint8_t source[40] = {
+        0xbeu,0x50u,0xfeu,0xbeu,0x20u,0x80u,
+        0xbeu,0x10u,0x72u,0x00u,
+        0x9fu,0x48u,0xf7u,0x9fu,0x2eu,0xc0u,
+        0x9fu,0x33u,0xffu,
+        0xc1u,0x81u,0x9fu,0x2bu,0xeeu,0xc3u,0x82u,
+        0xc8u,0x8du,
+        0xb0u,0x0au,0xc0u,0x07u,0xffu,0xc0u,
+        0x80u,0xb6u,0x07u,0xf8u,0x0au,0xacu
+    };
+    static const uint8_t previous[42] = {
+        0xbeu,0x50u,0x7eu,0xbeu,0x20u,0x00u,
+        0xbeu,0x10u,0x72u,0x9fu,0x48u,0x77u,
+        0x9fu,0x2eu,0x40u,0x9fu,0x33u,0x7fu,
+        0xc1u,0x01u,0x00u,0x9fu,0x2bu,0x6eu,
+        0xc3u,0x02u,0x00u,0xc8u,0x0du,0x00u,
+        0xb0u,0x0au,0x40u,0xb0u,0x07u,0x7fu,
+        0xc0u,0x00u,0x00u,0xb6u,0x07u,0x78u
+    };
+    uint8_t *ram;
+    uint8_t *desc;
+    uint32_t stream;
+    uint16_t cursor;
+    size_t offset;
+    size_t i;
+    vf2_sound_music_fifteenth_report next = {0};
+
+    if (board == NULL || report == NULL || board->audio_rom == NULL) {
+        return VF2_ERROR_INVALID_ARGUMENT;
+    }
+    ram = board->sound_ram;
+    desc = ram + VF2_SOUND_DESCRIPTOR_BASE;
+    stream = read_be32(desc + 4u);
+    cursor = read_be16(ram + VF2_SOUND_COMMAND_WRITE_CURSOR);
+    if (stream != UINT32_C(0x615773) ||
+        desc[0] != UINT8_C(0x89) ||
+        desc[1] != UINT8_C(0xb6) ||
+        read_be16(desc + 2u) != 0u ||
+        desc[0x0eu] != UINT8_C(0x72) ||
+        ram[VF2_SOUND_COMMAND_COUNT] != UINT8_C(14) ||
+        (cursor & UINT16_C(3)) != 0u ||
+        cursor > UINT16_C(0x0ffc) ||
+        stream < VF2_SOUND_AUDIO_ROM_BASE) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    offset = (size_t)(stream - VF2_SOUND_AUDIO_ROM_BASE);
+    if (offset > board->audio_rom_size ||
+        board->audio_rom_size - offset < sizeof(source) ||
+        memcmp(board->audio_rom + offset, source, sizeof(source)) != 0) {
+        return VF2_ERROR_UNSUPPORTED;
+    }
+    for (i = 0u; i < 14u; ++i) {
+        const uint16_t ix = (uint16_t)(
+            (cursor + UINT16_C(0x1000) -
+             (uint16_t)(56u - 4u*i)) & UINT16_C(0x0fff));
+        if (memcmp(ram + VF2_SOUND_COMMAND_RING_BASE + ix,
+                   previous + 3u*i, 3u) != 0) {
+            return VF2_ERROR_UNSUPPORTED;
+        }
+    }
+
+    next.stream_before = stream;
+    next.a3_after = stream + UINT32_C(40);
+    next.cursor_before = cursor;
+    next.cursor_after = (uint16_t)((cursor + 4u) & UINT16_C(0x0fff));
+    next.packet[0] = desc[1]; /* inherited B6, not raw 0A */
+    next.packet[1] = source[38];
+    next.packet[2] = (uint8_t)(source[39] & UINT8_C(0x7f));
+    next.status_after = desc[0];
+    /* Only now mutate; all source, descriptor and ring guards passed. */
+    memcpy(ram + VF2_SOUND_COMMAND_RING_BASE + cursor, next.packet, 3u);
+    write_be16(ram + VF2_SOUND_COMMAND_WRITE_CURSOR, next.cursor_after);
+    ram[VF2_SOUND_COMMAND_COUNT] = UINT8_C(15);
+    *report = next;
+    return VF2_OK;
+}
+
 /* Original 68000 does not return after Akira packet #14. The earlier
  * worker-return hypothesis was disproved by owner-ROM tracing.
  * Preserve the API for ABI compatibility, but fail closed. */
