@@ -1376,6 +1376,14 @@ if(VF2_BUILD_TESTS)
     # skipped with a clear message rather than failing the suite.
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
+        # Small synthetic WAVs only; no owner audio is committed to Git.
+        # The executable compares owner-local WAVs when invoked manually.
+        add_test(
+            NAME vf2_python_audio_pcm_diff
+            COMMAND ${Python3_EXECUTABLE}
+                    ${CMAKE_SOURCE_DIR}/tools/python/test_audio_pcm_diff.py
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        )
         add_test(
             NAME vf2_python_audio_sound_test_catalog
             COMMAND ${Python3_EXECUTABLE}
