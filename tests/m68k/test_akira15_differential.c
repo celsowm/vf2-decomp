@@ -97,7 +97,8 @@ static int native_case(const uint8_t *rom, size_t rom_size, uint16_t start)
     return 1;
 }
 
-static int owner_differential(const uint8_t *rom, size_t rom_size)
+static int owner_differential(const uint8_t *rom, size_t rom_size,
+                              int trace_continuation)
 {
     vf2_m68k_bus bus = {0};
     vf2_m68k_regs regs;
@@ -155,6 +156,85 @@ static int owner_differential(const uint8_t *rom, size_t rom_size)
         (unsigned)instructions,
         (unsigned)original_ram[VF2_SOUND_COMMAND_COUNT],
         (unsigned)last.cursor_after, (unsigned)bus.event_count);
+    if (trace_continuation) {
+        unsigned last_count = 15u;
+        uint32_t more_steps = 0u;
+        /* A private ROM is required. This is the SAME 68000 regs/RAM/
+         * SCSP object that already matched native at packet 15. */
+        for (more_steps = 0u; more_steps < 15000u; ++more_steps) {
+            uint32_t done = 0u;
+            int suspended = 0;
+            const unsigned count = original_ram[VF2_SOUND_COMMAND_COUNT];
+            if (regs.pc == UINT32_C(0x212c) && count > last_count) {
+                const uint16_t cur =
+                    (uint16_t)(((uint16_t)original_ram[
+                        VF2_SOUND_COMMAND_WRITE_CURSOR] << 8u) |
+                        original_ram[VF2_SOUND_COMMAND_WRITE_CURSOR + 1u]);
+                const uint16_t prev =
+                    (uint16_t)((cur + UINT16_C(0x0ffc)) & UINT16_C(0x0fff));
+                const uint8_t *packet =
+                    original_ram + VF2_SOUND_COMMAND_RING_BASE + prev;
+                if (count != last_count + 1u ||
+                    cur != (uint16_t)(count * 4u)) {
+                    fprintf(stderr,
+                        "AKIRA_FOLLOWUP_REFUSED discontinuous count=%u "
+                        "previous=%u cursor=%u\n",
+                        count,last_count,(unsigned)cur);
+                    return 0;
+                }
+                fprintf(stderr,
+                    "AKIRA_ORIGINAL_FOLLOWUP packet=%u command=%02x%02x%02x "
+                    "a3=%06x status=%02x duration=%02x%02x "
+                    "stream=%02x%02x%02x%02x steps=%u events=%u\n",
+                    count,(unsigned)packet[0],(unsigned)packet[1],
+                    (unsigned)packet[2],(unsigned)regs.a[3],
+                    (unsigned)original_ram[VF2_SOUND_DESCRIPTOR_BASE],
+                    (unsigned)original_ram[VF2_SOUND_DESCRIPTOR_BASE+2u],
+                    (unsigned)original_ram[VF2_SOUND_DESCRIPTOR_BASE+3u],
+                    (unsigned)original_ram[VF2_SOUND_DESCRIPTOR_BASE+4u],
+                    (unsigned)original_ram[VF2_SOUND_DESCRIPTOR_BASE+5u],
+                    (unsigned)original_ram[VF2_SOUND_DESCRIPTOR_BASE+6u],
+                    (unsigned)original_ram[VF2_SOUND_DESCRIPTOR_BASE+7u],
+                    (unsigned)(instructions+more_steps),
+                    (unsigned)bus.event_count);
+                last_count = count;
+                if (count == 32u) {
+                    fprintf(stderr,
+                        "AKIRA_FOLLOWUP_BOUNDARY count=32 reached=1 "
+                        "full_worker_return_proven=0\n");
+                    return 1;
+                }
+            }
+            if (regs.pc == UINT32_C(0x2158) &&
+                rom_size > UINT32_C(0x2159) &&
+                rom[0x2158] == 0x4eu && rom[0x2159] == 0x75u) {
+                fprintf(stderr,
+                    "AKIRA_FOLLOWUP_WORKER_RTS packet_count=%u "
+                    "a3=%06x steps=%u\n",
+                    (unsigned)original_ram[VF2_SOUND_COMMAND_COUNT],
+                    (unsigned)regs.a[3],
+                    (unsigned)(instructions+more_steps));
+                return 1;
+            }
+            status = vf2_m68k_run_slice(
+                &bus,&regs,UINT32_MAX,0,1u,&done,&suspended);
+            if (status != VF2_OK || done != 1u || !suspended) {
+                fprintf(stderr,
+                    "AKIRA_FOLLOWUP_REFUSED status=%d pc=%05x "
+                    "steps=%u count=%u\n",
+                    (int)status,(unsigned)regs.pc,
+                    (unsigned)(instructions+more_steps),
+                    (unsigned)original_ram[VF2_SOUND_COMMAND_COUNT]);
+                return 0;
+            }
+        }
+        fprintf(stderr,
+            "AKIRA_FOLLOWUP_REFUSED instruction budget exhausted "
+            "count=%u pc=%05x\n",
+            (unsigned)original_ram[VF2_SOUND_COMMAND_COUNT],
+            (unsigned)regs.pc);
+        return 0;
+    }
     return 1;
 }
 
@@ -184,8 +264,10 @@ int main(int argc, char **argv)
         if (ok) puts("AKIRA_15_NATIVE_ROM_FREE PASS");
         return ok ? 0 : 1;
     }
-    if (argc != 2) {
-        fprintf(stderr, "usage: %s <owner-ROM-dir> | --rom-free\n", argv[0]);
+    if (argc != 2 &&
+        !(argc == 3 && strcmp(argv[2], "--trace-continuation") == 0)) {
+        fprintf(stderr, "usage: %s <owner-ROM-dir> "
+                        "[--trace-continuation] | --rom-free\n", argv[0]);
         return 2;
     }
     if (vf2_romset_build_region(argv[1], VF2_REGION_AUDIOCPU,
@@ -193,7 +275,9 @@ int main(int argc, char **argv)
         fprintf(stderr, "AKIRA_15_FAIL ROM validation\n");
         return 2;
     }
-    ok = owner_differential(rom, rom_size);
+    ok = owner_differential(
+        rom, rom_size,
+        argc == 3 && strcmp(argv[2], "--trace-continuation") == 0);
     free(rom);
     return ok ? 0 : 1;
 }
