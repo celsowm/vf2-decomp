@@ -490,3 +490,47 @@ or independently reproduce the two WAVs. To elevate artifact equality
 to a defensible **execution** parity claim, regenerate both from
 independently identified paths against the same private owner-ROM
 fixture and perform the comparison without manually copying WAVs.
+
+## v0956 — executable independent producer parity gate (owner-ROM-only)
+
+The stored artifacts in v0955 are equal; their independent generation
+was not established by hash comparison. The new
+`tools/python/audio_akira_pair_gate.py` addresses that limitation
+when the owner runs it **against a locally verified ROM directory**.
+
+It invokes the repository's existing
+`vf2_m68k_l3_selection_tests` twice as independent child processes,
+in fresh temporary directories, requiring both the exact mode marker
+and `AKIRA_MUSIC_SEQUENCE_FINISH` before reading the expected files:
+
+1. `--akira-tima-original-wav-dir` — authentic 68000 sample-page walker;
+2. `--akira-tima-native-wav-dir` — recovered native C sample-page walker.
+
+Both modes **still share ORIGINAL 68000 L2 and drain** and the repo's
+modeled SCSP renderer. Thus this experiment evaluates the **PCM page
+walker**, not a fully native sound sequencer. Its timer profile is
+the experimental 49-PCM-frame cadence; it is not a measured
+cycle-exact Sega Model 2A IRQ scheduler.
+
+Owner-local reproduction (requires the user's ROM and a compiled binary):
+
+```sh
+python tools/python/audio_akira_pair_gate.py \
+  build/vf2_m68k_l3_selection_tests /private/vf2 --json
+```
+
+The Python gate never copies, uploads, retains or commits the WAVs:
+it deletes temporary originals/native files after the independent
+runs, then returns 0 for exact PCM, 1 for a measured difference and
+2 for missing outputs, markers, private ROMs or execution failures.
+It reports the first differing sample position if present.
+
+```sh
+# Independently validates the orchestrator with synthetic in-memory
+# producer mocks and deliberate failures; never needs owner ROM.
+python tools/python/test_audio_akira_pair_gate.py -v
+```
+
+No owner-ROM execution of this **new combined gate** took place
+in public CI. The historical 10-second stored-file equality remains
+a fact about the artifacts, not a substituted fresh-run result.
