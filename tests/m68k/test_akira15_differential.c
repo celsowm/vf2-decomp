@@ -174,8 +174,8 @@ int main(int argc, char **argv)
             0x07u,0xffu,0xc0u,0x80u,0xb6u,0x07u,0xf8u,
             0x0au,0xacu
         };
-        memcpy(fake_rom + UINT32_C(0x615773) -
-               VF2_SOUND_AUDIO_ROM_BASE, source, sizeof(source));
+        memcpy(fake_rom + (UINT32_C(0x615773) -
+               VF2_SOUND_AUDIO_ROM_BASE), source, sizeof(source));
         /* The C probes only inspect the bounded stream. They don't
          * require a fabricated emulated ROM instruction body. */
         ok = native_case(fake_rom, sizeof(fake_rom), 0u) &&
