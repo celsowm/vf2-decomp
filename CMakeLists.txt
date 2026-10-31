@@ -635,6 +635,13 @@ if(VF2_BUILD_TESTS)
     target_link_libraries(vf2_m68k_cdispatch_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_m68k_cdispatch_tests)
 
+    # The original-68000 Akira post-14 observer itself is testable
+    # WITHOUT original ROMs. Owner-only continuation is a separate
+    # explicit command and never executes in public CI.
+    add_test(NAME vf2_m68k_akira_post14_observer_rom_free
+             COMMAND vf2_m68k_cdispatch_tests
+                     --selftest-akira-continuation)
+
     # ROM-backed L3 comparison for real 0xAD23xx/0xAD24xx
     # selections, independent from the i960 gameplay trigger.
     add_executable(vf2_m68k_l3_selection_tests tests/m68k/test_l3_real_rom_selections.c)
