@@ -659,3 +659,77 @@ descriptors and general audio stream grammar are not covered.
 `vf2_sound_board_maintain_streams` is still unchanged and refuses
 unrecognized stream handoffs. Do not claim the Akira song plays
 continuously, or audio bit-identical to the hardware.
+
+## v0959 — full first L2 IRQ + three follow-up ticks: verified C/68000 parity
+
+**Measured and executed on 31 Oct 2026** with the private owner VF2.1
+sound ROM (`epr-17574.30`, previously verified SHA-1
+`b6c0c3f0473bd7fc3ef4f5146110dfcc899a5af9`).
+The private ROM remains in the local working directory and is **never
+committed or uploaded to GitHub**. The source of the new tests contains
+no proprietary ROM data.
+
+The native `vf2_sound_board_maintain_streams` now recognizes the
+previously original-verified Akira first descriptor worker at record
+zero, stream `0x615773`, countdown 1, ring count zero. It requires
+**no active other stream descriptor and no active prescaler**; all
+unverified concurrent writer scenarios refuse atomically. The C
+routine operates on a disposable full-board copy, applies the two
+unconditional L2-head SCSP writes at `0x0418 = 0x00CE` and
+`0x0422 = 0x0040`, then calls the fully verified 32-packet native
+worker. It commits RAM and SCSP only when every guard and the native
+worker have succeeded. General stream paths and unrecognized ROM
+content retain the previous fail-closed behavior.
+
+An independent genuine Motorola 68000 oracle begins at the
+**full L2 interrupt entry `0x1F16`** and steps until the
+**`0x1F7A` ISR epilogue**, not merely the worker's RTS.
+It matches **every sound RAM byte** outside the original-only CPU
+temporary stack region `[0x7E00,0x7F00)`, plus the *entire* modeled
+SCSP state. It verifies balanced original A7, all 32 ring entries,
+cursor 128, duration `0x01B2`, source pointer `0x6157CC`, and no
+unauthorized replay.
+
+After that the oracle executes three more genuine L2 ticks from
+the *same* RAM/SCSP snapshot, with a fresh CPU register entry for each
+IRQ. Those ticks consume the installed duration but must **not**
+re-run the one-shot worker. Each complete state transition is checked
+again against the production C maintenance routine.
+
+```text
+AKIRA_L2_ORIGINAL_DIFF PASS stop=01f7a steps=1073 count=32 cursor=128 duration=01b2 stream=006157cc sr_events=64 ram=1 scsp=1
+AKIRA_L2_FOLLOWUP_DIFF PASS tick=1 steps=53 duration=01b1 queue=32 ram=1 scsp=1
+AKIRA_L2_FOLLOWUP_DIFF PASS tick=2 steps=53 duration=01b0 queue=32 ram=1 scsp=1
+AKIRA_L2_FOLLOWUP_DIFF PASS tick=3 steps=53 duration=01af queue=32 ram=1 scsp=1
+```
+
+Both the ROM-free preflight/refusal tests and the *actual private-ROM
+four-tick C-vs-original differential* exited 0 in the isolated local
+runtime using the CI-compiled Linux executable. This is end-to-end
+parity for the **measured first L2 service and three following timer
+services**. It is not equivalent to recovered original FIFO drain,
+realtime SCSP timer IRQ scheduling, or full song/arcade DAC parity.
+
+Owner-local reproduction:
+
+```sh
+cmake -S . -B build -DVF2_BUILD_TESTS=ON \
+  -DVF2_ROM_DIR=/private/vf2 -DVF2_WARNINGS_AS_ERRORS=ON
+cmake --build build --parallel
+ctest --test-dir build -R vf2_m68k_akira_l2 --output-on-failure
+
+# Standalone stronger differential:
+build/vf2_m68k_akira_l2_integrated_tests /private/vf2
+```
+
+The private-ROM test automatically registers in CTest only when
+`VF2_ROM_DIR` exists. Public CI performs ROM-free tests,
+compilation and sanitizers only; never treat them as substitutes for
+the private-ROM evidence.
+
+Next meaningful engineering frontier: consume the first L2-produced
+command queue via native `vf2_sound_board_dispatch_next` with the
+original 68000 drain as a per-packet oracle, then test time-driven
+repeat cycles. The queue/drain, natural event path and full realtime
+audio pipeline remain **unproven** and must not be described as
+a fully working arcade game.
