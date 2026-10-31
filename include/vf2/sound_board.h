@@ -194,19 +194,18 @@ typedef struct vf2_sound_music_b0_07_report {
     uint8_t status_after;
 } vf2_sound_music_b0_07_report;
 
-/* Original Akira packets #13/#14: class 8 fixed trailing 0x7F,
- * then class 0 normal three-byte packet without bit0 retry. */
-typedef struct vf2_sound_music_80_07_report {
+/* Original Akira packets #13/#14: class C, class B. */
+typedef struct vf2_sound_music_c0_b6_report {
     uint32_t stream_before;
     uint32_t a3_after;
     uint16_t cursor_before;
     uint16_t cursor_after;
     uint8_t packet[6];
     uint8_t status_after;
-} vf2_sound_music_80_07_report;
+} vf2_sound_music_c0_b6_report;
 
-/* The first Akira music worker's post-packet duration and
- * stream-pointer commit, just before original 68000 RTS. */
+/* Legacy first-worker-return report. Original continuation after
+ * packet #14 disproved this pre-RTS hypothesis; probe is unsupported. */
 typedef struct vf2_sound_music_first_return_report {
     uint32_t stream_before;
     uint32_t stream_after;
@@ -531,25 +530,74 @@ vf2_status vf2_sound_board_probe_akira_l2_tenth_c(
     vf2_sound_music_c_followup_report *report
 );
 
-/* Original Akira entries #11/#12: B0 0A 40 and 07 FF 40.
+/* Original Akira entries #11/#12: B0 0A 40 and B0 07 7F.
  * Opt-in atomic native micro-step; not a finished L2 timer tick. */
 vf2_status vf2_sound_board_probe_akira_l2_next_b0_07(
     vf2_sound_board *board,
     vf2_sound_music_b0_07_report *report
 );
 
-/* Akira #13/#14, original 80 B6 -> 80 36 7F and
- * 07 F8 0A -> 07 F8 0A. The second clears descriptor bit0.
+/* Akira #13/#14: C0 80 -> C0 00 00, B6 07 F8 -> B6 07 78.
+ * Retry status bit remains set.
  * Explicit diagnostic, not a completed L2 tick. */
-vf2_status vf2_sound_board_probe_akira_l2_next_80_07(
+vf2_status vf2_sound_board_probe_akira_l2_next_c0_b6(
     vf2_sound_board *board,
-    vf2_sound_music_80_07_report *report
+    vf2_sound_music_c0_b6_report *report
 );
 
-/* Finish ONLY the original Akira descriptor's first worker:
- * after the 14th packet at 0x212C, 0x2138..0x2158 commits
- * the next music pointer and a variable-length countdown.
- * Opt-in isolated probe; NOT the full L2 IRQ/scheduler. */
+/* Proven 14-emission Akira prefix ending at the original 68000
+ * shared emitter PC 0x212c. This is NOT a worker return or L2 IRQ.
+ * The descriptor ROM pointer is not committed; the old countdown
+ * is consumed, but no new duration is installed at this boundary.
+ * Original ephemeral A3 is reported but not committed to RAM.
+ * Full-board atomicity: no caller mutation or report on refusal. */
+typedef struct vf2_sound_music_prefix14_report {
+    uint32_t stream_before;
+    uint32_t ephemeral_a3_after;
+    uint16_t cursor_before;
+    uint16_t cursor_after;
+    uint8_t pending_before;
+    uint8_t pending_after;
+    uint8_t status_after;
+    uint8_t packets_emitted;
+} vf2_sound_music_prefix14_report;
+
+vf2_status vf2_sound_board_probe_akira_l2_prefix14(
+    vf2_sound_board *board,
+    vf2_sound_music_prefix14_report *report
+);
+
+/* Owner-ROM measured 15th Akira L2 emission at PC 0x212C:
+ * 0A AC inherits B6, emitting B6 0A 2C. The original A3
+ * becomes 0x61579B but descriptor+4 remains 0x615773.
+ * One bounded emission, NOT a completed worker/IRQ. */
+typedef struct vf2_sound_music_fifteenth_report {
+    uint32_t stream_before;
+    uint32_t a3_after;
+    uint16_t cursor_before;
+    uint16_t cursor_after;
+    uint8_t packet[3];
+    uint8_t status_after;
+} vf2_sound_music_fifteenth_report;
+
+vf2_status vf2_sound_board_probe_akira_l2_fifteenth_b(
+    vf2_sound_board *board,
+    vf2_sound_music_fifteenth_report *report
+);
+
+/* One original Akira descriptor worker: 32 packets to 0x2158 RTS.
+ * Bounded, source-guarded music stream grammar; NOT a full L2 ISR. */
+typedef struct vf2_sound_music_worker32_report {
+    uint32_t stream_before, stream_after, ephemeral_a3_after;
+    uint16_t cursor_before, cursor_after, countdown_after;
+    uint8_t pending_before, pending_after, status_after, packets_emitted;
+} vf2_sound_music_worker32_report;
+
+vf2_status vf2_sound_board_probe_akira_l2_first_worker32(
+    vf2_sound_board *board, vf2_sound_music_worker32_report *report
+);
+
+/* Legacy first-return probe disproved: always UNSUPPORTED. */
 vf2_status vf2_sound_board_probe_akira_l2_first_return(
     vf2_sound_board *board,
     vf2_sound_music_first_return_report *report
