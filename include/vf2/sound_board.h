@@ -545,6 +545,27 @@ vf2_status vf2_sound_board_probe_akira_l2_next_c0_b6(
     vf2_sound_music_c0_b6_report *report
 );
 
+/* Proven 14-emission Akira prefix ending at the original 68000
+ * shared emitter PC 0x212c. This is NOT a worker return or L2 IRQ.
+ * The descriptor ROM pointer and countdown remain unchanged; the
+ * original ephemeral A3 is reported but not committed to RAM.
+ * Full-board atomicity: no caller mutation or report on refusal. */
+typedef struct vf2_sound_music_prefix14_report {
+    uint32_t stream_before;
+    uint32_t ephemeral_a3_after;
+    uint16_t cursor_before;
+    uint16_t cursor_after;
+    uint8_t pending_before;
+    uint8_t pending_after;
+    uint8_t status_after;
+    uint8_t packets_emitted;
+} vf2_sound_music_prefix14_report;
+
+vf2_status vf2_sound_board_probe_akira_l2_prefix14(
+    vf2_sound_board *board,
+    vf2_sound_music_prefix14_report *report
+);
+
 /* Legacy first-return probe disproved: always UNSUPPORTED. */
 vf2_status vf2_sound_board_probe_akira_l2_first_return(
     vf2_sound_board *board,
