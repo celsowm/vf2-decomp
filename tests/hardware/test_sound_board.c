@@ -772,6 +772,138 @@ static void test_akira_next_b0_07_native(void)
                 board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+3u]==0x94u);
 }
 
+/* Complete recovered Akira prefix through original emitter PC 0x212C:
+ * one native call must equal the eight independent bounded probes.
+ * Refusal at packet #14 must not emit even packet #1 on the caller.
+ * The write pointer, count, fourth ring bytes and full board matter. */
+static void test_akira_prefix14_atomic(void)
+{
+    static vf2_sound_board board;
+    static vf2_sound_board seed;
+    static vf2_sound_board sequential;
+    static vf2_sound_board before;
+    static uint8_t rom[0x16000u];
+    static const uint8_t sample[2] = {0u, 0u};
+    static const uint8_t source[39] = {
+        0xbeu,0x50u,0xfeu,0xbeu,0x20u,0x80u,
+        0xbeu,0x10u,0x72u,0x00u,
+        0x9fu,0x48u,0xf7u,0x9fu,0x2eu,0xc0u,
+        0x9fu,0x33u,0xffu,
+        0xc1u,0x81u,0x9fu,0x2bu,0xeeu,0xc3u,0x82u,
+        0xc8u,0x8du,
+        0xb0u,0x0au,0xc0u,0x07u,0xffu,0xc0u,
+        0x80u,0xb6u,0x07u,0xf8u,0x0au
+    };
+    static const uint8_t packets[42] = {
+        0xbeu,0x50u,0x7eu,0xbeu,0x20u,0x00u,
+        0xbeu,0x10u,0x72u,0x9fu,0x48u,0x77u,
+        0x9fu,0x2eu,0x40u,0x9fu,0x33u,0x7fu,
+        0xc1u,0x01u,0x00u,0x9fu,0x2bu,0x6eu,
+        0xc3u,0x02u,0x00u,0xc8u,0x0du,0x00u,
+        0xb0u,0x0au,0x40u,0xb0u,0x07u,0x7fu,
+        0xc0u,0x00u,0x00u,0xb6u,0x07u,0x78u
+    };
+    const size_t at = UINT32_C(0x615773) - VF2_SOUND_AUDIO_ROM_BASE;
+    vf2_sound_music_prefix_report first;
+    vf2_sound_music_followup_report two_b;
+    vf2_sound_music_9f_report first_9f;
+    vf2_sound_music_9f_pair_report two_9f;
+    vf2_sound_music_mixed_report mixed;
+    vf2_sound_music_c_followup_report tenth;
+    vf2_sound_music_b0_07_report next_b0;
+    vf2_sound_music_c0_b6_report last;
+    vf2_sound_music_prefix14_report report;
+    uint8_t *d;
+    size_t i;
+    size_t pass;
+
+    test_boot_rom(rom);
+    memcpy(rom + at, source, sizeof(source));
+    EXPECT_TRUE(vf2_sound_board_initialize(
+        &seed, rom, sizeof(rom), sample, sizeof(sample)) == VF2_OK);
+    d = seed.sound_ram + VF2_SOUND_DESCRIPTOR_BASE;
+    memset(d, 0, VF2_SOUND_STREAM_DESCRIPTOR_BYTES);
+    d[0] = 0x88u; d[3] = 1u;
+    d[5] = 0x61u; d[6] = 0x57u; d[7] = 0x73u;
+    d[9] = 0x60u; d[10] = 0x9cu; d[11] = 0x3eu;
+
+    for (pass = 0u; pass < 2u; ++pass) {
+        const uint16_t start = pass == 0u ? 0u : UINT16_C(0x0ffc);
+        memcpy(&board, &seed, sizeof(board));
+        board.sound_ram[VF2_SOUND_COMMAND_WRITE_CURSOR] =
+            (uint8_t)(start >> 8u);
+        board.sound_ram[VF2_SOUND_COMMAND_WRITE_CURSOR + 1u] =
+            (uint8_t)start;
+        for (i = 0u; i < 14u; ++i) {
+            const uint16_t slot = (uint16_t)((start + 4u*i) & 0x0fffu);
+            board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + slot + 3u] =
+                (uint8_t)(0x40u + i);
+        }
+        memcpy(&sequential, &board, sizeof(board));
+        EXPECT_TRUE(vf2_sound_board_probe_akira_l2_prefix14(
+            &board, &report) == VF2_OK);
+        EXPECT_TRUE(report.stream_before == UINT32_C(0x615773) &&
+                    report.ephemeral_a3_after == UINT32_C(0x615799) &&
+                    report.cursor_before == start &&
+                    report.cursor_after ==
+                        (uint16_t)((start + 56u) & 0x0fffu) &&
+                    report.pending_before == 0u &&
+                    report.pending_after == 14u &&
+                    report.status_after == 0x89u &&
+                    report.packets_emitted == 14u);
+        EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_b(
+            &sequential, &first) == VF2_OK);
+        EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_two_b(
+            &sequential, &two_b) == VF2_OK);
+        EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_9f(
+            &sequential, &first_9f) == VF2_OK);
+        EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_two_9f(
+            &sequential, &two_9f) == VF2_OK);
+        EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_mixed_c(
+            &sequential, &mixed) == VF2_OK);
+        EXPECT_TRUE(vf2_sound_board_probe_akira_l2_tenth_c(
+            &sequential, &tenth) == VF2_OK);
+        EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_b0_07(
+            &sequential, &next_b0) == VF2_OK);
+        EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_c0_b6(
+            &sequential, &last) == VF2_OK);
+        EXPECT_TRUE(memcmp(&board, &sequential, sizeof(board)) == 0);
+        for (i = 0u; i < 14u; ++i) {
+            const uint16_t slot = (uint16_t)((start + 4u*i) & 0x0fffu);
+            EXPECT_TRUE(memcmp(
+                board.sound_ram + VF2_SOUND_COMMAND_RING_BASE + slot,
+                packets + 3u*i, 3u) == 0);
+            EXPECT_TRUE(board.sound_ram[
+                VF2_SOUND_COMMAND_RING_BASE + slot + 3u] ==
+                (uint8_t)(0x40u + i));
+        }
+        EXPECT_TRUE(board.sound_ram[VF2_SOUND_DESCRIPTOR_BASE + 7u] ==
+                    0x73u &&
+                    board.sound_ram[VF2_SOUND_DESCRIPTOR_BASE + 2u] == 0u);
+        /* Late corrupted source: all fourteen native emissions must
+         * roll back, preserving both caller board and output report. */
+        memcpy(&board, &seed, sizeof(board));
+        rom[at + 38u] = 0x0bu;
+        memcpy(&before, &board, sizeof(board));
+        memset(&report, 0x5au, sizeof(report));
+        EXPECT_TRUE(vf2_sound_board_probe_akira_l2_prefix14(
+            &board, &report) == VF2_ERROR_UNSUPPORTED);
+        EXPECT_TRUE(memcmp(&board, &before, sizeof(board)) == 0);
+        EXPECT_TRUE(report.packets_emitted == UINT8_C(0x5a));
+        rom[at + 38u] = 0x0au;
+    }
+    memcpy(&board, &seed, sizeof(board));
+    board.sound_ram[VF2_SOUND_COMMAND_COUNT] = 242u;
+    memcpy(&before, &board, sizeof(board));
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_prefix14(
+        &board, &report) == VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(memcmp(&board, &before, sizeof(board)) == 0);
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_prefix14(
+        NULL, &report) == VF2_ERROR_INVALID_ARGUMENT);
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_prefix14(
+        &board, NULL) == VF2_ERROR_INVALID_ARGUMENT);
+}
+
 /* Original #13/#14 are class C0 and B6, not class 8 and class 0.
  * The continuation bit remains set (descriptor status 0x89). */
 static void test_akira_next_c0_b6_native(void)
@@ -4184,6 +4316,7 @@ int main(void)
     test_pcm_stream_page_native();
     test_render_first_tone();
     test_akira_first_worker_return();
+    test_akira_prefix14_atomic();
     test_akira_next_c0_b6_native();
     test_akira_next_b0_07_native();
     test_akira_tenth_c_original_prefix();
