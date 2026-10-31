@@ -534,3 +534,68 @@ python tools/python/test_audio_akira_pair_gate.py -v
 No owner-ROM execution of this **new combined gate** took place
 in public CI. The historical 10-second stored-file equality remains
 a fact about the artifacts, not a substituted fresh-run result.
+
+## v0957 — first real original-ROM differential beyond packet 14
+
+**31 October 2026, owner-ROM execution performed in the isolated local
+working environment** using `vf2(20261018-203049).zip` from the
+owner's file library. The sound ROM `epr-17574.30` SHA-1 was
+independently checked:
+`b6c0c3f0473bd7fc3ef4f5146110dfcc899a5af9`.
+No private ROM was sent to GitHub or checked into the repo.
+
+The PR #126-built `vf2_m68k_cdispatch_tests` opt-in command
+`--probe-akira-continuation` first proved full original-vs-C parity
+of the **fourteenth** packet at PC `0x212C` (RAM=1, SCSP=1).
+From there, resuming the **same genuine Motorola 68000 interpreter**
+executed **34 original instructions** to the **fifteenth**
+shared-emitter visit: packet **`B6 0A 2C`**, source A3
+`0x61579B`, ring count 15, write cursor 60, descriptor
+status `0x89`, original duration 0, descriptor+4 still
+`0x615773`. The route leaves `0x212C` for
+`0x2130 → 0x2136 → 0x1F96`; original class B handler
+`0x1FFC` inherits the preceding B6 opcode for source
+`0A AC`. The earlier first-worker-return hypothesis
+is still **disproved**.
+
+The independent new native probe
+`vf2_sound_board_probe_akira_l2_fifteenth_b` admits
+**only** this observed source/descriptor/ring history and
+writes the three pending FIFO bytes while preserving its
+fourth metadata byte. Reported ephemeral A3 does not
+overwrite descriptor+4; packet 16 and any complete L2
+worker return remain unsupported.
+
+**Stronger test: actual-ROM C-vs-68000 full-state differential.**
+The `vf2_m68k_akira15_tests` binary was compiled in GitHub
+Actions, downloaded independently, then executed against the
+verified private ROM **without modifying it**. The owner-ROM run
+exited 0 with the following result:
+
+```text
+AKIRA_15_ORIGINAL_DIFF PASS pc=0212c a3=61579b steps=472 packets=15 fifo_cursor=60 sr_events=29 ram=1 scsp=1
+```
+
+The **full 512 KiB sound-RAM image** and entire modeled SCSP
+state match the C implementation at the 15th instruction
+boundary, not just a guessed packet tuple. The same executable
+also passed its ROM-free synthetic fixture in release build.
+Initial ASan/UBSan caught undefined intermediate pointer
+arithmetic in the synthetic test's source placement; that
+fixture expression was corrected by grouping the sound-ROM
+offset subtraction **before** adding to the fake array.
+The new corrected CI run is the follow-up sanitizer gate,
+not a substitute for the owner-ROM differential.
+
+Reproduce locally (never upload private inputs or generated PCM):
+
+```sh
+build/vf2_m68k_akira15_tests --rom-free
+build/vf2_m68k_akira15_tests /private/vf2
+```
+
+This closes the *isolated fifteenth-packet boundary only*.
+Production `vf2_sound_board_maintain_streams` is unchanged
+and fails closed for the incomplete music interpreter. Before
+connecting it, further original-PC packets and a real
+worker return / stream-pointer commit must be measured.
