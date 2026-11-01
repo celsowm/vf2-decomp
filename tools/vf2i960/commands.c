@@ -10134,18 +10134,31 @@ static int command_geo_fighter(
         if (oba & 0x01000000u) { pbuf = ram1; psize = 0x20000u; rec = (oba & 0x7fffu) * 4u; is_rom = 0; }
         else if (oba & 0x00800000u) { pbuf = poly; psize = poly_size; rec = (oba & 0x7fffffu) * 4u; is_rom = 1; }
         else { pbuf = ram0; psize = 0x20000u; rec = (oba & 0x7fffu) * 4u; is_rom = 0; }
-        if (is_rom && (rec == 0x581d50u || rec == 0x1a9b54u)) continue;  /* bad */
+        /* rec 581d50 / 1a9b54 are the stone-towers arena floor + its centre pad; they
+         * are excluded from the fighter export (they skew that path and are not wanted
+         * there) but ARE the stage-0 arena floor the fighters stand on, so keep them for
+         * geo-stage. They are still barred from the mdec camera search above either way. */
+        if (is_rom && !stage_mode && (rec == 0x581d50u || rec == 0x1a9b54u)) continue;
         if (gs_flatness(objs[s].matrix) < GS_SHADOW_EPS) continue;       /* shadow */
         if (stage_mode) {
             /* geo-stage: KEEP the decor set = ROM objects carrying the shared camera
              * matrix (the fighters' per-limb matrices differ), the inverse of the
              * fighter filter, deduped by record. Matrix-based so it works on any
              * stage, not just the stone-towers record range. */
-            size_t q; int seen = 0, kk; double d = 0.0;
+            size_t q; int seen = 0, kk; double d = 0.0, dt;
             if (!is_rom) continue;
             for (kk = 0; kk < 12; ++kk)
                 d += fabs((double)objs[s].matrix[kk] - (double)mdec[kk]);
-            if (d >= 1e-3) continue;   /* not a shared-matrix (decor) object */
+            /* The arena floor the fighters stand on (stage-4 rec 12ce78, X[-8,8] Z[-8,8])
+             * is posed at the camera POSITION but with its own 3x3, so the full-matrix
+             * decor test (d<1e-3) drops it and the arena centre comes out a hole. Also
+             * keep an object that shares the decor TRANSLATION: the decor and the arena
+             * floor sit at the camera origin, while each fighter limb and its shadow sit
+             * at the fighters' own translations, so translation alone separates them. */
+            dt = fabs((double)objs[s].matrix[9]  - (double)mdec[9])
+               + fabs((double)objs[s].matrix[10] - (double)mdec[10])
+               + fabs((double)objs[s].matrix[11] - (double)mdec[11]);
+            if (d >= 1e-3 && dt >= 0.05) continue;
             for (q = 0u; q < ncand; ++q) if (cand_rec[q] == rec) { seen = 1; break; }
             if (seen) continue;
             goto emit_cand;
