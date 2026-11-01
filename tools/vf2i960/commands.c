@@ -7932,13 +7932,20 @@ static size_t ext_emit_poly(
         }
     }
     if (obj != NULL) {
+        /* Model 2's world frame is left-handed; OBJ and Blender are right-handed, so a
+         * verbatim copy comes out mirrored left/right (the whole scene -- the stage-4
+         * banner read "负胜斗决" and the Great Wall ran the wrong way through the gate).
+         * Convert handedness here, for every emitted OBJ (stage and fighter alike):
+         * reflect across X (negate the X coordinate) and reverse the face winding so the
+         * reflected geometry keeps its outward normals. The winding was already oriented to
+         * the model normal above; reversing it after the reflection preserves that. */
         for (i = 0u; i < numv; ++i)
             fprintf(obj, "v %.6f %.6f %.6f\n",
-                    (double)tv[ord[i]].x, (double)tv[ord[i]].y, (double)tv[ord[i]].z);
+                    (double)(-tv[ord[i]].x), (double)tv[ord[i]].y, (double)tv[ord[i]].z);
         for (i = 0u; i < numv; ++i)
             fprintf(obj, "vt %.6f %.6f\n", (double)puv[ord[i]][0], (double)puv[ord[i]][1]);
         fprintf(obj, "f");
-        for (i = 0u; i < numv; ++i)
+        for (i = numv; i-- > 0u; )
             fprintf(obj, " %zu/%zu", n + i, n + i);
         fprintf(obj, "\n");
     }
