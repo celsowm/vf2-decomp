@@ -8105,27 +8105,46 @@ static size_t ext_emit_piece(
             if (wq > 0.0f) offu = (float)floor((double)minu / (double)wq) * wq;
             if (hq > 0.0f) offv = (float)floor((double)minv / (double)hq) * hq;
             for (vtx = 0u; vtx < numv; ++vtx) {
-                uv[vtx][0] = ((float)hd.tex_x + (tu4[vtx] - offu)) / 2048.0f;
-                uv[vtx][1] = 1.0f - ((float)hd.tex_y + (tv4[vtx] - offv)) / 1024.0f;
+                float cu = tu4[vtx] - offu, cv = tv4[vtx] - offv;
+                /* Stage decor (tiles != NULL): keep a non-tiled polygon's sample inside
+                 * the one baked copy of the tile. offu/offv put the minimum on [0,size),
+                 * so only the maximum can reach the far edge (texel `size`, which the bake
+                 * -- filling 0..size-1 -- leaves blank): clamp it half a texel short so the
+                 * edge vertex reads the last baked texel, not the gap past it. A genuine
+                 * repeat (max still beyond the tile here) was already sent to the tile path
+                 * above and does not reach this clamp. Fighters pass NULL: unchanged. */
+                if (tiles != NULL) {
+                    if (wq > 0.0f && cu > wq - 0.5f) cu = wq - 0.5f;
+                    if (hq > 0.0f && cv > hq - 0.5f) cv = hq - 0.5f;
+                }
+                uv[vtx][0] = ((float)hd.tex_x + cu) / 2048.0f;
+                uv[vtx][1] = 1.0f - ((float)hd.tex_y + cv) / 1024.0f;
             }
             /* A polygon whose UV span exceeds its tile samples the texture REPEATED
              * (floor paving especially). The atlas holds one copy of the tile, so
              * the wrapped UVs run off it into blank atlas -> a grey floor. Mark it
              * so it is emitted against a standalone repeat-wrapped tile image with
              * UVs in tile units instead (tiled[]), not baked into the atlas.
-             * A TRANSLUCENT polygon is never tiled: a sign/decal with a big texture
-             * spread over several tile cells, or whose UVs reach a little past one
-             * cell, is a single decal, not a repeated motif -- tiling it wrapped the
-             * texture and stamped the sign several times across the wall (the "three
-             * 对手 bands"). Only opaque repeated motifs (floor paving, brick walls)
-             * take the tile path; decals stay on the atlas and keep their decal lift. */
+             * The trigger is that the offset-aligned UV range runs PAST one tile
+             * (mxu-offu > wq, mxv-offv > hq): offu/offv bring the minimum onto the tile
+             * [0,size), so any polygon whose maximum still exceeds the tile wraps onto a
+             * second copy the atlas does not hold -- both the obvious multi-repeat floors
+             * and the polygons that merely STRADDLE a tile boundary (span < one tile but
+             * sitting across the seam, e.g. recovered arena-pit floor rec59afe0/rec59b2e0
+             * whose un-wrapped half baked as blank/black). A span threshold missed the
+             * straddlers; this covers them. The criterion is wrapping, not opacity: a
+             * polygon is tiled only when it samples past one copy of the texture, so a
+             * decal that stays within its texture (the arena sign, whose UVs never exceed
+             * its cell) is never tiled regardless of its span, while a translucent
+             * surface that genuinely wraps (the pit floor's rend=3 straddlers) is tiled
+             * so it bakes instead of running off the atlas. A tiled polygon still gets
+             * its translucent decal lift (applied later, independent of the tile path). */
             {
                 float mxu = tu4[0], mxv = tv4[0]; uint32_t z;
-                int tl_translu = (int)(hd.renderer & 1u);
                 for (z = 1u; z < numv; ++z) { if (tu4[z] > mxu) mxu = tu4[z]; if (tv4[z] > mxv) mxv = tv4[z]; }
-                poly_tiled = (tiles != NULL && ntiles != NULL && !tl_translu &&
-                              ((wq > 0.0f && (mxu - minu) > 1.5f * wq) ||
-                               (hq > 0.0f && (mxv - minv) > 1.5f * hq)));
+                poly_tiled = (tiles != NULL && ntiles != NULL &&
+                              ((wq > 0.0f && (mxu - offu) > wq + 2.0f) ||
+                               (hq > 0.0f && (mxv - offv) > hq + 2.0f)));
                 if (poly_tiled) {
                     size_t ti;
                     for (vtx = 0u; vtx < numv; ++vtx) {
@@ -9878,7 +9897,7 @@ static int command_geo_fighter(
     uint8_t gf_diff[32], gf_amb[32], gf_sscale[32], gf_sctrl[32];
     uint32_t gf_mode = 0u;
     uint32_t used_spec[2] = { 0u, 0u };  /* per sheet, bit tpi set = chrome material used */
-    gf_tile gf_tiles[64]; size_t ngf_tiles = 0u;  /* repeat-UV tiles emitted as standalone images */
+    gf_tile gf_tiles[64]; size_t ngf_tiles = 0u;   /* repeat-UV tiles emitted as standalone images */
     int gf_tile_hasalpha[64];                      /* per tile: 1 if it has a transparent texel */
     size_t cap_objs = 0u;                /* candidate-array capacity (nobjs, + room for --from-rom) */
     int *is_recovered = NULL;            /* per candidate: 1 = added from ROM (not in the capture) */
