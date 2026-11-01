@@ -7,16 +7,26 @@ This happens between captured objects of one frame (seen already in the single-f
 stage_NN export) and, in the from-ROM stage_NN_full, between recovered and captured
 decor that lie on the same plane.
 
-Fix (kazuyette's rule): where faces are coplanar, the object drawn FIRST in the display
+Fix (kazuyette's rule): where faces are coplanar, the face drawn FIRST in the display
 list is pushed BACK (behind the later one), mirroring MAME's painter order; and a
 recovered object (_rom_) always goes behind a captured one (_cap_). The front-most face
 in each coplanar group stays put; the others are nudged a hair along -normal so the
 intended face wins the depth test. The geometriser emits every face with its own
 vertices (no sharing), so a per-face nudge never tears the mesh.
 
-Only coplanar groups spanning two or more DISTINCT objects are touched; a single
-object's own coplanar faces are left exactly as drawn. Fighters are never run through
-this (stage tool only), so character OBJs stay byte-identical.
+Two kinds of coplanar conflict are resolved:
+  - BETWEEN distinct objects whose in-plane boxes touch or overlap (a seam, or a decor
+    object lying on another's plane) -- the object drawn later, or the captured one over
+    a recovered one, stays in front;
+  - WITHIN a single object, a face that AREA-overlaps an earlier-drawn face of the same
+    object is a decal painted onto that base (a sign on its wall, a plaque on a beam) --
+    the decal is lifted a hair TOWARD THE ORIGIN (the arena interior, hence toward the
+    viewer) so it wins the depth test. This is what keeps the stage-4 Great Wall banner
+    from z-fighting the brick header it is painted onto. Abutting tiles of one object
+    share only an edge (no area), so a tiled floor is left exactly as drawn.
+
+Fighters are never run through this (stage tool only), so character OBJs stay
+byte-identical.
 
 Usage: python geo_stage_depthbias.py <stage.obj>   (rewrites in place)
        or import and call depth_bias(obj_path).
@@ -34,6 +44,9 @@ GAP = 0.5           # two coplanar faces conflict when their in-plane boxes are 
                     # gap (touching/abutting -> a seam z-fight, or overlapping). Faces far
                     # apart on the same plane (the central slab vs wall-base trim) are left
                     # alone, so the slab keeps its height instead of being sunk.
+OVM = 0.05          # intra-object: a later face must overlap the base by this much in-plane
+                    # AREA to count as a decal on it. Abutting tiles (shared edge, zero
+                    # area) stay below it and are never nudged.
 
 
 def _face_normal(vs):
@@ -82,7 +95,7 @@ def depth_bias(path):
             bb = (min(v[ax[0]] for v in vs), max(v[ax[0]] for v in vs),
                   min(v[ax[1]] for v in vs), max(v[ax[1]] for v in vs))
             faces.append({"idx": idx, "obj": cur_obj, "kind": cur_kind,
-                          "n": n, "d": d, "pos": pos, "bb": bb})
+                          "n": n, "d": d, "pos": pos, "bb": bb, "fi": len(faces)})
 
     # bucket faces by quantised plane (orient normal to a canonical hemisphere for the key)
     buckets = {}
@@ -106,41 +119,78 @@ def depth_bias(path):
         return (min(ba[1], bb[1]) - max(ba[0], bb[0]) > -GAP and
                 min(ba[3], bb[3]) - max(ba[2], bb[2]) > -GAP)
 
+    def area_overlap(ba, bb):   # real in-plane AREA intersection (abutting tiles excluded)
+        return (min(ba[1], bb[1]) - max(ba[0], bb[0]) > OVM and
+                min(ba[3], bb[3]) - max(ba[2], bb[2]) > OVM)
+
     akind = {}
     for f in faces:
         akind.setdefault(f["obj"], 1 if f["kind"] == "cap" else 0)
 
-    off = [(0.0, 0.0, 0.0)] * len(verts)
-    nudged = 0
+    # Coplanar depth levels: within a coarse bucket, only faces at the SAME depth (within
+    # TIE) actually z-fight. Collect every level across all buckets so the two passes below
+    # can see a base and the decal painted on it together.
+    all_levels = []
     for key, grp in buckets.items():
-        # Within a coarse coplanar bucket, only faces at the SAME depth (within TIE) and
-        # that actually OVERLAP in-plane z-fight. A face is pushed back one layer per
-        # distinct front-er object whose face overlaps it here; the front-most overlapping
-        # face stays put. A face with no front-er overlapper is never moved -- so the
-        # central stone slab (no floor piece drawn later sits on top of it) keeps its
-        # height, two floor tiles that merely abut (no area overlap) are left tiling, and
-        # a lifted decal (a higher depth level than its wall) always stays in front.
         levels = {}
         for f in grp:
             levels.setdefault(round(f["pos"] / TIE), []).append(f)
-        for lv, lgrp in levels.items():
-            if len(set(f["obj"] for f in lgrp)) < 2:
+        all_levels.extend(levels.values())
+
+    fo = [0.0] * len(faces)   # per-face signed nudge, measured along the face's own +normal
+
+    # Pass A -- BETWEEN objects (historical rule, unchanged): push a base back along
+    # -normal, one layer per distinct front-er object whose in-plane box overlaps it. The
+    # front-most overlapping face stays put; a face with no front-er overlapper is never
+    # moved, so the central stone slab keeps its height and merely-abutting floor tiles are
+    # left tiling. Only groups spanning two or more objects take part.
+    for lgrp in all_levels:
+        if len(set(f["obj"] for f in lgrp)) < 2:
+            continue
+        for f in lgrp:
+            front_objs = set()
+            for g in lgrp:
+                if g["obj"] != f["obj"] and fronter(g["obj"], f["obj"]) \
+                        and overlap2d(f["bb"], g["bb"]):
+                    front_objs.add(g["obj"])
+            if front_objs:
+                fo[f["fi"]] += -EPS * len(front_objs)
+
+    # Pass B -- WITHIN an object: a face that AREA-overlaps an earlier-drawn face of the
+    # same object is a decal painted onto that base (the banner glyph on its brick header),
+    # and must sit in front of it. The geometriser does not wind decor faces to a consistent
+    # side, so moving the base along +-normal is not reliably "away from the viewer" (and
+    # pulls in the abutting-record seam Pass A leaves between the banner's two halves).
+    # Instead lift the decal itself TOWARD THE ORIGIN -- the arena interior, hence the
+    # viewer, since the stages are feet-centred with decal walls facing in -- to just in
+    # front of the base's *committed* position. Reading Pass A's result and walking the
+    # level in paint order makes the decal clear its base even when Pass A moved the base,
+    # and stacks a decal-on-decal correctly; it is symmetric for both banner halves and
+    # works for floors (viewer above) and ceilings (viewer below) alike.
+    for lgrp in all_levels:
+        for f in sorted(lgrp, key=lambda g: g["fi"]):
+            bases = [g for g in lgrp if g["obj"] == f["obj"] and g["fi"] < f["fi"]
+                     and area_overlap(f["bb"], g["bb"])]
+            if not bases:
                 continue
-            for f in lgrp:
-                front_objs = set()
-                for g in lgrp:
-                    if g["obj"] != f["obj"] and fronter(g["obj"], f["obj"]) \
-                            and overlap2d(f["bb"], g["bb"]):
-                        front_objs.add(g["obj"])
-                L = len(front_objs)
-                if L == 0:
-                    continue
-                n = f["n"]                # push back along this face's own outward normal
-                dx, dy, dz = -EPS * L * n[0], -EPS * L * n[1], -EPS * L * n[2]
-                for i in f["idx"]:
-                    ox, oy, oz = off[i]
-                    off[i] = (ox + dx, oy + dy, oz + dz)
-                nudged += 1
+            t = -1.0 if f["pos"] > 0.0 else 1.0        # +n side that points toward origin
+            need = max(t * fo[g["fi"]] for g in bases) + EPS
+            if t * fo[f["fi"]] < need:
+                fo[f["fi"]] = need * t
+
+    # apply each face's along-normal nudge to its own vertices (faces never share vertices)
+    off = [(0.0, 0.0, 0.0)] * len(verts)
+    nudged = 0
+    for f in faces:
+        s = fo[f["fi"]]
+        if s == 0.0:
+            continue
+        n = f["n"]
+        dx, dy, dz = s * n[0], s * n[1], s * n[2]
+        for i in f["idx"]:
+            ox, oy, oz = off[i]
+            off[i] = (ox + dx, oy + dy, oz + dz)
+        nudged += 1
 
     # rewrite the v lines that moved
     for k, (dx, dy, dz) in enumerate(off):
@@ -154,4 +204,4 @@ def depth_bias(path):
 
 if __name__ == "__main__":
     n, tot = depth_bias(sys.argv[1])
-    print("  depth-bias: nudged %d / %d faces in coplanar multi-object groups" % (n, tot))
+    print("  depth-bias: nudged %d / %d faces in coplanar groups" % (n, tot))
