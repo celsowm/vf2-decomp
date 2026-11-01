@@ -7968,7 +7968,6 @@ static const float ext_up_normal[3] = { 0.0f, 1.0f, 0.0f };
  * every path (including the repeat-tile path) drops link-0 polys. emitted must be 0. */
 static unsigned long ext_link0_seen = 0ul;
 static unsigned long ext_link0_emitted = 0ul;
-static unsigned long ext_mirror_polys = 0ul;   /* stage polys whose texheader mirror bit flipped the UVs */
 
 static size_t ext_emit_piece(
     FILE *obj,
@@ -8088,17 +8087,11 @@ static size_t ext_emit_piece(
                 uint16_t pu = tl_u16(tex, tex_size, uv_ptr + vtx * 2u + 1u);
                 tu4[vtx] = vf2_texture_uv_texels(pu);
                 tv4[vtx] = vf2_texture_uv_texels(pv);
-                /* Texheader mirror bits (th0 bit 8/9): the hardware samples the tile
-                 * flipped on that axis, so a stage sign stored backwards reads correctly
-                 * (the arena banners "棋逢对手"/"决斗胜负"). The atlas bakes the texels
-                 * un-flipped, so flip the UV within the tile to match. Only applied for
-                 * stage decor (tiles != NULL); fighters pass NULL, so their OBJs stay
-                 * byte-identical. */
-                if (tiles != NULL && (hd.mirror_x || hd.mirror_y)) {
-                    if (hd.mirror_x) tu4[vtx] = wq - tu4[vtx];
-                    if (hd.mirror_y) tv4[vtx] = hq - tv4[vtx];
-                    if (vtx == 0u) ++ext_mirror_polys;
-                }
+                /* texheader mirror bits (th0 8/9) are a wrap MODE (mirror-repeat vs
+                 * repeat past the tile edge), not a whole-texture flip; the validated
+                 * MAME scene render ignores them, so the atlas/UV path does too. An
+                 * earlier flip here (Step 5i) wrongly mirrored every sign that set the
+                 * bit and is reverted. */
                 if (vtx == 0u || tu4[vtx] < minu) minu = tu4[vtx];
                 if (vtx == 0u || tv4[vtx] < minv) minv = tv4[vtx];
             }
@@ -8141,15 +8134,26 @@ static size_t ext_emit_piece(
              * its translucent decal lift (applied later, independent of the tile path). */
             {
                 float mxu = tu4[0], mxv = tv4[0]; uint32_t z;
+                int exu, exv;
                 for (z = 1u; z < numv; ++z) { if (tu4[z] > mxu) mxu = tu4[z]; if (tv4[z] > mxv) mxv = tv4[z]; }
+                /* Tile (REPEAT) an axis only where the texture actually repeats -- its
+                 * wrap bit (th0 6/7) is set -- and its UV runs past one copy. A sign is a
+                 * linear texture that repeats in at most one axis, so REPEAT-ing the other
+                 * axis sheared its text (the front banner's right half "对手" wrapped onto
+                 * the left). An axis that overruns without wrapping is clamped into the one
+                 * baked copy below instead. */
+                exu = (wq > 0.0f && (mxu - offu) > wq + 2.0f);
+                exv = (hq > 0.0f && (mxv - offv) > hq + 2.0f);
                 poly_tiled = (tiles != NULL && ntiles != NULL &&
-                              ((wq > 0.0f && (mxu - offu) > wq + 2.0f) ||
-                               (hq > 0.0f && (mxv - offv) > hq + 2.0f)));
+                              ((exu && hd.wrap_x) || (exv && hd.wrap_y)));
                 if (poly_tiled) {
                     size_t ti;
                     for (vtx = 0u; vtx < numv; ++vtx) {
-                        uv[vtx][0] = (wq > 0.0f) ? tu4[vtx] / wq : 0.0f;
-                        uv[vtx][1] = (hq > 0.0f) ? 1.0f - tv4[vtx] / hq : 0.0f;
+                        float tcu = tu4[vtx], tcv = tv4[vtx];
+                        if (!hd.wrap_x && wq > 0.0f && tcu > wq - 0.5f) tcu = wq - 0.5f;
+                        if (!hd.wrap_y && hq > 0.0f && tcv > hq - 0.5f) tcv = hq - 0.5f;
+                        uv[vtx][0] = (wq > 0.0f) ? tcu / wq : 0.0f;
+                        uv[vtx][1] = (hq > 0.0f) ? 1.0f - tcv / hq : 0.0f;
                     }
                     for (ti = 0u; ti < *ntiles; ++ti)
                         if (tiles[ti].sheet == (uint16_t)hd.sheet &&
@@ -10451,7 +10455,7 @@ stage_selected:
                  "feet-centred. %zu pieces. Local only, never committed.\n",
             base, pose, nsel);
     fprintf(obj, "mtllib %s.mtl\n", base);
-    ext_link0_seen = 0ul; ext_link0_emitted = 0ul; ext_mirror_polys = 0ul;
+    ext_link0_seen = 0ul; ext_link0_emitted = 0ul;
     for (k = 0u; k < nsel; ++k) {
         size_t idx = sel[k];
         size_t tris = 0u;
@@ -10487,8 +10491,8 @@ stage_selected:
         tris_total += tris;
     }
     if (stage_mode)
-        fprintf(stderr, "  link-0 polys: seen=%lu emitted=%lu (must be 0); mirrored UV polys: %lu\n",
-                ext_link0_seen, ext_link0_emitted, ext_mirror_polys);
+        fprintf(stderr, "  link-0 polys: seen=%lu emitted=%lu (must be 0)\n",
+                ext_link0_seen, ext_link0_emitted);
     if (colour) {
         size_t t;
         snprintf(path, sizeof(path), "%s/%s_tex0.png", out_dir, base);
