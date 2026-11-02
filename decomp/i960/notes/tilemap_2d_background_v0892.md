@@ -82,6 +82,26 @@ green mountains through the gate and above the wall, the wall correctly in front
 `stage_04/screen.png`. The depth auto-adapts per stage (e.g. `stage_10` 137.8 vs
 `stage_10_full` 281.4). bg_plane files are snapshots too, never committed.
 
+`--blender` writes `blender_scene.py` next to `<out.png>`: the stage OBJ carries no camera, so
+in Blender's free viewport the backdrop looks wrong and (lit) washed out. The script restores
+the game view. Run it in the Scripting tab (open from disk, Run) or headless
+(`blender -b -P blender_scene.py -f 1`). It imports stage.obj + bg_plane.obj **forward -Z /
+up Y** (the manual-import axes), builds camera **VF2_GameCam**, sets 496x384 + Standard view
+transform, and rebuilds every material as **unlit Emission** (texture Color -> Emission, texture
+Alpha -> transparency mix) so the baked stage textures and the flat backdrop show as-is.
+
+**Axis mapping [MEASURED in Blender 5.2].** The forward -Z / up Y OBJ import maps OBJ `(x,y,z)`
+-> Blender `(x, -z, y)` (NOT `(-x, z, y)`). So the placement camera -- OBJ `(0,6,-11)` looking
++Z, up +Y -- becomes in Blender: location `(0, 11, 6)`, **looking -Y, up +Z** (rotation built
+from an explicit basis matrix, not guessed Euler angles); OBJ +X stays screen-left. Getting the
+sign wrong points the camera away from the decor (only the near floor renders, the wall and
+backdrop fall behind the camera -> black). Lens from `scale=430` over the **640-px reference**
+raster (render_persp_bl's raster), sensor 36 mm -> 24.19 mm. This reproduces screen.png's content
+(mountains + white tower through the gate, wall in front); it is a touch wider than the in-game
+crop -- the game camera is tighter than scale=430 -- so fine-tune VF2_GameCam's lens/position in
+Blender for an exact crop. EEVEE's depth test occludes the backdrop correctly (z-buffer, not
+painter). The generated .py and any render it writes are local snapshots, never committed.
+
 ## Status
 
 All 11 stages captured (`snap/bg_stage_00` .. `bg_stage_10`), decoded and validated against
