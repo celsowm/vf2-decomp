@@ -443,6 +443,7 @@ def make_unlit(mat):
         if n.type in ('BSDF_PRINCIPLED', 'OUTPUT_MATERIAL', 'EMISSION', 'MIX_SHADER',
                       'BSDF_TRANSPARENT'):
             nt.nodes.remove(n)
+    tex.interpolation = 'Closest'   # MAME shows crisp pixels, not bilinear-blurred texels
     out = nt.nodes.new('ShaderNodeOutputMaterial')
     emi = nt.nodes.new('ShaderNodeEmission')
     emi.inputs['Strength'].default_value = 1.0
