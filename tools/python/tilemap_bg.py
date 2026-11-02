@@ -207,13 +207,16 @@ def composite(base, over):
     return out
 
 
-def scroll_of(tile, t):
-    hs = tile[0x5000 + t]
-    vs = tile[0x5004 + t]
-    return ((-hs) & 0x1ff, vs & 0x1ff, bool(vs & 0x8000))
+def plane_scroll(tile, plane):
+    """segas24 per-PLANE scroll: hscroll word 0x5000+plane, vscroll word 0x5004+plane; the scroll
+    is bits 0-8, hscroll bit 15 = per-row scroll enabled. Screen pixel (sx,sy) shows tilemap pixel
+    (sx+hscroll, sy+vscroll), i.e. tilemap (col,row) appears at screen (col-hscroll, row-vscroll)."""
+    hs = tile[0x5000 + plane]
+    vs = tile[0x5004 + plane]
+    return (hs & 0x1ff, vs & 0x1ff, bool(hs & 0x8000))
 
 
-def write_quad_obj(outpng, cam, depth=None):
+def write_quad_obj(outpng, cam, hscroll=0, vscroll=0, depth=None):
     """Write bg_plane.obj + bg_plane.mtl next to outpng: one flat textured quad on the real game
     camera's view axis, behind the decor, sized so the on-screen 496x384 tilemap window exactly
     fills the game frame (the full 512x512 texture extends just past the edges). Built in VIEW
@@ -231,13 +234,15 @@ def write_quad_obj(outpng, cam, depth=None):
         depth = (mz * 1.10 + 5.0) if mz is not None else 400.0
     fx, fy, px, py = cam["fx"], cam["fy"], cam["px"], cam["py"]
     z = depth
-    # Texel (col,row) of the 512x512 tilemap is shown on screen at (col,row) (scroll 0); the
-    # 496x384 window is cols/rows 0..495/0..383, the rest extends past the frame. Map each of the
-    # four texture corners to screen (sx,sy)=(col,row), then to a view point at depth z:
+    # Texel (col,row) of the 512x512 tilemap is shown on screen at (col-hscroll, row-vscroll)
+    # (segas24 scroll); the 496x384 window is tilemap cols/rows [hscroll,+496)/[vscroll,+384). Map
+    # each of the four texture corners to its screen position, then to a view point at depth z:
     #   vx = (sx - px) * z / fx ,  vy = (py - sy) * z / fy ,  vz = z.
     def corner(col, row):
-        vx = (col - px) * z / fx
-        vy = (py - row) * z / fy
+        sx = col - hscroll
+        sy = row - vscroll
+        vx = (sx - px) * z / fx
+        vy = (py - sy) * z / fy
         return view_to_obj(cam, vx, vy, z, ainv)
     tl = corner(0.0, 0.0); tr = corner(TILE_W, 0.0)
     br = corner(TILE_W, TILE_H); bl = corner(0.0, TILE_H)
@@ -545,16 +550,16 @@ def main(argv):
     img = I.frombuffer("RGBA", (512, 512), bytes(bg), "raw", "RGBA", 0, 1).convert("RGB")
     img.save(out)
 
-    hx, hy, hdis = scroll_of(tile, bg_tm)
+    hx, hy, rowscroll = plane_scroll(tile, s_plane)   # scroll of the visible backdrop plane
     hud_present = any(planes[hud_tm * 2 + k][3::4].count(255) for k in range(2))
     print("tilemap background -> %s (512x512)" % out)
     print("  background = tilemap %d (planes 0x%04x/0x%04x); HUD dropped = tilemap %d"
           % (bg_tm, s_plane * 0x1000, w_plane * 0x1000, hud_tm))
-    print("  scroll (x,y) = (%d,%d)%s; on-screen window %dx%d at that scroll"
-          % (hx, hy, " [DISABLED]" if hdis else "", SCREEN_W, SCREEN_H))
-    print("  placement: a flat 2D backdrop (not a 3D sky). In Blender put the PNG on a large")
-    print("  plane (or shallow cylinder) square behind the decor, centred on the camera and")
-    print("  scaled so the window above the horizon fills the frame; it does not parallax.")
+    print("  scroll (x,y) = (%d,%d)%s; on-screen window = tilemap [%d..%d) x [%d..%d)"
+          % (hx, hy, " [ROW-SCROLL]" if rowscroll else "", hx, hx + SCREEN_W, hy, hy + SCREEN_H))
+    if rowscroll:
+        print("  note: per-row scroll is enabled on this plane; the flat quad uses the base scroll")
+        print("        only (any per-line wobble is not reproduced).")
     if hud_present:
         print("  note: HUD tilemap %d has content (expected: life bars/timer/names) -- excluded."
               % hud_tm)
@@ -570,7 +575,7 @@ def main(argv):
 
     if want_obj:
         depth = float(depth_opt) if depth_opt is not None else None
-        objp, z = write_quad_obj(out, cam, depth)
+        objp, z = write_quad_obj(out, cam, hx, hy, depth)
         src = "--depth" if depth_opt is not None else "stage.obj decor depth"
         print("  quad: %s + bg_plane.mtl -> flat backdrop at view depth %.1f (%s)" % (objp, z, src))
         print("        on the game camera's view axis; shows only through the decor's openings (z-buffer).")

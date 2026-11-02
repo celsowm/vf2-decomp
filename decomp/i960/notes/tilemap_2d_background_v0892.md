@@ -22,8 +22,13 @@ Tile RAM = 0x8000 words. Plane `p` nametable = words `[p*0x1000 .. +0xfff]`, 64x
 8x8. Planes 0/1 = tilemap 0, planes 2/3 = tilemap 1. Nametable word: char# = `val & 0x3fff`,
 colour bank = `(val>>7)&0xff`, bit 15 = priority. Char: 32 bytes/tile, 4 bytes/row, each byte
 two pixels (low nibble even X, high odd X); pixel 0 transparent; palette index = `colour*16 +
-pixel`. Palette entry 5-5-5 (R bits 0-4, G 5-9, B 10-14). Scroll: hscroll word `0x5000+t`,
-vscroll/disable `0x5004+t`.
+pixel`. Palette entry 5-5-5 (R bits 0-4, G 5-9, B 10-14). **Scroll is per PLANE** (not per
+tilemap): hscroll word `0x5000+plane`, vscroll word `0x5004+plane`, each bits 0-8; hscroll bit 15
+= per-row scroll enabled. Screen pixel (sx,sy) shows tilemap pixel (sx+hscroll, sy+vscroll). The
+backdrop plane is plane 2 (0x2000). [MEASURED] vscroll per stage (plane 2): 00=0, 01=24, 02=0,
+03=40, 04=0, 05=24, 06=96, 07=24, 08=0, 09=24, 10=32; hscroll 0 everywhere; per-row scroll on
+07/09/10. (The earlier "scroll (0,0) everywhere" was wrong -- it read the plane-1 words, which are
+empty; stage 3's backdrop was 40 px too high.)
 
 ## All 11 stages [MEASURED]
 
@@ -36,7 +41,7 @@ The plane layout is **identical across all 11 stages** (`bg_stage_00` .. `bg_sta
 - plane 3 (0x3000) = a solid sky-colour fill behind plane 2 (hidden, since plane 2 is opaque
   everywhere; it is the fallback/base colour).
 
-Background = tilemap 1; HUD = tilemap 0; scroll (0,0) everywhere. Because plane 2 is fully
+Background = tilemap 1; HUD = tilemap 0; scroll per plane (above). Because plane 2 is fully
 opaque, the composited backdrop is effectively plane 2. No stage needed a `--bg-tilemap`
 override. Each decoded backdrop was compared to its own `screen.png` and matches:
 
