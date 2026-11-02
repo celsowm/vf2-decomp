@@ -25,18 +25,37 @@ two pixels (low nibble even X, high odd X); pixel 0 transparent; palette index =
 pixel`. Palette entry 5-5-5 (R bits 0-4, G 5-9, B 10-14). Scroll: hscroll word `0x5000+t`,
 vscroll/disable `0x5004+t`.
 
-## Stage 4 [MEASURED]
+## All 11 stages [MEASURED]
 
-Decoding the four planes of `bg_stage_04`:
-- plane 0 (0x0000) = **HUD** (green life bars, TIME, AKIRA/KAGE, WIN) — dropped.
+The plane layout is **identical across all 11 stages** (`bg_stage_00` .. `bg_stage_10`):
+- plane 0 (0x0000) = **HUD** (green life bars, TIME, AKIRA/<opponent>, WIN) — ~12k opaque
+  pixels, all in the top band, ~0.47 green — dropped.
 - plane 1 (0x1000) = empty.
-- plane 2 (0x2000) = **mountains + sky gradient** (the Great Wall landscape), opaque.
-- plane 3 (0x3000) = solid sky-blue fill, behind.
+- plane 2 (0x2000) = the **complete visible backdrop** (sky + mountains/scenery), fully opaque
+  across the whole 512x512.
+- plane 3 (0x3000) = a solid sky-colour fill behind plane 2 (hidden, since plane 2 is opaque
+  everywhere; it is the fallback/base colour).
 
-Background = tilemap 1 (planes 2+3, 's' plane composited over 'w'); HUD = tilemap 0. Scroll
-(0,0). The result matches `stage_04b/screen.png`: the same green mountains, Great Wall
-structure and sky seen through the gate window. Full image is 512x512; the sky/mountains sit
-above the horizon, the band below is covered in-game by the 3D arena.
+Background = tilemap 1; HUD = tilemap 0; scroll (0,0) everywhere. Because plane 2 is fully
+opaque, the composited backdrop is effectively plane 2. No stage needed a `--bg-tilemap`
+override. Each decoded backdrop was compared to its own `screen.png` and matches:
+
+| # | owner / stage | backdrop |
+|---|---------------|----------|
+| 00 | Lion — stone towers | violet sky gradient + grey mountains (seen between the towers) |
+| 01 | Shun | dark crimson sunset sky + dark hills |
+| 02 | Sarah | misty grey-white sky + green forested mountain over a lake |
+| 03 | Lau — temple | blue sky with wispy clouds, low distant hills |
+| 04 | Kage — Great Wall | green mountains + Great Wall, through the gate window |
+| 05 | Wolf — beach | blue sky with large cumulus clouds |
+| 06 | Pai | purple-to-orange sunset gradient |
+| 07 | Jacky | vivid orange/magenta sunset + distant sea horizon |
+| 08 | Akira — snow ring | snowy mountain peaks + blue sky (behind the chain fence) |
+| 09 | Lion — lion statue | blue sky with scattered clouds |
+| 10 | Lau — Dural underwater | blue underwater haze + sunken Parthenon ruin |
+
+Full image is 512x512; the sky/scenery sits above the horizon, the band below is covered
+in-game by the 3D arena (kept in the PNG so Blender has the full layer; crop at the camera).
 
 ## Tool
 
@@ -48,9 +67,11 @@ PNG on a large flat plane (or shallow cylinder) square behind the decor, filling
 frame; the on-screen window is 496x384 at the reported scroll. Python-only, fighters untouched
 (byte-identical). Output PNGs are snapshots, never committed.
 
-## Next
+## Status
 
-Stage 4 confirmed. The other 10 stages need the same two capture regions (kazuyette to dump).
-The HUD/background tilemap split (HUD = tilemap 0) is assumed constant; `--bg-tilemap` covers a
-stage that differs. One paused frame holds the whole nametable, so a single capture per stage
-is enough unless a stage streams tiles.
+All 11 stages captured (`snap/bg_stage_00` .. `bg_stage_10`), decoded and validated against
+their `screen.png`. The HUD/background split (HUD = tilemap 0, backdrop = tilemap 1) held for
+every stage; one paused frame per stage was enough (no tile streaming observed). The
+`readstart` in each `info.txt` (0x803008) is the fighter colour-data offset, not the tilemap,
+so the tool does not use it. Note `tilemap_bg.py` writes PNG snapshots only (never committed);
+the fighter OBJs are untouched (Python-only), so the geometry stays byte-identical.
