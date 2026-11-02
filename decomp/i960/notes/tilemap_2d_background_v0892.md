@@ -147,11 +147,38 @@ the backdrop shows only through the opening. 50% overlay `overlay_04.png`. The a
 fighters stand on is present in plain `stage.obj` (not only `_full`). `__file__` resolution also
 handles the Text-editor Run (open text's filepath) and the .blend dir.
 
+**Per-stage re-export.** Each stage is re-exported from its OWN `bg_stage_NN` capture (geo-stage
+with that frame's readstart) so `stage.obj`, the textures and `camera.txt` all come from the frame
+`screen.png` was shot from. A stage left on a different capture's textures looked wrong (stage 3
+had an orange roof, beige walls, a green doorway) -- re-exporting from `bg_stage_03` restored the
+gold roof, red lattice, white dragon panels, blue floor and temple doors. The decor world frame is
+capture-independent (the camera cancels in `decor_model . mdec . mdec^-1`), so the geometry stays
+consistent; only the per-capture `camera.txt` and textures change.
+
+**Validation [MEASURED] -- all 11, NCC of the Cycles render vs `screen.png`, HUD + fighters masked.**
+Best-shift `(dx, dy)` and NCC:
+
+| stage | dx | dy | NCC | | stage | dx | dy | NCC |
+|---|---|---|---|---|---|---|---|---|
+| 00 | 0 | -3 | 0.72 | | 06 | 0 | -3 | 0.83 |
+| 01 | 0 | -3 | 0.72 | | 07 | 0 | -3 | 0.77 |
+| 02 | 0 | -3 | 0.35 | | 08 | 0 | -3 | 0.54 |
+| 03 | 0 | -3 | 0.81 | | 09 | 0 | -3 | 0.65 |
+| 04 | 0 | -3 | 0.79 | | 10 | 0 | -3 | 0.41 |
+| 05 | 0 | -2 | 0.43 | | | | | |
+
+`dx = 0` on every stage and `dy` does NOT vary per stage (it would, by the vscroll, if the scroll
+were still wrong) -- so the per-plane scroll is correct. The residual uniform `dy = -3` is the
+decor-reconstruction fidelity floor (the exact software reprojection shows the same +3). The lower
+NCCs (02/05/10) are water / sand / underwater scenes: large soft-textured areas plus the fighters'
+floor shadows (present only in `screen.png`) correlate weakly, though they match visually. Contact
+sheet `contact_sheet.png` (render | screen, masked regions dimmed).
+
 ## Status
 
 All 11 stages captured (`snap/bg_stage_00` .. `bg_stage_10`), decoded and validated against
 their `screen.png`. The HUD/background split (HUD = tilemap 0, backdrop = tilemap 1) held for
 every stage; one paused frame per stage was enough (no tile streaming observed). The
-`readstart` in each `info.txt` (0x803008) is the fighter colour-data offset, not the tilemap,
-so the tool does not use it. Note `tilemap_bg.py` writes PNG snapshots only (never committed);
-the fighter OBJs are untouched (Python-only), so the geometry stays byte-identical.
+`readstart` in each `info.txt` (0x803008) is the fighter colour-data offset, read per stage for
+the re-export. `tilemap_bg.py` writes PNG/OBJ snapshots only (never committed); the fighter OBJs
+are untouched (Python-only).
