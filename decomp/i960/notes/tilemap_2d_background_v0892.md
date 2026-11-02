@@ -22,7 +22,12 @@ Tile RAM = 0x8000 words. Plane `p` nametable = words `[p*0x1000 .. +0xfff]`, 64x
 8x8. Planes 0/1 = tilemap 0, planes 2/3 = tilemap 1. Nametable word: char# = `val & 0x3fff`,
 colour bank = `(val>>7)&0xff`, bit 15 = priority. Char: 32 bytes/tile, 4 bytes/row, each byte
 two pixels (low nibble even X, high odd X); pixel 0 transparent; palette index = `colour*16 +
-pixel`. Palette entry 5-5-5 (R bits 0-4, G 5-9, B 10-14). **Scroll is per PLANE** (not per
+pixel`. Palette entry 5-5-5 (R bits 0-4, G 5-9, B 10-14), but it is **not expanded bit-for-bit**:
+each 5-bit channel goes through the **colorxlat LUT** (model2.cpp palette handler: word index
+`base + (v<<8)`, base 0x40 R / 0x2040 G / 0x4040 B, low byte) and then the **fixed VF2 screen DAC
+gamma** `max((v-64)*255/191, 0)` -- the same path the 3D pipeline uses. A raw `5-bit<<3` came out
+~1/0.74 too bright (MEASURED: screen/bg sky ratio 0.75/0.74/0.74 with `<<3`, 1.02/1.00/0.99 with
+colorxlat+gamma). **Scroll is per PLANE** (not per
 tilemap): hscroll word `0x5000+plane`, vscroll word `0x5004+plane`, each bits 0-8; hscroll bit 15
 = per-row scroll enabled. Screen pixel (sx,sy) shows tilemap pixel (sx+hscroll, sy+vscroll). The
 backdrop plane is plane 2 (0x2000). [MEASURED] vscroll per stage (plane 2): 00=0, 01=24, 02=0,

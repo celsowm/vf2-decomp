@@ -161,19 +161,39 @@ def _u16(path, nwords):
     return struct.unpack("<%dH" % nwords, open(path, "rb").read())
 
 
+# colorxlat (model2.cpp palette handler): a captured 5-5-5 palette entry is NOT expanded
+# bit-for-bit; each 5-bit channel is looked up in the colorxlat LUT, word index base + (v<<8),
+# base = 0x40 (R), 0x2040 (G), 0x4040 (B); the entry's low byte is the 8-bit value.
+CX_BASE = (0x40, 0x2040, 0x4040)
+
+
+def _screen_gamma(v):
+    """Fixed VF2 screen DAC gamma (MEASURED, same as the 3D pipeline): max((v-64)*255/191, 0)."""
+    x = int((v - 64) * 255.0 / 191.0 + 0.5)
+    return 0 if x < 0 else (255 if x > 255 else x)
+
+
+# gamma(colorxlat(0..255)) precomputed per channel once a capture's colorxlat is known
 def load_capture(cap):
     tile = _u16(os.path.join(cap, "tileram_01000000.bin"), 0x10000 // 2)
     char = open(os.path.join(cap, "charram_01080000.bin"), "rb").read()
     palw = _u16(os.path.join(cap, "palette_01800000.bin"), 0x4000 // 2)
-    return tile, char, palw
+    cxpath = os.path.join(cap, "colorxlat_01810000.bin")
+    cx = _u16(cxpath, 0xc000 // 2) if os.path.isfile(cxpath) else None
+    return tile, char, palw, cx
 
 
-def pal_rgb(palw, idx):
+def pal_rgb(palw, cx, idx):
+    """Palette entry -> on-screen RGB: 5-5-5 -> colorxlat LUT -> screen gamma (the hardware path).
+    Without a colorxlat capture, falls back to the raw 5-bit<<3 expansion (too bright)."""
     v = palw[idx & 0xfff] & 0x7fff
-    return ((v & 31) << 3, ((v >> 5) & 31) << 3, ((v >> 10) & 31) << 3)
+    ch = (v & 31, (v >> 5) & 31, (v >> 10) & 31)
+    if cx is None:
+        return (ch[0] << 3, ch[1] << 3, ch[2] << 3)
+    return tuple(_screen_gamma(cx[CX_BASE[i] + (ch[i] << 8)] & 0xff) for i in range(3))
 
 
-def decode_plane(tile, char, palw, plane):
+def decode_plane(tile, char, palw, cx, plane):
     """Return a 512x512 list-of-rows of (r,g,b,a); pixel 0 transparent."""
     base = plane * 0x1000
     px = bytearray(512 * 512 * 4)
@@ -193,7 +213,7 @@ def decode_plane(tile, char, palw, plane):
                     p = (b & 0x0f) if (col & 1) == 0 else (b >> 4)
                     if p == 0:
                         continue
-                    r, g, bl = pal_rgb(palw, colour * 16 + p)
+                    r, g, bl = pal_rgb(palw, cx, colour * 16 + p)
                     o = (oy + tx * 8 + col) * 4
                     px[o] = r; px[o + 1] = g; px[o + 2] = bl; px[o + 3] = 255
     return px
@@ -535,9 +555,12 @@ def main(argv):
     depth_opt = _opt(argv, "--depth", None)
 
     import PIL.Image as I
-    tile, char, palw = load_capture(cap)
+    tile, char, palw, cx = load_capture(cap)
+    if cx is None:
+        print("  WARNING: no colorxlat_01810000.bin -- colours use the raw 5-bit expansion (too"
+              " bright); the real path is colorxlat + screen gamma.")
 
-    planes = {p: decode_plane(tile, char, palw, p) for p in range(4)}
+    planes = {p: decode_plane(tile, char, palw, cx, p) for p in range(4)}
     if dump:
         os.makedirs(dump, exist_ok=True)
         for p in range(4):
