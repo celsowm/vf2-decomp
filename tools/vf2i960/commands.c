@@ -10475,6 +10475,33 @@ stage_selected:
                  "feet-centred. %zu pieces. Local only, never committed.\n",
             base, pose, nsel);
     fprintf(obj, "mtllib %s.mtl\n", base);
+    if (stage_mode) {
+        /* Emit the game camera this export removed: the shared decor matrix mdec (A,T).
+         * A captured decor vertex v (Model 2 camera space) and this OBJ's vertex o are
+         * related by  v = fc . A + T  with fc = (-o.x, o.y, o.z)  (the OBJ file negates X),
+         * A[i][j]=mdec[3i+j], T[j]=mdec[9+j]. Model 2 then projects (geo-project, MEASURED,
+         * focus/window read from the capture): sx = 248 + 600*vx/vz, sy = 195 - 600*vy/vz
+         * over a 496x384 window. Rebuilds the game view that the OBJ cannot carry.
+         * Local only, never committed. See notes/tilemap_2d_background_v0892.md. */
+        char cpath[1100];
+        FILE *cf;
+        snprintf(cpath, sizeof(cpath), "%s/camera.txt", out_dir);
+        cf = fopen(cpath, "wb");
+        if (cf != NULL) {
+            fprintf(cf, "# VF2 game camera (the view transform this export removed).\n");
+            fprintf(cf, "# view = fc . A + T ; fc = (-OBJ.x, OBJ.y, OBJ.z) ; A[i][j]=a[3i+j].\n");
+            fprintf(cf, "# proj: sx = px + fx*vx/vz ; sy = py - fy*vy/vz ; window W x H.\n");
+            fprintf(cf, "A %.8g %.8g %.8g %.8g %.8g %.8g %.8g %.8g %.8g\n",
+                    (double)mdec[0], (double)mdec[1], (double)mdec[2],
+                    (double)mdec[3], (double)mdec[4], (double)mdec[5],
+                    (double)mdec[6], (double)mdec[7], (double)mdec[8]);
+            fprintf(cf, "T %.8g %.8g %.8g\n",
+                    (double)mdec[9], (double)mdec[10], (double)mdec[11]);
+            fprintf(cf, "proj fx 600 fy 600 px 248 py 195 W 496 H 384\n");
+            fclose(cf);
+            fprintf(stderr, "  camera -> %s\n", cpath);
+        }
+    }
     ext_link0_seen = 0ul; ext_link0_emitted = 0ul;
     for (k = 0u; k < nsel; ++k) {
         size_t idx = sel[k];

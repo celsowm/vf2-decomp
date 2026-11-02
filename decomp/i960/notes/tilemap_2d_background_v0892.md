@@ -67,40 +67,56 @@ PNG on a large flat plane (or shallow cylinder) square behind the decor, filling
 frame; the on-screen window is 496x384 at the reported scroll. Python-only, fighters untouched
 (byte-identical). Output PNGs are snapshots, never committed.
 
-`--obj` also writes `bg_plane.obj` + `bg_plane.mtl` next to `<out.png>`: a single flat textured
-quad carrying the backdrop PNG, ready to import behind the decor. It is written in the **same
-frame as the stage OBJ export** (feet-centred, +X -> screen-left, looking +Z -- the
-ext_emit_poly convention of a negated X and reversed winding), so it drops into Blender already
-aligned. The quad sits at a fixed depth behind the decor -- the farthest Z of a `stage.obj`
-sitting next to `<out.png>` (times 1.3 + 30), else `--depth Z`, else 400 -- and is sized from
-the placement camera (the game-view approximation that reproduces `screen.png` from the stage
-export: `cx,cy,cz = 0,6,-11`, focal `scale=430` over a 640x480 raster) so the on-screen 496x384
-tilemap window exactly fills the frame, the full 512x512 texture extending just past the edges.
-Flat, no parallax; render with a z-buffer (not painter order) so the decor occludes it.
-Validated on stage 4: a game-camera z-buffer render of `stage.obj` + `bg_plane.obj` shows the
-green mountains through the gate and above the wall, the wall correctly in front, matching
-`stage_04/screen.png`. The depth auto-adapts per stage (e.g. `stage_10` 137.8 vs
-`stage_10_full` 281.4). bg_plane files are snapshots too, never committed.
+## The game camera (not eyeballed) -- `geo-stage` emits `camera.txt`
 
-`--blender` writes `blender_scene.py` next to `<out.png>`: the stage OBJ carries no camera, so
-in Blender's free viewport the backdrop looks wrong and (lit) washed out. The script restores
-the game view. Run it in the Scripting tab (open from disk, Run) or headless
-(`blender -b -P blender_scene.py -f 1`). It imports stage.obj + bg_plane.obj **forward -Z /
-up Y** (the manual-import axes), builds camera **VF2_GameCam**, sets 496x384 + Standard view
-transform, and rebuilds every material as **unlit Emission** (texture Color -> Emission, texture
-Alpha -> transparency mix) so the baked stage textures and the flat backdrop show as-is.
+The stage OBJ is exported *camera-removed* (feet-centred), so Blender has no game camera and a
+free-viewport view of the backdrop is wrong. The camera must be the **exact view transform the
+export removed**, not one calibrated by eye. `geo-stage` now writes **`camera.txt`** beside
+`stage.obj`: the shared decor matrix `mdec` (A, T) that `gs_worldframe` inverts, plus the Model 2
+projection. A captured decor vertex `v` (camera space) and an OBJ vertex `o` are related by
+`v = fc.A + T`, `fc = (-o.x, o.y, o.z)` (the OBJ negates X); the projection (MEASURED, read from
+the capture by `geo-project`, same for every stage: focus 600/600, window-centre 248/319,
+xoff 0, yoff 130) is `sx = 248 + 600*vx/vz`, `sy = 195 - 600*vy/vz` over 496x384. Stage 4's A is
+~identity with a ~4 deg X pitch, T ~= (0, -1.16, 4.95).
 
-**Axis mapping [MEASURED in Blender 5.2].** The forward -Z / up Y OBJ import maps OBJ `(x,y,z)`
--> Blender `(x, -z, y)` (NOT `(-x, z, y)`). So the placement camera -- OBJ `(0,6,-11)` looking
-+Z, up +Y -- becomes in Blender: location `(0, 11, 6)`, **looking -Y, up +Z** (rotation built
-from an explicit basis matrix, not guessed Euler angles); OBJ +X stays screen-left. Getting the
-sign wrong points the camera away from the decor (only the near floor renders, the wall and
-backdrop fall behind the camera -> black). Lens from `scale=430` over the **640-px reference**
-raster (render_persp_bl's raster), sensor 36 mm -> 24.19 mm. This reproduces screen.png's content
-(mountains + white tower through the gate, wall in front); it is a touch wider than the in-game
-crop -- the game camera is tighter than scale=430 -- so fine-tune VF2_GameCam's lens/position in
-Blender for an exact crop. EEVEE's depth test occludes the backdrop correctly (z-buffer, not
-painter). The generated .py and any render it writes are local snapshots, never committed.
+**Ground truth.** `geo-project <ram9> <readstarts> <rom-dir> <pose> out.png 496 384 0 130`
+projects the frame with this exact transform (it tracks the matrix/focal/window itself). A
+software reprojection of `stage.obj` through `camera.txt` lands the banner within ~3 px of
+`stage_04/screen.png` -- the floor is set by the reconstructed decor's own fidelity, not the
+camera.
+
+## `--obj` / `--blender` use `camera.txt` (run geo-stage on the same capture first)
+
+`--obj` writes `bg_plane.obj` + `bg_plane.mtl`: a flat textured quad built in the camera's VIEW
+space -- a plane at a depth just behind the decor (`decor_max_vz * 1.1 + 5`, or `--depth`), sized
+so the 496x384 on-screen tilemap window exactly fills the game frame, the full 512x512 texture
+extending just past the edges -- then mapped to OBJ coords (`fc = (view-T).A^-1`,
+`OBJ = (-fc.x, fc.y, fc.z)`). It imports aligned with `stage.obj` and shows ONLY through the
+decor's openings. Because the camera pitches, the quad is tilted in OBJ space (that is correct).
+
+`--blender` writes `blender_scene.py`: imports stage.obj + bg_plane.obj **forward -Z / up Y**,
+builds **VF2_GameCam** from `camera.txt`, sets 496x384 + Standard, and makes every material
+**unlit Emission** (so baked textures + backdrop show as-is, not washed out). It prefers
+**Cycles** (ray-traced: the coplanar wall decals -- the banner -- and the backdrop-through-opening
+resolve by true depth); EEVEE's rasteriser mis-orders the coplanar decals and is a fast fallback.
+The backdrop material writes depth (so the decor z-occludes it); the decor + decals stay painter-
+ordered (BLEND) like MAME so the banner shows on the wall.
+
+**Axis / camera conversion [MEASURED, Blender 5.2].** The forward -Z / up Y import maps OBJ
+`(x,y,z) -> Blender (x, -z, y)`. `blender_camera()` turns `camera.txt` into a Blender pose: the
+linear map `view = L.P_blender` (from `fc=(-bx,bz,-by)`, `view=fc.A+T`) is inverted so the camera
+local axes are L^-1's columns (right = view x, up = view y, forward = -view z); the optical centre
+is `fc0=-T.A^-1` mapped to Blender. Intrinsics: `lens = fx*sensor/W` (600*36/496 = 43.55 mm),
+`shift = ((px,py) - centre)/W` (sign verified against the exact reprojection). Set `matrix_world`
+directly, not guessed Euler angles.
+
+**Validation [MEASURED] -- stage 4.** Headless Cycles render from VF2_GameCam vs
+`stage_04/screen.png`: banner gold-plaque corners all at **(+0, +3) px** (horizontal exact,
+vertical +3 = the decor-fidelity floor, matching the exact software reprojection); the mountains
+through the opening align full-width, vertical within 3 px; the wall is correctly in front and
+the backdrop shows only through the opening. 50% overlay `overlay_04.png`. The arena floor the
+fighters stand on is present in plain `stage.obj` (not only `_full`). `__file__` resolution also
+handles the Text-editor Run (open text's filepath) and the .blend dir.
 
 ## Status
 

@@ -38,25 +38,27 @@ so place it on a large flat plane (or a shallow cylinder) square behind the deco
 the camera frame; the on-screen window is 496x384 at the reported scroll. See the printed
 note. Local tool; the PNGs it writes are snapshots and are never committed.
 
---obj also writes `bg_plane.obj` + `bg_plane.mtl` next to <out.png>: a single flat textured
-quad (the backdrop PNG on it), in the SAME coordinate frame as the stage OBJ export
-(feet-centred, +X -> screen-left, looking +Z -- the ext_emit_poly convention of a negated X
-and reversed winding), so it imports into Blender already aligned behind the decor. The quad
-sits at a fixed depth behind the decor (read from a `stage.obj` next to <out.png> if present,
-else --depth, else a safe default) and is sized so the on-screen 496x384 tilemap window
-exactly fills the game-camera frame; the full 512x512 texture extends just past the frame
-edges. It is flat -- no parallax. Render it with a z-buffer (nearer = smaller Z), not painter
-order, so the decor occludes it correctly.
+--obj and --blender use the EXACT game camera of the capture, read from `camera.txt` beside
+<out.png> (geo-stage emits it next to stage.obj): view = fc.A + T with fc=(-OBJ.x,OBJ.y,OBJ.z),
+then the Model 2 projection (fx,fy,px,py over WxH). No camera is eyeballed. Run geo-stage on the
+same capture first so camera.txt and stage.obj are present and consistent with screen.png.
+
+--obj writes `bg_plane.obj` + `bg_plane.mtl` next to <out.png>: a single flat textured quad
+carrying the backdrop PNG, built in the camera's VIEW space (a plane at a depth behind the decor,
+sized so the 496x384 on-screen tilemap window exactly fills the game frame, the full 512x512
+texture extending just past the edges) and mapped to OBJ coords, so it imports into Blender
+aligned with stage.obj. Flat -- no parallax. Render z-buffered so the decor occludes it and the
+backdrop shows only through the decor's openings. --depth Z overrides the view depth.
 
 --blender writes `blender_scene.py` next to <out.png>: a Blender script (run in the Scripting
 tab, or `blender -b -P blender_scene.py -f 1`) that imports stage.obj + bg_plane.obj from the
-same folder (forward -Z / up Y), builds the game camera VF2_GameCam (the placement camera above,
-converted to Blender axes; lens from scale=430 over a 640-px reference, sensor 36mm), sets the
-render to 496x384 with the Standard view transform, and makes every material unlit (Emission) so
-the baked stage textures and the flat backdrop are shown as-is rather than washed out by scene
-lighting. The OBJ has no camera, so this restores the game view Blender's free viewport cannot.
+same folder (forward -Z / up Y), builds the exact game camera VF2_GameCam (camera.txt converted
+to a Blender pose + lens/shift), sets the render to WxH with the Standard view transform, and
+makes every material unlit (Emission) so the baked stage textures and the flat backdrop are shown
+as-is rather than washed out by scene lighting. The OBJ carries no camera, so this restores the
+game view Blender's free viewport cannot.
 """
-import sys, os, struct
+import sys, os, struct, math
 
 TILE_MASK = 0x3fff
 SCREEN_W, SCREEN_H = 496, 384
@@ -65,9 +67,89 @@ TILE_W = TILE_H = 512
 # Placement camera: the game-view approximation that reproduces screen.png from the stage
 # OBJ export (feet-centred, camera removed). +X -> screen-left, +Y up, looking +Z; the raster
 # it fills (RW x RH) corresponds to the full game screen. Tuned against stage decor + MAME.
-CAM = dict(cx=0.0, cy=6.0, cz=-11.0, scale=430.0, rw=640, rh=480)
-SENSOR_W = 36.0        # Blender sensor width (mm) used to turn `scale` into a focal length
-DEFAULT_DEPTH = 400.0  # world Z of the backdrop quad when no stage.obj is found (decor max Z < ~200)
+SENSOR_W = 36.0        # Blender sensor width (mm) used to turn the pixel focal into a lens length
+
+
+def read_camera(path):
+    """Parse camera.txt (emitted by geo-stage): the exact game view transform of the capture.
+    view = fc . A + T with fc = (-OBJ.x, OBJ.y, OBJ.z); projection sx = px + fx*vx/vz,
+    sy = py - fy*vy/vz over W x H. Returns a dict, or None if the file is missing."""
+    try:
+        A = T = None
+        fx = fy = 600.0
+        px = 248.0
+        py = 195.0
+        W = SCREEN_W
+        H = SCREEN_H
+        for ln in open(path, encoding="utf-8"):
+            s = ln.split()
+            if not s or s[0] == "#":
+                continue
+            if s[0] == "A":
+                A = [float(x) for x in s[1:10]]
+            elif s[0] == "T":
+                T = [float(x) for x in s[1:4]]
+            elif s[0] == "proj":
+                kv = {s[i]: s[i + 1] for i in range(1, len(s) - 1, 2)}
+                fx = float(kv.get("fx", fx)); fy = float(kv.get("fy", fy))
+                px = float(kv.get("px", px)); py = float(kv.get("py", py))
+                W = int(kv.get("W", W)); H = int(kv.get("H", H))
+        if A is None or T is None:
+            return None
+        return dict(A=A, T=T, fx=fx, fy=fy, px=px, py=py, W=W, H=H)
+    except Exception:
+        return None
+
+
+def mat3_inv(a):
+    """Inverse of a row-major 3x3 (a[3i+j]); returns a 9-list, or None if singular."""
+    det = (a[0] * (a[4] * a[8] - a[5] * a[7])
+           - a[1] * (a[3] * a[8] - a[5] * a[6])
+           + a[2] * (a[3] * a[7] - a[4] * a[6]))
+    if abs(det) < 1e-20:
+        return None
+    d = 1.0 / det
+    return [
+        (a[4] * a[8] - a[5] * a[7]) * d, (a[2] * a[7] - a[1] * a[8]) * d, (a[1] * a[5] - a[2] * a[4]) * d,
+        (a[5] * a[6] - a[3] * a[8]) * d, (a[0] * a[8] - a[2] * a[6]) * d, (a[2] * a[3] - a[0] * a[5]) * d,
+        (a[3] * a[7] - a[4] * a[6]) * d, (a[1] * a[6] - a[0] * a[7]) * d, (a[0] * a[4] - a[1] * a[3]) * d,
+    ]
+
+
+def obj_to_view(cam, ox, oy, oz):
+    """OBJ vertex -> Model 2 camera-space (vx,vy,vz). fc = (-x,y,z); view = fc . A + T."""
+    A, T = cam["A"], cam["T"]
+    fx_, fy_, fz_ = -ox, oy, oz
+    vx = fx_ * A[0] + fy_ * A[3] + fz_ * A[6] + T[0]
+    vy = fx_ * A[1] + fy_ * A[4] + fz_ * A[7] + T[1]
+    vz = fx_ * A[2] + fy_ * A[5] + fz_ * A[8] + T[2]
+    return vx, vy, vz
+
+
+def view_to_obj(cam, vx, vy, vz, ainv):
+    """Model 2 camera-space -> OBJ vertex. fc = (view - T) . A^-1 ; OBJ = (-fc.x, fc.y, fc.z)."""
+    T = cam["T"]
+    dx, dy, dz = vx - T[0], vy - T[1], vz - T[2]
+    fcx = dx * ainv[0] + dy * ainv[3] + dz * ainv[6]
+    fcy = dx * ainv[1] + dy * ainv[4] + dz * ainv[7]
+    fcz = dx * ainv[2] + dy * ainv[5] + dz * ainv[8]
+    return (-fcx, fcy, fcz)
+
+
+def decor_max_vz(objpath, cam):
+    """Largest camera-space depth vz over a stage OBJ's vertices (for placing the backdrop
+    behind the decor). Returns None if unreadable."""
+    try:
+        mz = None
+        for ln in open(objpath, encoding="utf-8", errors="replace"):
+            if ln.startswith("v "):
+                _, x, y, z = ln.split()
+                vz = obj_to_view(cam, float(x), float(y), float(z))[2]
+                if vz > 0.01 and (mz is None or vz > mz):
+                    mz = vz
+        return mz
+    except Exception:
+        return None
 
 
 def _u16(path, nwords):
@@ -126,55 +208,48 @@ def scroll_of(tile, t):
     return ((-hs) & 0x1ff, vs & 0x1ff, bool(vs & 0x8000))
 
 
-def decor_max_z(objpath):
-    """Farthest decor Z in a stage OBJ (export frame), or None if unreadable."""
-    try:
-        mz = None
-        for ln in open(objpath, encoding="utf-8", errors="replace"):
-            if ln.startswith("v "):
-                z = float(ln.split()[3])
-                if mz is None or z > mz:
-                    mz = z
-        return mz
-    except Exception:
-        return None
-
-
-def write_quad_obj(outpng, depth):
-    """Write bg_plane.obj + bg_plane.mtl next to outpng: one flat textured quad at world Z=depth,
-    sized so the 496x384 on-screen tilemap window exactly fills the placement-camera frame, the
-    full 512x512 texture extending just past the edges. Same frame as the stage export
-    (+X -> screen-left), so it imports behind the decor already aligned. Returns the obj path."""
+def write_quad_obj(outpng, cam, depth=None):
+    """Write bg_plane.obj + bg_plane.mtl next to outpng: one flat textured quad on the real game
+    camera's view axis, behind the decor, sized so the on-screen 496x384 tilemap window exactly
+    fills the game frame (the full 512x512 texture extends just past the edges). Built in VIEW
+    space from `cam`, then mapped to OBJ coords (fc=(view-T).A^-1, OBJ=(-fc.x,fc.y,fc.z)), so it
+    imports into Blender aligned with stage.obj and appears only through the decor's openings.
+    Returns (obj_path, view_depth)."""
     outdir = os.path.dirname(os.path.abspath(outpng))
     png = os.path.basename(outpng)
     stem = "bg_plane"
-    cx, cy, cz, scale, rw, rh = (CAM[k] for k in ("cx", "cy", "cz", "scale", "rw", "rh"))
-    dz = depth - cz                      # camera-space depth of the quad
-    xh = dz * rw / (2.0 * scale)         # frustum half-width  at that depth
-    yh = dz * rh / (2.0 * scale)         # frustum half-height at that depth
-    # The on-screen window (tilemap cols 0..WIN_W, rows 0..WIN_H) fills the frame:
-    #   col 0  -> screen-left  (x = cx + xh),  col WIN_W -> screen-right (x = cx - xh)
-    #   row 0  -> screen-top   (y = cy + yh),  row WIN_H -> screen-bottom(y = cy - yh)
-    # Extend linearly to the full 512x512 texture so UVs stay the plain 0..1 of bg.png.
-    xcol = lambda c: (cx + xh) - (2.0 * xh) * (c / SCREEN_W)
-    yrow = lambda r: (cy + yh) - (2.0 * yh) * (r / SCREEN_H)
-    xl, xr = xcol(0), xcol(TILE_W)       # texture left / right edge in world X
-    yt, yb = yrow(0), yrow(TILE_H)       # texture top / bottom edge in world Y
+    ainv = mat3_inv(cam["A"])
+    if ainv is None:
+        raise ValueError("camera matrix A is singular")
+    if depth is None:
+        mz = decor_max_vz(os.path.join(outdir, "stage.obj"), cam)
+        depth = (mz * 1.10 + 5.0) if mz is not None else 400.0
+    fx, fy, px, py = cam["fx"], cam["fy"], cam["px"], cam["py"]
     z = depth
+    # Texel (col,row) of the 512x512 tilemap is shown on screen at (col,row) (scroll 0); the
+    # 496x384 window is cols/rows 0..495/0..383, the rest extends past the frame. Map each of the
+    # four texture corners to screen (sx,sy)=(col,row), then to a view point at depth z:
+    #   vx = (sx - px) * z / fx ,  vy = (py - sy) * z / fy ,  vz = z.
+    def corner(col, row):
+        vx = (col - px) * z / fx
+        vy = (py - row) * z / fy
+        return view_to_obj(cam, vx, vy, z, ainv)
+    tl = corner(0.0, 0.0); tr = corner(TILE_W, 0.0)
+    br = corner(TILE_W, TILE_H); bl = corner(0.0, TILE_H)
     obj = os.path.join(outdir, stem + ".obj")
     with open(obj, "w", encoding="utf-8") as f:
-        f.write("# VF2 2D backdrop quad (flat, no parallax). Same frame as the stage OBJ export\n")
-        f.write("# (feet-centred, +X -> screen-left, looking +Z). Place behind the decor; render\n")
-        f.write("# with a z-buffer. World Z = %.3f. Local only, never committed.\n" % z)
+        f.write("# VF2 2D backdrop quad (flat, no parallax), on the game camera's view axis at\n")
+        f.write("# view depth %.3f, behind the decor. Same frame as stage.obj; render z-buffered\n" % z)
+        f.write("# so the decor occludes it (the backdrop shows only through openings).\n")
+        f.write("# Local only, never committed.\n")
         f.write("mtllib %s.mtl\n" % stem)
         f.write("o bg_plane\n")
         f.write("usemtl bg_plane\n")
-        for (x, y) in ((xl, yt), (xr, yt), (xr, yb), (xl, yb)):   # TL, TR, BR, BL
-            f.write("v %.6f %.6f %.6f\n" % (x, y, z))
-        for (u, v) in ((0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)):
-            f.write("vt %.6f %.6f\n" % (u, v))
-        # camera-facing winding (normal toward -Z, the camera side): TL, BL, BR, TR
-        f.write("f 1/1 4/4 3/3 2/2\n")
+        for v in (tl, tr, br, bl):
+            f.write("v %.6f %.6f %.6f\n" % (v[0], v[1], v[2]))
+        for (u, vv) in ((0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)):   # TL, TR, BR, BL
+            f.write("vt %.6f %.6f\n" % (u, vv))
+        f.write("f 1/1 2/2 3/3 4/4\n")
     with open(os.path.join(outdir, stem + ".mtl"), "w", encoding="utf-8") as f:
         f.write("# VF2 2D backdrop material. Local only, never committed.\n")
         f.write("newmtl bg_plane\nillum 1\nd 1.0\nKd 1.0 1.0 1.0\n")
@@ -195,10 +270,24 @@ Set VF2_ENGINE=CYCLES in the environment to force Cycles (reliable headless). Lo
 """
 import bpy, os, math, mathutils
 
-try:
-    HERE = os.path.dirname(os.path.abspath(__file__))
-except NameError:
-    HERE = os.path.dirname(bpy.data.filepath) or bpy.path.abspath("//")
+def _here():
+    """Folder of this script, whether run via `blender -P` (__file__) or the Text Editor's Run
+    (the open text's filepath), with the .blend dir and cwd as last resorts."""
+    try:
+        return os.path.dirname(os.path.abspath(__file__))
+    except NameError:
+        pass
+    try:
+        txt = bpy.context.space_data.text
+        if txt and txt.filepath:
+            return os.path.dirname(bpy.path.abspath(txt.filepath))
+    except Exception:
+        pass
+    if bpy.data.filepath:
+        return os.path.dirname(bpy.data.filepath)
+    return os.getcwd()
+
+HERE = _here()
 
 STAGE_OBJ = os.path.join(HERE, "@@STAGEOBJ@@")
 BG_OBJ    = os.path.join(HERE, "@@BGOBJ@@")
@@ -215,24 +304,26 @@ def import_obj(path):
 import_obj(STAGE_OBJ)
 import_obj(BG_OBJ)
 
-# Placement camera (reproduces screen.png from the stage export). In the OBJ/export frame it is
-# at (@@OCAMX@@,@@OCAMY@@,@@OCAMZ@@) looking +Z, up +Y, focal scale=@@SCALE@@ over a @@REFW@@-px-wide
-# reference raster. The forward -Z / up Y import maps OBJ (x,y,z) -> Blender (x, -z, y), so in
-# Blender the camera sits at (@@CAMX@@,@@CAMY@@,@@CAMZ@@) looking -Y with up +Z (OBJ +X stays
-# screen-left). Reference width @@REFW@@ px, sensor width @@SENSORW@@ mm ->
-#   lens = (sensor/2) / ((refw/2)/scale) = @@LENS@@ mm.
+# VF2_GameCam: the EXACT game camera of this capture, from camera.txt (geo-stage). The Model 2
+# view transform (view = fc.A + T, fc=(-OBJ.x,OBJ.y,OBJ.z)) + projection (fx,fy,px,py over WxH)
+# was converted to a Blender camera pose + lens. matrix_world and lens/shift are computed by
+# tilemap_bg.py and baked in below, so no camera is eyeballed. OBJ (x,y,z) -> Blender (x,-z,y).
 cam_data = bpy.data.cameras.new("VF2_GameCam")
 cam_data.sensor_fit = 'HORIZONTAL'
 cam_data.sensor_width = @@SENSORW@@
 cam_data.lens = @@LENS@@
+cam_data.shift_x = @@SHIFTX@@
+cam_data.shift_y = @@SHIFTY@@
 cam = bpy.data.objects.new("VF2_GameCam", cam_data)
 bpy.context.scene.collection.objects.link(cam)
-cam.location = (@@CAMX@@, @@CAMY@@, @@CAMZ@@)
-# camera local axes in world: right -> -X, up -> +Z, view(-Z) -> -Y  (look -Y, up +Z)
-cam.rotation_euler = mathutils.Matrix(((-1.0, 0.0, 0.0),
-                                       (0.0, 0.0, 1.0),
-                                       (0.0, 1.0, 0.0))).to_euler()
+cam.matrix_world = mathutils.Matrix((
+    (@@R00@@, @@R01@@, @@R02@@, @@CBX@@),
+    (@@R10@@, @@R11@@, @@R12@@, @@CBY@@),
+    (@@R20@@, @@R21@@, @@R22@@, @@CBZ@@),
+    (0.0, 0.0, 0.0, 1.0)))
 bpy.context.scene.camera = cam
+bpy.context.scene.render.pixel_aspect_x = 1.0
+bpy.context.scene.render.pixel_aspect_y = 1.0
 
 scn = bpy.context.scene
 scn.render.resolution_x = @@RESW@@
@@ -240,12 +331,21 @@ scn.render.resolution_y = @@RESH@@
 scn.render.resolution_percentage = 100
 scn.render.image_settings.file_format = 'PNG'
 scn.render.filepath = os.path.join(HERE, "render_gamecam_")
+# Cycles first: it ray-traces, so the coplanar wall decals (the banner) and the backdrop seen
+# through the opening resolve by true depth. EEVEE's rasterizer mis-orders the coplanar decals
+# (the banner comes out partial), so it is only a fast fallback. VF2_ENGINE overrides.
 engines = [os.environ['VF2_ENGINE']] if os.environ.get('VF2_ENGINE') else \
-          ['BLENDER_EEVEE_NEXT', 'BLENDER_EEVEE', 'CYCLES']
+          ['CYCLES', 'BLENDER_EEVEE_NEXT', 'BLENDER_EEVEE']
 for eng in engines:
     try:
         scn.render.engine = eng
         break
+    except Exception:
+        pass
+if scn.render.engine == 'CYCLES':
+    try:
+        scn.cycles.samples = 24          # emission-only: nearly noise-free, keep it fast
+        scn.cycles.use_denoising = False
     except Exception:
         pass
 scn.view_settings.view_transform = 'Standard'
@@ -279,8 +379,14 @@ def make_unlit(mat):
     nt.links.new(trans.outputs[0], mix.inputs[1])
     nt.links.new(emi.outputs[0], mix.inputs[2])
     nt.links.new(mix.outputs[0], out.inputs['Surface'])
-    for attr, val in (('blend_method', 'BLEND'), ('surface_render_method', 'BLEND'),
-                      ('use_backface_culling', False)):
+    # The backdrop (bg_plane) is opaque and MUST write depth (DITHERED) so the decor z-occludes
+    # it and it shows only through openings. The decor + its coplanar decals stay BLEND: they
+    # draw after the opaque pass, over the backdrop where geometry exists, in painter order (like
+    # MAME) -- so the banner decal shows on the wall instead of losing a z-fight to it.
+    is_bg = (mat.name == 'bg_plane')
+    settings = (('surface_render_method', 'DITHERED'), ('blend_method', 'CLIP')) if is_bg else \
+               (('surface_render_method', 'BLEND'), ('blend_method', 'BLEND'))
+    for attr, val in settings + (('use_backface_culling', False),):
         try:
             setattr(mat, attr, val)
         except Exception:
@@ -294,18 +400,62 @@ print("VF2 scene ready: VF2_GameCam, %dx%d, %s, Standard, unlit. Render -> %s000
 '''
 
 
-def write_blender_scene(outpng, stage_obj_name="stage.obj", bg_obj_name="bg_plane.obj"):
-    """Write blender_scene.py next to outpng: import stage.obj + bg_plane.obj, build the game
-    camera VF2_GameCam, make materials unlit, 496x384 + Standard. Returns its path."""
-    cx, cy, cz, scale, rw, rh = (CAM[k] for k in ("cx", "cy", "cz", "scale", "rw", "rh"))
-    lens = (SENSOR_W / 2.0) / ((rw / 2.0) / scale)
+def blender_camera(cam):
+    """Convert the Model 2 game camera (cam from camera.txt) to a Blender camera, expressed in
+    the forward -Z / up Y import frame OBJ (x,y,z) -> Blender (x,-z,y). Returns
+    (R 3x3 row-major, C 3-vector, lens_mm, shift_x, shift_y)."""
+    A, T = cam["A"], cam["T"]
+    fx, px, py, W, H = cam["fx"], cam["px"], cam["py"], cam["W"], cam["H"]
+    ainv = mat3_inv(A)
+    if ainv is None:
+        raise ValueError("camera matrix A is singular")
+    # view = L . P_blender (linear part). view_j = fc.A[:,j], fc = (-bx, bz, -by), so
+    # dview_j/d(bx,by,bz) = (-A[0,j], -A[2,j], A[1,j]).  A[i,j] = A[3i+j].
+    L = [-A[0], -A[6], A[3],
+         -A[1], -A[7], A[4],
+         -A[2], -A[8], A[5]]
+    linv = mat3_inv(L)
+    if linv is None:
+        raise ValueError("camera linear map is singular")
+
+    def norm(v):
+        n = math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) or 1.0
+        return [v[0] / n, v[1] / n, v[2] / n]
+    # Blender-world directions of the view axes = columns of L^-1.
+    vxdir = norm([linv[0], linv[3], linv[6]])   # screen right
+    vydir = norm([linv[1], linv[4], linv[7]])   # screen up
+    vzdir = norm([linv[2], linv[5], linv[8]])   # depth (into screen)
+    # Blender camera looks down local -Z, right +X, up +Y: local Z = -depth.
+    R = [[vxdir[0], vydir[0], -vzdir[0]],
+         [vxdir[1], vydir[1], -vzdir[1]],
+         [vxdir[2], vydir[2], -vzdir[2]]]
+    # optical centre: view = 0 at fc0 = -T.A^-1 (row-vector); map fc->Blender (fc=(-bx,bz,-by)).
+    fc0 = [-(T[0] * ainv[0] + T[1] * ainv[3] + T[2] * ainv[6]),
+           -(T[0] * ainv[1] + T[1] * ainv[4] + T[2] * ainv[7]),
+           -(T[0] * ainv[2] + T[1] * ainv[5] + T[2] * ainv[8])]
+    C = [-fc0[0], -fc0[2], fc0[1]]
+    lens = fx * SENSOR_W / float(W)
+    # Blender shift is a fraction of the larger sensor dimension (width, landscape). Image x
+    # grows right like Blender's; image y grows down, Blender's up -- but the measured match
+    # (banner aligns to the exact software reprojection) gives the same sign for both:
+    shift_x = (px - W / 2.0) / float(W)
+    shift_y = (py - H / 2.0) / float(W)
+    return R, C, lens, shift_x, shift_y
+
+
+def write_blender_scene(outpng, cam, stage_obj_name="stage.obj", bg_obj_name="bg_plane.obj"):
+    """Write blender_scene.py next to outpng: import stage.obj + bg_plane.obj, build the exact
+    game camera VF2_GameCam from `cam`, make materials unlit, WxH + Standard. Returns (path, lens)."""
+    R, C, lens, sx, sy = blender_camera(cam)
     repl = {
         "@@STAGEOBJ@@": stage_obj_name, "@@BGOBJ@@": bg_obj_name,
-        "@@OCAMX@@": "%g" % cx, "@@OCAMY@@": "%g" % cy, "@@OCAMZ@@": "%g" % cz,
-        "@@SCALE@@": "%g" % scale, "@@REFW@@": "%d" % rw, "@@SENSORW@@": "%g" % SENSOR_W,
-        "@@LENS@@": "%.4f" % lens,
-        "@@CAMX@@": "%g" % cx, "@@CAMY@@": "%g" % (-cz), "@@CAMZ@@": "%g" % cy,
-        "@@RESW@@": "%d" % SCREEN_W, "@@RESH@@": "%d" % SCREEN_H,
+        "@@SENSORW@@": "%g" % SENSOR_W, "@@LENS@@": "%.6f" % lens,
+        "@@SHIFTX@@": "%.8f" % sx, "@@SHIFTY@@": "%.8f" % sy,
+        "@@R00@@": "%.8f" % R[0][0], "@@R01@@": "%.8f" % R[0][1], "@@R02@@": "%.8f" % R[0][2],
+        "@@R10@@": "%.8f" % R[1][0], "@@R11@@": "%.8f" % R[1][1], "@@R12@@": "%.8f" % R[1][2],
+        "@@R20@@": "%.8f" % R[2][0], "@@R21@@": "%.8f" % R[2][1], "@@R22@@": "%.8f" % R[2][2],
+        "@@CBX@@": "%.6f" % C[0], "@@CBY@@": "%.6f" % C[1], "@@CBZ@@": "%.6f" % C[2],
+        "@@RESW@@": "%d" % cam["W"], "@@RESH@@": "%d" % cam["H"],
     }
     s = BLENDER_TEMPLATE
     for k, v in repl.items():
@@ -358,26 +508,26 @@ def main(argv):
         print("  note: HUD tilemap %d has content (expected: life bars/timer/names) -- excluded."
               % hud_tm)
 
+    cam = None
+    if want_obj or want_blender:
+        campath = os.path.join(os.path.dirname(os.path.abspath(out)), "camera.txt")
+        cam = read_camera(campath)
+        if cam is None:
+            print("  ERROR: --obj/--blender need the game camera. Run geo-stage on this capture to\n"
+                  "         produce %s (it emits camera.txt beside stage.obj)." % campath)
+            return 3
+
     if want_obj:
-        if depth_opt is not None:
-            depth = float(depth_opt)
-            src = "--depth"
-        else:
-            mz = decor_max_z(os.path.join(os.path.dirname(os.path.abspath(out)), "stage.obj"))
-            if mz is not None:
-                depth = mz * 1.3 + 30.0   # comfortably behind the farthest decor vertex
-                src = "stage.obj max Z=%.1f" % mz
-            else:
-                depth = DEFAULT_DEPTH
-                src = "default (no stage.obj)"
-        objp, z = write_quad_obj(out, depth)
-        print("  quad: %s + bg_plane.mtl -> flat backdrop at world Z=%.1f (%s)" % (objp, z, src))
-        print("        camera-facing, +X=screen-left; the 496x384 window fills the game frame.")
+        depth = float(depth_opt) if depth_opt is not None else None
+        objp, z = write_quad_obj(out, cam, depth)
+        src = "--depth" if depth_opt is not None else "stage.obj decor depth"
+        print("  quad: %s + bg_plane.mtl -> flat backdrop at view depth %.1f (%s)" % (objp, z, src))
+        print("        on the game camera's view axis; shows only through the decor's openings (z-buffer).")
 
     if want_blender:
-        sp, lens = write_blender_scene(out)
-        print("  blender: %s -> imports stage.obj + bg_plane.obj, VF2_GameCam (lens %.2fmm," % (sp, lens))
-        print("           %dx%d, Standard, unlit). Run: blender -b -P blender_scene.py -f 1" % (SCREEN_W, SCREEN_H))
+        sp, lens = write_blender_scene(out, cam)
+        print("  blender: %s -> imports stage.obj + bg_plane.obj, exact VF2_GameCam (lens %.2fmm," % (sp, lens))
+        print("           %dx%d, Standard, unlit). Run: blender -b -P blender_scene.py -f 1" % (cam["W"], cam["H"]))
     return 0
 
 
