@@ -102,6 +102,25 @@ resolve by true depth); EEVEE's rasteriser mis-orders the coplanar decals and is
 The backdrop material writes depth (so the decor z-occludes it); the decor + decals stay painter-
 ordered (BLEND) like MAME so the banner shows on the wall.
 
+**Folder resolution.** `_here()` tries each candidate -- `__file__`'s dir (blender -P), the open
+text's dir (Text Editor Run), the .blend dir, cwd -- and returns the first that actually contains
+`stage.obj`; a baked-in absolute `_GEN_DIR` is the final fallback. This matters because the
+Scripting tab can set `__file__ = "\blender_scene.py"` (dir `<drive>:\`, no stage.obj), so the
+first candidate must be rejected, not trusted. The non-existent `bpy.ops.import_scene.obj`
+fallback is gone (it only masked the real error on 5.x). Verified by execing the script with
+`__file__="\blender_scene.py"` from a different cwd: it still resolves to its own folder.
+
+**Decor weld (hairline cracks).** The export writes each polygon's vertices independently, and
+adjacent wall polygons -- within a record and across records -- can carry the same corner at
+coordinates differing by fixed-point rounding, leaving sub-pixel gaps that let the backdrop show
+as thin lavender lines (MAME rasterises at whole pixels and never shows them). Measured on stage 4:
+crack pairs sit at **<= 0.106 u** (both within and across records), the smallest real feature at
+**0.37 u** -- a clean gap. The script joins the stage pieces (NOT bg_plane) into `VF2_Stage` and
+**Merge-by-Distance at 0.15 u** (`MERGE_DIST`), closing every crack and touching no feature; decals
+are separate quads with no near-duplicate of the wall, so they are not merged (the banner stays
+intact). After the weld the wall carries no backdrop pixels (only the legitimate sky sliver above
+the wall top, which the HUD covers in game).
+
 **Axis / camera conversion [MEASURED, Blender 5.2].** The forward -Z / up Y import maps OBJ
 `(x,y,z) -> Blender (x, -z, y)`. `blender_camera()` turns `camera.txt` into a Blender pose: the
 linear map `view = L.P_blender` (from `fc=(-bx,bz,-by)`, `view=fc.A+T`) is inverted so the camera

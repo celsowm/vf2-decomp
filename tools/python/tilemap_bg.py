@@ -68,6 +68,11 @@ TILE_W = TILE_H = 512
 # OBJ export (feet-centred, camera removed). +X -> screen-left, +Y up, looking +Z; the raster
 # it fills (RW x RH) corresponds to the full game screen. Tuned against stage decor + MAME.
 SENSOR_W = 36.0        # Blender sensor width (mm) used to turn the pixel focal into a lens length
+MERGE_DIST = 0.15      # Merge-by-Distance weld threshold (world units) for the stage decor in
+                       # blender_scene.py. Measured on stage 4: crack pairs sit at <= 0.106 u and
+                       # the smallest real feature at 0.37 u, a clean gap -- 0.15 closes every
+                       # crack and touches no feature. Decals are separate quads (no near-dup with
+                       # the wall), so they are not merged. ~0.6 px at the wall.
 
 
 def read_camera(path):
@@ -270,24 +275,39 @@ Set VF2_ENGINE=CYCLES in the environment to force Cycles (reliable headless). Lo
 """
 import bpy, os, math, mathutils
 
+_GEN_DIR = r"@@GENDIR@@"   # absolute folder this script was generated into (final fallback)
+_STAGE = "@@STAGEOBJ@@"
+
+def _has_stage(d):
+    return bool(d) and os.path.isfile(os.path.join(d, _STAGE))
+
 def _here():
-    """Folder of this script, whether run via `blender -P` (__file__) or the Text Editor's Run
-    (the open text's filepath), with the .blend dir and cwd as last resorts."""
+    """Folder holding stage.obj: the first candidate that actually contains it -- __file__'s dir
+    (blender -P), the open text's dir (Text Editor Run), the .blend dir, then cwd. Each candidate
+    is checked for stage.obj, because in the Scripting tab __file__ can be "\\blender_scene.py"
+    (dir "<drive>:\\"), which has none, and the real folder must still be found."""
+    cands = []
     try:
-        return os.path.dirname(os.path.abspath(__file__))
+        cands.append(os.path.dirname(os.path.abspath(__file__)))
     except NameError:
         pass
     try:
         txt = bpy.context.space_data.text
         if txt and txt.filepath:
-            return os.path.dirname(bpy.path.abspath(txt.filepath))
+            cands.append(os.path.dirname(bpy.path.abspath(txt.filepath)))
     except Exception:
         pass
     if bpy.data.filepath:
-        return os.path.dirname(bpy.data.filepath)
-    return os.getcwd()
+        cands.append(os.path.dirname(bpy.data.filepath))
+    cands.append(os.getcwd())
+    for c in cands:
+        if _has_stage(c):
+            return c
+    return cands[0] if cands else _GEN_DIR
 
 HERE = _here()
+if not _has_stage(HERE):
+    HERE = _GEN_DIR   # none of the live candidates held stage.obj -> use the baked-in folder
 
 STAGE_OBJ = os.path.join(HERE, "@@STAGEOBJ@@")
 BG_OBJ    = os.path.join(HERE, "@@BGOBJ@@")
@@ -296,13 +316,42 @@ for ob in list(bpy.data.objects):
     bpy.data.objects.remove(ob, do_unlink=True)
 
 def import_obj(path):
-    try:
-        bpy.ops.wm.obj_import(filepath=path, forward_axis='NEGATIVE_Z', up_axis='Y')
-    except Exception:
-        bpy.ops.import_scene.obj(filepath=path, axis_forward='-Z', axis_up='Y')
+    bpy.ops.wm.obj_import(filepath=path, forward_axis='NEGATIVE_Z', up_axis='Y')
 
 import_obj(STAGE_OBJ)
 import_obj(BG_OBJ)
+
+# Weld the decor. The export writes each polygon's vertices independently, and adjacent wall
+# polygons -- within a record and across records -- can carry the SAME corner at coordinates that
+# differ by fixed-point rounding (measured: gaps 0.0008..0.1 u, ~0.003..0.4 px at the wall). Those
+# hairline gaps let the backdrop (sky) show as thin lavender lines between polygons; MAME rasterises
+# at whole pixels and never shows them. Join the stage pieces (NOT bg_plane) and Merge by Distance
+# at @@MERGEDIST@@ u (sub-pixel at the wall, far below any real feature) to close them. Per-corner
+# UVs are loop data, so welding positions does not move textures.
+def weld_stage(dist):
+    import bmesh
+    stage = [o for o in bpy.data.objects if o.type == 'MESH' and o.name != 'bg_plane'
+             and not o.name.startswith('bg_plane')]
+    if not stage:
+        return 0
+    bpy.ops.object.select_all(action='DESELECT')
+    for o in stage:
+        o.select_set(True)
+    bpy.context.view_layer.objects.active = stage[0]
+    if len(stage) > 1:
+        bpy.ops.object.join()
+    ob = bpy.context.view_layer.objects.active
+    ob.name = "VF2_Stage"
+    me = ob.data
+    bm = bmesh.new(); bm.from_mesh(me)
+    before = len(bm.verts)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=dist)
+    welded = before - len(bm.verts)
+    bm.to_mesh(me); bm.free(); me.update()
+    return welded
+
+_welded = weld_stage(@@MERGEDIST@@)
+print("stage welded (merge by distance %g u): %d vertices removed" % (@@MERGEDIST@@, _welded))
 
 # VF2_GameCam: the EXACT game camera of this capture, from camera.txt (geo-stage). The Model 2
 # view transform (view = fc.A + T, fc=(-OBJ.x,OBJ.y,OBJ.z)) + projection (fx,fy,px,py over WxH)
@@ -447,7 +496,9 @@ def write_blender_scene(outpng, cam, stage_obj_name="stage.obj", bg_obj_name="bg
     """Write blender_scene.py next to outpng: import stage.obj + bg_plane.obj, build the exact
     game camera VF2_GameCam from `cam`, make materials unlit, WxH + Standard. Returns (path, lens)."""
     R, C, lens, sx, sy = blender_camera(cam)
+    gen_dir = os.path.dirname(os.path.abspath(outpng)).replace("\\", "/")
     repl = {
+        "@@GENDIR@@": gen_dir, "@@MERGEDIST@@": "%g" % MERGE_DIST,
         "@@STAGEOBJ@@": stage_obj_name, "@@BGOBJ@@": bg_obj_name,
         "@@SENSORW@@": "%g" % SENSOR_W, "@@LENS@@": "%.6f" % lens,
         "@@SHIFTX@@": "%.8f" % sx, "@@SHIFTY@@": "%.8f" % sy,
