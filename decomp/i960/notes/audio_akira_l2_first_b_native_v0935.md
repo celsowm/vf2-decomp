@@ -384,3 +384,352 @@ body through the pre-RTS boundary**. The higher-level L2 scan loop,
 other descriptors, Timer-A scheduling, SCSP rendering and arcade DAC
 are *not* recovered by this change. Next prove the worker's integration
 inside a whole interrupt tick, without prematurely declaring playback.
+
+## v0952 — owner-ROM corrections, 30 October 2026
+
+Owner-only original 68000 execution disproved the prior Akira packet
+#3, #12, #13 and #14 payload hypotheses. Measured entries are
+`BE 10 72`, `B0 07 7F`, `C0 00 00` and `B6 07 78`.
+At the 14th emitter boundary PC `0x212C`, the descriptor status is
+`0x89`, A3 is `0x615799`, and the interpreter continues. The
+old pre-RTS claim at `0x2158` after packet #14 is **retracted**.
+The legacy first-return probe now explicitly returns UNSUPPORTED;
+`maintain_streams` remains unmodified. Original SR events are checked
+against the full 2*N-1 event sequence rather than incorrectly requiring
+zero bus telemetry. Full original-ROM RAM/SCSP parity is a separate
+required gate and is not claimed from public ROM-free CI.
+
+## v0954 — forensic continuation beyond the 14th original emitter
+
+The corrected ROM-independent Akira prefix is now an atomic native transaction,
+`vf2_sound_board_probe_akira_l2_prefix14`, with full-board rollback on a late
+unsupported command, a 4 KiB wraparound fixture, and owner-only full sound-RAM /
+SCSP comparison to genuine 68000 execution through **the fourteenth**
+`0x212c` boundary. See PR #126. This does *not* complete L2 or install
+the new stream duration.
+
+**The post-14 path has not been recovered.** In particular, the older
+`0x2138 -> 0x2158` pre-RTS theory after packet #14 was disproved and
+is not being restored. The owner-ROM correction material verifies the
+14th stop PC, A3 `0x615799`, descriptor status `0x89`, and the corrected
+four packets; it does **not** establish the 15th packet.
+
+A dedicated opt-in original-emulator continuation probe was added, without
+introducing any more guessed native opcodes. The probe first constructs the
+exact corrected Akira fixture, executes the ORIGINAL 68000 up to the
+fourteenth `0x212c`, and demands native-C vs original full RAM/SCSP equality.
+**Only then** does it resume the *same original CPU registers, event bus,
+RAM and SCSP* until it encounters either the next `0x212c` with count 15
+and an exactly advanced ring cursor, or an actual RTS opcode at the
+previously nominated `0x2158` PC. Unsupported opcodes, corrupt counts,
+unbounded progress or mismatches fail nonzero with bounded PC diagnostics.
+
+Local owner-ROM commands (no ROM data published):
+
+```sh
+# Native Linux / macOS (adapt .exe / -C Debug on Windows):
+cmake -S . -B build -DVF2_BUILD_TESTS=ON -DVF2_WARNINGS_AS_ERRORS=ON
+cmake --build build --parallel
+
+# Public, ROM-free (also part of CTest):
+build/vf2_m68k_cdispatch_tests --selftest-akira-continuation
+
+# Private owner's verified original ROM directory:
+build/vf2_m68k_cdispatch_tests /private/vf2 --probe-akira-continuation
+```
+
+Output `AKIRA_POST14 first-emission` lists the next original 3-byte packet,
+exact ephemeral A3, descriptor status, duration, stream pointer, instruction
+count and SR event count. A shorter `worker-rts` record is printed only
+when a genuine RTS is found at PC `0x2158`; a path breadcrumb list (up to
+48 PCs) supports later translation. These values are **observations
+to collect locally**, not values measured by the hosted CI. The diagnostic
+never modifies the native sound board, production scheduler or emulator;
+no ROM, WAV, trace or extracted sample bytes are committed.
+
+The CTest observer selftest verifies positive packet extraction, missing
+emitter PC, wrong cursor, wrong count, and invalid RAM bounds without a
+ROM. The full original 68000 continuation itself remains owner-local
+and unverified until the local command is run.
+
+## v0955 — stored native/original 10-second WAV artifacts compare exactly
+
+The user's existing private WAV artifacts named
+`vf2_akira_10s_NATIVE_C_WALK_TIMA49_scsp_model.wav` and
+`vf2_akira_10s_ORIGINAL_WALK_TIMA49_scsp_model.wav` were compared
+locally on 2026-10-30. Each is stereo 16-bit PCM at 44,100 Hz and
+contains exactly 441,000 frames (10 seconds). Their **entire WAV bytes**
+and decoded 882,000 PCM sample values match (zero differing frames);
+both entire-file SHA-256 values equal
+`463d20c14383c408fd5b55dd78c36675ed3ca3c3bc06a76a92dd0e5f36de5b3e`.
+
+**Interpretation:** a pair of *stored artifacts* have identical bytes
+under the recorded Timer-A-49 experiment. This alone does not verify
+the provenance of either WAV, independently demonstrate that the
+C-only and original-MC68000 executors each produced it, or establish
+real arcade timing/DAC fidelity. It also does **not** resolve the
+separate pending corrected Akira #14+ native worker.
+
+To keep future comparisons reproducible, the repository now includes
+a streaming standard-library-only gate, refusing different frame
+counts, rates, channel counts and widths, and detecting the first
+differing frame/channel/byte if PCM diverges:
+
+```sh
+python tools/python/audio_pcm_diff.py \
+    /private/native.wav /private/original.wav --json
+
+# Uses small synthetic generated WAVs; public CI needs no ROM or audio.
+python tools/python/test_audio_pcm_diff.py -v
+```
+
+It reports PCM and complete-file SHA-256 separately, and its exit
+status is 0 for identical format/PCM, 1 for differences, 2 for
+invalid inputs. The comparison tool does not generate, authenticate
+or independently reproduce the two WAVs. To elevate artifact equality
+to a defensible **execution** parity claim, regenerate both from
+independently identified paths against the same private owner-ROM
+fixture and perform the comparison without manually copying WAVs.
+
+## v0956 — executable independent producer parity gate (owner-ROM-only)
+
+The stored artifacts in v0955 are equal; their independent generation
+was not established by hash comparison. The new
+`tools/python/audio_akira_pair_gate.py` addresses that limitation
+when the owner runs it **against a locally verified ROM directory**.
+
+It invokes the repository's existing
+`vf2_m68k_l3_selection_tests` twice as independent child processes,
+in fresh temporary directories, requiring both the exact mode marker
+and `AKIRA_MUSIC_SEQUENCE_FINISH` before reading the expected files:
+
+1. `--akira-tima-original-wav-dir` — authentic 68000 sample-page walker;
+2. `--akira-tima-native-wav-dir` — recovered native C sample-page walker.
+
+Both modes **still share ORIGINAL 68000 L2 and drain** and the repo's
+modeled SCSP renderer. Thus this experiment evaluates the **PCM page
+walker**, not a fully native sound sequencer. Its timer profile is
+the experimental 49-PCM-frame cadence; it is not a measured
+cycle-exact Sega Model 2A IRQ scheduler.
+
+Owner-local reproduction (requires the user's ROM and a compiled binary):
+
+```sh
+python tools/python/audio_akira_pair_gate.py \
+  build/vf2_m68k_l3_selection_tests /private/vf2 --json
+```
+
+The Python gate never copies, uploads, retains or commits the WAVs:
+it deletes temporary originals/native files after the independent
+runs, then returns 0 for exact PCM, 1 for a measured difference and
+2 for missing outputs, markers, private ROMs or execution failures.
+It reports the first differing sample position if present.
+
+```sh
+# Independently validates the orchestrator with synthetic in-memory
+# producer mocks and deliberate failures; never needs owner ROM.
+python tools/python/test_audio_akira_pair_gate.py -v
+```
+
+No owner-ROM execution of this **new combined gate** took place
+in public CI. The historical 10-second stored-file equality remains
+a fact about the artifacts, not a substituted fresh-run result.
+
+## v0957 — first real original-ROM differential beyond packet 14
+
+**31 October 2026, owner-ROM execution performed in the isolated local
+working environment** using `vf2(20261018-203049).zip` from the
+owner's file library. The sound ROM `epr-17574.30` SHA-1 was
+independently checked:
+`b6c0c3f0473bd7fc3ef4f5146110dfcc899a5af9`.
+No private ROM was sent to GitHub or checked into the repo.
+
+The PR #126-built `vf2_m68k_cdispatch_tests` opt-in command
+`--probe-akira-continuation` first proved full original-vs-C parity
+of the **fourteenth** packet at PC `0x212C` (RAM=1, SCSP=1).
+From there, resuming the **same genuine Motorola 68000 interpreter**
+executed **34 original instructions** to the **fifteenth**
+shared-emitter visit: packet **`B6 0A 2C`**, source A3
+`0x61579B`, ring count 15, write cursor 60, descriptor
+status `0x89`, original duration 0, descriptor+4 still
+`0x615773`. The route leaves `0x212C` for
+`0x2130 → 0x2136 → 0x1F96`; original class B handler
+`0x1FFC` inherits the preceding B6 opcode for source
+`0A AC`. The earlier first-worker-return hypothesis
+is still **disproved**.
+
+The independent new native probe
+`vf2_sound_board_probe_akira_l2_fifteenth_b` admits
+**only** this observed source/descriptor/ring history and
+writes the three pending FIFO bytes while preserving its
+fourth metadata byte. Reported ephemeral A3 does not
+overwrite descriptor+4; packet 16 and any complete L2
+worker return remain unsupported.
+
+**Stronger test: actual-ROM C-vs-68000 full-state differential.**
+The `vf2_m68k_akira15_tests` binary was compiled in GitHub
+Actions, downloaded independently, then executed against the
+verified private ROM **without modifying it**. The owner-ROM run
+exited 0 with the following result:
+
+```text
+AKIRA_15_ORIGINAL_DIFF PASS pc=0212c a3=61579b steps=472 packets=15 fifo_cursor=60 sr_events=29 ram=1 scsp=1
+```
+
+The **full 512 KiB sound-RAM image** and entire modeled SCSP
+state match the C implementation at the 15th instruction
+boundary, not just a guessed packet tuple. The same executable
+also passed its ROM-free synthetic fixture in release build.
+Initial ASan/UBSan caught undefined intermediate pointer
+arithmetic in the synthetic test's source placement; that
+fixture expression was corrected by grouping the sound-ROM
+offset subtraction **before** adding to the fake array.
+The new corrected CI run is the follow-up sanitizer gate,
+not a substitute for the owner-ROM differential.
+
+Reproduce locally (never upload private inputs or generated PCM):
+
+```sh
+build/vf2_m68k_akira15_tests --rom-free
+build/vf2_m68k_akira15_tests /private/vf2
+```
+
+This closes the *isolated fifteenth-packet boundary only*.
+Production `vf2_sound_board_maintain_streams` is unchanged
+and fails closed for the incomplete music interpreter. Before
+connecting it, further original-PC packets and a real
+worker return / stream-pointer commit must be measured.
+
+## v0958 — first Akira descriptor worker complete, real 68000 RTC boundary
+
+On 31 October 2026, the owner's verified private VF2.1 sound ROM
+(`epr-17574.30`, original SHA-1 already recorded in v0957)
+was executed **without a reset** from the native-exact 15th packet
+all the way through the first descriptor worker's true RTS.
+The original Motorola 68000 emitted **32 packets**, then reached
+**PC 0x2158 RTS after exactly 1,024 instructions**, with ephemeral
+A3 `0x6157CC`. The 17 newly observed emissions include:
+16 = `C7 07 00`, 26 = `E6 00 40`, 28 = `B6 2A 38`,
+32 = `96 2D 7F`; the continuation status changes from
+`0x89` to `0x88` at packet 28, followed by no-retry zero
+separators. This is **not** the false worker return once proposed
+after the 14th packet.
+
+New independent native C function
+`vf2_sound_board_probe_akira_l2_first_worker32`:
+
+- composes the already original-verified 14+1 packet primitives on
+  a disposable board;
+- authenticates the remainder of the owner-verified stream using an
+  FNV-1a source fingerprint (no unredacted ROM content published);
+- interprets bounded B / 9 / E three-byte commands, C-class two-byte
+  commands, inherited opcodes, high-bit continuation flags, and the
+  measured zero-sentinel no-retry path, checking every emitted
+  three-byte packet against the original differential witness;
+- preserves every fourth ring byte, enforces cursor alignment and
+  counter capacity, and commits nothing on an unrecognized source or
+  unsupported path;
+- after 32 emissions, consumes the original two-byte variable-length
+  duration, commits **`0x01B2`** to descriptor+2 and persistent
+  source pointer **`0x6157CC`** to descriptor+4.
+
+**Strongest executed owner-ROM result:**
+
+```text
+AKIRA_WORKER32_ORIGINAL_DIFF PASS pc=02158 steps=1024 packets=32 a3=6157cc duration=01b2 stream=6157cc ram=1 scsp=1
+```
+
+This is *full 512 KiB sound-RAM and entire modeled SCSP state equality*
+against the original CPU **at the actual RTS**, observed by running the
+GitHub CI-compiled binary locally on the owner's provided private ROM.
+It is not only a synthetic native-vs-native test, and no sound ROM was
+uploaded or committed. Run locally:
+
+```sh
+build/vf2_m68k_akira15_tests /private/vf2 --trace-continuation
+```
+
+The ROM-free CTest covers the exact initial 15-packet boundary,
+ring wrap, malformed packet history and full-worker refusal when
+the authenticated tail is unavailable. The ROM-backed successful
+worker parity is owner-only.
+
+**Remaining gap:** the enclosing L2 IRQ body, timer cadence, other
+descriptors and general audio stream grammar are not covered.
+`vf2_sound_board_maintain_streams` is still unchanged and refuses
+unrecognized stream handoffs. Do not claim the Akira song plays
+continuously, or audio bit-identical to the hardware.
+
+## v0959 — full first L2 IRQ + three follow-up ticks: verified C/68000 parity
+
+**Measured and executed on 31 Oct 2026** with the private owner VF2.1
+sound ROM (`epr-17574.30`, previously verified SHA-1
+`b6c0c3f0473bd7fc3ef4f5146110dfcc899a5af9`).
+The private ROM remains in the local working directory and is **never
+committed or uploaded to GitHub**. The source of the new tests contains
+no proprietary ROM data.
+
+The native `vf2_sound_board_maintain_streams` now recognizes the
+previously original-verified Akira first descriptor worker at record
+zero, stream `0x615773`, countdown 1, ring count zero. It requires
+**no active other stream descriptor and no active prescaler**; all
+unverified concurrent writer scenarios refuse atomically. The C
+routine operates on a disposable full-board copy, applies the two
+unconditional L2-head SCSP writes at `0x0418 = 0x00CE` and
+`0x0422 = 0x0040`, then calls the fully verified 32-packet native
+worker. It commits RAM and SCSP only when every guard and the native
+worker have succeeded. General stream paths and unrecognized ROM
+content retain the previous fail-closed behavior.
+
+An independent genuine Motorola 68000 oracle begins at the
+**full L2 interrupt entry `0x1F16`** and steps until the
+**`0x1F7A` ISR epilogue**, not merely the worker's RTS.
+It matches **every sound RAM byte** outside the original-only CPU
+temporary stack region `[0x7E00,0x7F00)`, plus the *entire* modeled
+SCSP state. It verifies balanced original A7, all 32 ring entries,
+cursor 128, duration `0x01B2`, source pointer `0x6157CC`, and no
+unauthorized replay.
+
+After that the oracle executes three more genuine L2 ticks from
+the *same* RAM/SCSP snapshot, with a fresh CPU register entry for each
+IRQ. Those ticks consume the installed duration but must **not**
+re-run the one-shot worker. Each complete state transition is checked
+again against the production C maintenance routine.
+
+```text
+AKIRA_L2_ORIGINAL_DIFF PASS stop=01f7a steps=1073 count=32 cursor=128 duration=01b2 stream=006157cc sr_events=64 ram=1 scsp=1
+AKIRA_L2_FOLLOWUP_DIFF PASS tick=1 steps=53 duration=01b1 queue=32 ram=1 scsp=1
+AKIRA_L2_FOLLOWUP_DIFF PASS tick=2 steps=53 duration=01b0 queue=32 ram=1 scsp=1
+AKIRA_L2_FOLLOWUP_DIFF PASS tick=3 steps=53 duration=01af queue=32 ram=1 scsp=1
+```
+
+Both the ROM-free preflight/refusal tests and the *actual private-ROM
+four-tick C-vs-original differential* exited 0 in the isolated local
+runtime using the CI-compiled Linux executable. This is end-to-end
+parity for the **measured first L2 service and three following timer
+services**. It is not equivalent to recovered original FIFO drain,
+realtime SCSP timer IRQ scheduling, or full song/arcade DAC parity.
+
+Owner-local reproduction:
+
+```sh
+cmake -S . -B build -DVF2_BUILD_TESTS=ON \
+  -DVF2_ROM_DIR=/private/vf2 -DVF2_WARNINGS_AS_ERRORS=ON
+cmake --build build --parallel
+ctest --test-dir build -R vf2_m68k_akira_l2 --output-on-failure
+
+# Standalone stronger differential:
+build/vf2_m68k_akira_l2_integrated_tests /private/vf2
+```
+
+The private-ROM test automatically registers in CTest only when
+`VF2_ROM_DIR` exists. Public CI performs ROM-free tests,
+compilation and sanitizers only; never treat them as substitutes for
+the private-ROM evidence.
+
+Next meaningful engineering frontier: consume the first L2-produced
+command queue via native `vf2_sound_board_dispatch_next` with the
+original 68000 drain as a per-packet oracle, then test time-driven
+repeat cycles. The queue/drain, natural event path and full realtime
+audio pipeline remain **unproven** and must not be described as
+a fully working arcade game.

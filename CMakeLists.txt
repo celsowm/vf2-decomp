@@ -452,6 +452,13 @@ if(VF2_BUILD_TESTS)
     vf2_set_project_warnings(vf2_tile_tests)
     add_test(NAME vf2_tile COMMAND vf2_tile_tests)
     if(EXISTS "${VF2_ROM_DIR}")
+        # Private owner-ROM 68000 oracle: genuine 0x1F16..0x1F7A L2
+        # followed by three real countdown ticks vs integrated C.
+        # Never executes in hosted CI without the user's private ROM.
+        add_test(NAME vf2_m68k_akira_l2_four_ticks_owner_rom
+                 COMMAND vf2_m68k_akira_l2_integrated_tests "${VF2_ROM_DIR}")
+        set_tests_properties(vf2_m68k_akira_l2_four_ticks_owner_rom
+                             PROPERTIES TIMEOUT 900)
         add_test(NAME vf2_tile_font COMMAND vf2_tile_tests "${VF2_ROM_DIR}")
         # Cold snapshot for the end-to-end session tile-layer test (TEST MENU),
         # generated on demand from the ROM (never committed).
@@ -634,6 +641,31 @@ if(VF2_BUILD_TESTS)
     add_executable(vf2_m68k_cdispatch_tests tests/m68k/test_cdispatch.c)
     target_link_libraries(vf2_m68k_cdispatch_tests PRIVATE vf2_core)
     vf2_set_project_warnings(vf2_m68k_cdispatch_tests)
+
+    # Original-ROM measured Akira #15 at 0x212C, full RAM/SCSP
+    # differential in private runs, strict synthetic ROM-free fixture.
+    add_executable(vf2_m68k_akira15_tests
+                   tests/m68k/test_akira15_differential.c)
+    target_link_libraries(vf2_m68k_akira15_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_m68k_akira15_tests)
+    add_test(NAME vf2_m68k_akira15_rom_free
+             COMMAND vf2_m68k_akira15_tests --rom-free)
+
+    # Full original 0x1F16..0x1F7A L2 ISR path, including 32-packet
+    # worker and unconditional SCSP pokes, tested with private ROM.
+    add_executable(vf2_m68k_akira_l2_integrated_tests
+                   tests/m68k/test_akira_l2_integrated.c)
+    target_link_libraries(vf2_m68k_akira_l2_integrated_tests PRIVATE vf2_core)
+    vf2_set_project_warnings(vf2_m68k_akira_l2_integrated_tests)
+    add_test(NAME vf2_m68k_akira_l2_integrated_rom_free
+             COMMAND vf2_m68k_akira_l2_integrated_tests --rom-free)
+
+    # The original-68000 Akira post-14 observer itself is testable
+    # WITHOUT original ROMs. Owner-only continuation is a separate
+    # explicit command and never executes in public CI.
+    add_test(NAME vf2_m68k_akira_post14_observer_rom_free
+             COMMAND vf2_m68k_cdispatch_tests
+                     --selftest-akira-continuation)
 
     # ROM-backed L3 comparison for real 0xAD23xx/0xAD24xx
     # selections, independent from the i960 gameplay trigger.
@@ -1369,6 +1401,20 @@ if(VF2_BUILD_TESTS)
     # skipped with a clear message rather than failing the suite.
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
+        # Small synthetic WAVs only; no owner audio is committed to Git.
+        # The executable compares owner-local WAVs when invoked manually.
+        add_test(
+            NAME vf2_python_audio_pcm_diff
+            COMMAND ${Python3_EXECUTABLE}
+                    ${CMAKE_SOURCE_DIR}/tools/python/test_audio_pcm_diff.py
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        )
+        add_test(
+            NAME vf2_python_audio_akira_pair_gate
+            COMMAND ${Python3_EXECUTABLE}
+                    ${CMAKE_SOURCE_DIR}/tools/python/test_audio_akira_pair_gate.py
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        )
         add_test(
             NAME vf2_python_audio_sound_test_catalog
             COMMAND ${Python3_EXECUTABLE}

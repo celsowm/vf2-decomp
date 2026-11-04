@@ -423,7 +423,7 @@ static void test_akira_mixed_c_first_three(void)
     static const uint8_t expected[] = {
         0xbeu,0x50u,0x7eu,
         0xbeu,0x20u,0x00u,
-        0xbeu,0x10u,0x00u,
+        0xbeu,0x10u,0x72u,
         0x9fu,0x48u,0x77u,
         0x9fu,0x2eu,0x40u,
         0x9fu,0x33u,0x7fu,
@@ -544,7 +544,7 @@ static void test_akira_tenth_c_original_prefix(void)
     };
     static const uint8_t prior[27] = {
         0xbeu,0x50u,0x7eu,0xbeu,0x20u,0x00u,
-        0xbeu,0x10u,0x00u,0x9fu,0x48u,0x77u,
+        0xbeu,0x10u,0x72u,0x9fu,0x48u,0x77u,
         0x9fu,0x2eu,0x40u,0x9fu,0x33u,0x7fu,
         0xc1u,0x01u,0x00u,0x9fu,0x2bu,0x6eu,
         0xc3u,0x02u,0x00u
@@ -661,7 +661,7 @@ static void test_akira_next_b0_07_native(void)
     };
     static const uint8_t ten[30] = {
         0xbeu,0x50u,0x7eu,0xbeu,0x20u,0x00u,
-        0xbeu,0x10u,0x00u,0x9fu,0x48u,0x77u,
+        0xbeu,0x10u,0x72u,0x9fu,0x48u,0x77u,
         0x9fu,0x2eu,0x40u,0x9fu,0x33u,0x7fu,
         0xc1u,0x01u,0x00u,0x9fu,0x2bu,0x6eu,
         0xc3u,0x02u,0x00u,0xc8u,0x0du,0x00u
@@ -724,13 +724,13 @@ static void test_akira_next_b0_07_native(void)
     EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_b0_07(
         &board,&p6)==VF2_OK);
     EXPECT_TRUE(p6.stream_before==UINT32_C(0x615773) &&
-                p6.a3_after==UINT32_C(0x615795) &&
+                p6.a3_after==UINT32_C(0x615794) &&
                 p6.cursor_before==40u && p6.cursor_after==48u &&
                 p6.status_after==0x89u);
     EXPECT_TRUE(p6.packet[0]==0xb0u && p6.packet[1]==0x0au &&
-                p6.packet[2]==0x40u && p6.packet[3]==0x07u &&
-                p6.packet[4]==0xffu && p6.packet[5]==0x40u);
-    EXPECT_TRUE(d[0]==0x89u && d[1]==0x07u &&
+                p6.packet[2]==0x40u && p6.packet[3]==0xb0u &&
+                p6.packet[4]==0x07u && p6.packet[5]==0x7fu);
+    EXPECT_TRUE(d[0]==0x89u && d[1]==0xb0u &&
                 d[4]==0u && d[5]==0x61u &&
                 d[6]==0x57u && d[7]==0x73u &&
                 d[0x0eu]==0x72u &&
@@ -766,15 +766,148 @@ static void test_akira_next_b0_07_native(void)
                 board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+0xffdu]==0x0au &&
                 board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+0xffeu]==0x40u &&
                 board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+0xfffu]==0x93u &&
-                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE]==0x07u &&
-                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+1u]==0xffu &&
-                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+2u]==0x40u &&
+                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE]==0xb0u &&
+                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+1u]==0x07u &&
+                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+2u]==0x7fu &&
                 board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+3u]==0x94u);
 }
 
-/* At the 14th emission class-8 has a fixed third byte 7F.
- * The following untagged class-0 entry leaves status 0x88. */
-static void test_akira_next_80_07_native(void)
+/* Complete recovered Akira prefix through original emitter PC 0x212C:
+ * one native call must equal the eight independent bounded probes.
+ * Refusal at packet #14 must not emit even packet #1 on the caller.
+ * The write pointer, count, fourth ring bytes and full board matter. */
+static void test_akira_prefix14_atomic(void)
+{
+    static vf2_sound_board board;
+    static vf2_sound_board seed;
+    static vf2_sound_board sequential;
+    static vf2_sound_board before;
+    static uint8_t rom[0x16000u];
+    static const uint8_t sample[2] = {0u, 0u};
+    static const uint8_t source[39] = {
+        0xbeu,0x50u,0xfeu,0xbeu,0x20u,0x80u,
+        0xbeu,0x10u,0x72u,0x00u,
+        0x9fu,0x48u,0xf7u,0x9fu,0x2eu,0xc0u,
+        0x9fu,0x33u,0xffu,
+        0xc1u,0x81u,0x9fu,0x2bu,0xeeu,0xc3u,0x82u,
+        0xc8u,0x8du,
+        0xb0u,0x0au,0xc0u,0x07u,0xffu,0xc0u,
+        0x80u,0xb6u,0x07u,0xf8u,0x0au
+    };
+    static const uint8_t packets[42] = {
+        0xbeu,0x50u,0x7eu,0xbeu,0x20u,0x00u,
+        0xbeu,0x10u,0x72u,0x9fu,0x48u,0x77u,
+        0x9fu,0x2eu,0x40u,0x9fu,0x33u,0x7fu,
+        0xc1u,0x01u,0x00u,0x9fu,0x2bu,0x6eu,
+        0xc3u,0x02u,0x00u,0xc8u,0x0du,0x00u,
+        0xb0u,0x0au,0x40u,0xb0u,0x07u,0x7fu,
+        0xc0u,0x00u,0x00u,0xb6u,0x07u,0x78u
+    };
+    const size_t at = UINT32_C(0x615773) - VF2_SOUND_AUDIO_ROM_BASE;
+    vf2_sound_music_prefix_report first;
+    vf2_sound_music_followup_report two_b;
+    vf2_sound_music_9f_report first_9f;
+    vf2_sound_music_9f_pair_report two_9f;
+    vf2_sound_music_mixed_report mixed;
+    vf2_sound_music_c_followup_report tenth;
+    vf2_sound_music_b0_07_report next_b0;
+    vf2_sound_music_c0_b6_report last;
+    vf2_sound_music_prefix14_report report;
+    uint8_t *d;
+    size_t i;
+    size_t pass;
+
+    test_boot_rom(rom);
+    memcpy(rom + at, source, sizeof(source));
+    EXPECT_TRUE(vf2_sound_board_initialize(
+        &seed, rom, sizeof(rom), sample, sizeof(sample)) == VF2_OK);
+    d = seed.sound_ram + VF2_SOUND_DESCRIPTOR_BASE;
+    memset(d, 0, VF2_SOUND_STREAM_DESCRIPTOR_BYTES);
+    d[0] = 0x88u; d[3] = 1u;
+    d[5] = 0x61u; d[6] = 0x57u; d[7] = 0x73u;
+    d[9] = 0x60u; d[10] = 0x9cu; d[11] = 0x3eu;
+
+    for (pass = 0u; pass < 2u; ++pass) {
+        const uint16_t start = pass == 0u ? 0u : UINT16_C(0x0ffc);
+        memcpy(&board, &seed, sizeof(board));
+        board.sound_ram[VF2_SOUND_COMMAND_WRITE_CURSOR] =
+            (uint8_t)(start >> 8u);
+        board.sound_ram[VF2_SOUND_COMMAND_WRITE_CURSOR + 1u] =
+            (uint8_t)start;
+        for (i = 0u; i < 14u; ++i) {
+            const uint16_t slot = (uint16_t)((start + 4u*i) & 0x0fffu);
+            board.sound_ram[VF2_SOUND_COMMAND_RING_BASE + slot + 3u] =
+                (uint8_t)(0x40u + i);
+        }
+        memcpy(&sequential, &board, sizeof(board));
+        EXPECT_TRUE(vf2_sound_board_probe_akira_l2_prefix14(
+            &board, &report) == VF2_OK);
+        EXPECT_TRUE(report.stream_before == UINT32_C(0x615773) &&
+                    report.ephemeral_a3_after == UINT32_C(0x615799) &&
+                    report.cursor_before == start &&
+                    report.cursor_after ==
+                        (uint16_t)((start + 56u) & 0x0fffu) &&
+                    report.pending_before == 0u &&
+                    report.pending_after == 14u &&
+                    report.status_after == 0x89u &&
+                    report.packets_emitted == 14u);
+        EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_b(
+            &sequential, &first) == VF2_OK);
+        EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_two_b(
+            &sequential, &two_b) == VF2_OK);
+        EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_9f(
+            &sequential, &first_9f) == VF2_OK);
+        EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_two_9f(
+            &sequential, &two_9f) == VF2_OK);
+        EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_mixed_c(
+            &sequential, &mixed) == VF2_OK);
+        EXPECT_TRUE(vf2_sound_board_probe_akira_l2_tenth_c(
+            &sequential, &tenth) == VF2_OK);
+        EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_b0_07(
+            &sequential, &next_b0) == VF2_OK);
+        EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_c0_b6(
+            &sequential, &last) == VF2_OK);
+        EXPECT_TRUE(memcmp(&board, &sequential, sizeof(board)) == 0);
+        for (i = 0u; i < 14u; ++i) {
+            const uint16_t slot = (uint16_t)((start + 4u*i) & 0x0fffu);
+            EXPECT_TRUE(memcmp(
+                board.sound_ram + VF2_SOUND_COMMAND_RING_BASE + slot,
+                packets + 3u*i, 3u) == 0);
+            EXPECT_TRUE(board.sound_ram[
+                VF2_SOUND_COMMAND_RING_BASE + slot + 3u] ==
+                (uint8_t)(0x40u + i));
+        }
+        EXPECT_TRUE(board.sound_ram[VF2_SOUND_DESCRIPTOR_BASE + 7u] ==
+                    0x73u &&
+                    board.sound_ram[VF2_SOUND_DESCRIPTOR_BASE + 2u] == 0u &&
+                    board.sound_ram[VF2_SOUND_DESCRIPTOR_BASE + 3u] == 0u);
+        /* Late corrupted source: all fourteen native emissions must
+         * roll back, preserving both caller board and output report. */
+        memcpy(&board, &seed, sizeof(board));
+        rom[at + 38u] = 0x0bu;
+        memcpy(&before, &board, sizeof(board));
+        memset(&report, 0x5au, sizeof(report));
+        EXPECT_TRUE(vf2_sound_board_probe_akira_l2_prefix14(
+            &board, &report) == VF2_ERROR_UNSUPPORTED);
+        EXPECT_TRUE(memcmp(&board, &before, sizeof(board)) == 0);
+        EXPECT_TRUE(report.packets_emitted == UINT8_C(0x5a));
+        rom[at + 38u] = 0x0au;
+    }
+    memcpy(&board, &seed, sizeof(board));
+    board.sound_ram[VF2_SOUND_COMMAND_COUNT] = 242u;
+    memcpy(&before, &board, sizeof(board));
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_prefix14(
+        &board, &report) == VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(memcmp(&board, &before, sizeof(board)) == 0);
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_prefix14(
+        NULL, &report) == VF2_ERROR_INVALID_ARGUMENT);
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_prefix14(
+        &board, NULL) == VF2_ERROR_INVALID_ARGUMENT);
+}
+
+/* Original #13/#14 are class C0 and B6, not class 8 and class 0.
+ * The continuation bit remains set (descriptor status 0x89). */
+static void test_akira_next_c0_b6_native(void)
 {
     static vf2_sound_board board;
     static uint8_t rom[0x16000u];
@@ -791,11 +924,11 @@ static void test_akira_next_80_07_native(void)
     };
     static const uint8_t twelve[36] = {
         0xbeu,0x50u,0x7eu,0xbeu,0x20u,0x00u,
-        0xbeu,0x10u,0x00u,0x9fu,0x48u,0x77u,
+        0xbeu,0x10u,0x72u,0x9fu,0x48u,0x77u,
         0x9fu,0x2eu,0x40u,0x9fu,0x33u,0x7fu,
         0xc1u,0x01u,0x00u,0x9fu,0x2bu,0x6eu,
         0xc3u,0x02u,0x00u,0xc8u,0x0du,0x00u,
-        0xb0u,0x0au,0x40u,0x07u,0xffu,0x40u
+        0xb0u,0x0au,0x40u,0xb0u,0x07u,0x7fu
     };
     const size_t at=UINT32_C(0x615773)-VF2_SOUND_AUDIO_ROM_BASE;
     vf2_sound_music_prefix_report p0;
@@ -805,7 +938,7 @@ static void test_akira_next_80_07_native(void)
     vf2_sound_music_mixed_report p4;
     vf2_sound_music_c_followup_report p5;
     vf2_sound_music_b0_07_report p6;
-    vf2_sound_music_80_07_report p7;
+    vf2_sound_music_c0_b6_report p7;
     uint8_t *d;
     size_t i;
     test_boot_rom(rom);
@@ -837,31 +970,31 @@ static void test_akira_next_80_07_native(void)
         &board,&p6)==VF2_OK);
 
     rom[at+38u]=0x0bu;
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_80_07(
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_c0_b6(
         &board,&p7)==VF2_ERROR_UNSUPPORTED);
     EXPECT_TRUE(board.sound_ram[VF2_SOUND_COMMAND_COUNT]==12u &&
                 board.sound_ram[VF2_SOUND_COMMAND_WRITE_CURSOR+1u]==48u &&
-                d[0]==0x89u && d[1]==0x07u);
+                d[0]==0x89u && d[1]==0xb0u);
     rom[at+38u]=0x0au;
-    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+44u]=0x08u;
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_80_07(
+    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+44u]=0xb1u;
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_c0_b6(
         &board,&p7)==VF2_ERROR_UNSUPPORTED);
-    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+44u]=0x07u;
+    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+44u]=0xb0u;
     board.sound_ram[VF2_SOUND_COMMAND_COUNT]=0xffu;
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_80_07(
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_c0_b6(
         &board,&p7)==VF2_ERROR_UNSUPPORTED);
     board.sound_ram[VF2_SOUND_COMMAND_COUNT]=12u;
 
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_80_07(
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_c0_b6(
         &board,&p7)==VF2_OK);
     EXPECT_TRUE(p7.stream_before==UINT32_C(0x615773) &&
-                p7.a3_after==UINT32_C(0x61579a) &&
+                p7.a3_after==UINT32_C(0x615799) &&
                 p7.cursor_before==48u && p7.cursor_after==56u &&
-                p7.status_after==0x88u);
-    EXPECT_TRUE(p7.packet[0]==0x80u && p7.packet[1]==0x36u &&
-                p7.packet[2]==0x7fu && p7.packet[3]==0x07u &&
-                p7.packet[4]==0xf8u && p7.packet[5]==0x0au);
-    EXPECT_TRUE(d[0]==0x88u && d[1]==0x07u &&
+                p7.status_after==0x89u);
+    EXPECT_TRUE(p7.packet[0]==0xc0u && p7.packet[1]==0u &&
+                p7.packet[2]==0u && p7.packet[3]==0xb6u &&
+                p7.packet[4]==0x07u && p7.packet[5]==0x78u);
+    EXPECT_TRUE(d[0]==0x89u && d[1]==0xb6u &&
                 d[4]==0u && d[5]==0x61u &&
                 d[6]==0x57u && d[7]==0x73u &&
                 board.sound_ram[VF2_SOUND_COMMAND_COUNT]==14u);
@@ -875,12 +1008,12 @@ static void test_akira_next_80_07_native(void)
         }
         EXPECT_TRUE(q[3]==(uint8_t)(0x80u+4u*i));
     }
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_80_07(
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_c0_b6(
         &board,&p7)==VF2_ERROR_UNSUPPORTED);
 
     /* Previous 12 slots at FCC..FF8; 13 at FFC, 14 at 000. */
     d[0]=0x89u;
-    d[1]=0x07u;
+    d[1]=0xb0u;
     board.sound_ram[VF2_SOUND_COMMAND_COUNT]=12u;
     board.sound_ram[VF2_SOUND_COMMAND_WRITE_CURSOR]=0x0fu;
     board.sound_ram[VF2_SOUND_COMMAND_WRITE_CURSOR+1u]=0xfcu;
@@ -890,16 +1023,16 @@ static void test_akira_next_80_07_native(void)
     }
     board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+0xfffu]=0x75u;
     board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+3u]=0x76u;
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_80_07(
+    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_c0_b6(
         &board,&p7)==VF2_OK);
     EXPECT_TRUE(p7.cursor_after==4u &&
-                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+0xffcu]==0x80u &&
-                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+0xffdu]==0x36u &&
-                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+0xffeu]==0x7fu &&
+                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+0xffcu]==0xc0u &&
+                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+0xffdu]==0u &&
+                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+0xffeu]==0u &&
                 board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+0xfffu]==0x75u &&
-                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE]==0x07u &&
-                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+1u]==0xf8u &&
-                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+2u]==0x0au &&
+                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE]==0xb6u &&
+                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+1u]==0x07u &&
+                board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+2u]==0x78u &&
                 board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+3u]==0x76u);
 }
 
@@ -908,115 +1041,19 @@ static void test_akira_next_80_07_native(void)
 static void test_akira_first_worker_return(void)
 {
     static vf2_sound_board board;
-    static uint8_t rom[0x16000u];
-    static const uint8_t sample[2] = {0u,0u};
-    static const uint8_t source[41] = {
-        0xbeu,0x50u,0xfeu,0xbeu,0x20u,0x80u,
-        0xbeu,0x10u,0x72u,0x00u,
-        0x9fu,0x48u,0xf7u,0x9fu,0x2eu,0xc0u,
-        0x9fu,0x33u,0xffu,
-        0xc1u,0x81u,0x9fu,0x2bu,0xeeu,0xc3u,0x82u,
-        0xc8u,0x8du,
-        0xb0u,0x0au,0xc0u,0x07u,0xffu,0xc0u,
-        0x80u,0xb6u,0x07u,0xf8u,0x0au,
-        0xacu,0xc7u
-    };
-    static const uint8_t fourteen[42] = {
-        0xbeu,0x50u,0x7eu,0xbeu,0x20u,0x00u,
-        0xbeu,0x10u,0x00u,0x9fu,0x48u,0x77u,
-        0x9fu,0x2eu,0x40u,0x9fu,0x33u,0x7fu,
-        0xc1u,0x01u,0x00u,0x9fu,0x2bu,0x6eu,
-        0xc3u,0x02u,0x00u,0xc8u,0x0du,0x00u,
-        0xb0u,0x0au,0x40u,0x07u,0xffu,0x40u,
-        0x80u,0x36u,0x7fu,0x07u,0xf8u,0x0au
-    };
-    const size_t at=UINT32_C(0x615773)-VF2_SOUND_AUDIO_ROM_BASE;
-    vf2_sound_music_prefix_report p0;
-    vf2_sound_music_followup_report p1;
-    vf2_sound_music_9f_report p2;
-    vf2_sound_music_9f_pair_report p3;
-    vf2_sound_music_mixed_report p4;
-    vf2_sound_music_c_followup_report p5;
-    vf2_sound_music_b0_07_report p6;
-    vf2_sound_music_80_07_report p7;
-    vf2_sound_music_first_return_report p8;
-    uint8_t *d;
-    size_t i;
-    test_boot_rom(rom);
-    memcpy(rom+at,source,sizeof(source));
-    EXPECT_TRUE(vf2_sound_board_initialize(
-        &board,rom,sizeof(rom),sample,sizeof(sample))==VF2_OK);
-    d=board.sound_ram+VF2_SOUND_DESCRIPTOR_BASE;
-    memset(d,0,VF2_SOUND_STREAM_DESCRIPTOR_BYTES);
-    d[0]=0x88u;d[3]=1u;
-    d[4]=0u;d[5]=0x61u;d[6]=0x57u;d[7]=0x73u;
-    d[8]=0u;d[9]=0x60u;d[10]=0x9cu;d[11]=0x3eu;
-    for(i=0u;i<56u;i+=4u) {
-        board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+i+3u] =
-            (uint8_t)(0x80u+i);
-    }
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_b(
-        &board,&p0)==VF2_OK);
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_two_b(
-        &board,&p1)==VF2_OK);
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_9f(
-        &board,&p2)==VF2_OK);
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_two_9f(
-        &board,&p3)==VF2_OK);
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_mixed_c(
-        &board,&p4)==VF2_OK);
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_tenth_c(
-        &board,&p5)==VF2_OK);
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_b0_07(
-        &board,&p6)==VF2_OK);
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_80_07(
-        &board,&p7)==VF2_OK);
-    rom[at+40u]=0xc6u;
+    vf2_sound_music_first_return_report report;
+    uint8_t before[VF2_SOUND_STREAM_DESCRIPTOR_BYTES];
+    uint8_t *desc;
+    memset(&board, 0, sizeof(board));
+    desc = board.sound_ram + VF2_SOUND_DESCRIPTOR_BASE;
+    desc[0] = UINT8_C(0x89);
+    desc[1] = UINT8_C(0xb6);
+    memcpy(before, desc, sizeof(before));
     EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_return(
-        &board,&p8)==VF2_ERROR_UNSUPPORTED);
-    EXPECT_TRUE(d[2]==0u && d[3]==0u && d[4]==0u &&
-                d[5]==0x61u && d[6]==0x57u && d[7]==0x73u);
-    rom[at+40u]=0xc7u;
-    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+52u]=0x08u;
+        &board, &report) == VF2_ERROR_UNSUPPORTED);
+    EXPECT_TRUE(memcmp(before, desc, sizeof(before)) == 0);
     EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_return(
-        &board,&p8)==VF2_ERROR_UNSUPPORTED);
-    board.sound_ram[VF2_SOUND_COMMAND_RING_BASE+52u]=0x07u;
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_return(
-        &board,&p8)==VF2_OK);
-    EXPECT_TRUE(p8.stream_before==UINT32_C(0x615773) &&
-                p8.stream_after==UINT32_C(0x61579c) &&
-                p8.countdown_after==UINT16_C(0x16c7) &&
-                p8.cursor==56u && p8.pending_count==14u);
-    EXPECT_TRUE(d[0]==0x88u && d[1]==0x07u &&
-                d[2]==0x16u && d[3]==0xc7u &&
-                d[4]==0u && d[5]==0x61u &&
-                d[6]==0x57u && d[7]==0x9cu &&
-                d[0x0eu]==0x72u &&
-                board.sound_ram[VF2_SOUND_COMMAND_COUNT]==14u &&
-                board.sound_ram[VF2_SOUND_COMMAND_WRITE_CURSOR+1u]==56u);
-    for(i=0u;i<14u;++i) {
-        const uint8_t *q=board.sound_ram+
-            VF2_SOUND_COMMAND_RING_BASE+4u*i;
-        EXPECT_TRUE(memcmp(q,fourteen+3u*i,3u)==0);
-        EXPECT_TRUE(q[3]==(uint8_t)(0x80u+4u*i));
-    }
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_return(
-        &board,&p8)==VF2_ERROR_UNSUPPORTED);
-
-    /* Original 14-packet history straddles the end of ring. */
-    d[2]=0u;d[3]=0u;
-    d[4]=0u;d[5]=0x61u;d[6]=0x57u;d[7]=0x73u;
-    board.sound_ram[VF2_SOUND_COMMAND_WRITE_CURSOR]=0u;
-    board.sound_ram[VF2_SOUND_COMMAND_WRITE_CURSOR+1u]=0u;
-    for(i=0u;i<14u;++i) {
-        memcpy(board.sound_ram+VF2_SOUND_COMMAND_RING_BASE+
-               0x0fc8u+4u*i,fourteen+3u*i,3u);
-    }
-    EXPECT_TRUE(vf2_sound_board_probe_akira_l2_first_return(
-        &board,&p8)==VF2_OK);
-    EXPECT_TRUE(p8.cursor==0u &&
-                board.sound_ram[VF2_SOUND_COMMAND_COUNT]==14u &&
-                d[2]==0x16u && d[3]==0xc7u && d[7]==0x9cu);
+        NULL, &report) == VF2_ERROR_INVALID_ARGUMENT);
 }
 
 static void test_akira_next_two_9f_native(void)
@@ -1033,7 +1070,7 @@ static void test_akira_next_two_9f_native(void)
     static const uint8_t expected[] = {
         0xbeu,0x50u,0x7eu,
         0xbeu,0x20u,0x00u,
-        0xbeu,0x10u,0x00u,
+        0xbeu,0x10u,0x72u,
         0x9fu,0x48u,0x77u,
         0x9fu,0x2eu,0x40u,
         0x9fu,0x33u,0x7fu
@@ -1210,7 +1247,7 @@ static void test_akira_first_9f_native(void)
     {
         static const uint8_t want[] = {
             0xbeu,0x50u,0x7eu,0xbeu,0x20u,0x00u,
-            0xbeu,0x10u,0x00u
+            0xbeu,0x10u,0x72u
         };
         for(i=0u;i<3u;++i) {
             size_t cursor=(0xff0u+i*4u)&0xfffu;
@@ -1243,7 +1280,7 @@ static void test_akira_l2_next_two_b(void)
     };
     const uint8_t expected[] = {
         0xbeu,0x50u,0x7eu,0xbeu,0x20u,0x00u,
-        0xbeu,0x10u,0x00u
+        0xbeu,0x10u,0x72u
     };
     size_t i;
     test_boot_rom(rom);
@@ -1264,7 +1301,7 @@ static void test_akira_l2_next_two_b(void)
     EXPECT_TRUE(vf2_sound_board_probe_akira_l2_next_two_b(
         &board, &next) == VF2_OK);
     EXPECT_TRUE(next.stream_before == UINT32_C(0x615773) &&
-                next.a3_after == UINT32_C(0x61577d) &&
+                next.a3_after == UINT32_C(0x61577c) &&
                 next.cursor_before == 4u &&
                 next.cursor_after == 12u &&
                 next.status_after == 0x88u &&
@@ -4280,7 +4317,8 @@ int main(void)
     test_pcm_stream_page_native();
     test_render_first_tone();
     test_akira_first_worker_return();
-    test_akira_next_80_07_native();
+    test_akira_prefix14_atomic();
+    test_akira_next_c0_b6_native();
     test_akira_next_b0_07_native();
     test_akira_tenth_c_original_prefix();
     test_akira_mixed_c_first_three();
